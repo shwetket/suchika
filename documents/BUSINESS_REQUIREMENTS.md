@@ -311,6 +311,76 @@ Before implementation, confirm:
 
 ---
 
+## 9. Health Domain (Household Management)
+
+**Status:** Phase 2 Planning
+
+The Health domain tracks time-series biometric data across a multi-tenant household model. Data is unstructured and highly variable, requiring a document-based persistence strategy (MongoDB).
+
+### 9.1 Scope
+- **In Scope:** - Multi-tenant household grouping.
+  - Profile management for adults and children.
+  - Time-series tracking for height and weight.
+  - User-initiated, manual one-way data import from Google Fit API.
+- **Out of Scope:** - Background/Automated synchronization with Google Fit.
+  - Medical diagnosis, symptom tracking, or HIPAA-compliant EMR features.
+
+### 9.2 Data Models (MongoDB)
+* `Household`: Root aggregate.
+* `Profile`: `name`, `date_of_birth`, `relationship_type` (PRIMARY, PARTNER, CHILD).
+* `BiometricRecord`: `profile_id`, `timestamp`, `metric` (HEIGHT, WEIGHT), `value`, `unit`.
+
+### 9.3 Google Fit Integration Rules (Manual Sync)
+- **Trigger:** User explicitly clicks a "Sync Data" button on the UI.
+- **Flow:** User completes Google OAuth consent. System uses the short-lived access token to fetch data for a user-specified date range (e.g., "Last 7 Days").
+- **Persistence:** System maps the fetched data into `BiometricRecord` documents. Duplicate detection is managed via upsert operations keyed on `(profile_id, timestamp, metric)`.
+- **Security:** The system **will not** request or store offline access/refresh tokens. Access tokens live only in memory for the duration of the sync request.
+
+---
+
+## 10. Vehicle Domain (Asset Lifecycle)
+
+**Status:** Phase 2 Planning
+
+The Vehicle domain tracks physical asset compliance, maintenance ledgers, and recurring regulatory deadlines. Data is highly relational, requiring standard PostgreSQL schemas.
+
+### 10.1 Scope
+- **In Scope:** - Core vehicle metadata tracking.
+  - Regulatory compliance deadlines (PUC, Insurance).
+  - Tax scheduling (e.g., biennial BH-Series renewals).
+  - Service history ledger (odometer readings, itemized costs).
+  - User-initiated export of deadlines to Google Calendar.
+- **Out of Scope:** - Automated background scheduling or live GPS/OBD-II tracking.
+
+### 10.2 Database Schema (PostgreSQL)
+
+```sql
+CREATE TABLE vehicle (
+    id                  BIGSERIAL PRIMARY KEY,
+    make                VARCHAR(50) NOT NULL,
+    model               VARCHAR(50) NOT NULL,
+    registration_number VARCHAR(20) UNIQUE NOT NULL,
+    registration_type   VARCHAR(20) NOT NULL CHECK (registration_type IN ('STANDARD', 'BH_SERIES'))
+);
+
+CREATE TABLE compliance_document (
+    id             BIGSERIAL PRIMARY KEY,
+    vehicle_id     BIGINT REFERENCES vehicle(id),
+    doc_type       VARCHAR(20) NOT NULL CHECK (doc_type IN ('PUC', 'INSURANCE', 'ROAD_TAX')),
+    issue_date     DATE NOT NULL,
+    expiry_date    DATE NOT NULL,
+    is_active      BOOLEAN DEFAULT TRUE
+);
+
+CREATE TABLE service_record (
+    id               BIGSERIAL PRIMARY KEY,
+    vehicle_id       BIGINT REFERENCES vehicle(id),
+    service_date     DATE NOT NULL,
+    odometer_reading INTEGER NOT NULL,
+    cost             NUMERIC(10, 2) NOT NULL,
+    description      TEXT
+);
+
 ## 8. Next Steps
 
 - **Architecture & file structure:** See [ARCHITECTURE](./ARCHITECTURE.md)
