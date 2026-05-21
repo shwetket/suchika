@@ -1,0 +1,9 @@
+node_modules/
+build/
+dist/
+.next/
+.env
+.env.local
+
+# Auto-generated — openapi-typescript output is not hand-written code
+src/api/generated.ts
