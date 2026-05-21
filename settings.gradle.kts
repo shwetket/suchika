@@ -2,7 +2,8 @@ rootProject.name = "suchika"
 
 // Backend domain modules
 include(
-    "application:records"
+    "application:finance",
+    "application:health"
 )
 
 // Shared + infrastructure
