@@ -1,0 +1,307 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --bg: #f8fafc;
+  --text: #0f172a;
+  --text-inverse: #ffffff;
+  --surface: #ffffff;
+  --surface-alt: #f8fafc;
+  --panel: #f1f5f9;
+  --border: #d1d5db;
+  --muted: #475569;
+  --muted-light: #cbd5e1;
+  --primary: #2563eb;
+  --primary-strong: #1d4ed8;
+  --success: #16a34a;
+  --success-strong: #15803d;
+  --danger: #dc2626;
+  --danger-strong: #b91c1c;
+  --warning: #f59e0b;
+  --warning-strong: #d97706;
+  --nav-bg: #0f172a;
+  --nav-text: #f8fafc;
+}
+
+.dark {
+  color-scheme: dark;
+  --bg: #020617;
+  --text: #e2e8f0;
+  --text-inverse: #0f172a;
+  --surface: #111827;
+  --surface-alt: #1f2937;
+  --panel: #1f2937;
+  --border: #374151;
+  --muted: #94a3b8;
+  --muted-light: #cbd5e1;
+  --primary: #60a5fa;
+  --primary-strong: #3b82f6;
+  --success: #4ade80;
+  --success-strong: #22c55e;
+  --danger: #f87171;
+  --danger-strong: #ef4444;
+  --warning: #facc15;
+  --warning-strong: #fbbf24;
+  --nav-bg: #111827;
+  --nav-text: #e2e8f0;
+}
+
+html {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100%;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell',
+    'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--bg);
+  color: var(--text);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+}
+
+a {
+  color: var(--primary);
+}
+
+a:hover,
+button:hover {
+  opacity: 0.95;
+}
+
+button,
+input,
+select,
+textarea {
+  color: inherit;
+  font: inherit;
+}
+
+.bg-gray-800 {
+  background-color: var(--nav-bg) !important;
+}
+
+.bg-white {
+  background-color: var(--surface) !important;
+}
+
+.bg-gray-50,
+.bg-gray-100,
+.bg-slate-50 {
+  background-color: var(--surface-alt) !important;
+}
+
+.bg-blue-50 {
+  background-color: rgba(59, 130, 246, 0.12) !important;
+}
+
+.bg-green-50 {
+  background-color: rgba(52, 211, 153, 0.12) !important;
+}
+
+.bg-red-50 {
+  background-color: rgba(239, 68, 68, 0.12) !important;
+}
+
+.bg-yellow-50 {
+  background-color: rgba(253, 224, 71, 0.12) !important;
+}
+
+.bg-blue-600 {
+  background-color: var(--primary) !important;
+}
+
+.bg-blue-700 {
+  background-color: var(--primary-strong) !important;
+}
+
+.bg-green-600 {
+  background-color: var(--success) !important;
+}
+
+.bg-green-700 {
+  background-color: var(--success-strong) !important;
+}
+
+.bg-red-600 {
+  background-color: var(--danger) !important;
+}
+
+.bg-red-700 {
+  background-color: var(--danger-strong) !important;
+}
+
+.bg-yellow-600 {
+  background-color: var(--warning) !important;
+}
+
+.bg-yellow-700 {
+  background-color: var(--warning-strong) !important;
+}
+
+.bg-slate-700 {
+  background-color: var(--nav-bg) !important;
+}
+
+.text-gray-600,
+.text-gray-700,
+.text-gray-900,
+.text-slate-700,
+.text-slate-900 {
+  color: var(--muted) !important;
+}
+
+.text-yellow-800 {
+  color: var(--warning-strong) !important;
+}
+
+.text-green-600 {
+  color: var(--success) !important;
+}
+
+.text-white {
+  color: var(--text-inverse) !important;
+}
+
+.border-gray-200,
+.border-gray-300,
+.border-blue-200,
+.border-green-200,
+.border-red-200,
+.border-yellow-200 {
+  border-color: var(--border) !important;
+}
+
+.hover\:text-gray-300:hover {
+  color: var(--muted-light) !important;
+}
+
+.hover\:bg-blue-700:hover {
+  background-color: var(--primary-strong) !important;
+}
+
+.hover\:bg-green-700:hover {
+  background-color: var(--success-strong) !important;
+}
+
+.hover\:bg-red-700:hover {
+  background-color: var(--danger-strong) !important;
+}
+
+.hover\:bg-slate-600:hover {
+  background-color: var(--nav-border) !important;
+}
+
+.disabled\:opacity-50:disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+}
+
+.focus\:ring-blue-500:focus {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.35) !important;
+}
+
+.focus\:outline-none:focus {
+  outline: none !important;
+}
+
+.shadow-lg {
+  box-shadow:
+    0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+}
+
+.rounded-lg {
+  border-radius: 0.75rem !important;
+}
+
+.text-xl {
+  font-size: 1.25rem;
+}
+
+.text-3xl {
+  font-size: 1.875rem;
+}
+
+.text-4xl {
+  font-size: 2.25rem;
+}
+
+.font-bold {
+  font-weight: 700;
+}
+
+.font-semibold {
+  font-weight: 600;
+}
+
+.max-w-md {
+  max-width: 28rem;
+}
+
+.max-w-4xl {
+  max-width: 56rem;
+}
+
+.max-w-6xl {
+  max-width: 72rem;
+}
+
+.max-w-7xl {
+  max-width: 80rem;
+}
+
+.mx-auto {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.p-4 {
+  padding: 1rem;
+}
+
+.p-6 {
+  padding: 1.5rem;
+}
+
+.p-8 {
+  padding: 2rem;
+}
+
+.px-3 {
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+}
+
+.py-1 {
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+}
+
+.px-4 {
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.py-2 {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+.space-y-4 > :not([hidden]) ~ :not([hidden]) {
+  --space-y-reverse: 0;
+  margin-top: calc(1rem * calc(1 - var(--space-y-reverse)));
+  margin-bottom: calc(1rem * var(--space-y-reverse));
+}

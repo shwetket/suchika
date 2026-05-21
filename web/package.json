@@ -1,0 +1,87 @@
+{
+  "name": "web",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^13.5.0",
+    "core-js-pure": "^3.21.1",
+    "prop-types": "^15.8.1",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "react-router-dom": "^6.20.1",
+    "react-scripts": "5.0.1",
+    "web-vitals": "^2.1.4"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "test:ci": "react-scripts test --watchAll=false --runInBand",
+    "test:coverage": "react-scripts test --watchAll=false --runInBand --coverage --coverageReporters=lcov --coverageReporters=text-summary",
+    "generate:api": "openapi-typescript ../application/contract/gateway.yaml --output src/api/generated.ts",
+    "lint": "eslint src/ --ext .js,.jsx,.ts,.tsx",
+    "lint:fix": "eslint src/ --ext .js,.jsx,.ts,.tsx --fix",
+    "format": "prettier --write src/ public/",
+    "format:check": "prettier --check src/ public/",
+    "prepare": "husky install",
+    "eject": "react-scripts eject",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.0",
+    "@types/jest": "^29.5.4",
+    "@types/node": "^20.11.0",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "eslint-config-prettier": "^10.1.8",
+    "husky": "^9.0.0",
+    "openapi-typescript": "^6.7.6",
+    "prettier": "^3.8.3",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^4.9.5"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "jest": {
+    "coveragePathIgnorePatterns": [
+      "/node_modules/",
+      "src/index.js",
+      "src/reportWebVitals.js",
+      "src/test-utils.js",
+      "src/setupTests.js",
+      "src/pages/User/Health.js",
+      "src/pages/User/Transactions.js",
+      "src/pages/Admin/",
+
+      "src/pages/Public/SignUp.js",
+      "src/pages/Public/About.js",
+      "src/pages/Health/Profile.js",
+      "src/components/shared/",
+      "src/types/",
+      "src/api/generated.ts",
+      "src/api/household.js",
+      "src/utils/index.js"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}

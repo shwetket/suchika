@@ -1,0 +1,119 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  migration-location-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify migrations are outside adapters
+        run: chmod +x ./scripts/check-migrations-location.sh && ./scripts/check-migrations-location.sh
+
+  backend:
+    name: Backend (${{ matrix.domain }})
+    runs-on: ubuntu-latest
+    needs: migration-location-check
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - domain: shared
+            tasks: ":shared:test"
+            needs-postgres: false
+          - domain: profile
+            tasks: ":application:domain:profile:domain:test :application:domain:profile:ports:test :application:domain:profile:adapters:test"
+            needs-postgres: true
+          - domain: wealth
+            tasks: ":application:domain:wealth:domain:test :application:domain:wealth:ports:test :application:domain:wealth:adapters:test"
+            needs-postgres: true
+          - domain: health
+            tasks: ":application:domain:health:domain:test :application:domain:health:ports:test :application:domain:health:adapters:test"
+            needs-postgres: true
+          - domain: household
+            tasks: ":application:domain:household:domain:test :application:domain:household:ports:test :application:domain:household:adapters:test"
+            needs-postgres: true
+          - domain: web-gateway
+            tasks: ":application:web-gateway:test"
+            needs-postgres: false
+
+    env:
+      # --no-daemon means the Gradle client JVM handles all compilation — GRADLE_OPTS controls it.
+      # org.gradle.jvmargs in gradle.properties is only read by the daemon (irrelevant here).
+      # 3g heap is required for Quarkus annotation processing across all modules.
+      # workers.max=2 caps parallel compilation forks on the CI runner.
+      GRADLE_OPTS: "-Xmx3g -XX:MaxMetaspaceSize=512m -Dorg.gradle.workers.max=2"
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: local_dev_only
+          TZ: Asia/Kolkata
+          PGTZ: Asia/Kolkata
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+          --memory=300m
+          --shm-size=128m
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
+      - name: Bootstrap database and apply profile schema
+        if: ${{ matrix.needs-postgres }}
+        env:
+          PGPASSWORD: local_dev_only
+        run: |
+          psql -h localhost -U postgres -c "CREATE DATABASE app_db;"
+          psql -h localhost -U postgres -d app_db -f application/flyway/00_bootstrap.sql
+          # Profile schema must exist before health/wealth/household migrations run —
+          # all three have FK REFERENCES profile.profile. Profile adapter tests are
+          # plain JUnit (no @QuarkusTest), so Quarkus/Flyway never runs for them.
+          psql -h localhost -U app_user -d app_db \
+            -f application/flyway/profile/V1__init_profile.sql \
+            -f application/flyway/profile/V2__add_admin_table.sql \
+            -f application/flyway/test-seed/profile/R__seed_profile_test_data.sql
+      - name: Run backend tests for ${{ matrix.domain }}
+        run: ./gradlew --no-daemon ${{ matrix.tasks }}
+
+
+  frontend:
+    runs-on: ubuntu-latest
+    needs: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Install frontend dependencies
+        run: npm install
+        working-directory: web
+      - name: Generate API types from contracts
+        run: npm run generate:api
+        working-directory: web
+      - name: Lint frontend
+        run: npm run lint
+        working-directory: web
+      - name: Format check frontend
+        run: npm run format:check
+        working-directory: web
+      - name: Run frontend unit tests
+        run: npm run test:ci
+        working-directory: web
+      - name: Build React frontend
+        run: npm run build
+        working-directory: web

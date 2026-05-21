@@ -1,0 +1,1134 @@
+openapi: 3.1.0
+
+info:
+  title: Household API
+  description: >
+    Manages household-related data and profiles.
+    Follows Google AIP resource-oriented design.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+
+tags:
+  - name: Household Profiles
+    description: Household-related profiles and data
+  - name: Accounts
+    description: Bank accounts, credit cards, loans and investments
+  - name: Transactions
+    description: Account transactions
+  - name: StatementUploads
+    description: CSV statement uploads
+  - name: Calendar Events
+    description: Household calendar events proxied from the household service
+  - name: Inventory Items
+    description: Grocery and supply-chain inventory proxied from the household service
+  - name: Goals
+    description: Financial savings goals proxied from the household service
+  - name: Projections
+    description: CQRS projection refresh and dashboard snapshot reads
+
+paths:
+
+  # ============================================================
+  # ACCOUNTS
+  # ============================================================
+
+  /v1/accounts:
+
+    get:
+      tags: [Accounts]
+      operationId: listAccounts
+      summary: List all accounts
+      description: >
+        Returns accounts optionally filtered by account_type, is_active, and profile_id.
+        Follows AIP-132.
+      parameters:
+        - name: account_type
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/AccountType'
+        - name: is_active
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: profile_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListAccountsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags: [Accounts]
+      operationId: createAccount
+      summary: Create an account
+      description: >
+        Creates a new financial account scoped to a profile.
+        Follows AIP-133.
+      parameters:
+        - name: profile_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAccountRequest'
+      responses:
+        '201':
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/accounts/{accountId}:
+
+    get:
+      tags: [Accounts]
+      operationId: getAccount
+      summary: Get an account
+      description: Follows AIP-131.
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    patch:
+      tags: [Accounts]
+      operationId: updateAccount
+      summary: Update an account
+      description: >
+        Partially updates an account. Only provided fields are updated.
+        account_type and institution_name are immutable after creation.
+        Follows AIP-134.
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAccountRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags: [Accounts]
+      operationId: deactivateAccount
+      summary: Deactivate an account
+      description: >
+        Soft-deletes an account (is_active = false).
+        Accounts with transactions cannot be deactivated.
+        Follows AIP-135.
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      responses:
+        '204':
+          description: Account deactivated
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ============================================================
+  # TRANSACTIONS
+  # ============================================================
+
+  /v1/accounts/{accountId}/transactions:
+
+    get:
+      tags: [Transactions]
+      operationId: listTransactions
+      summary: List transactions for an account
+      description: >
+        Returns transactions for the given account, optionally filtered by date range
+        and transaction type. Follows AIP-132.
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - name: from
+          in: query
+          required: false
+          description: Start date filter (inclusive), format YYYY-MM-DD.
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: false
+          description: End date filter (inclusive), format YYYY-MM-DD.
+          schema:
+            type: string
+            format: date
+        - name: txn_type
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/TransactionType'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListTransactionsResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/accounts/{accountId}/transactions/{txnId}:
+
+    get:
+      tags: [Transactions]
+      operationId: getTransaction
+      summary: Get a transaction
+      description: Follows AIP-131.
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/TxnId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ============================================================
+  # STATEMENT UPLOADS
+  # ============================================================
+
+  /v1/accounts/{accountId}/uploads:
+
+    post:
+      tags: [StatementUploads]
+      operationId: uploadStatement
+      summary: Upload a CSV bank statement
+      description: >
+        Parses and imports a CSV bank statement for the given account.
+        Returns a statement upload record with status.
+        Follows AIP-133.
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadStatementRequest'
+      responses:
+        '201':
+          description: Statement uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatementUploadResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    get:
+      tags: [StatementUploads]
+      operationId: listUploads
+      summary: List uploads for an account
+      description: Follows AIP-132.
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListUploadsResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/accounts/{accountId}/uploads/{uploadId}/errors:
+
+    get:
+      tags: [StatementUploads]
+      operationId: getUploadErrors
+      summary: Get structured parse errors for a failed upload
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/UploadId'
+      responses:
+        '200':
+          description: Error entries for the upload
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UploadErrorLogResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/accounts/{accountId}/uploads/{uploadId}:
+
+    delete:
+      tags: [StatementUploads]
+      operationId: rollbackUpload
+      summary: Rollback a statement upload
+      description: >
+        Deletes all transactions imported by this upload and removes the upload record.
+        Follows AIP-135.
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/UploadId'
+      responses:
+        '204':
+          description: Upload rolled back
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ============================================================
+  # HOUSEHOLD — CALENDAR EVENTS
+  # ============================================================
+
+  /v1/household/calendar-events:
+
+    get:
+      tags: [Calendar Events]
+      operationId: listCalendarEvents
+      summary: List calendar events for a profile
+      parameters:
+        - name: profile_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: event_type
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: from_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: to_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Events returned
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags: [Calendar Events]
+      operationId: createCalendarEvent
+      summary: Create a calendar event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '201':
+          description: Event created
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/household/calendar-events/{id}:
+
+    get:
+      tags: [Calendar Events]
+      operationId: getCalendarEvent
+      summary: Get a calendar event
+      parameters:
+        - $ref: '#/components/parameters/HouseholdId'
+      responses:
+        '200':
+          description: Event found
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    patch:
+      tags: [Calendar Events]
+      operationId: updateCalendarEvent
+      summary: Update a calendar event
+      parameters:
+        - $ref: '#/components/parameters/HouseholdId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Event updated
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags: [Calendar Events]
+      operationId: deleteCalendarEvent
+      summary: Delete a calendar event
+      parameters:
+        - $ref: '#/components/parameters/HouseholdId'
+      responses:
+        '204':
+          description: Event deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ============================================================
+  # HOUSEHOLD — INVENTORY ITEMS
+  # ============================================================
+
+  /v1/household/inventory-items:
+
+    get:
+      tags: [Inventory Items]
+      operationId: listInventoryItems
+      summary: List inventory items for a profile
+      parameters:
+        - name: profile_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: source_platform
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Items returned
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags: [Inventory Items]
+      operationId: createInventoryItem
+      summary: Add an inventory item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '201':
+          description: Item added
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/household/inventory-items/{id}:
+
+    get:
+      tags: [Inventory Items]
+      operationId: getInventoryItem
+      summary: Get an inventory item
+      parameters:
+        - $ref: '#/components/parameters/HouseholdId'
+      responses:
+        '200':
+          description: Item found
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags: [Inventory Items]
+      operationId: deleteInventoryItem
+      summary: Delete an inventory item
+      parameters:
+        - $ref: '#/components/parameters/HouseholdId'
+      responses:
+        '204':
+          description: Item deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ============================================================
+  # HOUSEHOLD — GOALS
+  # ============================================================
+
+  /v1/household/goals:
+
+    get:
+      tags: [Goals]
+      operationId: listGoals
+      summary: List financial goals for a profile
+      parameters:
+        - name: profile_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Goals returned
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags: [Goals]
+      operationId: createGoal
+      summary: Create a financial goal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '201':
+          description: Goal created
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/household/goals/{id}:
+
+    get:
+      tags: [Goals]
+      operationId: getGoal
+      summary: Get a goal
+      parameters:
+        - $ref: '#/components/parameters/HouseholdId'
+      responses:
+        '200':
+          description: Goal found
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    patch:
+      tags: [Goals]
+      operationId: updateGoal
+      summary: Update a goal
+      parameters:
+        - $ref: '#/components/parameters/HouseholdId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Goal updated
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags: [Goals]
+      operationId: deleteGoal
+      summary: Delete a goal
+      parameters:
+        - $ref: '#/components/parameters/HouseholdId'
+      responses:
+        '204':
+          description: Goal deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ============================================================
+  # PROJECTIONS
+  # ============================================================
+
+  /v1/projections/refresh/{profileId}:
+
+    post:
+      tags: [Projections]
+      operationId: refreshProjections
+      summary: Trigger full projection refresh for a profile
+      description: >
+        Calls each domain service, computes cross-domain metrics, and writes
+        results to projections.dashboard_snapshot via UPSERT. Synchronous —
+        returns 200 once all snapshots are written.
+      parameters:
+        - name: profileId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Projections refreshed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/projections/dashboard/{profileId}:
+
+    get:
+      tags: [Projections]
+      operationId: getDashboard
+      summary: Read pre-computed dashboard snapshots for a profile
+      description: >
+        Reads from projections.dashboard_snapshot — instant response with no
+        re-computation. Returns an empty snapshots list if no refresh has run.
+      parameters:
+        - name: profileId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Dashboard snapshots returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+
+  parameters:
+
+    HouseholdId:
+      name: id
+      in: path
+      required: true
+      description: Unique identifier of the household resource
+      schema:
+        type: string
+        format: uuid
+
+    AccountId:
+      name: accountId
+      in: path
+      required: true
+      description: Unique identifier of the account
+      schema:
+        type: string
+        format: uuid
+
+    TxnId:
+      name: txnId
+      in: path
+      required: true
+      description: Unique identifier of the transaction
+      schema:
+        type: string
+        format: uuid
+
+    UploadId:
+      name: uploadId
+      in: path
+      required: true
+      description: Unique identifier of the statement upload
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+
+    # ----------------------------------------------------------
+    # PROJECTION DTOs
+    # ----------------------------------------------------------
+
+    DashboardSnapshotDto:
+      type: object
+      properties:
+        profile_id:
+          type: string
+          format: uuid
+        snapshot_key:
+          type: string
+          description: e.g. WEALTH_NET_WORTH, HEALTH_VITALS_SUMMARY
+        payload:
+          type: string
+          description: Raw JSON string — shape depends on snapshot_key
+        calculated_at:
+          type: string
+          format: date-time
+          readOnly: true
+
+    DashboardResponse:
+      type: object
+      properties:
+        snapshots:
+          type: array
+          items:
+            $ref: '#/components/schemas/DashboardSnapshotDto'
+
+    # ----------------------------------------------------------
+    # ENUMS
+    # ----------------------------------------------------------
+
+    AccountType:
+      type: string
+      enum:
+        - SAVINGS
+        - CURRENT
+        - CREDIT_CARD
+        - HOME_LOAN
+        - PERSONAL_LOAN
+        - CAR_LOAN
+        - MUTUAL_FUND
+        - NPS
+        - PPF
+        - FD
+
+    TransactionType:
+      type: string
+      enum:
+        - CREDIT
+        - DEBIT
+
+    UploadStatus:
+      type: string
+      enum:
+        - PENDING
+        - COMPLETED
+        - FAILED
+
+    # ----------------------------------------------------------
+    # ACCOUNT DTOs
+    # ----------------------------------------------------------
+
+    AccountResponse:
+      type: object
+      properties:
+        account_id:
+          type: string
+          format: uuid
+          readOnly: true
+        account_name:
+          type: string
+        account_type:
+          $ref: '#/components/schemas/AccountType'
+        institution_name:
+          type: string
+        opening_balance:
+          type: number
+          format: double
+        credit_limit:
+          type: number
+          format: double
+          nullable: true
+        interest_rate:
+          type: number
+          format: double
+          nullable: true
+        emi_amount:
+          type: number
+          format: double
+          nullable: true
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+
+    CreateAccountRequest:
+      type: object
+      required:
+        - account_name
+        - account_type
+        - institution_name
+      properties:
+        account_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        account_type:
+          $ref: '#/components/schemas/AccountType'
+        institution_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        opening_balance:
+          type: number
+          format: double
+          default: 0.00
+        credit_limit:
+          type: number
+          format: double
+          nullable: true
+        interest_rate:
+          type: number
+          format: double
+          nullable: true
+        emi_amount:
+          type: number
+          format: double
+          nullable: true
+
+    UpdateAccountRequest:
+      type: object
+      description: All fields optional. Only provided fields are updated.
+      properties:
+        account_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        opening_balance:
+          type: number
+          format: double
+        credit_limit:
+          type: number
+          format: double
+          nullable: true
+        interest_rate:
+          type: number
+          format: double
+          nullable: true
+        emi_amount:
+          type: number
+          format: double
+          nullable: true
+        is_active:
+          type: boolean
+
+    ListAccountsResponse:
+      type: object
+      properties:
+        accounts:
+          type: array
+          items:
+            $ref: '#/components/schemas/AccountResponse'
+        next_page_token:
+          type: string
+          nullable: true
+        total_size:
+          type: integer
+          minimum: 0
+
+    # ----------------------------------------------------------
+    # TRANSACTION DTOs
+    # ----------------------------------------------------------
+
+    TransactionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        account_id:
+          type: string
+          format: uuid
+        upload_id:
+          type: string
+          format: uuid
+          nullable: true
+        txn_date:
+          type: string
+          format: date
+        amount:
+          type: number
+          format: double
+        txn_type:
+          $ref: '#/components/schemas/TransactionType'
+        description:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+
+    ListTransactionsResponse:
+      type: object
+      properties:
+        transactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransactionResponse'
+
+    # ----------------------------------------------------------
+    # STATEMENT UPLOAD DTOs
+    # ----------------------------------------------------------
+
+    UploadStatementRequest:
+      type: object
+      required:
+        - file_name
+        - csv_content
+      properties:
+        file_name:
+          type: string
+        csv_content:
+          type: string
+
+    SkippedTransactionDto:
+      type: object
+      properties:
+        txn_date:
+          type: string
+          format: date
+        amount:
+          type: number
+          format: double
+        description:
+          type: string
+
+    StatementUploadResponse:
+      type: object
+      properties:
+        upload_id:
+          type: string
+          format: uuid
+          readOnly: true
+        account_id:
+          type: string
+          format: uuid
+        file_name:
+          type: string
+        upload_date:
+          type: string
+          format: date-time
+        status:
+          $ref: '#/components/schemas/UploadStatus'
+        inserted_count:
+          type: integer
+        skipped_duplicates:
+          type: array
+          items:
+            $ref: '#/components/schemas/SkippedTransactionDto'
+
+    UploadErrorLogResponse:
+      type: object
+      properties:
+        error_type:
+          type: string
+          enum:
+            - MISSING_DATE_COLUMN
+            - MISSING_AMOUNT_COLUMN
+            - MISSING_REQUIRED_COLUMN
+            - PARSE_ERROR
+            - VALIDATION_ERROR
+        missing_columns:
+          type: array
+          items:
+            type: string
+          nullable: true
+        error_detail:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    ListUploadsResponse:
+      type: object
+      properties:
+        uploads:
+          type: array
+          items:
+            $ref: '#/components/schemas/StatementUploadResponse'
+
+    # ----------------------------------------------------------
+    # ERROR
+    # ----------------------------------------------------------
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+        - status
+      properties:
+        code:
+          type: integer
+        status:
+          type: string
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              issue:
+                type: string
+
+  responses:
+
+    BadRequest:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Conflict:
+      description: Resource already exists or has conflicting state
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    InternalError:
+      description: Unexpected server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

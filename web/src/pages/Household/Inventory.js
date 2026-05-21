@@ -1,0 +1,472 @@
+import React, { useCallback, useEffect, useState } from 'react';
+import PropTypes from 'prop-types';
+import { listProfiles } from '../../api/profiles';
+import { createInventoryItem, deleteInventoryItem, listInventoryItems } from '../../api/household';
+
+const UNITS = ['KG', 'G', 'L', 'ML', 'UNITS', 'PACK', 'DOZEN', 'OTHER'];
+
+const SOURCE_PLATFORMS = [
+  'INSTAMART',
+  'FLIPKART_GROCERY',
+  'COUNTRY_DELIGHT',
+  'AMAZON_FRESH',
+  'BLINKIT',
+  'ZEPTO',
+  'MANUAL',
+  'OTHER',
+];
+
+const PLATFORM_COLOURS = {
+  INSTAMART: 'bg-orange-100 text-orange-800',
+  FLIPKART_GROCERY: 'bg-blue-100 text-blue-800',
+  COUNTRY_DELIGHT: 'bg-green-100 text-green-800',
+  AMAZON_FRESH: 'bg-teal-100 text-teal-800',
+  BLINKIT: 'bg-yellow-100 text-yellow-800',
+  ZEPTO: 'bg-purple-100 text-purple-800',
+  MANUAL: 'bg-gray-100 text-gray-700',
+  OTHER: 'bg-slate-100 text-slate-700',
+};
+
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  return new Date(dateStr).toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+function formatPlatform(platform) {
+  if (!platform) return '';
+  return platform
+    .split('_')
+    .map((w) => w.charAt(0) + w.slice(1).toLowerCase())
+    .join(' ');
+}
+
+const EMPTY_FORM = {
+  item_name: '',
+  quantity: '',
+  unit: '',
+  source_platform: '',
+  purchase_date: todayISO(),
+  category: '',
+};
+
+const inputClass =
+  'border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full';
+
+function Modal({ title, onClose, children }) {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b">
+          <h2 className="text-xl font-bold">{title}</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+          >
+            &times;
+          </button>
+        </div>
+        <div className="p-5">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+Modal.propTypes = {
+  title: PropTypes.string.isRequired,
+  onClose: PropTypes.func.isRequired,
+  children: PropTypes.node.isRequired,
+};
+
+function Field({ label, required, children }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="text-sm font-medium text-gray-700">
+        {label}
+        {required && <span className="text-red-500 ml-1">*</span>}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+Field.propTypes = {
+  label: PropTypes.string.isRequired,
+  required: PropTypes.bool,
+  children: PropTypes.node.isRequired,
+};
+
+Field.defaultProps = { required: false };
+
+function ItemRow({ item, onDelete }) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const colour = PLATFORM_COLOURS[item.source_platform] || 'bg-gray-100 text-gray-700';
+
+  return (
+    <tr className="border-b border-gray-100 hover:bg-gray-50">
+      <td className="px-4 py-3 text-sm text-gray-900 font-medium">{item.item_name}</td>
+      <td className="px-4 py-3 text-sm text-gray-700">
+        {item.quantity} {item.unit}
+      </td>
+      <td className="px-4 py-3">
+        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${colour}`}>
+          {formatPlatform(item.source_platform)}
+        </span>
+      </td>
+      <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
+        {formatDate(item.purchase_date)}
+      </td>
+      <td className="px-4 py-3 text-sm text-gray-500">{item.category || '—'}</td>
+      <td className="px-4 py-3 text-sm">
+        {confirmDelete ? (
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => onDelete(item.id)}
+              className="px-2 py-1 bg-red-600 text-white rounded text-xs font-medium hover:bg-red-700"
+            >
+              Confirm?
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmDelete(false)}
+              className="px-2 py-1 border border-gray-300 text-gray-600 rounded text-xs hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setConfirmDelete(true)}
+            className="px-2 py-1 border border-red-400 text-red-500 rounded text-xs hover:bg-red-50"
+          >
+            Delete
+          </button>
+        )}
+      </td>
+    </tr>
+  );
+}
+
+ItemRow.propTypes = {
+  item: PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    item_name: PropTypes.string.isRequired,
+    quantity: PropTypes.number.isRequired,
+    unit: PropTypes.string.isRequired,
+    source_platform: PropTypes.string.isRequired,
+    purchase_date: PropTypes.string.isRequired,
+    category: PropTypes.string,
+  }).isRequired,
+  onDelete: PropTypes.func.isRequired,
+};
+
+export const Inventory = () => {
+  const [profiles, setProfiles] = useState([]);
+  const [selectedProfileId, setSelectedProfileId] = useState('');
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [platformFilter, setPlatformFilter] = useState('');
+
+  const [showAdd, setShowAdd] = useState(false);
+  const [addForm, setAddForm] = useState(EMPTY_FORM);
+  const [addError, setAddError] = useState(null);
+  const [addSaving, setAddSaving] = useState(false);
+
+  useEffect(() => {
+    listProfiles(null, null)
+      .then((data) => setProfiles(data.profiles ?? []))
+      .catch(() => setProfiles([]));
+  }, []);
+
+  const loadItems = useCallback(async () => {
+    if (!selectedProfileId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await listInventoryItems(selectedProfileId, platformFilter || null);
+      setItems(data.inventory_items ?? data.items ?? []);
+    } catch (err) {
+      setError(err.message || 'Failed to load inventory');
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedProfileId, platformFilter]);
+
+  useEffect(() => {
+    loadItems();
+  }, [loadItems]);
+
+  const handleAddChange = useCallback((e) => {
+    const { name, value } = e.target;
+    setAddForm((prev) => ({ ...prev, [name]: value }));
+  }, []);
+
+  const handleAddSubmit = useCallback(
+    async (e) => {
+      e.preventDefault();
+      if (!addForm.item_name.trim()) {
+        setAddError('Item name is required');
+        return;
+      }
+      if (!addForm.quantity || Number(addForm.quantity) <= 0) {
+        setAddError('Quantity must be greater than 0');
+        return;
+      }
+      if (!addForm.unit) {
+        setAddError('Unit is required');
+        return;
+      }
+      if (!addForm.source_platform) {
+        setAddError('Source platform is required');
+        return;
+      }
+      if (!addForm.purchase_date) {
+        setAddError('Purchase date is required');
+        return;
+      }
+      setAddSaving(true);
+      setAddError(null);
+      try {
+        await createInventoryItem({
+          profile_id: selectedProfileId,
+          item_name: addForm.item_name.trim(),
+          quantity: Number(addForm.quantity),
+          unit: addForm.unit,
+          source_platform: addForm.source_platform,
+          purchase_date: addForm.purchase_date,
+          category: addForm.category || null,
+        });
+        setShowAdd(false);
+        setAddForm(EMPTY_FORM);
+        await loadItems();
+      } catch (err) {
+        setAddError(err.message || 'Failed to add item');
+      } finally {
+        setAddSaving(false);
+      }
+    },
+    [addForm, selectedProfileId, loadItems]
+  );
+
+  const handleDelete = useCallback(
+    async (id) => {
+      try {
+        await deleteInventoryItem(id);
+        await loadItems();
+      } catch (err) {
+        setError(err.message || 'Failed to delete item');
+      }
+    },
+    [loadItems]
+  );
+
+  return (
+    <div className="p-6 max-w-5xl mx-auto">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Household Inventory</h1>
+          <p className="text-gray-500 mt-1">Track grocery and supply inventory</p>
+        </div>
+        {selectedProfileId && (
+          <button
+            type="button"
+            onClick={() => {
+              setAddForm(EMPTY_FORM);
+              setAddError(null);
+              setShowAdd(true);
+            }}
+            className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700"
+          >
+            + Add Item
+          </button>
+        )}
+      </div>
+
+      <div className="mb-6 flex flex-col sm:flex-row gap-3">
+        <select
+          value={selectedProfileId}
+          onChange={(e) => setSelectedProfileId(e.target.value)}
+          className={`${inputClass} sm:w-72`}
+        >
+          <option value="">Select a profile...</option>
+          {profiles.map((p) => (
+            <option key={p.profile_id} value={p.profile_id}>
+              {p.full_name}
+            </option>
+          ))}
+        </select>
+
+        {selectedProfileId && (
+          <select
+            value={platformFilter}
+            onChange={(e) => setPlatformFilter(e.target.value)}
+            className={`${inputClass} sm:w-60`}
+          >
+            <option value="">All Platforms</option>
+            {SOURCE_PLATFORMS.map((p) => (
+              <option key={p} value={p}>
+                {formatPlatform(p)}
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
+
+      {!selectedProfileId && (
+        <div className="text-center py-16 text-gray-400">Select a profile to view inventory.</div>
+      )}
+
+      {selectedProfileId && (
+        <>
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+              {error}
+            </div>
+          )}
+
+          {loading && <div className="text-center py-16 text-gray-500">Loading inventory...</div>}
+
+          {!loading && items.length === 0 && (
+            <div className="text-center py-16 text-gray-400">
+              No items yet. Add your first item above.
+            </div>
+          )}
+
+          {!loading && items.length > 0 && (
+            <div className="overflow-x-auto rounded-lg border border-gray-200">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    {['Item', 'Quantity', 'Platform', 'Purchased', 'Category', 'Actions'].map(
+                      (h) => (
+                        <th
+                          key={h}
+                          className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                        >
+                          {h}
+                        </th>
+                      )
+                    )}
+                  </tr>
+                </thead>
+                <tbody className="bg-white">
+                  {items.map((item) => (
+                    <ItemRow key={item.id} item={item} onDelete={handleDelete} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
+
+      {showAdd && (
+        <Modal title="Add Item" onClose={() => setShowAdd(false)}>
+          <form onSubmit={handleAddSubmit} className="space-y-4">
+            <Field label="Item Name" required>
+              <input
+                name="item_name"
+                type="text"
+                value={addForm.item_name}
+                onChange={handleAddChange}
+                placeholder="e.g. Milk"
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Quantity" required>
+              <input
+                name="quantity"
+                type="number"
+                min="0.001"
+                step="any"
+                value={addForm.quantity}
+                onChange={handleAddChange}
+                placeholder="e.g. 2"
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Unit" required>
+              <select
+                name="unit"
+                value={addForm.unit}
+                onChange={handleAddChange}
+                className={inputClass}
+              >
+                <option value="">Select unit</option>
+                {UNITS.map((u) => (
+                  <option key={u} value={u}>
+                    {u}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Source Platform" required>
+              <select
+                name="source_platform"
+                value={addForm.source_platform}
+                onChange={handleAddChange}
+                className={inputClass}
+              >
+                <option value="">Select platform</option>
+                {SOURCE_PLATFORMS.map((p) => (
+                  <option key={p} value={p}>
+                    {formatPlatform(p)}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Purchase Date" required>
+              <input
+                name="purchase_date"
+                type="date"
+                value={addForm.purchase_date}
+                onChange={handleAddChange}
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Category">
+              <input
+                name="category"
+                type="text"
+                value={addForm.category}
+                onChange={handleAddChange}
+                placeholder="Optional (e.g. Dairy)"
+                className={inputClass}
+              />
+            </Field>
+            {addError && <p className="text-red-600 text-sm">{addError}</p>}
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowAdd(false)}
+                className="px-4 py-2 border border-gray-300 rounded text-sm text-gray-600 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={addSaving}
+                className="px-4 py-2 bg-indigo-600 text-white rounded text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {addSaving ? 'Saving...' : 'Add Item'}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+    </div>
+  );
+};
+
+export default Inventory;

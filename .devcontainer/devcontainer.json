@@ -1,0 +1,64 @@
+{
+  "name": "Suchika",
+
+  // Multi-container: app (Java 17 + Node 18 + pwsh) + db (PostgreSQL 16 in IST)
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+
+  // Install PowerShell Core so all existing .ps1 scripts work unchanged
+  "features": {
+    "ghcr.io/devcontainers/features/powershell:1": {}
+  },
+
+  // One-time prebuild: downloads Gradle + npm deps (the slow part — ~5 min).
+  // Runs during Codespaces prebuild so new codespaces start instantly.
+  "onCreateCommand": "bash .devcontainer/download-deps.sh",
+
+  // Runs when a codespace is first created from the prebuild image.
+  // Bootstraps the database and wires up shell aliases.
+  "postCreateCommand": "bash .devcontainer/setup.sh",
+
+  // All service ports — Codespaces makes these publicly accessible via a URL
+  "forwardPorts": [3000, 8080, 8081, 8082, 8083, 8084, 5432],
+  "portsAttributes": {
+    "3000":  { "label": "Frontend",   "onAutoForward": "notify" },
+    "8080":  { "label": "Gateway",    "onAutoForward": "notify" },
+    "8081":  { "label": "Profile",    "onAutoForward": "silent" },
+    "8082":  { "label": "Wealth",     "onAutoForward": "silent" },
+    "8083":  { "label": "Health",     "onAutoForward": "silent" },
+    "8084":  { "label": "Household",  "onAutoForward": "silent" },
+    "5432":  { "label": "PostgreSQL", "onAutoForward": "silent" }
+  },
+
+  // Container-level env vars — these override application.properties defaults
+  "remoteEnv": {
+    "TZ": "Asia/Kolkata",
+    "DB_URL": "jdbc:postgresql://db:5432/app_db",
+    "DB_USERNAME": "app_user",
+    "DB_PASSWORD": "local_dev_only"
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "vscjava.vscode-java-pack",
+        "redhat.vscode-quarkus",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "SonarSource.sonarlint-vscode",
+        "ms-vscode.powershell",
+        "ckolkman.vscode-postgres"
+      ],
+      "settings": {
+        "java.configuration.updateBuildConfiguration": "automatic",
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "[java]": {
+          "editor.defaultFormatter": "redhat.java"
+        },
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
+  }
+}
