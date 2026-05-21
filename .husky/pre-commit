@@ -1,4 +1,18 @@
 #!/bin/sh
 . "$(dirname "$0")/_/husky.sh"
-
 npm run generate:api
+
+echo "Running Pre-Commit Secret Scanning..."
+if git diff --cached | grep -E -q "password:\s*[A-Za-z0-9_\-]+"; then
+	echo "CRITICAL ERROR: Plain text password match caught in staging. Commit aborted."
+	exit 1
+fi
+
+echo "Verifying Architectural Integrity..."
+./gradlew test --continuous=false
+if [ $? -ne 0 ]; then
+	echo "CRITICAL ERROR: Architectural tests failed. Commit aborted."
+	exit 1
+fi
+
+echo "Pre-commit checks passed. Proceeding with commit."
