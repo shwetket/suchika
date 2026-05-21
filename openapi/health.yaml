@@ -1,0 +1,315 @@
+openapi: 3.1.0
+
+info:
+  title: Health API
+  description: >
+    Manages personal health profiles.
+    Follows Google AIP resource-oriented design.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+
+tags:
+  - name: Health Profiles
+    description: Personal health profiles for self and family members
+
+paths:
+
+  /v1/health-profiles:
+
+    get:
+      tags: [Health Profiles]
+      operationId: listHealthProfiles
+      summary: List all health profiles
+      description: >
+        Returns all health profiles (self + family).
+        Follows AIP-132. Not paginated — list is always small.
+      responses:
+        '200':
+          description: Successfully listed health profiles
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListHealthProfilesResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags: [Health Profiles]
+      operationId: createHealthProfile
+      summary: Create a health profile
+      description: >
+        Creates a new health profile for a family member.
+        Follows AIP-133.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateHealthProfileRequest'
+      responses:
+        '201':
+          description: Health profile created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthProfile'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/health-profiles/{profile_id}:
+
+    get:
+      tags: [Health Profiles]
+      operationId: getHealthProfile
+      summary: Get a health profile
+      description: Follows AIP-131.
+      parameters:
+        - $ref: '#/components/parameters/ProfileId'
+      responses:
+        '200':
+          description: Health profile found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthProfile'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    patch:
+      tags: [Health Profiles]
+      operationId: updateHealthProfile
+      summary: Update a health profile
+      description: >
+        Partially updates a health profile.
+        Follows AIP-134. Only provided fields are updated.
+      parameters:
+        - $ref: '#/components/parameters/ProfileId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateHealthProfileRequest'
+      responses:
+        '200':
+          description: Health profile updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthProfile'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags: [Health Profiles]
+      operationId: deleteHealthProfile
+      summary: Delete a health profile
+      description: >
+        Hard deletes a health profile.
+        Follows AIP-135.
+        Profiles with visits or vitals cannot be deleted.
+      parameters:
+        - $ref: '#/components/parameters/ProfileId'
+      responses:
+        '204':
+          description: Health profile deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+
+  parameters:
+
+    ProfileId:
+      name: profile_id
+      in: path
+      required: true
+      description: Unique identifier of the health profile
+      schema:
+        type: string
+        format: uuid
+        example: "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+
+  schemas:
+
+    HealthProfile:
+      type: object
+      properties:
+        name:
+          type: string
+          description: >
+            Resource name. Follows AIP-122.
+            Format: health-profiles/{profile_id}
+          example: "health-profiles/b2c3d4e5-f6a7-8901-bcde-f12345678901"
+          readOnly: true
+        profile_id:
+          type: string
+          format: uuid
+          readOnly: true
+        display_name:
+          type: string
+          example: "Ketan"
+        relationship:
+          type: string
+          example: "Self"
+          description: Self, Wife, Father, Mother, Child
+        date_of_birth:
+          type: string
+          format: date
+          nullable: true
+          example: "1990-05-15"
+        blood_group:
+          type: string
+          nullable: true
+          example: "B+"
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+
+    CreateHealthProfileRequest:
+      type: object
+      required:
+        - display_name
+        - relationship
+      properties:
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "Ketan"
+        relationship:
+          type: string
+          minLength: 1
+          maxLength: 50
+          example: "Self"
+        date_of_birth:
+          type: string
+          format: date
+          nullable: true
+        blood_group:
+          type: string
+          nullable: true
+          maxLength: 10
+          example: "B+"
+
+    UpdateHealthProfileRequest:
+      type: object
+      description: All fields optional. Only provided fields are updated.
+      properties:
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        relationship:
+          type: string
+          minLength: 1
+          maxLength: 50
+        date_of_birth:
+          type: string
+          format: date
+          nullable: true
+        blood_group:
+          type: string
+          nullable: true
+          maxLength: 10
+
+    ListHealthProfilesResponse:
+      type: object
+      properties:
+        health_profiles:
+          type: array
+          items:
+            $ref: '#/components/schemas/HealthProfile'
+        total_size:
+          type: integer
+          description: Total number of profiles
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+        - status
+      properties:
+        code:
+          type: integer
+          example: 404
+        status:
+          type: string
+          example: "NOT_FOUND"
+        message:
+          type: string
+          example: "Health profile not found"
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              issue:
+                type: string
+
+  responses:
+
+    BadRequest:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 400
+            status: "INVALID_ARGUMENT"
+            message: "Request validation failed"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 404
+            status: "NOT_FOUND"
+            message: "Health profile not found"
+
+    Conflict:
+      description: Conflicting state
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 409
+            status: "ALREADY_EXISTS"
+            message: "Profile already exists"
+
+    InternalError:
+      description: Unexpected server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 500
+            status: "INTERNAL"
+            message: "An unexpected error occurred"
