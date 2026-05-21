@@ -64,10 +64,25 @@ def move_to_temp(repo_root: Path, files):
 
 def classify_file(path: Path):
     text = path.read_text(encoding='utf-8').lower()
+    # Business / requirements
     if any(k in text for k in ('requirement', 'user story', 'acceptance', 'business requirement', 'functional')):
         return 'business'
+    # Architecture / design
     if any(k in text for k in ('architecture', 'adr', 'design decision', 'diagram', 'hexagonal', 'architecture decision')):
         return 'architecture'
+    # Getting started / onboarding
+    if any(k in text for k in ('getting started', 'setup', 'install', 'quick start', 'getting_started')):
+        return 'getting_started'
+    # CI/CD / pipeline / infra docs
+    if any(k in text for k in ('ci/', 'cicd', 'ci cd', 'pipeline', 'github actions', 'deploy', 'infrastructure')):
+        return 'cicd'
+    # Agents / automation
+    if any(k in text for k in ('agent', 'agents', 'documentwriter', 'copilot', 'automation')):
+        return 'agents'
+    # API / OpenAPI
+    if any(k in text for k in ('openapi', 'api', 'swagger', 'endpoints', 'contract')):
+        return 'api'
+    # Roadmap / management
     if any(k in text for k in ('roadmap', 'timeline', 'milestone', 'schedule')):
         return 'management'
     return 'other'
@@ -76,7 +91,11 @@ def classify_file(path: Path):
 MASTER_MAP = {
     'business': Path('documents') / 'BUSINESS_REQUIREMENTS.md',
     'architecture': Path('documents') / 'ARCHITECTURE.md',
-    'management': Path('documents') / 'ROADMAP.md'
+    'management': Path('documents') / 'ROADMAP.md',
+    'getting_started': Path('documents') / 'GETTING_STARTED.md',
+    'cicd': Path('documents') / 'CICD.md',
+    'agents': Path('documents') / 'AGENTS.md',
+    'api': Path('documents') / 'API.md'
 }
 
 
@@ -104,17 +123,19 @@ def heading_of_section(section: str):
 
 
 def merge_into_master(temp_path: Path, master_path: Path):
-    master_text = master_path.read_text(encoding='utf-8') if master_path.exists() else ''
+    master_text = master_path.read_text(encoding='utf-8').lower() if master_path.exists() else ''
     temp_text = temp_path.read_text(encoding='utf-8')
     sections = split_sections(temp_text)
     appended = False
     with master_path.open('a', encoding='utf-8') as m:
         for sec in sections:
             heading = heading_of_section(sec)
-            if heading and heading in master_text:
+            # compare case-insensitive
+            heading_l = heading.lower() if heading else None
+            if heading_l and heading_l in master_text:
                 continue
-            # avoid duplicating small common phrases: check if exact section exists
-            if sec.strip() and sec.strip() in master_text:
+            # avoid duplicating exact section text (case-insensitive)
+            if sec.strip() and sec.strip().lower() in master_text:
                 continue
             m.write('\n\n' + sec.strip() + '\n')
             appended = True
@@ -221,7 +242,8 @@ def main():
 
     # Caveman confirmation with summary
     ts = datetime.utcnow().isoformat() + 'Z'
-    print(f"OOK! documentWriter run at {ts}. Moved {len(moved)} files to documents/temp. Processed {len(results)} temp files. Root README updated.")
+    # Caveman-style output, short and direct
+    print(f"OOK! Done. {len(moved)} moved, {len(results)} processed. README updated at {ts}.")
 
 
 if __name__ == '__main__':
