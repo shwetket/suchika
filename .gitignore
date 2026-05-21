@@ -40,6 +40,9 @@ bin/
 
 ### Environment files ###
 .env
+.env.local
+infrastructure/local/.env
+infrastructure/local/*.env
 
 ### Mac OS ###
 .DS_Store

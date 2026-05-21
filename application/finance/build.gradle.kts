@@ -13,4 +13,5 @@ dependencies {
     implementation("io.quarkus:quarkus-smallrye-openapi")
     implementation(project(":shared"))
     testImplementation("io.quarkus:quarkus-junit5")
+    testImplementation("com.tngtech.archunit:archunit-junit5:1.0.1")
 }
