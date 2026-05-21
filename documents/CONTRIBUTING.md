@@ -2,7 +2,7 @@
 
 ## Commit rules
 
-- Always run `npm install` after any changes to `ui/web/package.json`.
+- Always run `npm install` after any changes to `web/package.json`.
 - Always run `npm run generate:api` before committing changes.
 - Keep OpenAPI and frontend sync by regenerating the client when the API changes.
 
@@ -20,7 +20,7 @@
    ```
 2. Start the frontend:
    ```bash
-   cd ui/web
+   cd web
    npm install
    npm start
    ```
@@ -28,22 +28,3 @@
    ```bash
    npm run generate:api
    ```
-
-## Pre-commit hook (Husky)
-
-A pre-commit hook is configured in `.husky/pre-commit` to run
-`npm run generate:api` automatically. If you do not have Husky installed:
-
-```bash
-cd ui/web
-npm install
-npx husky install
-```
-
-If the hook is skipped (e.g. `git commit --no-verify`), regenerate the client
-manually before pushing:
-
-```bash
-cd ui/web
-npm run generate:api
-```

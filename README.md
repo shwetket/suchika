@@ -12,7 +12,7 @@ Built on **Hexagonal Architecture** (Ports & Adapters). Currently in **Phase 1 (
 2. **Run the unified backend:**
    ```bash
    ./gradlew :application:finance:quarkusDev   # Single Quarkus application
-   cd ui/web && npm install && npm start       # Frontend
+   cd web && npm install && npm start         # Frontend
    ```
 3. **Open app:** `http://localhost:3000`
 
@@ -47,7 +47,6 @@ Built on **Hexagonal Architecture** (Ports & Adapters). Currently in **Phase 1 (
 ---
 
 ## 📁 Repository Structure
-
 ```
 suchika/
 ├── application/                  # Unified backend
@@ -85,20 +84,23 @@ suchika/
 ├── openapi/                      # OpenAPI contracts
 │   ├── finance.yaml
 │   └── health.yaml
-├── ui/web/                       # React frontend
+├── web/                          # React frontend
 │   ├── src/
 │   │   ├── App.js                # Main component
 │   │   └── api/generated/        # Auto-generated API clients
 │   └── package.json
 ├── .husky/                       # Git hooks
 │   └── pre-commit
-├── GETTING_STARTED.md            # Development setup guide
 ├── README.md                     # This file
 └── documents/
-    ├── Business_Requirement.md   # Functional specs
-    ├── Project_Architecture.md   # Design & structure
-    ├── User_Guide.md             # End-user guide
-    └── ROADMAP.md                # Future phases
+    ├── API.md
+    ├── Business_Requirement.md
+    ├── CONTRIBUTING.md
+    ├── GETTING_STARTED.md
+    ├── Project_Architecture.md
+    ├── ROADMAP.md
+    ├── User_Guide.md
+    └── web_README.md
 ```
 
 ---

@@ -201,7 +201,7 @@ subprojects {
 - `application/finance/build.gradle.kts` — depends on `:shared`, `:infrastructure`, Quarkus
 - `shared/build.gradle.kts` — standalone utilities, minimal dependencies
 - `infrastructure/build.gradle.kts` — DB drivers, shared config
-- `ui/web/package.json` — React, npm scripts for generation
+- `web/package.json` — React, npm scripts for generation
 
 ---
 

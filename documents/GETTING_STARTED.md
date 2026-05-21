@@ -15,7 +15,7 @@
 ## Step 1 — Clone and open in IDE
 
 ```bash
-git clone <repo-url>
+git clone REPO_URL
 cd suchika
 ```
 
@@ -63,7 +63,7 @@ Backend API runs at: `http://localhost:8080`
 ## Step 5 — Run React frontend (in another terminal)
 
 ```bash
-cd ui/web
+cd web
 npm install
 npm start
 ```
@@ -93,11 +93,11 @@ http://localhost:8080/q/openapi
 The frontend API client is auto-generated from OpenAPI contracts. Re-run whenever a contract changes:
 
 ```bash
-cd ui/web
+cd web
 npm run generate:api
 ```
 
-Generated client is written to `ui/web/src/api/generated/`.
+Generated client is written to `web/src/api/generated/`.
 
 ---
 
