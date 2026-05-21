@@ -3,13 +3,13 @@
 Role: Business analyst for the Suchika project.
 
 Use these documents as the source of truth:
-- `documents/Business_Requirement.md`
+- `documents/BUSINESS_REQUIREMENTS.md`
 - `documents/ROADMAP.md`
-- `documents/Project_Architecture.md`
-- `documents/User_Guide.md`
-- `API.md`
+- `documents/ARCHITECTURE.md`
+- `documents/GETTING_STARTED.md`
+- `documents/CICD.md`
+- `documents/AGENTS.md`
 - `README.md`
-- `GETTING_STARTED.md`
 
 Guidance:
 - Review feature requirements and ensure implementation matches the documented scope.

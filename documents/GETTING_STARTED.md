@@ -1,33 +1,57 @@
-# Getting Started — Local Development Setup
+# GETTING_STARTED
 
-## Prerequisites
+## Frontend Setup
 
-| Tool | Version |
-|---|---|
-| Java | 25.0.x |
-| Gradle | 9.3.0 (via wrapper — no install needed) |
-| PostgreSQL | Any recent version, running locally |
-| Node.js | 18+ |
-| IntelliJ IDEA | Any recent version (recommended) |
+### Prerequisites
 
----
+- Node.js 18+
+- npm
+- Working backend service at `http://localhost:8080`
+- OpenAPI contract available via the backend
 
-## Step 1 — Clone and open in IDE
+### Install frontend dependencies
 
 ```bash
-git clone REPO_URL
-cd suchika
+cd web
+npm install
 ```
 
-Open in IntelliJ IDEA:
-- **File** → **Open** → select the root folder
-- Gradle auto-syncs all modules
+### Generate API client
+
+```bash
+cd web
+npm run generate:api
+```
+
+This command regenerates the API client in `web/src/api/generated/`.
+
+### Run frontend
+
+```bash
+cd web
+npm start
+```
+
+Frontend runs at `http://localhost:3000`.
+
+### Build frontend
+
+```bash
+cd web
+npm run build
+```
 
 ---
 
-## Step 2 — Create PostgreSQL database and user
+## Backend Setup
 
-Using pgAdmin or psql CLI:
+### Prerequisites
+
+- Java 25
+- Gradle wrapper (`./gradlew` / `gradlew.bat`)
+- PostgreSQL
+
+### Create database and user
 
 ```sql
 CREATE DATABASE app_db;
@@ -35,86 +59,55 @@ CREATE USER app_user WITH PASSWORD 'yourpassword';
 GRANT ALL PRIVILEGES ON DATABASE app_db TO app_user;
 ```
 
----
-
-## Step 3 — Create `.env` files
+### Configure environment
 
 Create `application/finance/.env`:
+
 ```properties
 DB_USER=app_user
 DB_PASSWORD=yourpassword
 DB_URL=jdbc:postgresql://localhost:5432/app_db
 ```
 
----
-
-## Step 4 — Run the unified backend service
+### Run backend
 
 ```bash
 ./gradlew :application:finance:quarkusDev
 ```
 
-✅ Flyway runs automatically on first start and creates all tables in `app_db`.
+Backend runs at `http://localhost:8080`.
 
-Backend API runs at: `http://localhost:8080`
+### API docs
 
----
-
-## Step 5 — Run React frontend (in another terminal)
-
-```bash
-cd web
-npm install
-npm start
-```
-
-Frontend runs at: `http://localhost:3000`
+- Swagger UI: `http://localhost:8080/swagger-ui`
+- OpenAPI JSON: `http://localhost:8080/q/openapi`
 
 ---
 
-## Step 6 — View API documentation
+## Infrastructure Setup
 
-Once the unified backend is running, open:
+### Database
 
-```
-http://localhost:8080/swagger-ui
-```
+- Single PostgreSQL database: `app_db`
+- Both Finance and Health domains share the same database
+- Migrations live in `application/finance/src/main/resources/db/migration/`
 
-The OpenAPI spec is available at:
+### Ports
 
-```
-http://localhost:8080/q/openapi
-```
+- Backend: `8080`
+- Frontend: `3000`
 
----
+### Notes
 
-## Generating the React API client
+- No Docker is required for local development.
+- Ensure ports 8080 and 3000 are free.
+- The backend reads DB credentials from `application/finance/.env`.
 
-The frontend API client is auto-generated from OpenAPI contracts. Re-run whenever a contract changes:
-
-```bash
-cd web
-npm run generate:api
-```
-
-Generated client is written to `web/src/api/generated/`.
-
----
-
-## Known Setup Notes
-
-- **JVM args:** Java 25 requires `--add-opens java.base/java.lang=ALL-UNNAMED` for Quarkus internals. This is configured in `build.gradle.kts` under `quarkusDev { jvmArgs }`.
-- **Single database:** Both Finance and Health domains share `app_db`. Flyway migration versions are globally sequential (V1–V6) to avoid conflicts.
-- **No Docker required:** PostgreSQL runs locally. No containerization needed for local development.
-- **Port binding:** Make sure ports 8080 and 3000 are available.
-
----
-
-## Troubleshooting
+### Troubleshooting
 
 | Issue | Solution |
 |---|---|
-| `Connection refused` when running services | Ensure PostgreSQL is running and `DB_URL` in `.env` is correct |
-| Flyway migration failed | Check that `app_db` database exists and user has permissions |
-| `Port already in use` | Change port in `application.properties` or kill the process using the port |
-| Gradle sync fails | Run `./gradlew clean` and re-open the project in IntelliJ |
+| Backend cannot connect to DB | Verify `application/finance/.env` and PostgreSQL status |
+| Port 8080 in use | Stop the conflicting process or change the port in `application.properties` |
+| `npm install` fails | Run `npm install --legacy-peer-deps` in `web/` if needed |
+| API client out of sync | Re-run `npm run generate:api` after backend or OpenAPI changes |

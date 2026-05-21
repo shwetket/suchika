@@ -68,10 +68,10 @@ CREATE TABLE banking_transaction (
     account_name   VARCHAR(100)    NOT NULL,
     account_type   VARCHAR(20)     NOT NULL CHECK (account_type IN ('SAVINGS', 'CREDIT_CARD', 'LOAN')),
     date           DATE            NOT NULL,
-    amount         NUMERIC(15, 2)  NOT NULL,         -- always positive
+    amount         NUMERIC(15, 2)  NOT NULL,
     txn_type       VARCHAR(10)     NOT NULL CHECK (txn_type IN ('CREDIT', 'DEBIT')),
-    description    TEXT,                             -- nullable, unreliable across banks
-    balance        NUMERIC(15, 2),                   -- nullable, populated if CSV contains it
+    description    TEXT,
+    balance        NUMERIC(15, 2),
     is_duplicate   BOOLEAN         NOT NULL DEFAULT FALSE,
     created_at     TIMESTAMPTZ     NOT NULL DEFAULT now(),
 
@@ -81,9 +81,9 @@ CREATE TABLE banking_transaction (
 
 **Design notes:**
 - `amount` always positive; direction in `txn_type` (CREDIT/DEBIT)
-- Negative amounts in CSV (e.g., `-500`) are converted: `amount = ABS(value)`, `txn_type = DEBIT`
+- Negative amounts in CSV are converted to positive and marked as `DEBIT`
 - `description` stored as-is; never used for dedup or logic
-- `balance` populated only if CSV contains balance column
+- `balance` populated only if CSV contains it
 - `is_duplicate = TRUE` when row violates UNIQUE constraint — row is inserted anyway. Phase 2 adds accept/reject UI
 - UNIQUE constraint is single source of truth for deduplication
 
@@ -96,7 +96,7 @@ CREATE TABLE investment_transaction (
     date         DATE            NOT NULL,
     amount       NUMERIC(15, 2)  NOT NULL,
     txn_type     VARCHAR(10)     NOT NULL CHECK (txn_type IN ('CREDIT', 'DEBIT')),
-    metadata     JSONB,                              -- nullable: units, nav, etc.
+    metadata     JSONB,
     is_duplicate BOOLEAN         NOT NULL DEFAULT FALSE,
     created_at   TIMESTAMPTZ     NOT NULL DEFAULT now(),
 
@@ -261,7 +261,7 @@ GET /api/v1/transactions
 }
 ```
 
-**Note:** Investment transactions returned in same endpoint — `account_type: "INVESTMENT"`, `account_name` holds fund name, `metadata` field added.
+**Note:** Investment transactions are returned in the same endpoint — `account_type: "INVESTMENT"`, `account_name` holds the fund name, `metadata` field is included.
 
 ---
 
@@ -313,7 +313,7 @@ Before implementation, confirm:
 
 ## 8. Next Steps
 
-- **Architecture & file structure:** See [Project Architecture](./Project_Architecture.md)
-- **Local development setup:** See [Getting Started](../GETTING_STARTED.md)
-- **How to use the app:** See [User Guide](./User_Guide.md)
-- **Future phases:** See [Roadmap](./ROADMAP.md)
+- **Architecture & file structure:** See [ARCHITECTURE](./ARCHITECTURE.md)
+- **Local development setup:** See [GETTING_STARTED](./GETTING_STARTED.md)
+- **How to use the app:** See [GETTING_STARTED](./GETTING_STARTED.md)
+- **Future phases:** See [ROADMAP](./ROADMAP.md)

@@ -3,10 +3,10 @@
 Role: Quality manager for the Suchika project.
 
 Use these files and documents as the source of truth:
-- `documents/User_Guide.md`
-- `documents/Business_Requirement.md`
-- `documents/Project_Architecture.md`
-- `GETTING_STARTED.md`
+- `documents/GETTING_STARTED.md`
+- `documents/BUSINESS_REQUIREMENTS.md`
+- `documents/ARCHITECTURE.md`
+- `documents/CICD.md`
 - `README.md`
 - `web/package.json`
 - `application/records/build.gradle.kts`

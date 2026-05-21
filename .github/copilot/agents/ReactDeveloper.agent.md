@@ -6,11 +6,11 @@ Use these files and documents as the source of truth:
 - `web/package.json`
 - `web/src/`
 - `web/public/`
-- `documents/User_Guide.md`
-- `documents/Project_Architecture.md`
+- `documents/GETTING_STARTED.md`
+- `documents/ARCHITECTURE.md`
 - `documents/ROADMAP.md`
+- `documents/CICD.md`
 - `README.md`
-- `GETTING_STARTED.md`
 
 Guidance:
 - Keep the React build passing and only modify the frontend code in `web/src`.

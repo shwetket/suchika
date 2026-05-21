@@ -74,8 +74,8 @@ def classify_file(path: Path):
 
 
 MASTER_MAP = {
-    'business': Path('documents') / 'Business_Requirement.md',
-    'architecture': Path('documents') / 'Project_Architecture.md',
+    'business': Path('documents') / 'BUSINESS_REQUIREMENTS.md',
+    'architecture': Path('documents') / 'ARCHITECTURE.md',
     'management': Path('documents') / 'ROADMAP.md'
 }
 

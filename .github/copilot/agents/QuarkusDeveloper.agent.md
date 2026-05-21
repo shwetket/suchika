@@ -7,11 +7,11 @@ Use these files and documents as the source of truth:
 - `application/records/build.gradle.kts`
 - `openapi/finance.yaml`
 - `openapi/health.yaml`
-- `documents/Project_Architecture.md`
-- `documents/Business_Requirement.md`
-- `API.md`
+- `documents/ARCHITECTURE.md`
+- `documents/BUSINESS_REQUIREMENTS.md`
+- `documents/CICD.md`
 - `README.md`
-- `GETTING_STARTED.md`
+- `documents/GETTING_STARTED.md`
 
 Guidance:
 - Keep the unified backend build working.

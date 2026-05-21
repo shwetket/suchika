@@ -8,7 +8,7 @@ Built on **Hexagonal Architecture** (Ports & Adapters). Currently in **Phase 1 (
 
 ## 🚀 Quick Start
 
-1. **Clone & setup:** See [Getting Started](./GETTING_STARTED.md)
+1. **Clone & setup:** See [Getting Started](./documents/GETTING_STARTED.md)
 2. **Run the unified backend:**
    ```bash
    ./gradlew :application:finance:quarkusDev   # Single Quarkus application
@@ -22,10 +22,11 @@ Built on **Hexagonal Architecture** (Ports & Adapters). Currently in **Phase 1 (
 
 | Document | Purpose |
 |---|---|
-| [Getting Started](./GETTING_STARTED.md) | Local dev setup, prerequisites, run commands |
-| [User Guide](./documents/User_Guide.md) | How to upload CSVs and use the app |
-| [Business Requirement](./documents/Business_Requirement.md) | Functional specs, API contracts, data model |
-| [Project Architecture](./documents/Project_Architecture.md) | Hexagonal design, file structure, design decisions |
+| [GETTING_STARTED](./documents/GETTING_STARTED.md) | Local dev setup, prerequisites, run commands |
+| [ARCHITECTURE](./documents/ARCHITECTURE.md) | System design and hexagonal architecture |
+| [BUSINESS_REQUIREMENTS](./documents/BUSINESS_REQUIREMENTS.md) | Functional specs, API contracts, data model |
+| [CICD](./documents/CICD.md) | Build and automation pipeline rules |
+| [AGENTS](./documents/AGENTS.md) | AI helper roles and documentation agents |
 | [Roadmap](./documents/ROADMAP.md) | Phases 2–4 planning |
 
 ---
@@ -49,58 +50,43 @@ Built on **Hexagonal Architecture** (Ports & Adapters). Currently in **Phase 1 (
 ## 📁 Repository Structure
 ```
 suchika/
-├── application/                  # Unified backend
-│   ├── finance/                  # Single Quarkus application module
-│   │   ├── build.gradle.kts
-│   │   └── src/main/
-│   │       ├── java/com/suchika/finance/
-│   │       │   ├── domain/
-│   │       │   ├── ports/in/
-│   │       │   ├── ports/out/
-│   │       │   ├── application/
-│   │       │   ├── adapters/in/http/
-│   │       │   ├── adapters/out/persistence/
-│   │       │   ├── csv/
-│   │       │   └── mappers/
-│   │       ├── java/com/suchika/health/
-│   │       │   ├── domain/
-│   │       │   ├── ports/in/
-│   │       │   ├── ports/out/
-│   │       │   ├── application/
-│   │       │   ├── adapters/in/http/
-│   │       │   ├── adapters/out/persistence/
-│   │       │   └── config/
-│   │       └── resources/
-│   │           ├── application.properties
-│   │           └── db/migration/
-│   │               ├── V1__create_account_table.sql
-│   │               ├── V2__create_transaction_table.sql
-│   │               ├── V3__create_goal_table.sql
-│   │               ├── V4__create_health_profile_table.sql
-│   │               ├── V5__create_doctor_visit_table.sql
-│   │               └── V6__create_vital_reading_table.sql
-├── infrastructure/               # Shared plumbing (DB connections, config)
-├── shared/                       # Cross-cutting concerns (auth, logging, errors)
-├── openapi/                      # OpenAPI contracts
+├── .github/
+│   └── copilot/
+│       └── agents/
+├── .husky/
+│   └── pre-commit
+├── application/
+│   └── finance/
+│       ├── build.gradle.kts
+│       └── src/main/
+│           ├── java/com/suchika/finance/
+│           ├── java/com/suchika/health/
+│           └── resources/
+│               └── db/migration/
+├── documents/
+│   ├── AGENTS.md
+│   ├── API.md
+│   ├── ARCHITECTURE.md
+│   ├── BUSINESS_REQUIREMENTS.md
+│   ├── CICD.md
+│   ├── GETTING_STARTED.md
+│   ├── ROADMAP.md
+│   └── instructetions.md
+├── infrastructure/
+├── openapi/
 │   ├── finance.yaml
 │   └── health.yaml
-├── web/                          # React frontend
+├── shared/
+├── web/
+│   ├── package.json
 │   ├── src/
-│   │   ├── App.js                # Main component
-│   │   └── api/generated/        # Auto-generated API clients
-│   └── package.json
-├── .husky/                       # Git hooks
-│   └── pre-commit
-├── README.md                     # This file
-└── documents/
-    ├── API.md
-    ├── Business_Requirement.md
-    ├── CONTRIBUTING.md
-    ├── GETTING_STARTED.md
-    ├── Project_Architecture.md
-    ├── ROADMAP.md
-    ├── User_Guide.md
-    └── web_README.md
+│   └── public/
+├── build.gradle.kts
+├── gradlew
+├── gradlew.bat
+├── package-lock.json
+├── README.md
+└── settings.gradle.kts
 ```
 
 ---
@@ -147,7 +133,7 @@ Each domain owns its tables — no cross-domain joins.
 | `/transactions` | GET | List transactions with pagination |
 | `/transactions:config` | GET | Get dropdown values |
 
-See [Business Requirement](./documents/Business_Requirement.md) for full API spec.
+See [BUSINESS_REQUIREMENTS](./documents/BUSINESS_REQUIREMENTS.md) for full API spec.
 
 ---
 
@@ -171,7 +157,7 @@ See [Roadmap](./documents/ROADMAP.md) for phases 2–4.
 
 ## 🤝 Contributing
 
-1. Read [Project Architecture](./documents/Project_Architecture.md) to understand the design
+1. Read [ARCHITECTURE](./documents/ARCHITECTURE.md) to understand the design
 2. Follow Hexagonal Architecture rules (domain is framework-free)
 3. Keep migrations sequential (never edit a run migration)
 4. Run tests before committing
@@ -180,7 +166,7 @@ See [Roadmap](./documents/ROADMAP.md) for phases 2–4.
 
 ## 📞 Support
 
-- **Setup issues?** → [Getting Started](./GETTING_STARTED.md)
-- **How to use?** → [User Guide](./documents/User_Guide.md)
-- **API details?** → [Business Requirement](./documents/Business_Requirement.md)
-- **Architecture?** → [Project Architecture](./documents/Project_Architecture.md)
+- **Setup issues?** → [Getting Started](./documents/GETTING_STARTED.md)
+- **How to use?** → [GETTING_STARTED](./documents/GETTING_STARTED.md)
+- **API details?** → [BUSINESS_REQUIREMENTS](./documents/BUSINESS_REQUIREMENTS.md)
+- **Architecture?** → [ARCHITECTURE](./documents/ARCHITECTURE.md)
