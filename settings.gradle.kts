@@ -1,9 +1,14 @@
 rootProject.name = "suchika"
 
-// Backend domain modules
+// Backend domain modules - Hexagonal architecture with nested modules
 include(
-    "application:finance",
-    "application:health"
+    "application:finance:domain",
+    "application:finance:ports",
+    "application:finance:adapters",
+    "application:health:domain",
+    "application:health:ports",
+    "application:health:adapters",
+    "application:web-gateway"
 )
 
 // Shared + infrastructure

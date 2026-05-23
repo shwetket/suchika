@@ -1,0 +1,31 @@
+ROLE: architect
+TASK: Implement Polyglot Persistence, Gradle-level Hexagonal enforcement, and JSONB schema optimization.
+
+Execute these phases strictly. Ensure compilation succeeds before moving to the next phase.
+
+[PHASE 1: GRADLE BOUNDARY ENFORCEMENT (JDK 25 COMPATIBILITY)]
+- Delete all ArchUnit test files; they are unsupported on JDK 25.
+- Restructure the 'application/finance/' directory into nested Gradle sub-modules:
+  1. 'application/finance/domain' (build.gradle.kts: NO external dependencies, only Java/Kotlin standard library).
+  2. 'application/finance/ports' (build.gradle.kts: depends ONLY on project(':application:finance:domain')).
+  3. 'application/finance/adapters' (build.gradle.kts: depends on 'ports', 'domain', Quarkus Web, and Quarkus Hibernate ORM).
+- Apply the exact same nested module structure to 'application/health/'.
+
+[PHASE 2: POLYGLOT PERSISTENCE (HEALTH DOMAIN)]
+- In the 'application/health/adapters/build.gradle.kts' file, remove all PostgreSQL, Flyway, and JDBC dependencies.
+- Inject the MongoDB dependency: 'implementation("io.quarkus:quarkus-mongodb-panache")'.
+- Configure 'application.properties' to support the local MongoDB connection string.
+
+[PHASE 3: JSONB TRANSACTION SCHEMA (FINANCE DOMAIN)]
+- Move Finance Flyway migrations to 'application/finance/adapters/src/main/resources/db/migration/'.
+- Rewrite the 'transaction' table SQL migration file.
+- Keep core columns: id, account_id, txn_type, amount, txn_date, description, transfer_to_account_id, timestamps.
+- Remove all sparse asset columns (units, nav, principal_component, interest_component).
+- Add: 'metadata JSONB' to store all transaction-specific attributes.
+
+[PHASE 4: HEXAGONAL PURITY MANDATE]
+- Scan all code. Ensure absolutely NO class extends 'PanacheEntity'.
+- All database interactions must use the Repository Pattern by implementing 'PanacheRepository' or 'PanacheMongoRepository' strictly inside the 'adapters' modules.
+- Ensure all models inside the 'domain' modules are pure Java Records or POJOs with zero Quarkus/Database annotations.
+
+Output a confirmation checklist once all restructuring, dependency updates, and SQL changes are complete.

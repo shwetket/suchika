@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
+  <component name="GradleMigrationSettings" migrationVersion="1" />
   <component name="GradleSettings">
     <option name="linkedExternalProjectsSettings">
       <GradleProjectSettings>
@@ -9,7 +10,14 @@
             <option value="$PROJECT_DIR$" />
             <option value="$PROJECT_DIR$/application" />
             <option value="$PROJECT_DIR$/application/finance" />
+            <option value="$PROJECT_DIR$/application/finance/adapters" />
+            <option value="$PROJECT_DIR$/application/finance/domain" />
+            <option value="$PROJECT_DIR$/application/finance/ports" />
             <option value="$PROJECT_DIR$/application/health" />
+            <option value="$PROJECT_DIR$/application/health/adapters" />
+            <option value="$PROJECT_DIR$/application/health/domain" />
+            <option value="$PROJECT_DIR$/application/health/ports" />
+            <option value="$PROJECT_DIR$/application/web-gateway" />
             <option value="$PROJECT_DIR$/infrastructure" />
             <option value="$PROJECT_DIR$/shared" />
           </set>
