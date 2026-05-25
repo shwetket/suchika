@@ -9,6 +9,8 @@ This file documents the automation jobs and technical pipeline rules used by the
 - Compile Java backend:
   ```bash
   ./gradlew :application:finance:compileJava
+  ./gradlew :application:health:compileJava
+  ./gradlew :application:records:compileJava
   ```
 - Run backend tests when available.
 - Verify Flyway migrations do not fail on startup.

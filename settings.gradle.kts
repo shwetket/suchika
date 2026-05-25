@@ -8,6 +8,7 @@ include(
     "application:health:domain",
     "application:health:ports",
     "application:health:adapters",
+    "application:records",
     "application:web-gateway"
 )
 

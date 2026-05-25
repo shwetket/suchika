@@ -17,6 +17,7 @@
             <option value="$PROJECT_DIR$/application/health/adapters" />
             <option value="$PROJECT_DIR$/application/health/domain" />
             <option value="$PROJECT_DIR$/application/health/ports" />
+            <option value="$PROJECT_DIR$/application/records" />
             <option value="$PROJECT_DIR$/application/web-gateway" />
             <option value="$PROJECT_DIR$/infrastructure" />
             <option value="$PROJECT_DIR$/shared" />
