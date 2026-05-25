@@ -26,6 +26,7 @@ Built on **Hexagonal Architecture** (Ports & Adapters). Currently at **v0.1** �
 | [ARCHITECTURE](./documents/ARCHITECTURE.md) | System design and hexagonal architecture |
 | [BUSINESS_REQUIREMENTS](./documents/BUSINESS_REQUIREMENTS.md) | Functional specs, versioned epics, domain rules |
 | [CICD](./documents/CICD.md) | Build and automation pipeline rules |
+| [LOGGING_AND_EXCEPTIONS](./documents/LOGGING_AND_EXCEPTIONS.md) | Logger utility and common exception handling |
 | [AGENTS](./documents/AGENTS.md) | AI helper roles and documentation agents |
 | [ROADMAP](./documents/ROADMAP.md) | Future milestones v0.2 → v4.1 |
 | [SECURITY](./SECURITY.md) | Vulnerability reporting and version support |
@@ -59,6 +60,7 @@ suchika/
 │   │       ├── BusinessAnalyst.agent.md
 │   │       ├── DocumentWriter.agent.md
 │   │       ├── QualityManager.agent.md
+│   │       ├── QuarkusDeveloper.agent.md
 │   │       └── ReactDeveloper.agent.md
 │   ├── ISSUE_TEMPLATE/
 │   │   └── feature_request.md
@@ -90,6 +92,7 @@ suchika/
 │   ├── BUSINESS_REQUIREMENTS_health_domain.md
 │   ├── BUSINESS_REQUIREMENTS_cross_domain.md
 │   ├── CICD.md
+│   ├── LOGGING_AND_EXCEPTIONS.md
 │   └── ROADMAP.md
 ├── infrastructure/           # Shared infrastructure (DB pools, config)
 │   └── build.gradle.kts
@@ -110,6 +113,7 @@ suchika/
 ├── settings.gradle.kts
 ├── gradlew
 ├── gradlew.bat
+├── .gitignore
 ├── CODE_OF_CONDUCT.md
 ├── CONTRIBUTING.md
 ├── LICENSE
