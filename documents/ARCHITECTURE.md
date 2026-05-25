@@ -21,13 +21,13 @@ The frontend is a React application located in `web/`.
 
 ## Backend Architecture
 
-The backend is a unified Quarkus application split across three modules:
+The backend is a unified Quarkus application split across three domains:
 
 | Module | Domain | DB |
 |---|---|---|
-| `application/finance` | Wealth — transactions, accounts, vehicle compliance | PostgreSQL |
+| `application/wealth` | Wealth — transactions, accounts, vehicle compliance | PostgreSQL |
 | `application/health` | Health — biometric tracking, fitness profiles | MongoDB |
-| `application/records` | Household — profiles, calendar, inventory, automation | PostgreSQL |
+| `application/household` | Household — profiles, calendar, inventory, automation | PostgreSQL |
 
 All modules are served from a single Quarkus runtime on port `8080`.
 
@@ -72,7 +72,7 @@ Three isolated domains, each self-contained:
 | Household | PostgreSQL (`app_db`) | Flyway |
 | Health | MongoDB | Schema-less (document model) |
 
-- PostgreSQL migrations live in `application/finance/src/main/resources/db/migration/`.
+- PostgreSQL migrations live in `application/wealth/src/main/resources/db/migration/`.
 - Each domain owns its tables — no cross-domain joins in SQL.
 - MongoDB collections are schema-validated at the application layer, not the DB layer.
 
@@ -168,7 +168,7 @@ The unified Quarkus application exposes all domain APIs from a single backend.
 
 - The frontend syncs with the runtime OpenAPI spec using `npm run generate:api`.
 - API client code is generated and stored in `web/src/api/generated/`.
-- OpenAPI contract files live in `openapi/finance.yaml`, `openapi/health.yaml`, `openapi/household.yaml`.
+- OpenAPI contract files live in `openapi/wealth.yaml`, `openapi/health.yaml`, `openapi/household.yaml`.
 - All endpoints are served from the single Quarkus runtime.
 
 ---
