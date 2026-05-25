@@ -10,7 +10,7 @@ dependencies {
     implementation("io.quarkus:quarkus-rest-jackson")
     
     // Domain ports for aggregation (BFF pattern)
-    implementation(project(":application:finance:ports"))
+    implementation(project(":application:wealth:ports"))
     implementation(project(":application:health:ports"))
     
     // Tests

@@ -1,32 +1,169 @@
-# Roadmap — Future Phases
+# Roadmap — Future Milestones
 
-This document outlines the planned features and phases beyond Phase 1 (V1) Finance CSV upload.
+This document outlines planned features beyond the current **v0.1** milestone.
+For business rules and acceptance criteria per version, see [BUSINESS_REQUIREMENTS](./BUSINESS_REQUIREMENTS.md).
 
 ---
 
-## Phase 2: Workflow Automation & Power-User Tools (Local)
+## v0.2 — Usable Local App
 
-**Focus:** Reduce friction for power users. Support local file batching, manual entry, and duplicate resolution.
+**Focus:** Logical data integrity, usable ledger features, and basic scheduling.
 
 ### Features
 
-- [ ] **1-Click Batch Folder Import**
-  - Scan a local folder and upload multiple CSVs in one action
-  - Batch status dashboard showing progress
+- [ ] **Deduplication Logic**
+  - Same-file duplicates: store all as distinct valid events
+  - Cross-file duplicates: reject matching records from new uploads
 
-- [ ] **Manual Transaction Entry**
-  - UI form to add ad-hoc transactions (cash, peer transfers, etc.)
-  - Validate against account/fund names from config
+- [ ] **Biometric History**
+  - Query and display biometric entries in chronological order
+
+- [ ] **Itinerary & Task Management**
+  - Group sub-events under a master event (holidays, guest visits)
+  - Conflict detection for overlapping events on same profile
+  - Assign tasks to child profiles with hard deadlines
+
+---
+
+## v0.3 — Enhanced Local App
+
+**Focus:** Expand parsing capabilities, introduce physical asset compliance and home automation.
+
+### Features
+
+- [ ] **Investment CSV Parsing**
+  - Extract date, amount, type from mutual fund CSVs
+  - Store domain-specific metadata: Units and NAV
+
+- [ ] **Vehicle Asset Compliance Tracking**
+  - Registry: Make, Model, Registration Number, Registration Type
+  - Track PUC, Insurance, and Road Tax (including BH-Series biennial schedule)
+
+- [ ] **Home Automation Mapping**
+  - Register smart home devices and their operational states
+  - Map household daily routines to device configurations
+
+---
+
+## v0.4 — Error Handling (Unhappy Path)
+
+**Focus:** System resilience for malformed and edge-case data.
+
+### Features
+
+- [ ] **Malformed CSV Rejection**
+  - Reject entire file if date or amount columns are missing
+  - Log missing fields clearly for user review
+
+- [ ] **Quarantine Protocol (Grocery Data)**
+  - Quarantine malformed rows instead of rejecting entire file
+  - Log quarantined items for manual correction
 
 - [ ] **Duplicate Resolution UI**
-  - View flagged duplicates (transactions with `is_duplicate=TRUE`)
+  - View flagged duplicates (`is_duplicate=TRUE`)
   - Accept (keep both) or Reject (delete marked copy)
   - Batch accept/reject actions
 
-- [ ] **Transfer Reconciliation**
-  - Auto-link transfers between accounts (same amount, opposite direction, same date)
-  - Show reconciliation suggestions
-  - Manual override for fuzzy matches
+---
+
+## v0.5 — Beta Release
+
+**Focus:** Stable build for controlled local testing. First cross-domain logic.
+
+### Features
+
+- [ ] **Vacation Planner (Cross-Domain)**
+  - Budget validation: check liquid savings against trip cost
+  - Asset compliance block: warn if vehicle PUC/Insurance expires before trip
+
+- [ ] **Consolidated Action Center**
+  - Single read-only dashboard aggregating alerts from all 3 domains
+  - Upcoming calendar events, vehicle compliance deadlines, biometric streak gaps
+
+- [ ] **Profile Association for Health**
+  - Tag every biometric document with a valid `profile_id` from Household domain
+
+---
+
+## v0.6 — Testing Foundation
+
+**Focus:** Automated test coverage.
+
+### Features
+
+- [ ] Unit tests for all domain use cases
+- [ ] Integration tests for adapters
+- [ ] Contract tests for OpenAPI endpoints
+- [ ] Pre-commit test gate via Gradle
+
+---
+
+## v1.0 — Security & Persistence
+
+**Focus:** Auth, encryption, persistent real-world data. No more ephemeral DB.
+
+### Features
+
+- [ ] **Persistent Data Migration**
+  - Flyway versioned migrations enforced across all domains
+  - MongoDB Health data no longer ephemeral
+
+- [ ] **Authentication (OIDC/OAuth2)**
+  - External Identity Provider integration
+  - Role-Based Access Control: Admin (Adult) vs Restricted (Child)
+
+- [ ] **Encryption at Rest**
+  - Financial ledgers encrypted at application layer before DB insert
+
+- [ ] **Google Fit Integration (Manual Sync)**
+  - User-triggered sync only — no background polling
+  - Upsert deduplication keyed on `(profile_id, timestamp, metric)`
+  - Short-lived tokens only — refresh/offline tokens strictly prohibited
+
+- [ ] **Cross-Domain Security Enforcement**
+  - Restricted profiles blocked from triggering Wealth domain queries
+  - All cross-domain queries scoped to active `profile_id`
+
+---
+
+## v1.1 — Multi-User
+
+**Focus:** Multiple user accounts within a household.
+
+### Features
+
+- [ ] Multiple user accounts per household
+- [ ] Family sharing with role assignments
+- [ ] Admin can invite members
+- [ ] Viewer role: read-only access
+
+---
+
+## v1.2 — Public Local Release
+
+**Focus:** Stable local release for general users.
+
+### Features
+
+- [ ] Packaging for easy local installation
+- [ ] Setup wizard for first-time users
+- [ ] Full documentation for non-developer users
+
+---
+
+## v1.3 — Export / Import
+
+**Focus:** Cross-domain data archiving and portability.
+
+### Features
+
+- [ ] **Unified Data Export**
+  - Single trigger exports all data from PostgreSQL (Wealth, Household) and MongoDB (Health)
+  - Packaged as structured JSON/CSV local backup
+
+- [ ] **1-Click Batch Folder Import**
+  - Scan local folder and upload multiple CSVs in one action
+  - Batch status dashboard
 
 - [ ] **Rule-Based Tagging Engine**
   - If description contains "SWIGGY" → tag "Food"
@@ -34,192 +171,161 @@ This document outlines the planned features and phases beyond Phase 1 (V1) Finan
   - Admin UI to create/manage rules
 
 - [ ] **Unified Search & Export**
-  - Full-text search on description
-  - Export filtered transactions to clean CSV
+  - Full-text search on transaction descriptions
+  - Export filtered results to clean CSV
   - Date range, amount range, account filters
 
-### Tech Notes
-
-- All local processing (no cloud upload)
-- Rules stored in database, not config
-- Transaction tags stored in new `transaction_tag` junction table
-
 ---
 
-## Phase 3: Multi-Tenancy & Family Cloud (SaaS Foundation)
+## v2.0 — Local AI
 
-**Focus:** Move from single-user localhost to a centralized, multi-tenant cloud service.
+**Focus:** Local LLM as unified reasoning engine over personal data.
 
 ### Features
 
-- [ ] **Centralized Hosting Deployment**
-  - Deploy to private cloud VPS (AWS, DigitalOcean, Heroku, etc.)
-  - Docker containerization for consistency
-  - Load balancer + auto-scaling setup
+- [ ] **Cross-Domain Context API**
+  - Read-only API layer for local AI to simultaneously query Wealth, Household, and Health data
 
-- [ ] **Identity & Auth**
-  - Keycloak or OAuth2 provider integration
-  - Login via Google, GitHub, or email/password
-  - Session management, token refresh
+- [ ] **Daily Briefing Generation**
+  - AI generates contextual insights across all domains
+  - Example: *"You have a road trip to Munnar tomorrow, your Tata Nexon insurance expires today, and savings need topping up to cover the trip budget."*
 
-- [ ] **Multi-Tenancy Database Architecture**
-  - Add `tenant_id` column to all tables
-  - Row-level security policies
-  - Strict data isolation
-
-- [ ] **Dynamic Account Management**
-  - Move account/fund names from `application.properties` to UI + database
-  - Admin panel to add/update account types
-  - No code redeploy needed
-
-- [ ] **Family Sharing / RBAC**
-  - Multiple users per tenant
-  - Roles: Admin, Editor, Viewer
-  - Admin can invite family members
-  - Viewer can see data, not modify
-
-- [ ] **Net Worth & Analytics Dashboard**
-  - Aggregated account balance over time
-  - Monthly trends, spending patterns
-  - Per-category breakdowns
-  - Shared dashboard for family view
-
-### Tech Notes
-
-- Deploy as multi-instance Quarkus app (Kubernetes or manual)
-- Use separate multi-tenant PostgreSQL or per-tenant schemas
-- Session store in Redis
-- Event streaming for audit logs
+- [ ] **Transfer Reconciliation**
+  - Auto-link transfers between accounts (same amount, opposite direction, same date)
+  - Manual override for fuzzy matches
 
 ---
 
-## Phase 4: Ecosystem Integration (Public SaaS)
+## v2.1 — Cloud Ready
 
-**Focus:** Add automation, monetization, and public API readiness.
+**Focus:** Architecture preparation for cloud deployment.
 
 ### Features
 
-- [ ] **Automated Bank Integration**
-  - Plaid or Setu API for real-time transactions
-  - Eliminate manual CSV uploads
-  - Support for 1000+ banks
-
-- [ ] **Subscription Billing**
-  - Free tier: 1 user, 5 linked accounts, 2-month history
-  - Pro tier: family sharing, unlimited accounts, unlimited history, export
-  - Stripe or Razorpay integration
-
-- [ ] **Public API & Webhooks**
-  - `/api/v1/webhooks` — custom callbacks for external integration
-  - Rate limiting (per tenant, per endpoint)
-  - API key authentication
-
-- [ ] **Public Domain Readiness**
-  - GDPR compliance (data deletion, export)
-  - PCI compliance for payment handling (if storing cards)
-  - Terms of Service, Privacy Policy
-  - Support ticketing system
-
-- [ ] **Data Retention & Cleanup**
-  - Configurable retention policies
-  - Automated archival of old transactions
-  - GDPR right-to-be-forgotten compliance
-
-### Tech Notes
-
-- Add `api_key` table and `rate_limit` middleware
-- Multi-region database replication for resilience
-- CDN for static assets (charts, exports)
+- [ ] Docker containerization
+- [ ] Multi-region DB replication design
+- [ ] Load balancer + auto-scaling setup
+- [ ] Redis session store
 
 ---
 
-## Implementation Timeline
+## v2.2 — Mobile App
 
-| Phase | Duration | Team |
-|---|---|---|
-| Phase 1 (V1) | 2 weeks | 1 backend + 1 frontend |
-| Phase 2 | 4 weeks | Same team |
-| Phase 3 | 8 weeks | 2+ backend (infra, auth), 1 frontend |
-| Phase 4 | 12+ weeks | Expand team as needed |
+**Focus:** Companion mobile application.
 
-**Phase 1** is complete when:
-- CSV upload works end-to-end
-- Deduplication logic in place
-- All APIs match OpenAPI contract
+### Features
 
-**Phase 2** gate:
-- Phase 1 is production-ready locally
-- User feedback collected
-
-**Phase 3 gate:**
-- Phase 2 features stable
-- Hosting infrastructure planned
-- Security audit passed
-
-**Phase 4 gate:**
-- Phase 3 deployed and tested in staging
-- Bank partner integrations approved
-- Billing & subscription logic validated
+- [ ] Mobile-responsive web frontend
+- [ ] Native mobile app (iOS/Android) — evaluation phase
 
 ---
 
-## Out of Scope (Never)
+## v3.0 — GitHub Ready
 
-| Feature | Reason |
+**Focus:** Open-source collaboration readiness.
+
+### Features
+
+- [ ] Contribution guidelines finalized
+- [ ] Issue templates and PR templates
+- [ ] Public roadmap published
+
+---
+
+## v3.1 — Integrations
+
+**Focus:** External service connections.
+
+### Features
+
+- [ ] Google Drive sync
+- [ ] Google Calendar integration
+- [ ] Fitbit data import
+- [ ] Automated bank integration (Plaid or Setu API)
+
+---
+
+## v3.2 — Plugin Framework
+
+**Focus:** System extensibility.
+
+### Features
+
+- [ ] Plugin interface definition
+- [ ] First-party plugin examples
+
+---
+
+## v3.3 — Marketplace
+
+**Focus:** Plugin/module ecosystem.
+
+### Features
+
+- [ ] Plugin registry
+- [ ] Community submissions
+
+---
+
+## v4.0 — Cloud Launch
+
+**Focus:** Full commercial cloud deployment.
+
+### Features
+
+- [ ] Multi-tenant PostgreSQL (row-level security or per-tenant schemas)
+- [ ] Public domain deployment
+- [ ] CDN for static assets
+- [ ] SLA: 99.5% uptime
+
+---
+
+## v4.1 — Commercial Launch
+
+**Focus:** Licensing, billing, regulatory compliance.
+
+### Features
+
+- [ ] Subscription billing (Stripe or Razorpay)
+- [ ] Free tier / Pro tier definition
+- [ ] GDPR compliance (data deletion, export, right-to-be-forgotten)
+- [ ] Terms of Service and Privacy Policy
+- [ ] Public API with rate limiting and API key auth
+
+---
+
+## Dependency Chain
+v0.1 → v0.2 → v0.3 → v0.4 → v0.5 → v0.6
+↓
+v1.0 → v1.1 → v1.2 → v1.3
+↓
+v2.0 → v2.1 → v2.2
+↓
+v3.0 → v3.1 → v3.2 → v3.3
+↓
+v4.0 → v4.1
+
+Each milestone requires the previous to be stable before starting.
+
+---
+
+## Success Metrics
+
+| Milestone | Key Metric |
 |---|---|
-| **AI Categorization** | Complex, low ROI. Rule-based tagging sufficient for MVP. |
-| **File Archiving** | Privacy concern, storage cost. Parse and discard philosophy. |
-| **Desktop App** | Web-first strategy. Mobile web before native. |
-| **Expense Forecasting** | Too opinionated. Focus on data collection first. |
-| **Social Features** | Out of scope — not a network app. |
-
----
-
-## Success Metrics (Per Phase)
-
-**Phase 1:**
-- ✅ Upload 100+ transactions from 3+ bank CSVs without data loss
-- ✅ All 4 API endpoints tested and stable
-- ✅ Zero silent data drops
-
-**Phase 2:**
-- ✅ Batch import reduces upload clicks by 80%
-- ✅ Duplicate resolution covers 95% of cases
-- ✅ Transfer reconciliation detects 90% of transfers
-- ✅ Rule engine covers top 20 categories
-
-**Phase 3:**
-- ✅ Multi-user auth works for 5 family members
-- ✅ Data isolation (row-level security) enforced
-- ✅ SaaS deployment to production passes security audit
-- ✅ Uptime SLA: 99.5%
-
-**Phase 4:**
-- ✅ Plaid integration connects 50+ banks
-- ✅ 1000+ active users on Pro tier
-- ✅ Webhook delivery SLA: 99.9%
-- ✅ <100ms API response p99
-
----
-
-## Dependency Map
-
-```
-Phase 1 (V1)
-    ↓
-Phase 2 (Power-user tools)
-    ↓
-Phase 3 (Multi-tenant SaaS)
-    ↓
-Phase 4 (Public API + Monetization)
-```
-
-Each phase builds on the previous. Phase 2 requires stable Phase 1. Phase 3 requires production-ready Phase 2, etc.
+| v0.1 | Upload 100+ transactions from 3+ CSVs without data loss |
+| v0.4 | Zero silent data drops on malformed input |
+| v0.5 | Cross-domain vacation planner works end-to-end |
+| v1.0 | Auth + encryption pass local security review |
+| v1.3 | Full data export/import round-trip verified |
+| v2.0 | Local AI daily briefing generates without errors |
+| v4.1 | 1000+ active Pro users, <100ms API p99 |
 
 ---
 
 ## Communication
 
-- **Feature requests:** GitHub Issues with `phase-X` label
-- **Roadmap updates:** This file + Discord announcements
-- **Breaking changes:** Changelog + email notification to users
+- **Feature requests:** GitHub Issues with `vX.Y` milestone label
+- **Roadmap updates:** This file + project announcements
+- **Breaking changes:** Changelog + notification to active users
+- **Security issues:** GitHub Issues with `security` label
