@@ -11,7 +11,7 @@ Built on **Hexagonal Architecture** (Ports & Adapters). Currently at **v0.1** �
 1. **Clone & setup:** See [Contributing / Getting Started](./CONTRIBUTING.md)
 2. **Run the unified backend:**
 ```bash
-   ./gradlew :application:finance:quarkusDev   # Single Quarkus application
+   ./gradlew :application:wealth:quarkusDev   # Single Quarkus application
    cd web && npm install && npm start          # Frontend
 ```
 3. **Open app:** `http://localhost:3000`
@@ -23,11 +23,11 @@ Built on **Hexagonal Architecture** (Ports & Adapters). Currently at **v0.1** �
 | Document | Purpose |
 |---|---|
 | [CONTRIBUTING](./CONTRIBUTING.md) | Local dev setup, prerequisites, run commands |
-| [ARCHITECTURE](./ARCHITECTURE.md) | System design and hexagonal architecture |
-| [BUSINESS_REQUIREMENTS](./BUSINESS_REQUIREMENTS.md) | Functional specs, versioned epics, domain rules |
-| [CICD](./CICD.md) | Build and automation pipeline rules |
-| [AGENTS](./AGENTS.md) | AI helper roles and documentation agents |
-| [ROADMAP](./ROADMAP.md) | Future milestones v0.2 → v4.1 |
+| [ARCHITECTURE](./documents/ARCHITECTURE.md) | System design and hexagonal architecture |
+| [BUSINESS_REQUIREMENTS](./documents/BUSINESS_REQUIREMENTS.md) | Functional specs, versioned epics, domain rules |
+| [CICD](./documents/CICD.md) | Build and automation pipeline rules |
+| [AGENTS](./documents/AGENTS.md) | AI helper roles and documentation agents |
+| [ROADMAP](./documents/ROADMAP.md) | Future milestones v0.2 → v4.1 |
 | [SECURITY](./SECURITY.md) | Vulnerability reporting and version support |
 
 ---
@@ -50,45 +50,72 @@ Built on **Hexagonal Architecture** (Ports & Adapters). Currently at **v0.1** �
 ---
 
 ## 📁 Repository Structure
+```
 suchika/
 ├── .github/
-│   └── copilot/
-│       └── agents/
+│   ├── copilot/
+│   │   └── agents/
+│   │       ├── Architect.agent.md
+│   │       ├── BusinessAnalyst.agent.md
+│   │       ├── DocumentWriter.agent.md
+│   │       ├── QualityManager.agent.md
+│   │       └── ReactDeveloper.agent.md
+│   ├── ISSUE_TEMPLATE/
+│   │   └── feature_request.md
+│   └── workflows/
+│       └── ci.yml
 ├── .husky/
 │   └── pre-commit
 ├── application/
-│   ├── finance/          # Wealth domain backend
-│   ├── health/           # Health domain backend
-│   └── records/          # Household domain backend
+│   ├── wealth/               # Wealth domain backend (Ports & Adapters)
+│   │   ├── domain/
+│   │   ├── ports/
+│   │   ├── adapters/
+│   │   └── build.gradle.kts
+│   ├── health/               # Health domain backend (Ports & Adapters)
+│   │   ├── domain/
+│   │   ├── ports/
+│   │   ├── adapters/
+│   │   └── build.gradle.kts
+│   ├── household/            # Household domain backend
+│   │   ├── src/
+│   │   └── build.gradle.kts
+│   └── web-gateway/          # API gateway
 ├── documents/
-│   ├── records/
-│   │   ├── wealth_domain.md
-│   │   ├── household_domain.md
-│   │   ├── health_domain.md
-│   │   └── cross_domain.md
 │   ├── AGENTS.md
 │   ├── ARCHITECTURE.md
 │   ├── BUSINESS_REQUIREMENTS.md
+│   ├── BUSINESS_REQUIREMENTS_wealth_domain.md
+│   ├── BUSINESS_REQUIREMENTS_household_domain.md
+│   ├── BUSINESS_REQUIREMENTS_health_domain.md
+│   ├── BUSINESS_REQUIREMENTS_cross_domain.md
 │   ├── CICD.md
-│   ├── CONTRIBUTING.md
-│   ├── ROADMAP.md
-│   └── SECURITY.md
-├── infrastructure/
+│   └── ROADMAP.md
+├── infrastructure/           # Shared infrastructure (DB pools, config)
+│   └── build.gradle.kts
 ├── openapi/
-│   ├── finance.yaml
+│   ├── wealth.yaml
 │   ├── health.yaml
 │   └── household.yaml
-├── shared/
-├── web/
-│   ├── package.json
+├── shared/                   # Cross-cutting utilities
+│   └── build.gradle.kts
+├── tools/
+│   └── documentWriter.py
+├── web/                      # React frontend
 │   ├── src/
-│   └── public/
+│   ├── public/
+│   ├── package.json
+│   └── package-lock.json
 ├── build.gradle.kts
+├── settings.gradle.kts
 ├── gradlew
 ├── gradlew.bat
-├── package-lock.json
+├── CODE_OF_CONDUCT.md
+├── CONTRIBUTING.md
+├── LICENSE
 ├── README.md
-└── settings.gradle.kts
+└── SECURITY.md
+```
 
 ---
 
@@ -135,7 +162,7 @@ Each domain owns its tables — no cross-domain joins.
 | Health | `/health-profiles` | GET/POST | Manage health profiles |
 | Household | *(coming in v0.1+)* | — | Profiles, calendar, inventory |
 
-See [ARCHITECTURE](./ARCHITECTURE.md) for full API spec.
+See [ARCHITECTURE](./documents/ARCHITECTURE.md) for full API spec.
 
 ---
 
@@ -154,13 +181,13 @@ See [ARCHITECTURE](./ARCHITECTURE.md) for full API spec.
 - Error handling for malformed data (deferred to v0.4)
 - External API integrations (deferred to v1.0+)
 
-See [ROADMAP](./ROADMAP.md) and [BUSINESS_REQUIREMENTS](./BUSINESS_REQUIREMENTS.md) for full milestone plan.
+See [ROADMAP](./documents/ROADMAP.md) and [BUSINESS_REQUIREMENTS](./documents/BUSINESS_REQUIREMENTS.md) for full milestone plan.
 
 ---
 
 ## 🤝 Contributing
 
-1. Read [ARCHITECTURE](./ARCHITECTURE.md) to understand the design
+1. Read [ARCHITECTURE](./documents/ARCHITECTURE.md) to understand the design
 2. Follow Hexagonal Architecture rules (domain is framework-free)
 3. Keep migrations sequential (never edit a committed migration)
 4. Run tests before committing
@@ -172,6 +199,6 @@ See [CONTRIBUTING](./CONTRIBUTING.md) for full setup instructions.
 ## 📞 Support
 
 - **Setup issues?** → [CONTRIBUTING](./CONTRIBUTING.md)
-- **API details?** → [ARCHITECTURE](./ARCHITECTURE.md)
-- **Business rules?** → [BUSINESS_REQUIREMENTS](./BUSINESS_REQUIREMENTS.md)
+- **API details?** → [ARCHITECTURE](./documents/ARCHITECTURE.md)
+- **Business rules?** → [BUSINESS_REQUIREMENTS](./documents/BUSINESS_REQUIREMENTS.md)
 - **Security issues?** → [SECURITY](./SECURITY.md)
