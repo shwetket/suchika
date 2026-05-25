@@ -1,0 +1,165 @@
+.root {
+    /* Primary Color Scheme */
+    --primary-color: #c75203;
+    /* Dark shade of blue */
+    --primary-background-color: #cad8eb;
+    /* Light blue for contrast */
+    --primary-text-color: #ffffff;
+    /* White for readability */
+    --primary-border-color: #002244;
+    /* Slightly darker blue */
+    --primary-hover-color: #d9e6f2;
+    /* Even darker blue for hover */
+    --primary-focus-color: #004080;
+    /* Medium blue for focus */
+
+    /* Secondary Color Scheme */
+    --secondary-color: #00509e;
+    /* Medium blue */
+    --secondary-background-color: #d9e6f2;
+    /* Very light blue */
+    --secondary-text-color: #ffffff;
+    /* White for readability */
+    --secondary-border-color: #c1cfdd;
+    /* Dark blue */
+    --secondary-hover-color: #002244;
+    /* Slightly darker blue */
+    --secondary-focus-color: #004080;
+    /* Medium blue for focus */
+
+    /* Tertiary Color Scheme */
+    --tertiary-color: #ff6600;
+    /* Shade of orange */
+    --tertiary-background-color: #ffe6cc;
+    /* Light orange for contrast */
+    --tertiary-text-color: #000000;
+    /* Black for readability */
+    --tertiary-border-color: #cc5200;
+    /* Darker orange */
+    --tertiary-hover-color: #b34700;
+    /* Even darker orange for hover */
+    --tertiary-focus-color: #ff8533;
+    /* Lighter orange for focus */
+
+    /* Dark Primary Color Scheme */
+    --dark-primary-color: #002244;
+    /* Very dark blue */
+    --dark-primary-background-color: #001a33;
+    /* Darker blue */
+    --dark-primary-text-color: #ffffff;
+    /* White for readability */
+    --dark-primary-border-color: #000d1a;
+    /* Almost black */
+    --dark-primary-hover-color: #001a33;
+    /* Same as background */
+    --dark-primary-focus-color: #003366;
+    /* Dark blue for focus */
+
+    /* Dark Secondary Color Scheme */
+    --dark-secondary-color: #003366;
+    /* Dark blue */
+    --dark-secondary-background-color: #001a33;
+    /* Darker blue */
+    --dark-secondary-text-color: #ffffff;
+    /* White for readability */
+    --dark-secondary-border-color: #000d1a;
+    /* Almost black */
+    --dark-secondary-hover-color: #002244;
+    /* Slightly darker blue */
+    --dark-secondary-focus-color: #004080;
+    /* Medium blue for focus */
+
+    /* Dark Tertiary Color Scheme */
+    --dark-tertiary-color: #cc5200;
+    /* Dark orange */
+    --dark-tertiary-background-color: #b34700;
+    /* Even darker orange */
+    --dark-tertiary-text-color: #ffffff;
+    /* White for readability */
+    --dark-tertiary-border-color: #993d00;
+    /* Very dark orange */
+    --dark-tertiary-hover-color: #802b00;
+    /* Almost brown */
+    --dark-tertiary-focus-color: #e67300;
+    /* Lighter orange for focus */
+}
+
+.navbar {
+    border: 2px solid var(--border-color);
+    background-color: var(--background-color);
+    color: var(--text-color);
+    font-size: 16px;
+    font-weight: 500;
+    padding: 5px 10px;
+    border-radius: 9999px;
+
+    hover: {
+        color: var(--hover-color) !important;
+        background-color: var(--hover-background-color) !important;
+        border-color: var(--hover-border-color) !important;
+    }
+
+    active: {
+        color: var(--active-color) !important;
+        background-color: var(--active-background-color) !important;
+        border-color: var(--active-border-color) !important;
+    }
+
+    passive: {
+        color: var(--disabled-color) !important;
+        background-color: var(--disabled-background-color) !important;
+        border-color: var(--disabled-border-color) !important;
+    }
+}
+
+.image {
+    padding: 15%;
+    background: linear-gradient(to right, #ddf1ff, #cdd3ec);
+    border-radius: 5px;
+    border: 2px solid var(--border-color);
+    display: inline-grid;
+}
+
+.header {
+    background: rgb(174, 227, 238);
+    background: linear-gradient(to right, #ddf1ff, #cdd3ec);
+}
+
+.main {
+    position: relative;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    /* background-image: linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%); */
+}
+
+.leadline {
+    background-image: linear-gradient(to right, #ff8177 0%, #ff867a 0%, #ff8c7f 21%, #f99185 52%, #cf556c 78%, #b12a5b 100%);
+}
+
+.footer {
+    margin-top: 4rem;
+    background: rgb(174, 227, 238);
+    background: linear-gradient(to right, #ddf1ff, #cdd3ec);
+    position: relative;
+    bottom: 0;
+}
+
+
+.box {
+    border: 1px solid white;
+    background-color:#e6ecf4;
+    border-radius: 0.5rem;
+    height: 200px;
+    display: flex;
+    justify-content: end;
+    position: relative;
+}
+
+.tall-box {
+    height: 410px;
+}
+.minibox {
+    border: 1px solid var(--border-color);
+}

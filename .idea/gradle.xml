@@ -9,15 +9,15 @@
           <set>
             <option value="$PROJECT_DIR$" />
             <option value="$PROJECT_DIR$/application" />
-            <option value="$PROJECT_DIR$/application/finance" />
-            <option value="$PROJECT_DIR$/application/finance/adapters" />
-            <option value="$PROJECT_DIR$/application/finance/domain" />
-            <option value="$PROJECT_DIR$/application/finance/ports" />
             <option value="$PROJECT_DIR$/application/health" />
             <option value="$PROJECT_DIR$/application/health/adapters" />
             <option value="$PROJECT_DIR$/application/health/domain" />
             <option value="$PROJECT_DIR$/application/health/ports" />
-            <option value="$PROJECT_DIR$/application/records" />
+            <option value="$PROJECT_DIR$/application/household" />
+            <option value="$PROJECT_DIR$/application/wealth" />
+            <option value="$PROJECT_DIR$/application/wealth/adapters" />
+            <option value="$PROJECT_DIR$/application/wealth/domain" />
+            <option value="$PROJECT_DIR$/application/wealth/ports" />
             <option value="$PROJECT_DIR$/application/web-gateway" />
             <option value="$PROJECT_DIR$/infrastructure" />
             <option value="$PROJECT_DIR$/shared" />
