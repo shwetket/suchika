@@ -8,6 +8,9 @@ Behavior:
 - When invoked by name `documentWriter`, run the core consolidation routine immediately.
 - Scan repository for all `*.md` files.
 - Preserve single root README.md located at repository root (`README.md`).
+- Preserve single root CONTRIBUTING.md located at repository root (`CONTRIBUTING.md`).
+- Preserve single root CODE_OF_CONDUCT.md located at repository root (`CODE_OF_CONDUCT.md`).
+- Preserve single root SECURITY.md located at repository root (`SECURITY.md`).
 - Move all other `.md` files into `/documents` folder (create if missing). If files would collide, the moved filename will be prefixed by its original relative path components joined with `_`.
 - Generate a fresh textual directory tree of the repository after moves.
 - Replace the `## 📁 Repository Structure` code block in root `README.md` with the freshly generated tree.
