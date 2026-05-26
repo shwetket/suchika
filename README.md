@@ -23,7 +23,7 @@ Built on **Hexagonal Architecture** (Ports & Adapters). Currently at **v0.1** �
 | Document | Purpose |
 |---|---|
 | [CONTRIBUTING](./CONTRIBUTING.md) | Local dev setup, prerequisites, run commands |
-| [ARCHITECTURE](./documents/ARCHITECTURE.md) | System design and hexagonal architecture |
+| [ARCHITECTURE](./documents/ARCHITECTURE_GUIDELINES.md) | System design and hexagonal architecture |
 | [BUSINESS_REQUIREMENTS](./documents/BUSINESS_REQUIREMENTS.md) | Functional specs, versioned epics, domain rules |
 | [CICD](./documents/CICD.md) | Build and automation pipeline rules |
 | [LOGGING_AND_EXCEPTIONS](./documents/LOGGING_AND_EXCEPTIONS.md) | Logger utility and common exception handling |
@@ -85,12 +85,14 @@ suchika/
 │   └── web-gateway/          # API gateway
 ├── documents/
 │   ├── AGENTS.md
-│   ├── ARCHITECTURE.md
+│   ├── ARCHITECTURE_DECISIONS.md
+│   ├── ARCHITECTURE_GUIDELINES.md
+│   ├── ARCHITECTURE_PROPOSALS.md
 │   ├── BUSINESS_REQUIREMENTS.md
-│   ├── BUSINESS_REQUIREMENTS_wealth_domain.md
-│   ├── BUSINESS_REQUIREMENTS_household_domain.md
-│   ├── BUSINESS_REQUIREMENTS_health_domain.md
-│   ├── BUSINESS_REQUIREMENTS_cross_domain.md
+│   ├── REQUIREMENTS_cross_domain.md
+│   ├── REQUIREMENTS_health_domain.md
+│   ├── REQUIREMENTS_household_domain.md
+│   ├── REQUIREMENTS_wealth_domain.md
 │   ├── CICD.md
 │   ├── LOGGING_AND_EXCEPTIONS.md
 │   └── ROADMAP.md
@@ -166,7 +168,7 @@ Each domain owns its tables — no cross-domain joins.
 | Health | `/health-profiles` | GET/POST | Manage health profiles |
 | Household | *(coming in v0.1+)* | — | Profiles, calendar, inventory |
 
-See [ARCHITECTURE](./documents/ARCHITECTURE.md) for full API spec.
+See [ARCHITECTURE](./documents/ARCHITECTURE_GUIDELINES.md) for full API spec.
 
 ---
 
@@ -191,7 +193,7 @@ See [ROADMAP](./documents/ROADMAP.md) and [BUSINESS_REQUIREMENTS](./documents/BU
 
 ## 🤝 Contributing
 
-1. Read [ARCHITECTURE](./documents/ARCHITECTURE.md) to understand the design
+1. Read [ARCHITECTURE](./documents/ARCHITECTURE_GUIDELINES.md) to understand the design
 2. Follow Hexagonal Architecture rules (domain is framework-free)
 3. Keep migrations sequential (never edit a committed migration)
 4. Run tests before committing
@@ -203,6 +205,6 @@ See [CONTRIBUTING](./CONTRIBUTING.md) for full setup instructions.
 ## 📞 Support
 
 - **Setup issues?** → [CONTRIBUTING](./CONTRIBUTING.md)
-- **API details?** → [ARCHITECTURE](./documents/ARCHITECTURE.md)
+- **API details?** → [ARCHITECTURE](./documents/ARCHITECTURE_GUIDELINES.md)
 - **Business rules?** → [BUSINESS_REQUIREMENTS](./documents/BUSINESS_REQUIREMENTS.md)
 - **Security issues?** → [SECURITY](./SECURITY.md)

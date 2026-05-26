@@ -40,11 +40,11 @@ The application follows a granular maturity roadmap. Core features are introduce
 ## 4. Domain Definitions & Document Hierarchy
 Detailed business rules, epics, and version-specific Acceptance Criteria are maintained in domain-specific child documents. These files act as living documents that represent the accumulative state of the system.
 
-* **Wealth & Asset Management:** `documents/records/wealth_domain.md`
+* **Wealth & Asset Management:** `documents/REQUIREMENTS_wealth_domain.md`
   * *Focus:* Financial liquidity, transaction ledgers, and physical asset lifecycle compliance.
-* **Household Operations:** `documents/records/household_domain.md`
+* **Household Operations:** `documents/REQUIREMENTS_household_domain.md`
   * *Focus:* Scheduling, human logistics, task execution, supply chain (groceries), and home infrastructure automation.
-* **Health & Biometrics:** `documents/records/health_domain.md`
+* **Health & Biometrics:** `documents/REQUIREMENTS_health_domain.md`
   * *Focus:* Unstructured time-series biometric tracking and fitness profiles.
-* **Cross-Domain Logic:** `documents/records/cross_domain_integration.md`
+* **Cross-Domain Logic:** `documents/REQUIREMENTS_cross_domain.md`
   * *Focus:* Features requiring read-access across multiple isolated domains (e.g., Vacation Planning requiring Calendar, Vehicle, and Finance data).
