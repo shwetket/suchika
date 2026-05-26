@@ -10,10 +10,13 @@
     "core-js-pure": "^3.21.1",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
+    "react-router-dom": "^6.20.1",
     "react-scripts": "5.0.1",
     "web-vitals": "^2.1.4"
   },
   "scripts": {
+    "prebuild": "node scripts/copy-assets.js",
+    "prestart": "node scripts/copy-assets.js",
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
