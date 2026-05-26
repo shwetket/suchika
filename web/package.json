@@ -21,12 +21,18 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "generate:api": "openapi-typescript http://localhost:8080/q/openapi --output src/api/generated.ts",
+    "lint": "eslint src/ --ext .js,.jsx",
+    "lint:fix": "eslint src/ --ext .js,.jsx --fix",
+    "format": "prettier --write src/ public/",
+    "format:check": "prettier --check src/ public/",
     "prepare": "husky install",
     "eject": "react-scripts eject"
   },
   "devDependencies": {
+    "eslint-config-prettier": "^10.1.8",
     "husky": "^9.0.0",
-    "openapi-typescript": "^6.7.6"
+    "openapi-typescript": "^6.7.6",
+    "prettier": "^3.8.3"
   },
   "eslintConfig": {
     "extends": [

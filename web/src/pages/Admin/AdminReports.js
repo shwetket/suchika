@@ -14,18 +14,30 @@ export const AdminReports = () => {
         <div className="bg-white border border-gray-200 p-6 rounded-lg">
           <h2 className="text-2xl font-bold mb-4">User Activity</h2>
           <div className="space-y-2 text-gray-600">
-            <p>Active Users: <span className="font-bold text-gray-900">1</span></p>
-            <p>Total Transactions: <span className="font-bold text-gray-900">0</span></p>
-            <p>Health Entries: <span className="font-bold text-gray-900">0</span></p>
+            <p>
+              Active Users: <span className="font-bold text-gray-900">1</span>
+            </p>
+            <p>
+              Total Transactions: <span className="font-bold text-gray-900">0</span>
+            </p>
+            <p>
+              Health Entries: <span className="font-bold text-gray-900">0</span>
+            </p>
           </div>
         </div>
 
         <div className="bg-white border border-gray-200 p-6 rounded-lg">
           <h2 className="text-2xl font-bold mb-4">System Health</h2>
           <div className="space-y-2 text-gray-600">
-            <p>API Status: <span className="font-bold text-green-600">✓ Healthy</span></p>
-            <p>Database: <span className="font-bold text-green-600">✓ Connected</span></p>
-            <p>Uptime: <span className="font-bold text-gray-900">24h</span></p>
+            <p>
+              API Status: <span className="font-bold text-green-600">✓ Healthy</span>
+            </p>
+            <p>
+              Database: <span className="font-bold text-green-600">✓ Connected</span>
+            </p>
+            <p>
+              Uptime: <span className="font-bold text-gray-900">24h</span>
+            </p>
           </div>
         </div>
       </div>

@@ -38,16 +38,16 @@ export const AuthProvider = ({ children }) => {
 
   const hasRole = (requiredRole) => {
     if (!user) return requiredRole === 'public';
-    
+
     const roleHierarchy = {
       public: 0,
       user: 1,
       admin: 2,
     };
-    
+
     const userLevel = roleHierarchy[user.role] || 0;
     const requiredLevel = roleHierarchy[requiredRole] || 0;
-    
+
     return userLevel >= requiredLevel;
   };
 

@@ -55,27 +55,19 @@ export const Navigation = () => {
           {user ? (
             <div className="flex gap-3 items-center border-l pl-4 ml-4">
               <span className="text-sm">
-                {user.username} <span className="text-xs bg-blue-600 px-2 py-1 rounded">{user.role}</span>
+                {user.username}{' '}
+                <span className="text-xs bg-blue-600 px-2 py-1 rounded">{user.role}</span>
               </span>
-              <button
-                onClick={logout}
-                className="bg-red-600 px-3 py-1 rounded hover:bg-red-700"
-              >
+              <button onClick={logout} className="bg-red-600 px-3 py-1 rounded hover:bg-red-700">
                 Logout
               </button>
             </div>
           ) : (
             <>
-              <Link
-                to="/signin"
-                className="bg-blue-600 px-3 py-1 rounded hover:bg-blue-700"
-              >
+              <Link to="/signin" className="bg-blue-600 px-3 py-1 rounded hover:bg-blue-700">
                 Sign In
               </Link>
-              <Link
-                to="/signup"
-                className="bg-green-600 px-3 py-1 rounded hover:bg-green-700"
-              >
+              <Link to="/signup" className="bg-green-600 px-3 py-1 rounded hover:bg-green-700">
                 Sign Up
               </Link>
             </>

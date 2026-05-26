@@ -24,6 +24,7 @@ Built on **Hexagonal Architecture** (Ports & Adapters). Currently at **v0.1** â€
 |---|---|
 | [CONTRIBUTING](./CONTRIBUTING.md) | Local dev setup, prerequisites, run commands |
 | [ARCHITECTURE](./documents/ARCHITECTURE_GUIDELINES.md) | System design and hexagonal architecture |
+| [FRONTEND_GUIDELINES](./documents/FRONTEND_GUIDELINES.md) | React standards, guardrails, and linting rules |
 | [BUSINESS_REQUIREMENTS](./documents/BUSINESS_REQUIREMENTS.md) | Functional specs, versioned epics, domain rules |
 | [CICD](./documents/CICD.md) | Build and automation pipeline rules |
 | [LOGGING_AND_EXCEPTIONS](./documents/LOGGING_AND_EXCEPTIONS.md) | Logger utility and common exception handling |

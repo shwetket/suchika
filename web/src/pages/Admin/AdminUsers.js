@@ -24,7 +24,9 @@ export const AdminUsers = () => {
           <tbody>
             <tr className="border-t hover:bg-gray-50">
               <td className="p-3">Demo User</td>
-              <td className="p-3"><span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm">admin</span></td>
+              <td className="p-3">
+                <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm">admin</span>
+              </td>
               <td className="p-3">Just now</td>
               <td className="p-3 flex gap-2">
                 <button className="text-blue-600 hover:underline">Edit</button>

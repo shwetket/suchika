@@ -5,7 +5,8 @@ export const About = () => {
     <div className="p-8 max-w-4xl mx-auto">
       <h1 className="text-4xl font-bold mb-4">About Suchika</h1>
       <p className="text-lg text-gray-600 mb-6">
-        Suchika is a comprehensive personal operations system designed to help you manage all aspects of your life in one place.
+        Suchika is a comprehensive personal operations system designed to help you manage all
+        aspects of your life in one place.
       </p>
       <div className="space-y-4">
         <section>
