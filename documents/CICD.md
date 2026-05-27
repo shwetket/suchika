@@ -149,7 +149,7 @@ If any test fails (non-zero exit code), the commit is aborted.
 |---|---|---|
 | `backend-compile-wealth` | `./gradlew :application:finance:compileJava` | Every push |
 | `backend-compile-health` | `./gradlew :application:health:compileJava` | Every push |
-| `backend-compile-household` | `./gradlew :application:records:compileJava` | Every push |
+| `backend-compile-household` | `./gradlew :application:household:compileJava` | Every push |
 | `backend-test` | `./gradlew test --continuous=false` | Every push |
 | `frontend-build` | `cd web && npm install && npm run generate:api && npm run build` | Every push |
 | `migration-check` | `./gradlew :application:finance:quarkusDev` (startup only) | Every push |

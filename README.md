@@ -52,77 +52,304 @@ Built on **Hexagonal Architecture** (Ports & Adapters). Currently at **v0.1** �
 ---
 
 ## 📁 Repository Structure
+
 ```
 suchika/
-├── .github/
-│   ├── copilot/
-│   │   └── agents/
-│   │       ├── Architect.agent.md
-│   │       ├── BusinessAnalyst.agent.md
-│   │       ├── DocumentWriter.agent.md
-│   │       ├── QualityManager.agent.md
-│   │       ├── QuarkusDeveloper.agent.md
-│   │       └── ReactDeveloper.agent.md
-│   ├── ISSUE_TEMPLATE/
-│   │   └── feature_request.md
-│   └── workflows/
-│       └── ci.yml
 ├── .husky/
 │   └── pre-commit
 ├── application/
-│   ├── wealth/               # Wealth domain backend (Ports & Adapters)
-│   │   ├── domain/
-│   │   ├── ports/
+│   ├── health/
 │   │   ├── adapters/
-│   │   └── build.gradle.kts
-│   ├── health/               # Health domain backend (Ports & Adapters)
+│   │   │   ├── src/
+│   │   │   │   ├── main/
+│   │   │   │   │   ├── java/
+│   │   │   │   │   │   └── com/
+│   │   │   │   │   │       └── suchika/
+│   │   │   │   │   │           └── health/
+│   │   │   │   │   │               └── adapters/
+│   │   │   │   │   │                   └── HealthApplication.java
+│   │   │   │   │   └── resources/
+│   │   │   │   │       └── application.properties
+│   │   │   │   └── test/
+│   │   │   │       └── java/
+│   │   │   │           └── com/
+│   │   │   │               └── suchika/
+│   │   │   │                   └── health/
+│   │   │   │                       └── adapters/
+│   │   │   └── build.gradle.kts
 │   │   ├── domain/
+│   │   │   ├── src/
+│   │   │   │   ├── main/
+│   │   │   │   │   ├── java/
+│   │   │   │   │   │   └── com/
+│   │   │   │   │   │       └── suchika/
+│   │   │   │   │   │           └── health/
+│   │   │   │   │   │               └── domain/
+│   │   │   │   │   └── resources/
+│   │   │   │   └── test/
+│   │   │   │       └── java/
+│   │   │   │           └── com/
+│   │   │   │               └── suchika/
+│   │   │   │                   └── health/
+│   │   │   │                       └── domain/
+│   │   │   └── build.gradle.kts
 │   │   ├── ports/
-│   │   ├── adapters/
-│   │   └── build.gradle.kts
-│   ├── household/            # Household domain backend
+│   │   │   ├── src/
+│   │   │   │   ├── main/
+│   │   │   │   │   ├── java/
+│   │   │   │   │   │   └── com/
+│   │   │   │   │   │       └── suchika/
+│   │   │   │   │   │           └── health/
+│   │   │   │   │   │               └── ports/
+│   │   │   │   │   └── resources/
+│   │   │   │   └── test/
+│   │   │   │       └── java/
+│   │   │   │           └── com/
+│   │   │   │               └── suchika/
+│   │   │   │                   └── health/
+│   │   │   │                       └── ports/
+│   │   │   └── build.gradle.kts
+│   │   └── src/
+│   │       ├── main/
+│   │       │   ├── java/
+│   │       │   │   └── com/
+│   │       │   │       └── suchika/
+│   │       │   │           └── health/
+│   │       │   └── resources/
+│   │       └── test/
+│   │           └── java/
+│   │               └── com/
+│   │                   └── suchika/
+│   │                       └── health/
+│   ├── household/
 │   │   ├── src/
+│   │   │   └── main/
+│   │   │       ├── java/
+│   │   │       │   └── com/
+│   │   │       │       └── suchika/
+│   │   │       │           ├── finance/
+│   │   │       │           └── health/
+│   │   │       └── resources/
+│   │   │           └── db/
+│   │   │               └── migration/
+│   │   │                   ├── V1__create_account_table.sql
+│   │   │                   ├── V2__create_transaction_table.sql
+│   │   │                   ├── V3__create_goal_table.sql
+│   │   │                   ├── V4__create_health_profile_table.sql
+│   │   │                   ├── V5__create_doctor_visit_table.sql
+│   │   │                   └── V6__create_vital_reading_table.sql
 │   │   └── build.gradle.kts
-│   └── web-gateway/          # API gateway
+│   ├── wealth/
+│   │   ├── adapters/
+│   │   │   ├── src/
+│   │   │   │   ├── main/
+│   │   │   │   │   ├── java/
+│   │   │   │   │   │   └── com/
+│   │   │   │   │   │       └── suchika/
+│   │   │   │   │   │           └── finance/
+│   │   │   │   │   │               └── adapters/
+│   │   │   │   │   │                   └── FinanceApplication.java
+│   │   │   │   │   └── resources/
+│   │   │   │   │       ├── db/
+│   │   │   │   │       │   └── migration/
+│   │   │   │   │       │       └── V7__add_jsonb_to_transaction.sql
+│   │   │   │   │       └── application.properties
+│   │   │   │   └── test/
+│   │   │   │       └── java/
+│   │   │   │           └── com/
+│   │   │   │               └── suchika/
+│   │   │   │                   └── finance/
+│   │   │   │                       └── adapters/
+│   │   │   └── build.gradle.kts
+│   │   ├── domain/
+│   │   │   ├── src/
+│   │   │   │   ├── main/
+│   │   │   │   │   ├── java/
+│   │   │   │   │   │   └── com/
+│   │   │   │   │   │       └── suchika/
+│   │   │   │   │   │           └── finance/
+│   │   │   │   │   │               └── domain/
+│   │   │   │   │   └── resources/
+│   │   │   │   └── test/
+│   │   │   │       └── java/
+│   │   │   │           └── com/
+│   │   │   │               └── suchika/
+│   │   │   │                   └── finance/
+│   │   │   │                       └── domain/
+│   │   │   └── build.gradle.kts
+│   │   ├── ports/
+│   │   │   ├── src/
+│   │   │   │   ├── main/
+│   │   │   │   │   ├── java/
+│   │   │   │   │   │   └── com/
+│   │   │   │   │   │       └── suchika/
+│   │   │   │   │   │           └── finance/
+│   │   │   │   │   │               └── ports/
+│   │   │   │   │   └── resources/
+│   │   │   │   └── test/
+│   │   │   │       └── java/
+│   │   │   │           └── com/
+│   │   │   │               └── suchika/
+│   │   │   │                   └── finance/
+│   │   │   │                       └── ports/
+│   │   │   └── build.gradle.kts
+│   │   └── src/
+│   │       ├── main/
+│   │       │   ├── java/
+│   │       │   │   └── com/
+│   │       │   │       └── suchika/
+│   │       │   │           └── finance/
+│   │       │   └── resources/
+│   │       └── test/
+│   │           └── java/
+│   │               └── com/
+│   │                   └── suchika/
+│   │                       └── finance/
+│   └── web-gateway/
+│       ├── src/
+│       │   ├── main/
+│       │   │   ├── java/
+│       │   │   │   └── com/
+│       │   │   │       └── suchika/
+│       │   │   │           └── gateway/
+│       │   │   └── resources/
+│       │   └── test/
+│       │       └── java/
+│       │           └── com/
+│       │               └── suchika/
+│       │                   └── gateway/
+│       └── build.gradle.kts
+├── assets/
+│   └── images/
 ├── documents/
+│   ├── temp/
 │   ├── AGENTS.md
 │   ├── ARCHITECTURE_DECISIONS.md
 │   ├── ARCHITECTURE_GUIDELINES.md
 │   ├── ARCHITECTURE_PROPOSALS.md
 │   ├── BUSINESS_REQUIREMENTS.md
+│   ├── CICD.md
+│   ├── documents_temp_CODE_OF_CONDUCT.md
+│   ├── documents_temp_SECURITY.md
+│   ├── FRONTEND_GUIDELINES.md
+│   ├── GETTING_STARTED.md
+│   ├── LOGGING_AND_EXCEPTIONS.md
 │   ├── REQUIREMENTS_cross_domain.md
 │   ├── REQUIREMENTS_health_domain.md
 │   ├── REQUIREMENTS_household_domain.md
 │   ├── REQUIREMENTS_wealth_domain.md
-│   ├── CICD.md
-│   ├── LOGGING_AND_EXCEPTIONS.md
 │   └── ROADMAP.md
-├── infrastructure/           # Shared infrastructure (DB pools, config)
+├── gradle/
+│   └── wrapper/
+│       ├── gradle-wrapper.jar
+│       └── gradle-wrapper.properties
+├── infrastructure/
+│   ├── local/
+│   │   └── .env.template
 │   └── build.gradle.kts
 ├── openapi/
-│   ├── wealth.yaml
 │   ├── health.yaml
-│   └── household.yaml
-├── shared/                   # Cross-cutting utilities
+│   └── wealth.yaml
+├── shared/
+│   ├── src/
+│   │   └── main/
+│   │       └── java/
+│   │           └── com/
+│   │               └── suchika/
+│   │                   └── shared/
+│   │                       ├── dto/
+│   │                       │   └── ErrorResponse.java
+│   │                       ├── exception/
+│   │                       │   ├── ApplicationException.java
+│   │                       │   ├── BadRequestException.java
+│   │                       │   ├── ConflictException.java
+│   │                       │   ├── ForbiddenException.java
+│   │                       │   ├── InternalServerException.java
+│   │                       │   ├── NotAcceptableException.java
+│   │                       │   ├── NotFoundException.java
+│   │                       │   ├── NotImplementedException.java
+│   │                       │   └── UnauthorizedException.java
+│   │                       ├── logging/
+│   │                       │   └── AppLogger.java
+│   │                       └── mapper/
+│   │                           └── ApplicationExceptionMapper.java
 │   └── build.gradle.kts
 ├── tools/
 │   └── documentWriter.py
-├── web/                      # React frontend
-│   ├── src/
+├── web/
 │   ├── public/
-│   ├── package.json
-│   └── package-lock.json
+│   │   ├── css/
+│   │   │   └── style.css
+│   │   ├── html/
+│   │   │   ├── about.html
+│   │   │   ├── projects.html
+│   │   │   └── skill.html
+│   │   ├── images/
+│   │   ├── favicon.ico
+│   │   ├── index.html
+│   │   ├── manifest.json
+│   │   ├── robots.txt
+│   │   └── tailwind.config.js
+│   ├── resources/
+│   │   ├── darkmode.png
+│   │   ├── darkmode.psd
+│   │   ├── github-logo.png
+│   │   ├── hackerrank_logo.png
+│   │   ├── lightmode.png
+│   │   ├── linkedin-logo.png
+│   │   ├── logo.svg
+│   │   ├── logo192.png
+│   │   ├── logo512.png
+│   │   ├── map.png
+│   │   └── WhatsApp-logo.png
+│   ├── scripts/
+│   │   └── copy-assets.js
+│   ├── src/
+│   │   ├── api/
+│   │   ├── components/
+│   │   │   ├── Navigation.js
+│   │   │   └── ProtectedRoute.js
+│   │   ├── context/
+│   │   │   └── AuthContext.js
+│   │   ├── hooks/
+│   │   │   └── useAuth.js
+│   │   ├── pages/
+│   │   │   ├── Admin/
+│   │   │   │   ├── AdminReports.js
+│   │   │   │   ├── AdminSettings.js
+│   │   │   │   └── AdminUsers.js
+│   │   │   ├── Public/
+│   │   │   │   ├── About.js
+│   │   │   │   ├── Home.js
+│   │   │   │   ├── SignIn.js
+│   │   │   │   └── SignUp.js
+│   │   │   └── User/
+│   │   │       ├── Dashboard.js
+│   │   │       ├── Health.js
+│   │   │       └── Transactions.js
+│   │   ├── App.css
+│   │   ├── App.js
+│   │   ├── App.test.js
+│   │   ├── index.css
+│   │   ├── index.js
+│   │   ├── reportWebVitals.js
+│   │   └── setupTests.js
+│   ├── .eslintrc.json
+│   ├── .gitignore
+│   ├── .prettierignore
+│   ├── .prettierrc.json
+│   ├── package-lock.json
+│   └── package.json
+├── .gitignore
 ├── build.gradle.kts
-├── settings.gradle.kts
 ├── gradlew
 ├── gradlew.bat
-├── .gitignore
-├── CODE_OF_CONDUCT.md
-├── CONTRIBUTING.md
 ├── LICENSE
+├── package-lock.json
 ├── README.md
-└── SECURITY.md
+└── settings.gradle.kts
 ```
+
 
 ---
 
