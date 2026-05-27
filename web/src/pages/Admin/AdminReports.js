@@ -1,6 +1,29 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { listHealthProfiles } from '../../api/healthApi';
 
 export const AdminReports = () => {
+  const [profileCount, setProfileCount] = useState(0);
+  const [apiStatus, setApiStatus] = useState('Pending');
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadReports() {
+      try {
+        const response = await listHealthProfiles();
+        setProfileCount(response.health_profiles?.length ?? 0);
+        setApiStatus('Healthy');
+      } catch (err) {
+        setError(err.message || 'Unable to load backend contract data');
+        setApiStatus('Unavailable');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadReports();
+  }, []);
+
   return (
     <div className="p-8 max-w-6xl mx-auto">
       <h1 className="text-4xl font-bold mb-4">📊 System Reports</h1>
@@ -15,13 +38,13 @@ export const AdminReports = () => {
           <h2 className="text-2xl font-bold mb-4">User Activity</h2>
           <div className="space-y-2 text-gray-600">
             <p>
-              Active Users: <span className="font-bold text-gray-900">1</span>
+              Health Profiles Loaded: <span className="font-bold text-gray-900">{loading ? 'Loading…' : profileCount}</span>
             </p>
             <p>
-              Total Transactions: <span className="font-bold text-gray-900">0</span>
+              API Contract: <span className="font-bold text-gray-900">/v1/health-profiles</span>
             </p>
             <p>
-              Health Entries: <span className="font-bold text-gray-900">0</span>
+              Data Source: <span className="font-bold text-gray-900">Shared backend contract</span>
             </p>
           </div>
         </div>
@@ -30,20 +53,22 @@ export const AdminReports = () => {
           <h2 className="text-2xl font-bold mb-4">System Health</h2>
           <div className="space-y-2 text-gray-600">
             <p>
-              API Status: <span className="font-bold text-green-600">✓ Healthy</span>
+              API Status: <span className={`font-bold ${apiStatus === 'Healthy' ? 'text-green-600' : 'text-red-600'}`}>
+                {apiStatus === 'Pending' ? 'Checking…' : apiStatus === 'Healthy' ? '✓ Healthy' : '✕ Unavailable'}
+              </span>
             </p>
             <p>
-              Database: <span className="font-bold text-green-600">✓ Connected</span>
+              Backend Response: <span className="font-bold text-gray-900">{error ? error : 'OK'}</span>
             </p>
             <p>
-              Uptime: <span className="font-bold text-gray-900">24h</span>
+              Contract Mode: <span className="font-bold text-gray-900">Shared OpenAPI / typed client</span>
             </p>
           </div>
         </div>
       </div>
 
       <div className="mt-6">
-        <button className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
+        <button className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700" disabled={loading}>
           📥 Export Report
         </button>
       </div>

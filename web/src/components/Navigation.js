@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
-export const Navigation = () => {
+export const Navigation = ({ theme, onToggleTheme }) => {
   const { user, logout, hasRole } = useAuth();
 
   return (
@@ -13,6 +13,13 @@ export const Navigation = () => {
         </Link>
 
         <div className="flex gap-4 items-center">
+          <button
+            type="button"
+            onClick={onToggleTheme}
+            className="bg-slate-700 text-white px-3 py-1 rounded hover:bg-slate-600"
+          >
+            {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+          </button>
           {/* Public Links */}
           <Link to="/" className="hover:text-gray-300">
             Home

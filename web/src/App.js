@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -23,10 +23,32 @@ import { AdminReports } from './pages/Admin/AdminReports';
 import './App.css';
 
 function App() {
+  const [theme, setTheme] = useState('auto');
+
+  useEffect(() => {
+    const savedTheme = window.localStorage.getItem('theme');
+    setTheme(savedTheme === 'light' || savedTheme === 'dark' ? savedTheme : 'auto');
+  }, []);
+
+  useEffect(() => {
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const activeTheme = theme === 'auto' ? (prefersDark ? 'dark' : 'light') : theme;
+    document.documentElement.classList.toggle('dark', activeTheme === 'dark');
+    document.documentElement.classList.toggle('light', activeTheme === 'light');
+  }, [theme]);
+
+  const toggleTheme = () => {
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const currentTheme = theme === 'auto' ? (prefersDark ? 'dark' : 'light') : theme;
+    const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    setTheme(nextTheme);
+    window.localStorage.setItem('theme', nextTheme);
+  };
+
   return (
     <AuthProvider>
       <BrowserRouter>
-        <Navigation />
+        <Navigation theme={theme} onToggleTheme={toggleTheme} />
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<Home />} />
