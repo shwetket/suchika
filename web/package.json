@@ -20,7 +20,7 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "generate:api": "openapi-typescript http://localhost:8080/q/openapi --output src/api/generated.ts",
+    "generate:api": "openapi-typescript ../application/contract/wealth.yaml --output src/api/generated.ts",
     "lint": "eslint src/ --ext .js,.jsx",
     "lint:fix": "eslint src/ --ext .js,.jsx --fix",
     "format": "prettier --write src/ public/",
