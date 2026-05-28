@@ -5,14 +5,27 @@ import { useAuth } from '../../hooks/useAuth';
 export const SignIn = () => {
   const [username, setUsername] = useState('');
   const [role, setRole] = useState('user');
+  const [error, setError] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (username.trim()) {
-      login(username, role);
+    if (!username.trim()) {
+      setError('Username is required.');
+      return;
+    }
+
+    setError(null);
+    setSubmitting(true);
+    try {
+      await login(username, role);
       navigate('/dashboard');
+    } catch (err) {
+      setError(err?.message || 'Authentication failed.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -46,10 +59,12 @@ export const SignIn = () => {
 
           <button
             type="submit"
-            className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 font-semibold"
+            disabled={submitting}
+            className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 font-semibold disabled:opacity-50"
           >
-            Sign In
+            {submitting ? 'Signing In…' : 'Sign In'}
           </button>
+          {error && <p className="text-red-600 text-sm mt-3">{error}</p>}
         </form>
         <p className="text-center text-gray-600 mt-4 text-sm">
           Demo: Use any username, select role (User/Admin)

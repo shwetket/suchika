@@ -4,6 +4,12 @@ const defaultHeaders = {
   'Content-Type': 'application/json',
 };
 
+/**
+ * @template T
+ * @param {string} path
+ * @param {RequestInit} [options]
+ * @returns {Promise<T>}
+ */
 async function request(path, options = {}) {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     credentials: 'include',
@@ -26,13 +32,24 @@ async function request(path, options = {}) {
     throw error;
   }
 
-  return body;
+  return /** @type {T} */ (body);
 }
 
+/**
+ * @template T
+ * @param {string} path
+ * @returns {Promise<T>}
+ */
 export function get(path) {
   return request(path, { method: 'GET' });
 }
 
+/**
+ * @template T
+ * @param {string} path
+ * @param {unknown} data
+ * @returns {Promise<T>}
+ */
 export function post(path, data) {
   return request(path, { method: 'POST', body: JSON.stringify(data) });
 }

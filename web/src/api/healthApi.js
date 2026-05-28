@@ -1,20 +1,9 @@
-import { get } from './client';
+import { get, post } from './client';
 
 /**
- * Health profile contract from backend OpenAPI.
- * @typedef {Object} HealthProfile
- * @property {string} name
- * @property {string} profile_id
- * @property {string} display_name
- * @property {string} relationship
- * @property {string|null} date_of_birth
- * @property {string|null} blood_group
- * @property {string} created_at
- */
-
-/**
- * @typedef {Object} ListHealthProfilesResponse
- * @property {HealthProfile[]} health_profiles
+ * @typedef {import('./generated').HealthProfile} HealthProfile
+ * @typedef {import('./generated').ListHealthProfilesResponse} ListHealthProfilesResponse
+ * @typedef {import('./generated').CreateHealthProfileRequest} CreateHealthProfileRequest
  */
 
 /**
@@ -23,5 +12,14 @@ import { get } from './client';
  * @returns {Promise<ListHealthProfilesResponse>}
  */
 export function listHealthProfiles() {
-  return get('/v1/health-profiles');
+  return /** @type {Promise<ListHealthProfilesResponse>} */ (get('/v1/health-profiles'));
+}
+
+/**
+ * Create a new health profile using the shared contract.
+ * @param {CreateHealthProfileRequest} data
+ * @returns {Promise<HealthProfile>}
+ */
+export function createHealthProfile(data) {
+  return /** @type {Promise<HealthProfile>} */ (post('/v1/health-profiles', data));
 }

@@ -199,6 +199,11 @@ textarea {
   background-color: var(--nav-border) !important;
 }
 
+.disabled\:opacity-50:disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+}
+
 .focus\:ring-blue-500:focus {
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.35) !important;
 }

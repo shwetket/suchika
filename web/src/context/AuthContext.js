@@ -1,4 +1,5 @@
 import React, { createContext, useState, useEffect } from 'react';
+import { signIn } from '../api/authApi';
 
 export const AuthContext = createContext();
 
@@ -6,7 +7,6 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Initialize auth state (from localStorage or mock)
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
@@ -19,12 +19,13 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
-  const login = (username, role = 'user') => {
+  const login = async (username, role = 'user') => {
+    const response = await signIn({ username, role });
     const newUser = {
-      username,
-      role, // 'public', 'user', 'admin'
-      token: `token_${Date.now()}`,
-      loginTime: new Date().toISOString(),
+      username: response.username,
+      role: response.role,
+      token: response.token,
+      loginTime: response.issued_at,
     };
     setUser(newUser);
     localStorage.setItem('user', JSON.stringify(newUser));
