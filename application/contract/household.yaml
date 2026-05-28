@@ -1,0 +1,16 @@
+openapi: 3.1.0
+
+info:
+  title: Household API
+  description: >
+    Manages household-related data and profiles.
+    Follows Google AIP resource-oriented design.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+
+tags:
+  - name: Household Profiles
+    description: Household-related profiles and data
