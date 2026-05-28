@@ -8,7 +8,9 @@ include(
     "application:health:domain",
     "application:health:ports",
     "application:health:adapters",
-    "application:household",
+    "application:household:domain",
+    "application:household:ports",
+    "application:household:adapters",
     "application:web-gateway"
 )
 
