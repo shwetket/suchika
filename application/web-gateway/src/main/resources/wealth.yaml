@@ -1,0 +1,454 @@
+openapi: 3.1.0
+
+info:
+  title: Finance API
+  description: >
+    Manages personal finance accounts.
+    Follows Google AIP resource-oriented design.
+  version: 1.0.0
+  contact:
+    name: Finance Service
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+
+tags:
+  - name: Accounts
+    description: Bank accounts, credit cards, loans and investments
+
+paths:
+
+  /v1/accounts:
+
+    get:
+      tags: [Accounts]
+      operationId: listAccounts
+      summary: List all accounts
+      description: >
+        Returns a paginated list of accounts.
+        Supports filtering by account_type and is_active.
+        Follows AIP-132 (Standard List) and AIP-158 (Pagination).
+      parameters:
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/PageToken'
+        - name: account_type
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/AccountType'
+        - name: is_active
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Successfully listed accounts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListAccountsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags: [Accounts]
+      operationId: createAccount
+      summary: Create an account
+      description: >
+        Creates a new account.
+        Follows AIP-133 (Standard Create).
+        The name field must be unique per institution.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAccountRequest'
+      responses:
+        '201':
+          description: Account created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/accounts/{account_id}:
+
+    get:
+      tags: [Accounts]
+      operationId: getAccount
+      summary: Get an account
+      description: >
+        Returns a single account by ID.
+        Follows AIP-131 (Standard Get).
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      responses:
+        '200':
+          description: Account found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    patch:
+      tags: [Accounts]
+      operationId: updateAccount
+      summary: Update an account
+      description: >
+        Partially updates an account.
+        Follows AIP-134 (Standard Update).
+        Only fields present in the request body are updated.
+        account_type and institution_name are immutable after creation.
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAccountRequest'
+      responses:
+        '200':
+          description: Account updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags: [Accounts]
+      operationId: deleteAccount
+      summary: Deactivate an account
+      description: >
+        Soft deletes an account by setting is_active to false.
+        Follows AIP-135 (Standard Delete).
+        Accounts with transactions cannot be hard deleted.
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      responses:
+        '204':
+          description: Account deactivated successfully
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+
+  parameters:
+
+    AccountId:
+      name: account_id
+      in: path
+      required: true
+      description: Unique identifier of the account
+      schema:
+        type: string
+        format: uuid
+        example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
+    PageSize:
+      name: page_size
+      in: query
+      required: false
+      description: >
+        Maximum number of items to return.
+        Follows AIP-158. Defaults to 20, maximum 100.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+    PageToken:
+      name: page_token
+      in: query
+      required: false
+      description: >
+        Token from previous response next_page_token.
+        Omit for first page.
+      schema:
+        type: string
+
+  schemas:
+
+    AccountType:
+      type: string
+      enum:
+        - SAVINGS
+        - CURRENT
+        - CREDIT_CARD
+        - HOME_LOAN
+        - PERSONAL_LOAN
+        - CAR_LOAN
+        - MUTUAL_FUND
+        - NPS
+        - PPF
+        - FD
+      description: Type of the account
+
+    Account:
+      type: object
+      description: Represents a financial account
+      properties:
+        name:
+          type: string
+          description: >
+            Resource name. Follows AIP-122.
+            Format: accounts/{account_id}
+          example: "accounts/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+          readOnly: true
+        account_id:
+          type: string
+          format: uuid
+          readOnly: true
+        account_name:
+          type: string
+          example: "HDFC Savings"
+        account_type:
+          $ref: '#/components/schemas/AccountType'
+        institution_name:
+          type: string
+          example: "HDFC Bank"
+        opening_balance:
+          type: number
+          format: double
+          example: 50000.00
+        current_balance:
+          type: number
+          format: double
+          description: Calculated live from transactions
+          readOnly: true
+        credit_limit:
+          type: number
+          format: double
+          nullable: true
+          description: Applicable only for CREDIT_CARD accounts
+          example: 200000.00
+        loan_outstanding:
+          type: number
+          format: double
+          nullable: true
+          description: Remaining principal for loan accounts
+        interest_rate:
+          type: number
+          format: double
+          nullable: true
+          description: Annual interest rate percentage
+          example: 8.75
+        emi_amount:
+          type: number
+          format: double
+          nullable: true
+          description: Fixed monthly EMI for loan accounts
+        current_value:
+          type: number
+          format: double
+          nullable: true
+          description: Current market value for investment accounts
+        is_active:
+          type: boolean
+          default: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+
+    CreateAccountRequest:
+      type: object
+      required:
+        - account_name
+        - account_type
+        - institution_name
+      properties:
+        account_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "HDFC Savings"
+        account_type:
+          $ref: '#/components/schemas/AccountType'
+        institution_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "HDFC Bank"
+        opening_balance:
+          type: number
+          format: double
+          default: 0.00
+        credit_limit:
+          type: number
+          format: double
+          nullable: true
+        loan_outstanding:
+          type: number
+          format: double
+          nullable: true
+        interest_rate:
+          type: number
+          format: double
+          nullable: true
+        emi_amount:
+          type: number
+          format: double
+          nullable: true
+
+    UpdateAccountRequest:
+      type: object
+      description: >
+        All fields optional. Only provided fields are updated.
+        account_type and institution_name cannot be changed after creation.
+      properties:
+        account_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        opening_balance:
+          type: number
+          format: double
+        credit_limit:
+          type: number
+          format: double
+          nullable: true
+        loan_outstanding:
+          type: number
+          format: double
+          nullable: true
+        interest_rate:
+          type: number
+          format: double
+          nullable: true
+        emi_amount:
+          type: number
+          format: double
+          nullable: true
+        current_value:
+          type: number
+          format: double
+          nullable: true
+        is_active:
+          type: boolean
+
+    ListAccountsResponse:
+      type: object
+      description: Paginated list of accounts. Follows AIP-158.
+      properties:
+        accounts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Account'
+        next_page_token:
+          type: string
+          nullable: true
+          description: Pass this as page_token in next request. Null means last page.
+        total_size:
+          type: integer
+          description: Total number of accounts matching the filter
+
+    Error:
+      type: object
+      description: >
+        Standard error response. Follows AIP-193 and
+        Google error model structure.
+      required:
+        - code
+        - message
+        - status
+      properties:
+        code:
+          type: integer
+          description: HTTP status code
+          example: 404
+        status:
+          type: string
+          description: Error status string
+          example: "NOT_FOUND"
+        message:
+          type: string
+          description: Human readable error message
+          example: "Account a1b2c3d4 not found"
+        details:
+          type: array
+          description: Additional error details
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                example: "account_name"
+              issue:
+                type: string
+                example: "must not be blank"
+
+  responses:
+
+    BadRequest:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 400
+            status: "INVALID_ARGUMENT"
+            message: "Request validation failed"
+            details:
+              - field: "account_name"
+                issue: "must not be blank"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 404
+            status: "NOT_FOUND"
+            message: "Account not found"
+
+    Conflict:
+      description: Resource already exists or has conflicting state
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 409
+            status: "ALREADY_EXISTS"
+            message: "Account with this name already exists"
+
+    InternalError:
+      description: Unexpected server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 500
+            status: "INTERNAL"
+            message: "An unexpected error occurred"
