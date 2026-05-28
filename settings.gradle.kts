@@ -2,15 +2,15 @@ rootProject.name = "suchika"
 
 // Backend domain modules - Hexagonal architecture with nested modules
 include(
-    "application:wealth:domain",
-    "application:wealth:ports",
-    "application:wealth:adapters",
-    "application:health:domain",
-    "application:health:ports",
-    "application:health:adapters",
-    "application:household:domain",
-    "application:household:ports",
-    "application:household:adapters",
+    "application:domain:wealth:domain",
+    "application:domain:wealth:ports",
+    "application:domain:wealth:adapters",
+    "application:domain:health:domain",
+    "application:domain:health:ports",
+    "application:domain:health:adapters",
+    "application:domain:household:domain",
+    "application:domain:household:ports",
+    "application:domain:household:adapters",
     "application:web-gateway"
 )
 

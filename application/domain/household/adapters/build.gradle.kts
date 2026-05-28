@@ -6,8 +6,8 @@ dependencies {
     implementation(enforcedPlatform("io.quarkus.platform:quarkus-bom:3.29.0"))
 
     // Hexagonal architecture layers
-    implementation(project(":application:household:domain"))
-    implementation(project(":application:household:ports"))
+    implementation(project(":application:domain:household:domain"))
+    implementation(project(":application:domain:household:ports"))
 
     // Quarkus framework
     implementation("io.quarkus:quarkus-arc")
