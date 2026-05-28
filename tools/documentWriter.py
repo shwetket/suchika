@@ -6,9 +6,10 @@ Run from repository root: python tools/documentWriter.py
 """
 import shutil
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 IGNORED_DIRS = {'.git', 'node_modules', '.gradle', '.idea', 'build', 'out', 'target', '.github'}
+ROOT_DOCS = {'README.md', 'CODE_OF_CONDUCT.md', 'CONTRIBUTING.md', 'SECURITY.md', 'LICENSE'}
 
 
 def is_ignored(path: Path) -> bool:
@@ -25,8 +26,8 @@ def collect_unorganized_md(repo_root: Path):
             rel = p.relative_to(repo_root)
         except Exception:
             continue
-        # skip root README
-        if rel == Path('README.md'):
+        # skip root governance/docs that must stay at repo root
+        if rel.name in ROOT_DOCS:
             continue
         # skip anything already in documents or .github
         if rel.parts and rel.parts[0] in ('documents', '.github'):
@@ -40,8 +41,12 @@ def collect_unorganized_md(repo_root: Path):
 
 def make_unique_name(repo_root: Path, src: Path, target_dir: Path):
     rel = src.relative_to(repo_root)
-    parts = rel.with_suffix('').parts
-    name = '_'.join(parts) + '.md'
+    # Preserve the original file name for files staged from documents/temp.
+    if rel.parts[:2] == ('documents', 'temp'):
+        name = src.name
+    else:
+        parts = rel.with_suffix('').parts
+        name = '_'.join(parts) + '.md'
     dest = target_dir / name
     i = 1
     base = dest.stem
@@ -63,7 +68,7 @@ def move_to_temp(repo_root: Path, files):
 
 
 def classify_file(path: Path):
-    text = path.read_text(encoding='utf-8').lower()
+    text = path.read_text(encoding='utf-8', errors='ignore').lower()
     # Business / requirements
     if any(k in text for k in ('requirement', 'user story', 'acceptance', 'business requirement', 'functional')):
         return 'business'
@@ -241,7 +246,7 @@ def main():
     replace_tree_in_readme(repo_root, tree)
 
     # Caveman confirmation with summary
-    ts = datetime.utcnow().isoformat() + 'Z'
+    ts = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
     # Caveman-style output, short and direct
     print(f"OOK! Done. {len(moved)} moved, {len(results)} processed. README updated at {ts}.")
 

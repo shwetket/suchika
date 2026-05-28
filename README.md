@@ -53,158 +53,187 @@ Built on **Hexagonal Architecture** (Ports & Adapters). Currently at **v0.1** �
 
 ## 📁 Repository Structure
 
+
 ```
 suchika/
 ├── .husky/
 │   └── pre-commit
 ├── application/
-│   ├── health/
-│   │   ├── adapters/
+│   ├── contract/
+│   │   ├── health.yaml
+│   │   ├── household.yaml
+│   │   └── wealth.yaml
+│   ├── domain/
+│   │   ├── health/
+│   │   │   ├── adapters/
+│   │   │   │   ├── src/
+│   │   │   │   │   ├── main/
+│   │   │   │   │   │   ├── java/
+│   │   │   │   │   │   │   └── com/
+│   │   │   │   │   │   │       └── suchika/
+│   │   │   │   │   │   │           └── health/
+│   │   │   │   │   │   │               └── adapters/
+│   │   │   │   │   │   │                   └── HealthApplication.java
+│   │   │   │   │   │   └── resources/
+│   │   │   │   │   │       └── application.properties
+│   │   │   │   │   └── test/
+│   │   │   │   │       └── java/
+│   │   │   │   │           └── com/
+│   │   │   │   │               └── suchika/
+│   │   │   │   │                   └── health/
+│   │   │   │   │                       └── adapters/
+│   │   │   │   └── build.gradle.kts
+│   │   │   ├── domain/
+│   │   │   │   ├── src/
+│   │   │   │   │   ├── main/
+│   │   │   │   │   │   ├── java/
+│   │   │   │   │   │   │   └── com/
+│   │   │   │   │   │   │       └── suchika/
+│   │   │   │   │   │   │           └── health/
+│   │   │   │   │   │   │               └── domain/
+│   │   │   │   │   │   └── resources/
+│   │   │   │   │   └── test/
+│   │   │   │   │       └── java/
+│   │   │   │   │           └── com/
+│   │   │   │   │               └── suchika/
+│   │   │   │   │                   └── health/
+│   │   │   │   │                       └── domain/
+│   │   │   │   └── build.gradle.kts
+│   │   │   ├── ports/
+│   │   │   │   ├── src/
+│   │   │   │   │   ├── main/
+│   │   │   │   │   │   ├── java/
+│   │   │   │   │   │   │   └── com/
+│   │   │   │   │   │   │       └── suchika/
+│   │   │   │   │   │   │           └── health/
+│   │   │   │   │   │   │               └── ports/
+│   │   │   │   │   │   └── resources/
+│   │   │   │   │   └── test/
+│   │   │   │   │       └── java/
+│   │   │   │   │           └── com/
+│   │   │   │   │               └── suchika/
+│   │   │   │   │                   └── health/
+│   │   │   │   │                       └── ports/
+│   │   │   │   └── build.gradle.kts
+│   │   │   └── src/
+│   │   │       ├── main/
+│   │   │       │   ├── java/
+│   │   │       │   │   └── com/
+│   │   │       │   │       └── suchika/
+│   │   │       │   │           └── health/
+│   │   │       │   └── resources/
+│   │   │       └── test/
+│   │   │           └── java/
+│   │   │               └── com/
+│   │   │                   └── suchika/
+│   │   │                       └── health/
+│   │   ├── household/
+│   │   │   ├── adapters/
+│   │   │   │   ├── src/
+│   │   │   │   │   └── main/
+│   │   │   │   │       ├── java/
+│   │   │   │   │       └── resources/
+│   │   │   │   │           ├── db/
+│   │   │   │   │           └── application.properties
+│   │   │   │   └── build.gradle.kts
+│   │   │   ├── domain/
+│   │   │   │   ├── src/
+│   │   │   │   │   ├── main/
+│   │   │   │   │   │   └── java/
+│   │   │   │   │   └── test/
+│   │   │   │   │       └── java/
+│   │   │   │   └── build.gradle.kts
+│   │   │   ├── ports/
+│   │   │   │   ├── src/
+│   │   │   │   │   ├── main/
+│   │   │   │   │   │   └── java/
+│   │   │   │   │   └── test/
+│   │   │   │   │       └── java/
+│   │   │   │   └── build.gradle.kts
 │   │   │   ├── src/
-│   │   │   │   ├── main/
-│   │   │   │   │   ├── java/
-│   │   │   │   │   │   └── com/
-│   │   │   │   │   │       └── suchika/
-│   │   │   │   │   │           └── health/
-│   │   │   │   │   │               └── adapters/
-│   │   │   │   │   │                   └── HealthApplication.java
-│   │   │   │   │   └── resources/
-│   │   │   │   │       └── application.properties
-│   │   │   │   └── test/
-│   │   │   │       └── java/
-│   │   │   │           └── com/
-│   │   │   │               └── suchika/
-│   │   │   │                   └── health/
-│   │   │   │                       └── adapters/
+│   │   │   │   └── main/
+│   │   │   │       └── resources/
+│   │   │   │           └── db/
+│   │   │   │               └── migration/
 │   │   │   └── build.gradle.kts
-│   │   ├── domain/
-│   │   │   ├── src/
-│   │   │   │   ├── main/
-│   │   │   │   │   ├── java/
-│   │   │   │   │   │   └── com/
-│   │   │   │   │   │       └── suchika/
-│   │   │   │   │   │           └── health/
-│   │   │   │   │   │               └── domain/
-│   │   │   │   │   └── resources/
-│   │   │   │   └── test/
-│   │   │   │       └── java/
-│   │   │   │           └── com/
-│   │   │   │               └── suchika/
-│   │   │   │                   └── health/
-│   │   │   │                       └── domain/
-│   │   │   └── build.gradle.kts
-│   │   ├── ports/
-│   │   │   ├── src/
-│   │   │   │   ├── main/
-│   │   │   │   │   ├── java/
-│   │   │   │   │   │   └── com/
-│   │   │   │   │   │       └── suchika/
-│   │   │   │   │   │           └── health/
-│   │   │   │   │   │               └── ports/
-│   │   │   │   │   └── resources/
-│   │   │   │   └── test/
-│   │   │   │       └── java/
-│   │   │   │           └── com/
-│   │   │   │               └── suchika/
-│   │   │   │                   └── health/
-│   │   │   │                       └── ports/
-│   │   │   └── build.gradle.kts
-│   │   └── src/
-│   │       ├── main/
-│   │       │   ├── java/
-│   │       │   │   └── com/
-│   │       │   │       └── suchika/
-│   │       │   │           └── health/
-│   │       │   └── resources/
-│   │       └── test/
-│   │           └── java/
-│   │               └── com/
-│   │                   └── suchika/
-│   │                       └── health/
-│   ├── household/
-│   │   ├── src/
-│   │   │   └── main/
-│   │   │       ├── java/
-│   │   │       │   └── com/
-│   │   │       │       └── suchika/
-│   │   │       │           ├── finance/
-│   │   │       │           └── health/
-│   │   │       └── resources/
-│   │   │           └── db/
-│   │   │               └── migration/
-│   │   │                   ├── V1__create_account_table.sql
-│   │   │                   ├── V2__create_transaction_table.sql
-│   │   │                   ├── V3__create_goal_table.sql
-│   │   │                   ├── V4__create_health_profile_table.sql
-│   │   │                   ├── V5__create_doctor_visit_table.sql
-│   │   │                   └── V6__create_vital_reading_table.sql
-│   │   └── build.gradle.kts
-│   ├── wealth/
-│   │   ├── adapters/
-│   │   │   ├── src/
-│   │   │   │   ├── main/
-│   │   │   │   │   ├── java/
-│   │   │   │   │   │   └── com/
-│   │   │   │   │   │       └── suchika/
-│   │   │   │   │   │           └── finance/
-│   │   │   │   │   │               └── adapters/
-│   │   │   │   │   │                   └── FinanceApplication.java
-│   │   │   │   │   └── resources/
-│   │   │   │   │       ├── db/
-│   │   │   │   │       │   └── migration/
-│   │   │   │   │       │       └── V7__add_jsonb_to_transaction.sql
-│   │   │   │   │       └── application.properties
-│   │   │   │   └── test/
-│   │   │   │       └── java/
-│   │   │   │           └── com/
-│   │   │   │               └── suchika/
-│   │   │   │                   └── finance/
-│   │   │   │                       └── adapters/
-│   │   │   └── build.gradle.kts
-│   │   ├── domain/
-│   │   │   ├── src/
-│   │   │   │   ├── main/
-│   │   │   │   │   ├── java/
-│   │   │   │   │   │   └── com/
-│   │   │   │   │   │       └── suchika/
-│   │   │   │   │   │           └── finance/
-│   │   │   │   │   │               └── domain/
-│   │   │   │   │   └── resources/
-│   │   │   │   └── test/
-│   │   │   │       └── java/
-│   │   │   │           └── com/
-│   │   │   │               └── suchika/
-│   │   │   │                   └── finance/
-│   │   │   │                       └── domain/
-│   │   │   └── build.gradle.kts
-│   │   ├── ports/
-│   │   │   ├── src/
-│   │   │   │   ├── main/
-│   │   │   │   │   ├── java/
-│   │   │   │   │   │   └── com/
-│   │   │   │   │   │       └── suchika/
-│   │   │   │   │   │           └── finance/
-│   │   │   │   │   │               └── ports/
-│   │   │   │   │   └── resources/
-│   │   │   │   └── test/
-│   │   │   │       └── java/
-│   │   │   │           └── com/
-│   │   │   │               └── suchika/
-│   │   │   │                   └── finance/
-│   │   │   │                       └── ports/
-│   │   │   └── build.gradle.kts
-│   │   └── src/
-│   │       ├── main/
-│   │       │   ├── java/
-│   │       │   │   └── com/
-│   │       │   │       └── suchika/
-│   │       │   │           └── finance/
-│   │       │   └── resources/
-│   │       └── test/
-│   │           └── java/
-│   │               └── com/
-│   │                   └── suchika/
-│   │                       └── finance/
+│   │   └── wealth/
+│   │       ├── adapters/
+│   │       │   ├── src/
+│   │       │   │   ├── main/
+│   │       │   │   │   ├── java/
+│   │       │   │   │   │   └── com/
+│   │       │   │   │   │       └── suchika/
+│   │       │   │   │   │           ├── finance/
+│   │       │   │   │   │           │   └── adapters/
+│   │       │   │   │   │           └── wealth/
+│   │       │   │   │   │               └── adapters/
+│   │       │   │   │   │                   └── WealthApplication.java
+│   │       │   │   │   └── resources/
+│   │       │   │   │       ├── db/
+│   │       │   │   │       │   └── migration/
+│   │       │   │   │       └── application.properties
+│   │       │   │   └── test/
+│   │       │   │       └── java/
+│   │       │   │           └── com/
+│   │       │   │               └── suchika/
+│   │       │   │                   └── finance/
+│   │       │   │                       └── adapters/
+│   │       │   └── build.gradle.kts
+│   │       ├── domain/
+│   │       │   ├── src/
+│   │       │   │   ├── main/
+│   │       │   │   │   ├── java/
+│   │       │   │   │   │   └── com/
+│   │       │   │   │   │       └── suchika/
+│   │       │   │   │   │           └── finance/
+│   │       │   │   │   │               └── domain/
+│   │       │   │   │   └── resources/
+│   │       │   │   └── test/
+│   │       │   │       └── java/
+│   │       │   │           └── com/
+│   │       │   │               └── suchika/
+│   │       │   │                   └── finance/
+│   │       │   │                       └── domain/
+│   │       │   └── build.gradle.kts
+│   │       ├── ports/
+│   │       │   ├── src/
+│   │       │   │   ├── main/
+│   │       │   │   │   ├── java/
+│   │       │   │   │   │   └── com/
+│   │       │   │   │   │       └── suchika/
+│   │       │   │   │   │           └── finance/
+│   │       │   │   │   │               └── ports/
+│   │       │   │   │   └── resources/
+│   │       │   │   └── test/
+│   │       │   │       └── java/
+│   │       │   │           └── com/
+│   │       │   │               └── suchika/
+│   │       │   │                   └── finance/
+│   │       │   │                       └── ports/
+│   │       │   └── build.gradle.kts
+│   │       └── src/
+│   │           ├── main/
+│   │           │   ├── java/
+│   │           │   │   └── com/
+│   │           │   │       └── suchika/
+│   │           │   │           └── finance/
+│   │           │   └── resources/
+│   │           └── test/
+│   │               └── java/
+│   │                   └── com/
+│   │                       └── suchika/
+│   │                           └── finance/
+│   ├── flyway/
+│   │   ├── health/
+│   │   │   ├── V4__create_health_profile_table.sql
+│   │   │   ├── V5__create_doctor_visit_table.sql
+│   │   │   └── V6__create_vital_reading_table.sql
+│   │   ├── household/
+│   │   │   └── V3__create_goal_table.sql
+│   │   └── wealth/
+│   │       ├── V1__create_account_table.sql
+│   │       ├── V2__create_transaction_table.sql
+│   │       └── V7__add_jsonb_to_transaction.sql
 │   └── web-gateway/
 │       ├── src/
 │       │   ├── main/
@@ -213,6 +242,8 @@ suchika/
 │       │   │   │       └── suchika/
 │       │   │   │           └── gateway/
 │       │   │   └── resources/
+│       │   │       ├── health.yaml
+│       │   │       └── wealth.yaml
 │       │   └── test/
 │       │       └── java/
 │       │           └── com/
@@ -229,10 +260,7 @@ suchika/
 │   ├── ARCHITECTURE_PROPOSALS.md
 │   ├── BUSINESS_REQUIREMENTS.md
 │   ├── CICD.md
-│   ├── documents_temp_CODE_OF_CONDUCT.md
-│   ├── documents_temp_SECURITY.md
 │   ├── FRONTEND_GUIDELINES.md
-│   ├── GETTING_STARTED.md
 │   ├── LOGGING_AND_EXCEPTIONS.md
 │   ├── REQUIREMENTS_cross_domain.md
 │   ├── REQUIREMENTS_health_domain.md
@@ -248,33 +276,41 @@ suchika/
 │   │   └── .env.template
 │   └── build.gradle.kts
 ├── openapi/
-│   ├── health.yaml
-│   └── wealth.yaml
+├── scripts/
+│   └── check-migrations-location.sh
 ├── shared/
 │   ├── src/
-│   │   └── main/
+│   │   ├── main/
+│   │   │   └── java/
+│   │   │       └── com/
+│   │   │           └── suchika/
+│   │   │               └── shared/
+│   │   │                   ├── dto/
+│   │   │                   │   └── ErrorResponse.java
+│   │   │                   ├── exception/
+│   │   │                   │   ├── ApplicationException.java
+│   │   │                   │   ├── BadRequestException.java
+│   │   │                   │   ├── ConflictException.java
+│   │   │                   │   ├── ForbiddenException.java
+│   │   │                   │   ├── InternalServerException.java
+│   │   │                   │   ├── NotAcceptableException.java
+│   │   │                   │   ├── NotFoundException.java
+│   │   │                   │   ├── NotImplementedException.java
+│   │   │                   │   └── UnauthorizedException.java
+│   │   │                   ├── logging/
+│   │   │                   │   └── AppLogger.java
+│   │   │                   └── mapper/
+│   │   │                       └── ApplicationExceptionMapper.java
+│   │   └── test/
 │   │       └── java/
 │   │           └── com/
 │   │               └── suchika/
-│   │                   └── shared/
-│   │                       ├── dto/
-│   │                       │   └── ErrorResponse.java
-│   │                       ├── exception/
-│   │                       │   ├── ApplicationException.java
-│   │                       │   ├── BadRequestException.java
-│   │                       │   ├── ConflictException.java
-│   │                       │   ├── ForbiddenException.java
-│   │                       │   ├── InternalServerException.java
-│   │                       │   ├── NotAcceptableException.java
-│   │                       │   ├── NotFoundException.java
-│   │                       │   ├── NotImplementedException.java
-│   │                       │   └── UnauthorizedException.java
-│   │                       ├── logging/
-│   │                       │   └── AppLogger.java
-│   │                       └── mapper/
-│   │                           └── ApplicationExceptionMapper.java
+│   │                   └── architecture/
+│   │                       └── DomainRulesTest.java
 │   └── build.gradle.kts
 ├── tools/
+│   ├── __pycache__/
+│   │   └── documentWriter.cpython-312.pyc
 │   └── documentWriter.py
 ├── web/
 │   ├── public/
@@ -306,6 +342,11 @@ suchika/
 │   │   └── copy-assets.js
 │   ├── src/
 │   │   ├── api/
+│   │   │   ├── authApi.js
+│   │   │   ├── client.js
+│   │   │   ├── generated.d.ts
+│   │   │   ├── generated.ts
+│   │   │   └── healthApi.js
 │   │   ├── components/
 │   │   │   ├── Navigation.js
 │   │   │   └── ProtectedRoute.js
@@ -342,13 +383,17 @@ suchika/
 │   └── package.json
 ├── .gitignore
 ├── build.gradle.kts
+├── CODE_OF_CONDUCT.md
+├── CONTRIBUTING.md
 ├── gradlew
 ├── gradlew.bat
 ├── LICENSE
 ├── package-lock.json
 ├── README.md
+├── SECURITY.md
 └── settings.gradle.kts
 ```
+
 
 
 ---
