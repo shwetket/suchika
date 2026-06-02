@@ -211,11 +211,7 @@ export const handleAPIResponse = async (response) => {
  * @returns {Promise<any>} Result of successful call
  * @throws {ApplicationException} If all retries fail
  */
-export const retryWithBackoff = async (
-  fn,
-  maxAttempts = 3,
-  delayMs = 1000
-) => {
+export const retryWithBackoff = async (fn, maxAttempts = 3, delayMs = 1000) => {
   let lastError;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
@@ -224,7 +220,7 @@ export const retryWithBackoff = async (
     } catch (error) {
       lastError = parseErrorResponse(error);
       if (attempt < maxAttempts) {
-        const delay = delayMs * (2 ** (attempt - 1));
+        const delay = delayMs * 2 ** (attempt - 1);
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }

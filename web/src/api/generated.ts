@@ -3,36 +3,35 @@
  * Do not make direct changes to the file.
  */
 
-
 export interface paths {
-  "/v1/accounts": {
+  '/v1/accounts': {
     /**
      * List all accounts
      * @description Returns a paginated list of accounts. Supports filtering by account_type and is_active. Follows AIP-132 (Standard List) and AIP-158 (Pagination).
      */
-    get: operations["listAccounts"];
+    get: operations['listAccounts'];
     /**
      * Create an account
      * @description Creates a new account. Follows AIP-133 (Standard Create). The name field must be unique per institution.
      */
-    post: operations["createAccount"];
+    post: operations['createAccount'];
   };
-  "/v1/accounts/{account_id}": {
+  '/v1/accounts/{account_id}': {
     /**
      * Get an account
      * @description Returns a single account by ID. Follows AIP-131 (Standard Get).
      */
-    get: operations["getAccount"];
+    get: operations['getAccount'];
     /**
      * Deactivate an account
      * @description Soft deletes an account by setting is_active to false. Follows AIP-135 (Standard Delete). Accounts with transactions cannot be hard deleted.
      */
-    delete: operations["deleteAccount"];
+    delete: operations['deleteAccount'];
     /**
      * Update an account
      * @description Partially updates an account. Follows AIP-134 (Standard Update). Only fields present in the request body are updated. account_type and institution_name are immutable after creation.
      */
-    patch: operations["updateAccount"];
+    patch: operations['updateAccount'];
   };
 }
 
@@ -44,7 +43,17 @@ export interface components {
      * @description Type of the account
      * @enum {string}
      */
-    AccountType: "SAVINGS" | "CURRENT" | "CREDIT_CARD" | "HOME_LOAN" | "PERSONAL_LOAN" | "CAR_LOAN" | "MUTUAL_FUND" | "NPS" | "PPF" | "FD";
+    AccountType:
+      | 'SAVINGS'
+      | 'CURRENT'
+      | 'CREDIT_CARD'
+      | 'HOME_LOAN'
+      | 'PERSONAL_LOAN'
+      | 'CAR_LOAN'
+      | 'MUTUAL_FUND'
+      | 'NPS'
+      | 'PPF'
+      | 'FD';
     /** @description Represents a financial account */
     Account: {
       /**
@@ -57,7 +66,7 @@ export interface components {
       account_id?: string;
       /** @example HDFC Savings */
       account_name?: string;
-      account_type?: components["schemas"]["AccountType"];
+      account_type?: components['schemas']['AccountType'];
       /** @example HDFC Bank */
       institution_name?: string;
       /**
@@ -105,7 +114,7 @@ export interface components {
     CreateAccountRequest: {
       /** @example HDFC Savings */
       account_name: string;
-      account_type: components["schemas"]["AccountType"];
+      account_type: components['schemas']['AccountType'];
       /** @example HDFC Bank */
       institution_name: string;
       /**
@@ -141,7 +150,7 @@ export interface components {
     };
     /** @description Paginated list of accounts. Follows AIP-158. */
     ListAccountsResponse: {
-      accounts?: components["schemas"]["Account"][];
+      accounts?: components['schemas']['Account'][];
       /** @description Pass this as page_token in next request. Null means last page. */
       next_page_token?: string | null;
       /** @description Total number of accounts matching the filter */
@@ -166,36 +175,36 @@ export interface components {
       message: string;
       /** @description Additional error details */
       details?: {
-          /** @example account_name */
-          field?: string;
-          /** @example must not be blank */
-          issue?: string;
-        }[];
+        /** @example account_name */
+        field?: string;
+        /** @example must not be blank */
+        issue?: string;
+      }[];
     };
   };
   responses: {
     /** @description Request validation failed */
     BadRequest: {
       content: {
-        "application/json": components["schemas"]["Error"];
+        'application/json': components['schemas']['Error'];
       };
     };
     /** @description Resource not found */
     NotFound: {
       content: {
-        "application/json": components["schemas"]["Error"];
+        'application/json': components['schemas']['Error'];
       };
     };
     /** @description Resource already exists or has conflicting state */
     Conflict: {
       content: {
-        "application/json": components["schemas"]["Error"];
+        'application/json': components['schemas']['Error'];
       };
     };
     /** @description Unexpected server error */
     InternalError: {
       content: {
-        "application/json": components["schemas"]["Error"];
+        'application/json': components['schemas']['Error'];
       };
     };
   };
@@ -217,7 +226,6 @@ export type $defs = Record<string, never>;
 export type external = Record<string, never>;
 
 export interface operations {
-
   /**
    * List all accounts
    * @description Returns a paginated list of accounts. Supports filtering by account_type and is_active. Follows AIP-132 (Standard List) and AIP-158 (Pagination).
@@ -225,9 +233,9 @@ export interface operations {
   listAccounts: {
     parameters: {
       query?: {
-        page_size?: components["parameters"]["PageSize"];
-        page_token?: components["parameters"]["PageToken"];
-        account_type?: components["schemas"]["AccountType"];
+        page_size?: components['parameters']['PageSize'];
+        page_token?: components['parameters']['PageToken'];
+        account_type?: components['schemas']['AccountType'];
         is_active?: boolean;
       };
     };
@@ -235,11 +243,11 @@ export interface operations {
       /** @description Successfully listed accounts */
       200: {
         content: {
-          "application/json": components["schemas"]["ListAccountsResponse"];
+          'application/json': components['schemas']['ListAccountsResponse'];
         };
       };
-      400: components["responses"]["BadRequest"];
-      500: components["responses"]["InternalError"];
+      400: components['responses']['BadRequest'];
+      500: components['responses']['InternalError'];
     };
   };
   /**
@@ -249,19 +257,19 @@ export interface operations {
   createAccount: {
     requestBody: {
       content: {
-        "application/json": components["schemas"]["CreateAccountRequest"];
+        'application/json': components['schemas']['CreateAccountRequest'];
       };
     };
     responses: {
       /** @description Account created successfully */
       201: {
         content: {
-          "application/json": components["schemas"]["Account"];
+          'application/json': components['schemas']['Account'];
         };
       };
-      400: components["responses"]["BadRequest"];
-      409: components["responses"]["Conflict"];
-      500: components["responses"]["InternalError"];
+      400: components['responses']['BadRequest'];
+      409: components['responses']['Conflict'];
+      500: components['responses']['InternalError'];
     };
   };
   /**
@@ -271,18 +279,18 @@ export interface operations {
   getAccount: {
     parameters: {
       path: {
-        account_id: components["parameters"]["AccountId"];
+        account_id: components['parameters']['AccountId'];
       };
     };
     responses: {
       /** @description Account found */
       200: {
         content: {
-          "application/json": components["schemas"]["Account"];
+          'application/json': components['schemas']['Account'];
         };
       };
-      404: components["responses"]["NotFound"];
-      500: components["responses"]["InternalError"];
+      404: components['responses']['NotFound'];
+      500: components['responses']['InternalError'];
     };
   };
   /**
@@ -292,7 +300,7 @@ export interface operations {
   deleteAccount: {
     parameters: {
       path: {
-        account_id: components["parameters"]["AccountId"];
+        account_id: components['parameters']['AccountId'];
       };
     };
     responses: {
@@ -300,9 +308,9 @@ export interface operations {
       204: {
         content: never;
       };
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["Conflict"];
-      500: components["responses"]["InternalError"];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      500: components['responses']['InternalError'];
     };
   };
   /**
@@ -312,24 +320,24 @@ export interface operations {
   updateAccount: {
     parameters: {
       path: {
-        account_id: components["parameters"]["AccountId"];
+        account_id: components['parameters']['AccountId'];
       };
     };
     requestBody: {
       content: {
-        "application/json": components["schemas"]["UpdateAccountRequest"];
+        'application/json': components['schemas']['UpdateAccountRequest'];
       };
     };
     responses: {
       /** @description Account updated successfully */
       200: {
         content: {
-          "application/json": components["schemas"]["Account"];
+          'application/json': components['schemas']['Account'];
         };
       };
-      400: components["responses"]["BadRequest"];
-      404: components["responses"]["NotFound"];
-      500: components["responses"]["InternalError"];
+      400: components['responses']['BadRequest'];
+      404: components['responses']['NotFound'];
+      500: components['responses']['InternalError'];
     };
   };
 }

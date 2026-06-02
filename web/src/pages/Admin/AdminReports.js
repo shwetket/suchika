@@ -37,7 +37,8 @@ export const AdminReports = () => {
           <h2 className="text-2xl font-bold mb-4">User Activity</h2>
           <div className="space-y-2 text-gray-600">
             <p>
-              Health Profiles Loaded: <span className="font-bold text-gray-900">{loading ? 'Loading…' : profileCount}</span>
+              Health Profiles Loaded:{' '}
+              <span className="font-bold text-gray-900">{loading ? 'Loading…' : profileCount}</span>
             </p>
             <p>
               API Contract: <span className="font-bold text-gray-900">/v1/health-profiles</span>
@@ -52,22 +53,34 @@ export const AdminReports = () => {
           <h2 className="text-2xl font-bold mb-4">System Health</h2>
           <div className="space-y-2 text-gray-600">
             <p>
-              API Status: <span className={`font-bold ${apiStatus === 'Healthy' ? 'text-green-600' : 'text-red-600'}`}>
-                {apiStatus === 'Pending' ? 'Checking…' : apiStatus === 'Healthy' ? '✓ Healthy' : '✕ Unavailable'}
+              API Status:{' '}
+              <span
+                className={`font-bold ${apiStatus === 'Healthy' ? 'text-green-600' : 'text-red-600'}`}
+              >
+                {apiStatus === 'Pending'
+                  ? 'Checking…'
+                  : apiStatus === 'Healthy'
+                    ? '✓ Healthy'
+                    : '✕ Unavailable'}
               </span>
             </p>
             <p>
-              Backend Response: <span className="font-bold text-gray-900">{error ? error : 'OK'}</span>
+              Backend Response:{' '}
+              <span className="font-bold text-gray-900">{error ? error : 'OK'}</span>
             </p>
             <p>
-              Contract Mode: <span className="font-bold text-gray-900">Shared OpenAPI / typed client</span>
+              Contract Mode:{' '}
+              <span className="font-bold text-gray-900">Shared OpenAPI / typed client</span>
             </p>
           </div>
         </div>
       </div>
 
       <div className="mt-6">
-        <button className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700" disabled={loading}>
+        <button
+          className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+          disabled={loading}
+        >
           📥 Export Report
         </button>
       </div>
