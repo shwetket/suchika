@@ -12,7 +12,7 @@ import { SignUp } from './pages/Public/SignUp';
 
 // User Pages
 import { Dashboard } from './pages/User/Dashboard';
-import { Transactions } from './pages/User/Transactions';
+import { Transactions as UserTransactions } from './pages/User/Transactions';
 import { Health } from './pages/User/Health';
 
 // Admin Pages
@@ -20,7 +20,21 @@ import { AdminUsers } from './pages/Admin/AdminUsers';
 import { AdminSettings } from './pages/Admin/AdminSettings';
 import { AdminReports } from './pages/Admin/AdminReports';
 
-import './App.css';
+import {
+  Accounts as WealthAccounts,
+  Transactions as WealthTransactions,
+  Reports as WealthReports,
+} from './pages/Wealth';
+import {
+  Profiles as HouseholdProfiles,
+  Calendar as HouseholdCalendar,
+  Inventory as HouseholdInventory,
+} from './pages/Household';
+import {
+  Vitals as HealthVitals,
+  DoctorVisits as HealthDoctorVisits,
+  HealthProfile as HealthProfilePage,
+} from './pages/Health';
 
 function App() {
   const [theme, setTheme] = useState('auto');
@@ -31,14 +45,14 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)')?.matches ?? false;
     const activeTheme = theme === 'auto' ? (prefersDark ? 'dark' : 'light') : theme;
     document.documentElement.classList.toggle('dark', activeTheme === 'dark');
     document.documentElement.classList.toggle('light', activeTheme === 'light');
   }, [theme]);
 
   const toggleTheme = () => {
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)')?.matches ?? false;
     const currentTheme = theme === 'auto' ? (prefersDark ? 'dark' : 'light') : theme;
     const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
     setTheme(nextTheme);
@@ -69,7 +83,7 @@ function App() {
             path="/transactions"
             element={
               <ProtectedRoute requiredRole="user">
-                <Transactions />
+                <UserTransactions />
               </ProtectedRoute>
             }
           />
@@ -78,6 +92,84 @@ function App() {
             element={
               <ProtectedRoute requiredRole="user">
                 <Health />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Wealth Domain */}
+          <Route
+            path="/wealth/accounts"
+            element={
+              <ProtectedRoute requiredRole="user">
+                <WealthAccounts />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/wealth/transactions"
+            element={
+              <ProtectedRoute requiredRole="user">
+                <WealthTransactions />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/wealth/reports"
+            element={
+              <ProtectedRoute requiredRole="user">
+                <WealthReports />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Household Domain */}
+          <Route
+            path="/household/profiles"
+            element={
+              <ProtectedRoute requiredRole="user">
+                <HouseholdProfiles />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/household/calendar"
+            element={
+              <ProtectedRoute requiredRole="user">
+                <HouseholdCalendar />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/household/inventory"
+            element={
+              <ProtectedRoute requiredRole="user">
+                <HouseholdInventory />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Health Domain */}
+          <Route
+            path="/health/vitals"
+            element={
+              <ProtectedRoute requiredRole="user">
+                <HealthVitals />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/health/doctors"
+            element={
+              <ProtectedRoute requiredRole="user">
+                <HealthDoctorVisits />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/health/profile"
+            element={
+              <ProtectedRoute requiredRole="user">
+                <HealthProfilePage />
               </ProtectedRoute>
             }
           />

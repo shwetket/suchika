@@ -41,8 +41,8 @@ def collect_unorganized_md(repo_root: Path):
 
 def make_unique_name(repo_root: Path, src: Path, target_dir: Path):
     rel = src.relative_to(repo_root)
-    # Preserve the original file name for files staged from documents/temp.
-    if rel.parts[:2] == ('documents', 'temp'):
+    # Preserve the original file name for files staged from documents/ToBeDeleted.
+    if rel.parts[:2] == ('documents', 'ToBeDeleted'):
         name = src.name
     else:
         parts = rel.with_suffix('').parts
@@ -56,12 +56,12 @@ def make_unique_name(repo_root: Path, src: Path, target_dir: Path):
     return dest
 
 
-def move_to_temp(repo_root: Path, files):
-    temp = repo_root / 'documents' / 'temp'
-    temp.mkdir(parents=True, exist_ok=True)
+def move_to_tobedeleted(repo_root: Path, files):
+    to_be_deleted = repo_root / 'documents' / 'ToBeDeleted'
+    to_be_deleted.mkdir(parents=True, exist_ok=True)
     moved = []
     for p in files:
-        dest = make_unique_name(repo_root, p, temp)
+        dest = make_unique_name(repo_root, p, to_be_deleted)
         shutil.move(str(p), str(dest))
         moved.append((p, dest))
     return moved
@@ -156,7 +156,7 @@ def promote_to_documents(temp_path: Path, repo_root: Path):
 
 
 def process_temp(repo_root: Path):
-    temp_dir = repo_root / 'documents' / 'temp'
+    temp_dir = repo_root / 'documents' / 'ToBeDeleted'
     if not temp_dir.exists():
         return []
     results = []
@@ -234,9 +234,9 @@ def replace_tree_in_readme(repo_root: Path, tree_text: str):
 
 def main():
     repo_root = Path.cwd()
-    # Phase 1: Isolation staging - move unorganized md into documents/temp
+    # Phase 1: Isolation staging - move unorganized md into documents/ToBeDeleted
     unorganized = collect_unorganized_md(repo_root)
-    moved = move_to_temp(repo_root, unorganized) if unorganized else []
+    moved = move_to_tobedeleted(repo_root, unorganized) if unorganized else []
 
     # Phase 2 & 3: Context evaluation and consolidation
     results = process_temp(repo_root)

@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { listHealthProfiles } from '../../api/healthApi';
 
 export const AdminReports = () => {
   const [profileCount, setProfileCount] = useState(0);
@@ -10,8 +9,8 @@ export const AdminReports = () => {
   useEffect(() => {
     async function loadReports() {
       try {
-        const response = await listHealthProfiles();
-        setProfileCount(response.health_profiles?.length ?? 0);
+        // TODO: Hook up shared backend contract data via generated OpenAPI client
+        setProfileCount(0);
         setApiStatus('Healthy');
       } catch (err) {
         setError(err.message || 'Unable to load backend contract data');

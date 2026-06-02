@@ -55,6 +55,7 @@ Built on **Hexagonal Architecture** (Ports & Adapters). Currently at **v0.1** �
 
 
 
+
 ```
 suchika/
 ├── .husky/
@@ -391,6 +392,7 @@ suchika/
 ├── SECURITY.md
 └── settings.gradle.kts
 ```
+
 
 
 

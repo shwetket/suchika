@@ -44,6 +44,12 @@ jobs:
       - name: Lint frontend
         run: npm run lint
         working-directory: web
+      - name: Format check frontend
+        run: npm run format:check
+        working-directory: web
+      - name: Run frontend unit tests
+        run: npm run test:ci
+        working-directory: web
       - name: Build React frontend
         run: npm run build
         working-directory: web
