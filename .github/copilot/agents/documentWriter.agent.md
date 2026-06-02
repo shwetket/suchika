@@ -22,5 +22,5 @@ Behavior:
     OOK! documentWriter move files to /documents. Root README get new tree. Files clean now!
 
 Notes:
-- This agent ships a small Python helper script at `tools/documentWriter.py` that performs the routine.
-- To run manually: `python tools/documentWriter.py` from repository root.
+- This agent ships a small Python helper script at `scripts/documentWriter.py` that performs the routine.
+- To run manually: `python scripts/documentWriter.py` from repository root.

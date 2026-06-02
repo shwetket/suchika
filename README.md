@@ -54,12 +54,14 @@ Built on **Hexagonal Architecture** (Ports & Adapters). Currently at **v0.1** �
 ## 📁 Repository Structure
 
 
+
 ```
 suchika/
 ├── .husky/
 │   └── pre-commit
 ├── application/
 │   ├── contract/
+│   │   ├── gateway.yaml
 │   │   ├── health.yaml
 │   │   ├── household.yaml
 │   │   └── wealth.yaml
@@ -275,9 +277,9 @@ suchika/
 │   ├── local/
 │   │   └── .env.template
 │   └── build.gradle.kts
-├── openapi/
 ├── scripts/
-│   └── check-migrations-location.sh
+│   ├── check-migrations-location.sh
+│   └── documentWriter.py
 ├── shared/
 │   ├── src/
 │   │   ├── main/
@@ -308,10 +310,6 @@ suchika/
 │   │                   └── architecture/
 │   │                       └── DomainRulesTest.java
 │   └── build.gradle.kts
-├── tools/
-│   ├── __pycache__/
-│   │   └── documentWriter.cpython-312.pyc
-│   └── documentWriter.py
 ├── web/
 │   ├── public/
 │   │   ├── css/
@@ -393,6 +391,7 @@ suchika/
 ├── SECURITY.md
 └── settings.gradle.kts
 ```
+
 
 
 
