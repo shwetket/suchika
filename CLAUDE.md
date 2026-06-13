@@ -66,13 +66,13 @@ Each domain has three layers:
 
 | Schema | Owner | Content |
 |---|---|---|
-| `profile` | profile module | `profile` table — the upstream identity anchor |
+| `profile` | profile module | `admin` — household manager; `profile` — all household members |
 | `wealth` | wealth module | `account`, `transaction`, `statement_upload`, `upload_error_log`, `physical_asset` |
 | `household` | household module | `calendar_event`, `inventory_item`, `goal` |
 | `health` | health module | `vital_reading`, `doctor_visit` |
 | `projections` | web-gateway | `dashboard_snapshot` — CQRS read model (UPSERT on recalculation) |
 
-Cross-domain FK pattern: wealth/household/health tables hold `profile_id UUID REFERENCES profile.profile(id)`. Profile never references other domains. No cross-domain SQL joins.
+Profile schema design: `profile.admin` is the household manager (future auth anchor). `profile.profile` holds all household members and has an `admin_id FK → profile.admin`. Every other domain's tables hold `profile_id UUID REFERENCES profile.profile(id)` — pointing into the member record, never into admin. No cross-domain SQL joins.
 
 ## Migrations
 
@@ -95,11 +95,15 @@ The calculation engine lives in `web-gateway` (the BFF), which has read access t
 
 ## Key Rules
 
-**Domain layer:** `domain/` must have zero framework dependencies. No `@Inject`, no JPA annotations, no HTTP types. Enforced by ArchUnit in `shared/src/test/java/.../DomainRulesTest.java`.
+**Domain layer:** `domain/` must have zero framework dependencies. No `@Inject`, no JPA annotations (`jakarta.persistence.*`), no HTTP types. Enforced by ArchUnit in `shared/src/test/java/.../DomainRulesTest.java` — read that file before writing new classes; it documents the full dependency rules including cross-domain isolation and logging requirements.
 
 **Flyway:** Never edit a committed migration — create a new versioned file. `00_bootstrap.sql` is manual-only (Flyway does not run it).
 
-**No ENUMs in SQL:** Use `VARCHAR + CHECK` constraints throughout. Rationale: new values are added by modifying the constraint alone, with no type rebuild or data migration.
+**DB constraint philosophy — two categories:**
+- **Keep in DB** (structural invariants enforced everywhere, including direct DB access): NOT NULL, PK, FK, UNIQUE, and business-rule checks like `amount >= 0`, `end_date >= start_date`, `visited_doctor = TRUE → doctor_name NOT NULL`.
+- **Do NOT add to DB** (enum discriminators — values that form a list of allowed strings): account types, event types, vital types, relation values, status codes, platform names. These are enforced at the OpenAPI contract (enum on the schema) and Java enum + `@Valid` annotation. Adding a new value requires only a contract + code change — no Flyway migration needed.
+
+**No SQL ENUMs ever.** Use plain `VARCHAR` with no CHECK constraint for discriminator columns.
 
 **API client:** After any backend contract change, regenerate with `cd web && npm run generate:api`. Never hand-edit `web/src/api/generated.ts`.
 

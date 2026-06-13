@@ -3,8 +3,10 @@ openapi: 3.1.0
 info:
   title: Profile API
   description: >
-    Manages household member identities — the upstream cross-domain anchor.
-    Every other domain (wealth, health, household) holds a FK into this resource.
+    Manages admins and household member identities.
+    Admins are the household managers (one per household in v0.1, multiple in v1.1+).
+    Profiles are all household members (including the admin person themselves).
+    Every other domain (wealth, health, household) holds a FK into the profile resource.
     Follows Google AIP resource-oriented design.
   version: 1.0.0
 
@@ -13,10 +15,136 @@ servers:
     description: Local development
 
 tags:
+  - name: Admins
+    description: Household admin registry (system owner / future authenticated user)
   - name: Profiles
-    description: Household member identity registry (self + family)
+    description: Household member identity registry (self + family, scoped to an admin)
 
 paths:
+
+  # ============================================================
+  # ADMINS
+  # ============================================================
+
+  /v1/admins:
+
+    get:
+      tags: [Admins]
+      operationId: listAdmins
+      summary: List admins
+      description: >
+        Returns all admins. In v0.1 this always returns exactly one.
+        In v1.1+ each authenticated user is an admin managing their own household.
+        Follows AIP-132. Not paginated — admin count is always tiny.
+      responses:
+        '200':
+          description: Successfully listed admins
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListAdminsResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags: [Admins]
+      operationId: createAdmin
+      summary: Create an admin
+      description: >
+        Creates a new admin (household manager).
+        In v0.1 only one admin exists. In v1.1+ multiple admins are supported.
+        After creating an admin, create a profile with relation_to_admin = SELF
+        to represent the admin's own household member record.
+        Follows AIP-133.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAdminRequest'
+      responses:
+        '201':
+          description: Admin created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/admins/{admin_id}:
+
+    get:
+      tags: [Admins]
+      operationId: getAdmin
+      summary: Get an admin
+      description: Follows AIP-131.
+      parameters:
+        - $ref: '#/components/parameters/AdminId'
+      responses:
+        '200':
+          description: Admin found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    patch:
+      tags: [Admins]
+      operationId: updateAdmin
+      summary: Update an admin
+      description: >
+        Partially updates an admin.
+        Follows AIP-134. Only provided fields are updated.
+      parameters:
+        - $ref: '#/components/parameters/AdminId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAdminRequest'
+      responses:
+        '200':
+          description: Admin updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags: [Admins]
+      operationId: deactivateAdmin
+      summary: Deactivate an admin
+      description: >
+        Soft-deletes an admin by setting is_active to false.
+        An admin with active profiles cannot be deactivated (returns 409).
+        Follows AIP-135.
+      parameters:
+        - $ref: '#/components/parameters/AdminId'
+      responses:
+        '204':
+          description: Admin deactivated
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
 
   /v1/profiles:
 
@@ -29,6 +157,13 @@ paths:
         Not paginated — the list is always small (max ~10 rows).
         Follows AIP-132 (Standard List).
       parameters:
+        - name: admin_id
+          in: query
+          required: false
+          description: Filter to members belonging to a specific admin's household.
+          schema:
+            type: string
+            format: uuid
         - name: is_active
           in: query
           required: false
@@ -157,6 +292,16 @@ components:
 
   parameters:
 
+    AdminId:
+      name: admin_id
+      in: path
+      required: true
+      description: Unique identifier of the admin
+      schema:
+        type: string
+        format: uuid
+        example: "f0e1d2c3-b4a5-6789-0fed-cba987654321"
+
     ProfileId:
       name: profile_id
       in: path
@@ -168,6 +313,79 @@ components:
         example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 
   schemas:
+
+    Admin:
+      type: object
+      description: >
+        Household manager and future authentication anchor.
+        In v0.1 exactly one admin exists. In v1.1+ each authenticated user is an admin.
+        The admin's personal details (DOB, gender, etc.) live in their profile record
+        (the one with relation_to_admin = SELF).
+      properties:
+        name:
+          type: string
+          description: >
+            Resource name. Follows AIP-122.
+            Format: admins/{admin_id}
+          readOnly: true
+        admin_id:
+          type: string
+          format: uuid
+          readOnly: true
+        display_name:
+          type: string
+          example: "Ketan"
+        email_address:
+          type: string
+          format: email
+          nullable: true
+          description: Future v1.0 login credential. Nullable until the Security milestone.
+        is_active:
+          type: boolean
+          default: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+
+    CreateAdminRequest:
+      type: object
+      required:
+        - display_name
+      properties:
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 150
+          example: "Ketan"
+        email_address:
+          type: string
+          format: email
+          nullable: true
+
+    UpdateAdminRequest:
+      type: object
+      properties:
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        email_address:
+          type: string
+          format: email
+          nullable: true
+        is_active:
+          type: boolean
+
+    ListAdminsResponse:
+      type: object
+      properties:
+        admins:
+          type: array
+          items:
+            $ref: '#/components/schemas/Admin'
+        total_size:
+          type: integer
 
     RelationToAdmin:
       type: string
@@ -205,7 +423,7 @@ components:
 
     Profile:
       type: object
-      description: A household member identity record
+      description: A household member identity record scoped to an admin's household
       properties:
         name:
           type: string
@@ -217,6 +435,11 @@ components:
         profile_id:
           type: string
           format: uuid
+          readOnly: true
+        admin_id:
+          type: string
+          format: uuid
+          description: The admin whose household this member belongs to.
           readOnly: true
         full_name:
           type: string
@@ -255,10 +478,17 @@ components:
     CreateProfileRequest:
       type: object
       required:
+        - admin_id
         - full_name
         - dob
         - relation_to_admin
       properties:
+        admin_id:
+          type: string
+          format: uuid
+          description: >
+            The admin whose household this member belongs to.
+            In v0.1 use the single admin's ID. In v1.1+ derived from auth context.
         full_name:
           type: string
           minLength: 1
