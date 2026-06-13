@@ -3,8 +3,11 @@ openapi: 3.1.0
 info:
   title: Household API
   description: >
-    Manages household operations: family calendar events, grocery inventory,
-    and financial goals.
+    Manages household calendar events, grocery/consumable inventory,
+    and financial goals. Resources are scoped to household member profiles
+    via profile_id. Goals are flat (not nested under profiles) because
+    a goal often belongs to the whole household, not one member.
+
     Follows Google AIP resource-oriented design.
   version: 1.0.0
 
@@ -14,16 +17,16 @@ servers:
 
 tags:
   - name: Events
-    description: Family calendar events (personal, school, travel, medical, etc.)
+    description: Calendar events for household members
   - name: Inventory
-    description: Grocery and supply chain item ledger
+    description: Grocery and consumable stock tracking
   - name: Goals
-    description: Household financial goal registry
+    description: Financial saving goals for the household
 
 paths:
 
   # ============================================================
-  # CALENDAR EVENTS  (nested under profile)
+  # CALENDAR EVENTS — nested under profile
   # ============================================================
 
   /v1/profiles/{profile_id}/events:
@@ -31,14 +34,14 @@ paths:
     get:
       tags: [Events]
       operationId: listEvents
-      summary: List calendar events for a profile
+      summary: List events for a profile
       description: >
-        Returns a paginated, date-ordered list of calendar events for a household member.
-        Follows AIP-132 and AIP-158.
+        Returns calendar events for a household member.
+        Optionally filter by type or date range.
+        Not paginated — event count per member is small.
+        Follows AIP-132.
       parameters:
-        - $ref: '#/components/parameters/ProfileId'
-        - $ref: '#/components/parameters/PageSize'
-        - $ref: '#/components/parameters/PageToken'
+        - $ref: './shared.yaml#/components/parameters/ProfileIdParam'
         - name: event_type
           in: query
           required: false
@@ -47,40 +50,36 @@ paths:
         - name: from_date
           in: query
           required: false
-          description: Start of date range (inclusive). Format YYYY-MM-DD.
+          description: Inclusive start date filter.
           schema:
             type: string
             format: date
         - name: to_date
           in: query
           required: false
-          description: End of date range (inclusive). Format YYYY-MM-DD.
+          description: Inclusive end date filter.
           schema:
             type: string
             format: date
       responses:
         '200':
-          description: Successfully listed events
+          description: OK
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListEventsResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
     post:
       tags: [Events]
       operationId: createEvent
       summary: Create a calendar event
-      description: >
-        Creates a new calendar event for a household member.
-        Follows AIP-133.
+      description: Follows AIP-133.
       parameters:
-        - $ref: '#/components/parameters/ProfileId'
+        - $ref: './shared.yaml#/components/parameters/ProfileIdParam'
       requestBody:
         required: true
         content:
@@ -93,13 +92,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CalendarEvent'
+                $ref: '#/components/schemas/EventResponse'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: './shared.yaml#/components/responses/BadRequest'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
   /v1/profiles/{profile_id}/events/{event_id}:
 
@@ -109,29 +108,30 @@ paths:
       summary: Get a calendar event
       description: Follows AIP-131.
       parameters:
-        - $ref: '#/components/parameters/ProfileId'
+        - $ref: './shared.yaml#/components/parameters/ProfileIdParam'
         - $ref: '#/components/parameters/EventId'
       responses:
         '200':
-          description: Event found
+          description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CalendarEvent'
+                $ref: '#/components/schemas/EventResponse'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
     patch:
       tags: [Events]
       operationId: updateEvent
       summary: Update a calendar event
       description: >
-        Partially updates a calendar event.
-        Follows AIP-134. Only provided fields are updated.
+        Partially updates a calendar event. Only provided fields are updated.
+        profile_id is immutable after creation.
+        Follows AIP-134.
       parameters:
-        - $ref: '#/components/parameters/ProfileId'
+        - $ref: './shared.yaml#/components/parameters/ProfileIdParam'
         - $ref: '#/components/parameters/EventId'
       requestBody:
         required: true
@@ -141,38 +141,39 @@ paths:
               $ref: '#/components/schemas/UpdateEventRequest'
       responses:
         '200':
-          description: Event updated
+          description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CalendarEvent'
+                $ref: '#/components/schemas/EventResponse'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: './shared.yaml#/components/responses/BadRequest'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
     delete:
       tags: [Events]
       operationId: deleteEvent
       summary: Delete a calendar event
       description: >
-        Hard-deletes a calendar event.
-        Follows AIP-135. Events are not soft-deleted (no is_active field).
+        Hard-deletes an event. Events are small and disposable —
+        no audit trail is needed.
+        Follows AIP-135.
       parameters:
-        - $ref: '#/components/parameters/ProfileId'
+        - $ref: './shared.yaml#/components/parameters/ProfileIdParam'
         - $ref: '#/components/parameters/EventId'
       responses:
         '204':
           description: Event deleted
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
   # ============================================================
-  # INVENTORY  (nested under profile)
+  # INVENTORY — nested under profile
   # ============================================================
 
   /v1/profiles/{profile_id}/inventory:
@@ -182,59 +183,40 @@ paths:
       operationId: listInventoryItems
       summary: List inventory items for a profile
       description: >
-        Returns a paginated list of grocery and supply chain items for a household member.
-        Follows AIP-132 and AIP-158.
+        Returns grocery and consumable stock items for a household member.
+        Optionally filter by category or source platform.
+        Follows AIP-132.
       parameters:
-        - $ref: '#/components/parameters/ProfileId'
-        - $ref: '#/components/parameters/PageSize'
-        - $ref: '#/components/parameters/PageToken'
-        - name: source_platform
-          in: query
-          required: false
-          schema:
-            $ref: '#/components/schemas/SourcePlatform'
+        - $ref: './shared.yaml#/components/parameters/ProfileIdParam'
         - name: category
           in: query
           required: false
           schema:
             type: string
-        - name: from_date
+        - name: source_platform
           in: query
           required: false
-          description: Filter by purchase_date (inclusive start). Format YYYY-MM-DD.
           schema:
-            type: string
-            format: date
-        - name: to_date
-          in: query
-          required: false
-          description: Filter by purchase_date (inclusive end). Format YYYY-MM-DD.
-          schema:
-            type: string
-            format: date
+            $ref: '#/components/schemas/SourcePlatform'
       responses:
         '200':
-          description: Successfully listed inventory items
+          description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ListInventoryResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
+                $ref: '#/components/schemas/ListInventoryItemsResponse'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
     post:
       tags: [Inventory]
       operationId: createInventoryItem
       summary: Add an inventory item
-      description: >
-        Adds a grocery or supply chain item for a household member.
-        Follows AIP-133. Use source_platform = MANUAL for hand-entered items.
+      description: Follows AIP-133.
       parameters:
-        - $ref: '#/components/parameters/ProfileId'
+        - $ref: './shared.yaml#/components/parameters/ProfileIdParam'
       requestBody:
         required: true
         content:
@@ -247,13 +229,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/InventoryItem'
+                $ref: '#/components/schemas/InventoryItemResponse'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: './shared.yaml#/components/responses/BadRequest'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
   /v1/profiles/{profile_id}/inventory/{item_id}:
 
@@ -263,40 +245,71 @@ paths:
       summary: Get an inventory item
       description: Follows AIP-131.
       parameters:
-        - $ref: '#/components/parameters/ProfileId'
+        - $ref: './shared.yaml#/components/parameters/ProfileIdParam'
         - $ref: '#/components/parameters/ItemId'
       responses:
         '200':
-          description: Item found
+          description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/InventoryItem'
+                $ref: '#/components/schemas/InventoryItemResponse'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    patch:
+      tags: [Inventory]
+      operationId: updateInventoryItem
+      summary: Update an inventory item
+      description: >
+        Partially updates an inventory item. Typically used to update
+        quantity after consumption or restock.
+        Follows AIP-134.
+      parameters:
+        - $ref: './shared.yaml#/components/parameters/ProfileIdParam'
+        - $ref: '#/components/parameters/ItemId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateInventoryItemRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryItemResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
 
     delete:
       tags: [Inventory]
       operationId: deleteInventoryItem
       summary: Delete an inventory item
       description: >
-        Hard-deletes an inventory item.
-        Follows AIP-135. Used to correct ingestion errors.
+        Hard-deletes an inventory item (consumed or no longer tracked).
+        Follows AIP-135.
       parameters:
-        - $ref: '#/components/parameters/ProfileId'
+        - $ref: './shared.yaml#/components/parameters/ProfileIdParam'
         - $ref: '#/components/parameters/ItemId'
       responses:
         '204':
           description: Item deleted
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
   # ============================================================
-  # GOALS  (flat — goals may be household-wide, not per-person)
+  # GOALS — flat (not nested under profile, may span household)
   # ============================================================
 
   /v1/goals:
@@ -306,18 +319,12 @@ paths:
       operationId: listGoals
       summary: List goals
       description: >
-        Returns all household financial goals.
-        Filter by profile_id to see goals for a specific member.
-        Omit profile_id to see all goals including household-wide ones.
-        Follows AIP-132. Not paginated — goal count is always small.
+        Returns household financial goals. Filter by profile_id to scope to
+        one member's personal goals. Omit filter for household-wide goals.
+        Optionally filter by status.
+        Follows AIP-132.
       parameters:
-        - name: profile_id
-          in: query
-          required: false
-          description: Filter to goals for a specific household member.
-          schema:
-            type: string
-            format: uuid
+        - $ref: './shared.yaml#/components/parameters/ProfileIdParam'
         - name: status
           in: query
           required: false
@@ -325,21 +332,19 @@ paths:
             $ref: '#/components/schemas/GoalStatus'
       responses:
         '200':
-          description: Successfully listed goals
+          description: OK
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListGoalsResponse'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
     post:
       tags: [Goals]
       operationId: createGoal
       summary: Create a goal
-      description: >
-        Creates a new financial goal.
-        Follows AIP-133. Omit profile_id to create a household-wide goal.
+      description: Follows AIP-133.
       requestBody:
         required: true
         content:
@@ -352,13 +357,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Goal'
+                $ref: '#/components/schemas/GoalResponse'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: './shared.yaml#/components/responses/BadRequest'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
   /v1/goals/{goal_id}:
 
@@ -371,25 +376,23 @@ paths:
         - $ref: '#/components/parameters/GoalId'
       responses:
         '200':
-          description: Goal found
+          description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Goal'
+                $ref: '#/components/schemas/GoalResponse'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
     patch:
       tags: [Goals]
       operationId: updateGoal
       summary: Update a goal
       description: >
-        Partially updates a goal.
-        Follows AIP-134.
-        current_amount is updated by the projections engine — the application
-        should not set this directly unless correcting a manual entry.
+        Partially updates a goal. Common use case: update current_amount
+        as savings accumulate. Follows AIP-134.
       parameters:
         - $ref: '#/components/parameters/GoalId'
       requestBody:
@@ -400,53 +403,44 @@ paths:
               $ref: '#/components/schemas/UpdateGoalRequest'
       responses:
         '200':
-          description: Goal updated
+          description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Goal'
+                $ref: '#/components/schemas/GoalResponse'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: './shared.yaml#/components/responses/BadRequest'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
     delete:
       tags: [Goals]
       operationId: deleteGoal
       summary: Delete a goal
       description: >
-        Hard-deletes a goal.
-        Follows AIP-135. Prefer setting status = ACHIEVED or PAUSED over deletion.
+        Hard-deletes a goal. Typically used for incorrectly created goals.
+        Follows AIP-135.
       parameters:
         - $ref: '#/components/parameters/GoalId'
       responses:
         '204':
           description: Goal deleted
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
 components:
 
   parameters:
 
-    ProfileId:
-      name: profile_id
-      in: path
-      required: true
-      description: Unique identifier of the household member profile
-      schema:
-        type: string
-        format: uuid
-
     EventId:
       name: event_id
       in: path
       required: true
-      description: Unique identifier of the calendar event
+      description: Unique identifier of the calendar event.
       schema:
         type: string
         format: uuid
@@ -455,7 +449,7 @@ components:
       name: item_id
       in: path
       required: true
-      description: Unique identifier of the inventory item
+      description: Unique identifier of the inventory item.
       schema:
         type: string
         format: uuid
@@ -464,33 +458,20 @@ components:
       name: goal_id
       in: path
       required: true
-      description: Unique identifier of the goal
+      description: Unique identifier of the goal.
       schema:
         type: string
         format: uuid
 
-    PageSize:
-      name: page_size
-      in: query
-      required: false
-      description: Maximum items to return. Default 20, max 100. Follows AIP-158.
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 100
-        default: 20
-
-    PageToken:
-      name: page_token
-      in: query
-      required: false
-      schema:
-        type: string
-
   schemas:
+
+    # ----------------------------------------------------------
+    # ENUMS
+    # ----------------------------------------------------------
 
     EventType:
       type: string
+      description: Category of calendar event.
       enum:
         - PERSONAL
         - FAMILY
@@ -503,43 +484,57 @@ components:
 
     SourcePlatform:
       type: string
+      description: Quick-commerce or grocery platform the item was purchased from.
       enum:
         - INSTAMART
-        - FLIPKART_GROCERY
-        - COUNTRY_DELIGHT
-        - AMAZON_FRESH
         - BLINKIT
         - ZEPTO
-        - MANUAL
+        - BIGBASKET
+        - AMAZON_FRESH
+        - JIOMART
+        - LOCAL_STORE
         - OTHER
 
     ItemUnit:
       type: string
+      description: Unit of measurement for the inventory item quantity.
       enum:
         - KG
         - G
         - L
         - ML
-        - UNITS
+        - PIECE
         - PACK
         - DOZEN
-        - OTHER
+        - BOX
 
     GoalStatus:
       type: string
+      description: Current status of the financial goal.
       enum:
         - ACTIVE
         - ACHIEVED
         - PAUSED
 
-    CalendarEvent:
+    # ----------------------------------------------------------
+    # EVENT DTOs
+    # ----------------------------------------------------------
+
+    EventResponse:
       type: object
+      description: A calendar event for a household member.
+      required:
+        - name
+        - event_id
+        - profile_id
+        - title
+        - event_type
+        - start_date
+        - created_at
       properties:
         name:
           type: string
-          description: >
-            Resource name. Follows AIP-122.
-            Format: profiles/{profile_id}/events/{event_id}
+          description: "Resource name. Format: profiles/{profile_id}/events/{event_id}"
           readOnly: true
         event_id:
           type: string
@@ -551,23 +546,23 @@ components:
           readOnly: true
         title:
           type: string
-          example: "Annual Health Checkup"
+          example: "Shweta's Birthday"
         event_type:
           $ref: '#/components/schemas/EventType'
         start_date:
           type: string
           format: date
+          example: "2026-03-15"
         end_date:
           type: string
           format: date
           nullable: true
-          description: Null for single-day events.
-        location:
-          type: string
-          nullable: true
+          description: Inclusive end date for multi-day events. Null for single-day events.
+          example: "2026-03-17"
         notes:
           type: string
           nullable: true
+          maxLength: 1000
         created_at:
           type: string
           format: date-time
@@ -584,26 +579,27 @@ components:
           type: string
           minLength: 1
           maxLength: 200
+          example: "Shweta's Birthday"
         event_type:
           $ref: '#/components/schemas/EventType'
         start_date:
           type: string
           format: date
+          example: "2026-03-15"
         end_date:
           type: string
           format: date
           nullable: true
-          description: Omit or null for single-day events. Must be >= start_date.
-        location:
-          type: string
-          maxLength: 200
-          nullable: true
+          description: Must be >= start_date when provided.
+          example: "2026-03-17"
         notes:
           type: string
           nullable: true
+          maxLength: 1000
 
     UpdateEventRequest:
       type: object
+      description: All fields optional. Only provided fields are updated.
       properties:
         title:
           type: string
@@ -618,35 +614,45 @@ components:
           type: string
           format: date
           nullable: true
-        location:
-          type: string
-          maxLength: 200
-          nullable: true
         notes:
           type: string
           nullable: true
+          maxLength: 1000
 
     ListEventsResponse:
       type: object
+      required:
+        - events
+        - total_size
       properties:
         events:
           type: array
           items:
-            $ref: '#/components/schemas/CalendarEvent'
-        next_page_token:
-          type: string
-          nullable: true
+            $ref: '#/components/schemas/EventResponse'
         total_size:
           type: integer
+          minimum: 0
 
-    InventoryItem:
+    # ----------------------------------------------------------
+    # INVENTORY DTOs
+    # ----------------------------------------------------------
+
+    InventoryItemResponse:
       type: object
+      description: A grocery or consumable stock item tracked for a household member.
+      required:
+        - name
+        - item_id
+        - profile_id
+        - item_name
+        - quantity
+        - unit
+        - purchase_date
+        - created_at
       properties:
         name:
           type: string
-          description: >
-            Resource name. Follows AIP-122.
-            Format: profiles/{profile_id}/inventory/{item_id}
+          description: "Resource name. Format: profiles/{profile_id}/inventory/{item_id}"
           readOnly: true
         item_id:
           type: string
@@ -658,22 +664,42 @@ components:
           readOnly: true
         item_name:
           type: string
-          example: "Amul Taaza Toned Milk"
-        quantity:
-          type: number
-          format: double
-          example: 1.0
-        unit:
-          $ref: '#/components/schemas/ItemUnit'
-        source_platform:
-          $ref: '#/components/schemas/SourcePlatform'
-        purchase_date:
-          type: string
-          format: date
+          example: "Toor Dal"
         category:
           type: string
           nullable: true
-          example: "Dairy"
+          description: Free-form category label (e.g., "Pulses", "Dairy", "Cleaning").
+          example: "Pulses"
+        quantity:
+          type: number
+          format: double
+          minimum: 0
+          exclusiveMinimum: 0
+          description: Current quantity in stock. Must be positive at creation.
+          example: 2.5
+        unit:
+          $ref: '#/components/schemas/ItemUnit'
+        source_platform:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/SourcePlatform'
+        purchase_date:
+          type: string
+          format: date
+          description: Date the item was purchased/stocked.
+          example: "2026-06-01"
+        expiry_date:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-12-31"
+        metadata:
+          type: object
+          nullable: true
+          description: >
+            Flexible JSONB bag for platform-specific traceability data.
+            Examples: {"order_id": "ORD-12345", "delivery_partner": "Blinkit"}.
+          additionalProperties: true
         created_at:
           type: string
           format: date-time
@@ -685,57 +711,116 @@ components:
         - item_name
         - quantity
         - unit
-        - source_platform
         - purchase_date
       properties:
         item_name:
           type: string
           minLength: 1
           maxLength: 200
+          example: "Toor Dal"
+        category:
+          type: string
+          nullable: true
+          maxLength: 100
+          example: "Pulses"
         quantity:
           type: number
           format: double
+          minimum: 0
+          exclusiveMinimum: 0
+          example: 2.5
+        unit:
+          $ref: '#/components/schemas/ItemUnit'
+        source_platform:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/SourcePlatform'
+        purchase_date:
+          type: string
+          format: date
+          example: "2026-06-01"
+        expiry_date:
+          type: string
+          format: date
+          nullable: true
+        metadata:
+          type: object
+          nullable: true
+          additionalProperties: true
+
+    UpdateInventoryItemRequest:
+      type: object
+      description: >
+        Mutable fields only. Typically used to update quantity after
+        consumption or to correct metadata.
+      properties:
+        item_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        category:
+          type: string
+          nullable: true
+          maxLength: 100
+        quantity:
+          type: number
+          format: double
+          minimum: 0
           exclusiveMinimum: 0
         unit:
           $ref: '#/components/schemas/ItemUnit'
         source_platform:
-          $ref: '#/components/schemas/SourcePlatform'
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/SourcePlatform'
         purchase_date:
           type: string
           format: date
-        category:
+        expiry_date:
           type: string
-          maxLength: 50
+          format: date
           nullable: true
         metadata:
           type: object
-          description: >
-            Traceability payload. Keys: raw_item_name, platform_order_id,
-            import_timestamp, unit_price.
+          nullable: true
           additionalProperties: true
 
-    ListInventoryResponse:
+    ListInventoryItemsResponse:
       type: object
+      required:
+        - items
+        - total_size
       properties:
         items:
           type: array
           items:
-            $ref: '#/components/schemas/InventoryItem'
-        next_page_token:
-          type: string
-          nullable: true
+            $ref: '#/components/schemas/InventoryItemResponse'
         total_size:
           type: integer
+          minimum: 0
 
-    Goal:
+    # ----------------------------------------------------------
+    # GOAL DTOs
+    # ----------------------------------------------------------
+
+    GoalResponse:
       type: object
+      description: A financial saving goal for the household or a specific member.
+      required:
+        - name
+        - goal_id
+        - goal_name
+        - target_amount
+        - current_amount
+        - currency
+        - status
+        - created_at
       properties:
         name:
           type: string
-          description: >
-            Resource name. Follows AIP-122.
-            Format: goals/{goal_id}
+          description: "Resource name. Format: goals/{goal_id}"
           readOnly: true
+          example: "goals/d4e5f6a7-b8c9-0123-def0-123456789012"
         goal_id:
           type: string
           format: uuid
@@ -744,35 +829,46 @@ components:
           type: string
           format: uuid
           nullable: true
-          description: Owning member. Null = household-wide goal.
+          description: >
+            Member-specific goals carry a profile_id.
+            Household-wide goals (e.g., "New Car Fund") have profile_id = null.
         goal_name:
           type: string
-          example: "Children's Education Fund"
+          example: "Emergency Fund"
+        description:
+          type: string
+          nullable: true
+          maxLength: 500
         target_amount:
           type: number
           format: double
-          example: 10000000.00
+          minimum: 0
+          exclusiveMinimum: 0
+          description: Target saving amount.
+          example: 300000.00
         current_amount:
           type: number
           format: double
-          description: >
-            Current saved amount. Updated by the projections engine.
-            Do not set this manually unless correcting an entry.
-          example: 250000.00
+          minimum: 0
+          description: Amount saved so far.
+          example: 75000.00
         monthly_saving:
           type: number
           format: double
           nullable: true
-          description: Expected monthly contribution toward this goal.
+          minimum: 0
+          description: Planned monthly contribution toward this goal.
+          example: 10000.00
+        currency:
+          $ref: './shared.yaml#/components/schemas/Currency'
+        status:
+          $ref: '#/components/schemas/GoalStatus'
         target_date:
           type: string
           format: date
           nullable: true
-        status:
-          $ref: '#/components/schemas/GoalStatus'
-        notes:
-          type: string
-          nullable: true
+          description: Desired completion date.
+          example: "2028-12-31"
         created_at:
           type: string
           format: date-time
@@ -788,38 +884,56 @@ components:
           type: string
           format: uuid
           nullable: true
-          description: Assign to a specific member. Omit for a household-wide goal.
+          description: Omit for household-wide goals.
         goal_name:
           type: string
           minLength: 1
           maxLength: 200
-          example: "Children's Education Fund"
+          example: "Emergency Fund"
+        description:
+          type: string
+          nullable: true
+          maxLength: 500
         target_amount:
           type: number
           format: double
+          minimum: 0
           exclusiveMinimum: 0
+          example: 300000.00
+        current_amount:
+          type: number
+          format: double
+          minimum: 0
+          default: 0
+          example: 0.00
         monthly_saving:
           type: number
           format: double
           nullable: true
+          minimum: 0
+          example: 10000.00
         target_date:
           type: string
           format: date
           nullable: true
-        notes:
-          type: string
-          nullable: true
+          example: "2028-12-31"
 
     UpdateGoalRequest:
       type: object
+      description: All fields optional. Only provided fields are updated.
       properties:
         goal_name:
           type: string
           minLength: 1
           maxLength: 200
+        description:
+          type: string
+          nullable: true
+          maxLength: 500
         target_amount:
           type: number
           format: double
+          minimum: 0
           exclusiveMinimum: 0
         current_amount:
           type: number
@@ -829,91 +943,24 @@ components:
           type: number
           format: double
           nullable: true
+          minimum: 0
+        status:
+          $ref: '#/components/schemas/GoalStatus'
         target_date:
           type: string
           format: date
           nullable: true
-        status:
-          $ref: '#/components/schemas/GoalStatus'
-        notes:
-          type: string
-          nullable: true
 
     ListGoalsResponse:
       type: object
+      required:
+        - goals
+        - total_size
       properties:
         goals:
           type: array
           items:
-            $ref: '#/components/schemas/Goal'
+            $ref: '#/components/schemas/GoalResponse'
         total_size:
           type: integer
-
-    Error:
-      type: object
-      required:
-        - code
-        - message
-        - status
-      properties:
-        code:
-          type: integer
-        status:
-          type: string
-        message:
-          type: string
-        details:
-          type: array
-          items:
-            type: object
-            properties:
-              field:
-                type: string
-              issue:
-                type: string
-
-  responses:
-
-    BadRequest:
-      description: Request validation failed
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-          example:
-            code: 400
-            status: "INVALID_ARGUMENT"
-            message: "Request validation failed"
-
-    NotFound:
-      description: Resource not found
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-          example:
-            code: 404
-            status: "NOT_FOUND"
-            message: "Profile not found"
-
-    Conflict:
-      description: Conflicting state
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-          example:
-            code: 409
-            status: "ALREADY_EXISTS"
-            message: "Resource already exists"
-
-    InternalError:
-      description: Unexpected server error
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-          example:
-            code: 500
-            status: "INTERNAL"
-            message: "An unexpected error occurred"
+          minimum: 0
