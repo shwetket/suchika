@@ -1,0 +1,394 @@
+openapi: 3.1.0
+
+info:
+  title: Profile API
+  description: >
+    Manages household member identities — the upstream cross-domain anchor.
+    Every other domain (wealth, health, household) holds a FK into this resource.
+    Follows Google AIP resource-oriented design.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+
+tags:
+  - name: Profiles
+    description: Household member identity registry (self + family)
+
+paths:
+
+  /v1/profiles:
+
+    get:
+      tags: [Profiles]
+      operationId: listProfiles
+      summary: List all profiles
+      description: >
+        Returns all household member profiles (admin + family members).
+        Not paginated — the list is always small (max ~10 rows).
+        Follows AIP-132 (Standard List).
+      parameters:
+        - name: is_active
+          in: query
+          required: false
+          description: Filter by active status. Omit to return all.
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Successfully listed profiles
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListProfilesResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags: [Profiles]
+      operationId: createProfile
+      summary: Create a profile
+      description: >
+        Creates a new household member profile.
+        Follows AIP-133 (Standard Create).
+        Only one profile may have is_admin = true (the system owner).
+        A second admin creation attempt returns 409.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProfileRequest'
+      responses:
+        '201':
+          description: Profile created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/profiles/{profile_id}:
+
+    get:
+      tags: [Profiles]
+      operationId: getProfile
+      summary: Get a profile
+      description: >
+        Returns a single profile by ID.
+        Follows AIP-131 (Standard Get).
+      parameters:
+        - $ref: '#/components/parameters/ProfileId'
+      responses:
+        '200':
+          description: Profile found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    patch:
+      tags: [Profiles]
+      operationId: updateProfile
+      summary: Update a profile
+      description: >
+        Partially updates a profile.
+        Follows AIP-134 (Standard Update). Only provided fields are updated.
+        Immutable fields (full_name, dob, relation_to_admin, is_admin) cannot be changed
+        after creation — the service returns 400 if these are included.
+        blood_type and gender are nullable until first recorded, then become immutable
+        at the business logic layer.
+      parameters:
+        - $ref: '#/components/parameters/ProfileId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags: [Profiles]
+      operationId: deactivateProfile
+      summary: Deactivate a profile
+      description: >
+        Soft-deletes a profile by setting is_active to false.
+        Follows AIP-135 (Standard Delete).
+        The admin profile cannot be deactivated (returns 409).
+        Profiles with active references in other domains (accounts, assets,
+        health records) can still be deactivated — is_active is a UI hint only.
+        Hard deletes are blocked by the database FK (ON DELETE RESTRICT).
+      parameters:
+        - $ref: '#/components/parameters/ProfileId'
+      responses:
+        '204':
+          description: Profile deactivated
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+
+  parameters:
+
+    ProfileId:
+      name: profile_id
+      in: path
+      required: true
+      description: Unique identifier of the profile
+      schema:
+        type: string
+        format: uuid
+        example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
+  schemas:
+
+    RelationToAdmin:
+      type: string
+      description: Relationship of this household member to the single admin profile
+      enum:
+        - SELF
+        - SPOUSE
+        - CHILD
+        - PARENT
+        - PARENT_IN_LAW
+        - SIBLING
+        - GRANDPARENT
+        - GRANDCHILD
+        - OTHER
+
+    Gender:
+      type: string
+      enum:
+        - MALE
+        - FEMALE
+        - OTHER
+        - PREFER_NOT_TO_SAY
+
+    BloodType:
+      type: string
+      enum:
+        - A+
+        - A-
+        - B+
+        - B-
+        - AB+
+        - AB-
+        - O+
+        - O-
+
+    Profile:
+      type: object
+      description: A household member identity record
+      properties:
+        name:
+          type: string
+          description: >
+            Resource name. Follows AIP-122.
+            Format: profiles/{profile_id}
+          example: "profiles/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+          readOnly: true
+        profile_id:
+          type: string
+          format: uuid
+          readOnly: true
+        full_name:
+          type: string
+          example: "Ketan Verma"
+        dob:
+          type: string
+          format: date
+          example: "1988-03-15"
+        relation_to_admin:
+          $ref: '#/components/schemas/RelationToAdmin'
+        is_admin:
+          type: boolean
+          description: >
+            True for exactly one profile — the system owner.
+            Only one admin may exist; a second creation attempt returns 409.
+          readOnly: true
+        email_address:
+          type: string
+          format: email
+          nullable: true
+          example: "ketan@example.com"
+        gender:
+          $ref: '#/components/schemas/Gender'
+          nullable: true
+        blood_type:
+          $ref: '#/components/schemas/BloodType'
+          nullable: true
+        is_active:
+          type: boolean
+          default: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+
+    CreateProfileRequest:
+      type: object
+      required:
+        - full_name
+        - dob
+        - relation_to_admin
+      properties:
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 150
+          example: "Ketan Verma"
+        dob:
+          type: string
+          format: date
+          example: "1988-03-15"
+        relation_to_admin:
+          $ref: '#/components/schemas/RelationToAdmin'
+        is_admin:
+          type: boolean
+          default: false
+          description: >
+            Set true only for the first (system owner) profile.
+            Only one admin may exist. A second attempt returns 409.
+        email_address:
+          type: string
+          format: email
+          nullable: true
+          example: "ketan@example.com"
+        gender:
+          $ref: '#/components/schemas/Gender'
+          nullable: true
+        blood_type:
+          $ref: '#/components/schemas/BloodType'
+          nullable: true
+
+    UpdateProfileRequest:
+      type: object
+      description: >
+        Mutable fields only. Full_name, dob, relation_to_admin, and is_admin
+        are immutable after creation and must not be included here.
+      properties:
+        email_address:
+          type: string
+          format: email
+          nullable: true
+        gender:
+          $ref: '#/components/schemas/Gender'
+          nullable: true
+        blood_type:
+          $ref: '#/components/schemas/BloodType'
+          nullable: true
+        is_active:
+          type: boolean
+
+    ListProfilesResponse:
+      type: object
+      properties:
+        profiles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Profile'
+        total_size:
+          type: integer
+          description: Total number of profiles
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+        - status
+      properties:
+        code:
+          type: integer
+          example: 404
+        status:
+          type: string
+          example: "NOT_FOUND"
+        message:
+          type: string
+          example: "Profile not found"
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              issue:
+                type: string
+
+  responses:
+
+    BadRequest:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 400
+            status: "INVALID_ARGUMENT"
+            message: "Request validation failed"
+            details:
+              - field: "full_name"
+                issue: "must not be blank"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 404
+            status: "NOT_FOUND"
+            message: "Profile not found"
+
+    Conflict:
+      description: Conflicting state
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 409
+            status: "ALREADY_EXISTS"
+            message: "An admin profile already exists"
+
+    InternalError:
+      description: Unexpected server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 500
+            status: "INTERNAL"
+            message: "An unexpected error occurred"

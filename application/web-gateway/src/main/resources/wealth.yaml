@@ -1,13 +1,12 @@
 openapi: 3.1.0
 
 info:
-  title: Finance API
+  title: Wealth API
   description: >
-    Manages personal finance accounts.
+    Manages financial accounts, transaction ledger, statement uploads,
+    and physical assets (vehicles).
     Follows Google AIP resource-oriented design.
   version: 1.0.0
-  contact:
-    name: Finance Service
 
 servers:
   - url: http://localhost:8080
@@ -15,23 +14,38 @@ servers:
 
 tags:
   - name: Accounts
-    description: Bank accounts, credit cards, loans and investments
+    description: Financial accounts (savings, credit cards, loans, investments)
+  - name: Transactions
+    description: Immutable financial event ledger — read and upload only
+  - name: Physical Assets
+    description: Vehicle registry and compliance tracking
 
 paths:
+
+  # ============================================================
+  # ACCOUNTS
+  # ============================================================
 
   /v1/accounts:
 
     get:
       tags: [Accounts]
       operationId: listAccounts
-      summary: List all accounts
+      summary: List accounts
       description: >
         Returns a paginated list of accounts.
-        Supports filtering by account_type and is_active.
-        Follows AIP-132 (Standard List) and AIP-158 (Pagination).
+        Filter by profile_id to get accounts belonging to a specific household member.
+        Follows AIP-132 and AIP-158 (Pagination).
       parameters:
         - $ref: '#/components/parameters/PageSize'
         - $ref: '#/components/parameters/PageToken'
+        - name: profile_id
+          in: query
+          required: false
+          description: Filter to accounts belonging to this profile. Omit for all household accounts.
+          schema:
+            type: string
+            format: uuid
         - name: account_type
           in: query
           required: false
@@ -59,9 +73,9 @@ paths:
       operationId: createAccount
       summary: Create an account
       description: >
-        Creates a new account.
-        Follows AIP-133 (Standard Create).
-        The name field must be unique per institution.
+        Creates a new financial account.
+        Follows AIP-133. The account_name must be unique per institution and profile.
+        account_type and institution_name are immutable after creation.
       requestBody:
         required: true
         content:
@@ -70,7 +84,7 @@ paths:
               $ref: '#/components/schemas/CreateAccountRequest'
       responses:
         '201':
-          description: Account created successfully
+          description: Account created
           content:
             application/json:
               schema:
@@ -88,9 +102,7 @@ paths:
       tags: [Accounts]
       operationId: getAccount
       summary: Get an account
-      description: >
-        Returns a single account by ID.
-        Follows AIP-131 (Standard Get).
+      description: Follows AIP-131.
       parameters:
         - $ref: '#/components/parameters/AccountId'
       responses:
@@ -111,8 +123,7 @@ paths:
       summary: Update an account
       description: >
         Partially updates an account.
-        Follows AIP-134 (Standard Update).
-        Only fields present in the request body are updated.
+        Follows AIP-134. Only provided fields are updated.
         account_type and institution_name are immutable after creation.
       parameters:
         - $ref: '#/components/parameters/AccountId'
@@ -124,7 +135,7 @@ paths:
               $ref: '#/components/schemas/UpdateAccountRequest'
       responses:
         '200':
-          description: Account updated successfully
+          description: Account updated
           content:
             application/json:
               schema:
@@ -138,21 +149,247 @@ paths:
 
     delete:
       tags: [Accounts]
-      operationId: deleteAccount
+      operationId: deactivateAccount
       summary: Deactivate an account
       description: >
-        Soft deletes an account by setting is_active to false.
-        Follows AIP-135 (Standard Delete).
-        Accounts with transactions cannot be hard deleted.
+        Soft-deletes an account by setting is_active to false.
+        Follows AIP-135. Accounts with transactions cannot be hard-deleted.
+        Use deactivation to hide accounts from the active view.
       parameters:
         - $ref: '#/components/parameters/AccountId'
       responses:
         '204':
-          description: Account deactivated successfully
+          description: Account deactivated
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ============================================================
+  # TRANSACTIONS  (read + upload — no direct create/update/delete)
+  # ============================================================
+
+  /v1/accounts/{account_id}/transactions:
+
+    get:
+      tags: [Transactions]
+      operationId: listTransactions
+      summary: List transactions for an account
+      description: >
+        Returns a paginated, date-ordered list of transactions for an account.
+        The ledger is immutable — transactions are ingested via statement uploads only.
+        Follows AIP-132 and AIP-158.
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/PageToken'
+        - name: txn_type
+          in: query
+          required: false
+          description: Filter to CREDIT or DEBIT transactions only.
+          schema:
+            $ref: '#/components/schemas/TransactionType'
+        - name: from_date
+          in: query
+          required: false
+          description: Start of date range (inclusive). Format YYYY-MM-DD.
+          schema:
+            type: string
+            format: date
+        - name: to_date
+          in: query
+          required: false
+          description: End of date range (inclusive). Format YYYY-MM-DD.
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Successfully listed transactions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListTransactionsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/accounts/{account_id}/statements:upload:
+
+    post:
+      tags: [Transactions]
+      operationId: uploadStatement
+      summary: Upload a bank statement CSV
+      description: >
+        Ingests a CSV bank statement for an account.
+        The service parses the file, creates one statement_upload record,
+        and inserts all valid rows as immutable transactions.
+        Duplicate rows (same account, date, amount, type, description) are silently skipped.
+        Malformed rows are recorded in upload_error_log and returned in the response.
+        Follows the AIP custom method pattern (:upload suffix).
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: CSV bank statement file
+      responses:
+        '200':
+          description: Statement processed (may include partial errors)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatementUploadResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ============================================================
+  # PHYSICAL ASSETS
+  # ============================================================
+
+  /v1/physical-assets:
+
+    get:
+      tags: [Physical Assets]
+      operationId: listPhysicalAssets
+      summary: List physical assets
+      description: >
+        Returns all household physical assets.
+        Follows AIP-132. Not paginated — household asset count is always small.
+      parameters:
+        - name: profile_id
+          in: query
+          required: false
+          description: Filter assets belonging to a specific profile.
+          schema:
+            type: string
+            format: uuid
+        - name: is_active
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Successfully listed assets
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListPhysicalAssetsResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags: [Physical Assets]
+      operationId: createPhysicalAsset
+      summary: Register a physical asset
+      description: >
+        Registers a new physical asset (currently: vehicle).
+        Follows AIP-133. registration_number must be globally unique.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePhysicalAssetRequest'
+      responses:
+        '201':
+          description: Asset registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PhysicalAsset'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/physical-assets/{asset_id}:
+
+    get:
+      tags: [Physical Assets]
+      operationId: getPhysicalAsset
+      summary: Get a physical asset
+      description: Follows AIP-131.
+      parameters:
+        - $ref: '#/components/parameters/AssetId'
+      responses:
+        '200':
+          description: Asset found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PhysicalAsset'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    patch:
+      tags: [Physical Assets]
+      operationId: updatePhysicalAsset
+      summary: Update a physical asset
+      description: >
+        Partially updates an asset.
+        Follows AIP-134. make, model, and registration_number are immutable after creation.
+        Use this endpoint to update compliance deadlines in the metadata field.
+      parameters:
+        - $ref: '#/components/parameters/AssetId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePhysicalAssetRequest'
+      responses:
+        '200':
+          description: Asset updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PhysicalAsset'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags: [Physical Assets]
+      operationId: deactivatePhysicalAsset
+      summary: Deactivate a physical asset
+      description: >
+        Soft-deletes an asset by setting is_active to false.
+        Represents disposal or sale of the asset.
+        Follows AIP-135.
+      parameters:
+        - $ref: '#/components/parameters/AssetId'
+      responses:
+        '204':
+          description: Asset deactivated
+        '404':
+          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -170,13 +407,21 @@ components:
         format: uuid
         example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 
+    AssetId:
+      name: asset_id
+      in: path
+      required: true
+      description: Unique identifier of the physical asset
+      schema:
+        type: string
+        format: uuid
+        example: "c3d4e5f6-a7b8-9012-cdef-123456789012"
+
     PageSize:
       name: page_size
       in: query
       required: false
-      description: >
-        Maximum number of items to return.
-        Follows AIP-158. Defaults to 20, maximum 100.
+      description: Maximum items to return. Follows AIP-158. Default 20, max 100.
       schema:
         type: integer
         minimum: 1
@@ -187,9 +432,7 @@ components:
       name: page_token
       in: query
       required: false
-      description: >
-        Token from previous response next_page_token.
-        Omit for first page.
+      description: Token from previous response next_page_token. Omit for first page.
       schema:
         type: string
 
@@ -197,6 +440,9 @@ components:
 
     AccountType:
       type: string
+      description: >
+        Type of financial account. Granular types allow the application
+        to select the correct CSV parser strategy and apply type-specific rules.
       enum:
         - SAVINGS
         - CURRENT
@@ -208,11 +454,24 @@ components:
         - NPS
         - PPF
         - FD
-      description: Type of the account
+
+    TransactionType:
+      type: string
+      enum:
+        - CREDIT
+        - DEBIT
+
+    RegistrationType:
+      type: string
+      enum:
+        - PRIVATE
+        - COMMERCIAL
+        - GOVERNMENT
+        - BH_SERIES
 
     Account:
       type: object
-      description: Represents a financial account
+      description: A financial account belonging to a household member
       properties:
         name:
           type: string
@@ -225,6 +484,12 @@ components:
           type: string
           format: uuid
           readOnly: true
+        profile_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Owner household member. Null = admin profile.
+          readOnly: true
         account_name:
           type: string
           example: "HDFC Savings"
@@ -233,42 +498,33 @@ components:
         institution_name:
           type: string
           example: "HDFC Bank"
+        currency:
+          type: string
+          example: "INR"
+          default: "INR"
         opening_balance:
           type: number
           format: double
+          description: Balance at account creation (not the current live balance).
           example: 50000.00
-        current_balance:
-          type: number
-          format: double
-          description: Calculated live from transactions
-          readOnly: true
         credit_limit:
           type: number
           format: double
           nullable: true
-          description: Applicable only for CREDIT_CARD accounts
+          description: Applicable only for CREDIT_CARD accounts.
           example: 200000.00
-        loan_outstanding:
-          type: number
-          format: double
-          nullable: true
-          description: Remaining principal for loan accounts
         interest_rate:
           type: number
           format: double
           nullable: true
-          description: Annual interest rate percentage
+          description: Annual interest rate percentage. Applicable to loans, FD, PPF, NPS.
           example: 8.75
         emi_amount:
           type: number
           format: double
           nullable: true
-          description: Fixed monthly EMI for loan accounts
-        current_value:
-          type: number
-          format: double
-          nullable: true
-          description: Current market value for investment accounts
+          description: Fixed monthly EMI. Applicable to loan accounts only.
+          example: 25000.00
         is_active:
           type: boolean
           default: true
@@ -284,6 +540,13 @@ components:
         - account_type
         - institution_name
       properties:
+        profile_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: >
+            Household member who owns this account.
+            Omit or null to assign to the admin profile.
         account_name:
           type: string
           minLength: 1
@@ -296,6 +559,10 @@ components:
           minLength: 1
           maxLength: 100
           example: "HDFC Bank"
+        currency:
+          type: string
+          default: "INR"
+          maxLength: 10
         opening_balance:
           type: number
           format: double
@@ -304,10 +571,7 @@ components:
           type: number
           format: double
           nullable: true
-        loan_outstanding:
-          type: number
-          format: double
-          nullable: true
+          description: Required for CREDIT_CARD accounts.
         interest_rate:
           type: number
           format: double
@@ -320,8 +584,8 @@ components:
     UpdateAccountRequest:
       type: object
       description: >
-        All fields optional. Only provided fields are updated.
-        account_type and institution_name cannot be changed after creation.
+        Mutable fields only. account_type and institution_name cannot
+        be changed after creation.
       properties:
         account_name:
           type: string
@@ -334,10 +598,6 @@ components:
           type: number
           format: double
           nullable: true
-        loan_outstanding:
-          type: number
-          format: double
-          nullable: true
         interest_rate:
           type: number
           format: double
@@ -346,16 +606,11 @@ components:
           type: number
           format: double
           nullable: true
-        current_value:
-          type: number
-          format: double
-          nullable: true
         is_active:
           type: boolean
 
     ListAccountsResponse:
       type: object
-      description: Paginated list of accounts. Follows AIP-158.
       properties:
         accounts:
           type: array
@@ -364,16 +619,244 @@ components:
         next_page_token:
           type: string
           nullable: true
-          description: Pass this as page_token in next request. Null means last page.
         total_size:
           type: integer
-          description: Total number of accounts matching the filter
+
+    Transaction:
+      type: object
+      description: >
+        An immutable financial event from the statement ledger.
+        Transactions are never created, updated, or deleted via API.
+        They are ingested exclusively through statement uploads.
+      properties:
+        name:
+          type: string
+          description: >
+            Resource name. Follows AIP-122.
+            Format: accounts/{account_id}/transactions/{transaction_id}
+          readOnly: true
+        transaction_id:
+          type: string
+          format: uuid
+          readOnly: true
+        account_id:
+          type: string
+          format: uuid
+          readOnly: true
+        upload_id:
+          type: string
+          format: uuid
+          description: Statement upload that created this row. Traceable back to source file.
+          readOnly: true
+        txn_date:
+          type: string
+          format: date
+          readOnly: true
+        amount:
+          type: number
+          format: double
+          description: Always positive. Direction is in txn_type.
+          readOnly: true
+        txn_type:
+          $ref: '#/components/schemas/TransactionType'
+          readOnly: true
+        description:
+          type: string
+          description: Raw narration from the source CSV.
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+
+    ListTransactionsResponse:
+      type: object
+      properties:
+        transactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Transaction'
+        next_page_token:
+          type: string
+          nullable: true
+        total_size:
+          type: integer
+
+    StatementUploadResult:
+      type: object
+      description: Result of processing a statement CSV upload.
+      properties:
+        upload_id:
+          type: string
+          format: uuid
+          description: ID of the created statement_upload record.
+        file_name:
+          type: string
+        status:
+          type: string
+          enum:
+            - SUCCESS
+            - PARTIAL
+            - FAILED
+          description: >
+            SUCCESS = all rows parsed and inserted.
+            PARTIAL = some rows inserted, some failed (see errors).
+            FAILED = no rows inserted (see errors).
+        transactions_inserted:
+          type: integer
+          description: Number of transaction rows successfully inserted.
+        transactions_skipped:
+          type: integer
+          description: Number of duplicate rows silently skipped.
+        errors:
+          type: array
+          description: Rows that could not be parsed or validated.
+          items:
+            $ref: '#/components/schemas/UploadError'
+
+    UploadError:
+      type: object
+      properties:
+        row_number:
+          type: integer
+        error_type:
+          type: string
+          enum:
+            - MISSING_DATE_COLUMN
+            - MISSING_AMOUNT_COLUMN
+            - MISSING_REQUIRED_COLUMN
+            - PARSE_ERROR
+            - VALIDATION_ERROR
+        message:
+          type: string
+
+    PhysicalAsset:
+      type: object
+      description: A physical asset (currently vehicles only) owned by the household
+      properties:
+        name:
+          type: string
+          description: >
+            Resource name. Follows AIP-122.
+            Format: physical-assets/{asset_id}
+          readOnly: true
+        asset_id:
+          type: string
+          format: uuid
+          readOnly: true
+        profile_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Owner household member. Null = admin profile.
+        asset_name:
+          type: string
+          example: "Honda City White"
+        asset_type:
+          type: string
+          enum:
+            - VEHICLE
+        make:
+          type: string
+          example: "Honda"
+        model:
+          type: string
+          example: "City ZX MT"
+        registration_number:
+          type: string
+          example: "KA-01-AB-1234"
+        registration_type:
+          $ref: '#/components/schemas/RegistrationType'
+        metadata:
+          type: object
+          description: >
+            Compliance deadlines and optional vehicle details.
+            Keys: puc_expiry, insurance_expiry, insurance_provider, insurance_policy_no,
+            road_tax_expiry, road_tax_type, bh_series_renewal_year,
+            purchase_date, chassis_number, engine_number, hypothecation_bank, notes.
+          additionalProperties: true
+        is_active:
+          type: boolean
+          default: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+
+    CreatePhysicalAssetRequest:
+      type: object
+      required:
+        - asset_name
+        - asset_type
+        - make
+        - model
+        - registration_number
+        - registration_type
+      properties:
+        profile_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Owner household member. Omit or null for admin profile.
+        asset_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "Honda City White"
+        asset_type:
+          type: string
+          enum:
+            - VEHICLE
+          default: VEHICLE
+        make:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "Honda"
+        model:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "City ZX MT"
+        registration_number:
+          type: string
+          minLength: 1
+          maxLength: 50
+          example: "KA-01-AB-1234"
+        registration_type:
+          $ref: '#/components/schemas/RegistrationType'
+        metadata:
+          type: object
+          additionalProperties: true
+
+    UpdatePhysicalAssetRequest:
+      type: object
+      description: >
+        Mutable fields only. make, model, and registration_number are immutable.
+        Primary use: updating compliance deadlines in metadata.
+      properties:
+        asset_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        metadata:
+          type: object
+          additionalProperties: true
+        is_active:
+          type: boolean
+
+    ListPhysicalAssetsResponse:
+      type: object
+      properties:
+        physical_assets:
+          type: array
+          items:
+            $ref: '#/components/schemas/PhysicalAsset'
+        total_size:
+          type: integer
 
     Error:
       type: object
-      description: >
-        Standard error response. Follows AIP-193 and
-        Google error model structure.
       required:
         - code
         - message
@@ -381,28 +864,22 @@ components:
       properties:
         code:
           type: integer
-          description: HTTP status code
           example: 404
         status:
           type: string
-          description: Error status string
           example: "NOT_FOUND"
         message:
           type: string
-          description: Human readable error message
-          example: "Account a1b2c3d4 not found"
+          example: "Account not found"
         details:
           type: array
-          description: Additional error details
           items:
             type: object
             properties:
               field:
                 type: string
-                example: "account_name"
               issue:
                 type: string
-                example: "must not be blank"
 
   responses:
 
@@ -432,7 +909,7 @@ components:
             message: "Account not found"
 
     Conflict:
-      description: Resource already exists or has conflicting state
+      description: Conflicting state
       content:
         application/json:
           schema:
@@ -440,7 +917,7 @@ components:
           example:
             code: 409
             status: "ALREADY_EXISTS"
-            message: "Account with this name already exists"
+            message: "Account with this name already exists at this institution"
 
     InternalError:
       description: Unexpected server error

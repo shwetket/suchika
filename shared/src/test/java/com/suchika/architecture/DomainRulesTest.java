@@ -15,7 +15,11 @@ class DomainRulesTest {
         noClasses()
             .that().resideInAPackage("..domain..")
             .should().dependOnClassesThat()
-            .resideInAnyPackage("javax.persistence..", "org.hibernate..", "io.quarkus..")
+            .resideInAnyPackage(
+                "javax.persistence..", "jakarta.persistence..",
+                "org.hibernate..",
+                "io.quarkus.."
+            )
             .allowEmptyShould(true)
             .check(classes);
     }

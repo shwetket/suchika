@@ -3,7 +3,9 @@ openapi: 3.1.0
 info:
   title: Health API
   description: >
-    Manages personal health profiles.
+    Manages personal biometric readings and doctor visit records.
+    "Who" is answered by the profile domain — health resources are always
+    nested under a profile_id.
     Follows Google AIP resource-oriented design.
   version: 1.0.0
 
@@ -12,100 +14,258 @@ servers:
     description: Local development
 
 tags:
-  - name: Health Profiles
-    description: Personal health profiles for self and family members
+  - name: Vitals
+    description: Time-series biometric readings (weight, BP, blood sugar, etc.)
+  - name: Doctor Visits
+    description: Illness periods and doctor visit wellness log
 
 paths:
 
-  /v1/health-profiles:
+  # ============================================================
+  # VITAL READINGS  (nested under profile)
+  # ============================================================
+
+  /v1/profiles/{profile_id}/vitals:
 
     get:
-      tags: [Health Profiles]
-      operationId: listHealthProfiles
-      summary: List all health profiles
+      tags: [Vitals]
+      operationId: listVitals
+      summary: List vital readings for a profile
       description: >
-        Returns all health profiles (self + family).
-        Follows AIP-132. Not paginated — list is always small.
+        Returns a paginated, date-ordered list of biometric readings for a
+        household member. Follows AIP-132 and AIP-158.
+      parameters:
+        - $ref: '#/components/parameters/ProfileId'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/PageToken'
+        - name: vital_type
+          in: query
+          required: false
+          description: Filter to a specific biometric metric.
+          schema:
+            $ref: '#/components/schemas/VitalType'
+        - name: from_date
+          in: query
+          required: false
+          description: Start of date range (inclusive). Format YYYY-MM-DD.
+          schema:
+            type: string
+            format: date
+        - name: to_date
+          in: query
+          required: false
+          description: End of date range (inclusive). Format YYYY-MM-DD.
+          schema:
+            type: string
+            format: date
       responses:
         '200':
-          description: Successfully listed health profiles
+          description: Successfully listed vital readings
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ListHealthProfilesResponse'
+                $ref: '#/components/schemas/ListVitalsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
 
     post:
-      tags: [Health Profiles]
-      operationId: createHealthProfile
-      summary: Create a health profile
+      tags: [Vitals]
+      operationId: createVital
+      summary: Record a vital reading
       description: >
-        Creates a new health profile for a family member.
+        Records a new biometric measurement for a household member.
         Follows AIP-133.
+        For BLOOD_PRESSURE readings, both value_primary (systolic) and
+        value_secondary (diastolic) are required. For all other types,
+        value_secondary must be omitted.
+      parameters:
+        - $ref: '#/components/parameters/ProfileId'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateHealthProfileRequest'
+              $ref: '#/components/schemas/CreateVitalRequest'
       responses:
         '201':
-          description: Health profile created
+          description: Vital reading recorded
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HealthProfile'
+                $ref: '#/components/schemas/VitalReading'
         '400':
           $ref: '#/components/responses/BadRequest'
-        '409':
-          $ref: '#/components/responses/Conflict'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
 
-  /v1/health-profiles/{profile_id}:
+  /v1/profiles/{profile_id}/vitals/{vital_id}:
 
     get:
-      tags: [Health Profiles]
-      operationId: getHealthProfile
-      summary: Get a health profile
+      tags: [Vitals]
+      operationId: getVital
+      summary: Get a vital reading
       description: Follows AIP-131.
       parameters:
         - $ref: '#/components/parameters/ProfileId'
+        - $ref: '#/components/parameters/VitalId'
       responses:
         '200':
-          description: Health profile found
+          description: Vital reading found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HealthProfile'
+                $ref: '#/components/schemas/VitalReading'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags: [Vitals]
+      operationId: deleteVital
+      summary: Delete a vital reading
+      description: >
+        Hard-deletes a vital reading.
+        Follows AIP-135. Used to correct data entry errors.
+      parameters:
+        - $ref: '#/components/parameters/ProfileId'
+        - $ref: '#/components/parameters/VitalId'
+      responses:
+        '204':
+          description: Reading deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ============================================================
+  # DOCTOR VISITS  (nested under profile)
+  # ============================================================
+
+  /v1/profiles/{profile_id}/doctor-visits:
+
+    get:
+      tags: [Doctor Visits]
+      operationId: listDoctorVisits
+      summary: List doctor visits for a profile
+      description: >
+        Returns a paginated, date-ordered list of doctor visit records for a
+        household member. Follows AIP-132 and AIP-158.
+      parameters:
+        - $ref: '#/components/parameters/ProfileId'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/PageToken'
+        - name: from_date
+          in: query
+          required: false
+          description: Filter visits starting on or after this date (from_date field).
+          schema:
+            type: string
+            format: date
+        - name: has_follow_up
+          in: query
+          required: false
+          description: Filter to visits with a pending follow-up date.
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Successfully listed doctor visits
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListDoctorVisitsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags: [Doctor Visits]
+      operationId: createDoctorVisit
+      summary: Record a doctor visit or illness period
+      description: >
+        Records a new wellness event for a household member.
+        Follows AIP-133.
+        Set visited_doctor = false to record an illness period where no doctor
+        was seen (fever tracked at home, etc.) — doctor_name may be omitted in this case.
+        Set visited_doctor = true to record a doctor consultation — doctor_name is required.
+      parameters:
+        - $ref: '#/components/parameters/ProfileId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDoctorVisitRequest'
+      responses:
+        '201':
+          description: Record created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DoctorVisit'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/profiles/{profile_id}/doctor-visits/{visit_id}:
+
+    get:
+      tags: [Doctor Visits]
+      operationId: getDoctorVisit
+      summary: Get a doctor visit record
+      description: Follows AIP-131.
+      parameters:
+        - $ref: '#/components/parameters/ProfileId'
+        - $ref: '#/components/parameters/VisitId'
+      responses:
+        '200':
+          description: Record found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DoctorVisit'
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
 
     patch:
-      tags: [Health Profiles]
-      operationId: updateHealthProfile
-      summary: Update a health profile
+      tags: [Doctor Visits]
+      operationId: updateDoctorVisit
+      summary: Update a doctor visit record
       description: >
-        Partially updates a health profile.
-        Follows AIP-134. Only provided fields are updated.
+        Partially updates a doctor visit record.
+        Follows AIP-134. Use this to add follow-up notes after the visit,
+        update diagnosis, or set a follow_up_date.
       parameters:
         - $ref: '#/components/parameters/ProfileId'
+        - $ref: '#/components/parameters/VisitId'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateHealthProfileRequest'
+              $ref: '#/components/schemas/UpdateDoctorVisitRequest'
       responses:
         '200':
-          description: Health profile updated
+          description: Record updated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HealthProfile'
+                $ref: '#/components/schemas/DoctorVisit'
         '400':
           $ref: '#/components/responses/BadRequest'
         '404':
@@ -114,22 +274,20 @@ paths:
           $ref: '#/components/responses/InternalError'
 
     delete:
-      tags: [Health Profiles]
-      operationId: deleteHealthProfile
-      summary: Delete a health profile
+      tags: [Doctor Visits]
+      operationId: deleteDoctorVisit
+      summary: Delete a doctor visit record
       description: >
-        Hard deletes a health profile.
-        Follows AIP-135.
-        Profiles with visits or vitals cannot be deleted.
+        Hard-deletes a doctor visit record.
+        Follows AIP-135. Used to correct data entry errors.
       parameters:
         - $ref: '#/components/parameters/ProfileId'
+        - $ref: '#/components/parameters/VisitId'
       responses:
         '204':
-          description: Health profile deleted
+          description: Record deleted
         '404':
           $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -141,106 +299,327 @@ components:
       name: profile_id
       in: path
       required: true
-      description: Unique identifier of the health profile
+      description: Unique identifier of the household member profile
       schema:
         type: string
         format: uuid
-        example: "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+        example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
+    VitalId:
+      name: vital_id
+      in: path
+      required: true
+      description: Unique identifier of the vital reading
+      schema:
+        type: string
+        format: uuid
+
+    VisitId:
+      name: visit_id
+      in: path
+      required: true
+      description: Unique identifier of the doctor visit record
+      schema:
+        type: string
+        format: uuid
+
+    PageSize:
+      name: page_size
+      in: query
+      required: false
+      description: Maximum items to return. Default 20, max 100. Follows AIP-158.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+    PageToken:
+      name: page_token
+      in: query
+      required: false
+      schema:
+        type: string
 
   schemas:
 
-    HealthProfile:
+    VitalType:
+      type: string
+      description: Biometric measurement type
+      enum:
+        - WEIGHT
+        - HEIGHT
+        - BLOOD_PRESSURE
+        - BLOOD_SUGAR_FASTING
+        - BLOOD_SUGAR_PP
+        - HEART_RATE
+        - TEMPERATURE
+        - OXYGEN_SATURATION
+        - BMI
+        - WAIST_CIRCUMFERENCE
+
+    VitalReading:
       type: object
       properties:
         name:
           type: string
           description: >
             Resource name. Follows AIP-122.
-            Format: health-profiles/{profile_id}
-          example: "health-profiles/b2c3d4e5-f6a7-8901-bcde-f12345678901"
+            Format: profiles/{profile_id}/vitals/{vital_id}
+          readOnly: true
+        vital_id:
+          type: string
+          format: uuid
           readOnly: true
         profile_id:
           type: string
           format: uuid
           readOnly: true
-        display_name:
-          type: string
-          example: "Ketan"
-        relationship:
-          type: string
-          example: "Self"
-          description: Self, Wife, Father, Mother, Child
-        date_of_birth:
+        vital_type:
+          $ref: '#/components/schemas/VitalType'
+        reading_date:
           type: string
           format: date
+        value_primary:
+          type: number
+          format: double
+          description: >
+            The primary measurement value.
+            For BLOOD_PRESSURE this is the systolic reading.
+        value_secondary:
+          type: number
+          format: double
           nullable: true
-          example: "1990-05-15"
-        blood_group:
+          description: >
+            The diastolic value for BLOOD_PRESSURE only.
+            Null for all other vital types.
+        unit:
+          type: string
+          description: >
+            Measurement unit. Examples: kg, cm, mmHg, mg/dL, bpm, °C, %, BMI.
+          example: "kg"
+        notes:
           type: string
           nullable: true
-          example: "B+"
         created_at:
           type: string
           format: date-time
           readOnly: true
 
-    CreateHealthProfileRequest:
+    CreateVitalRequest:
       type: object
       required:
-        - display_name
-        - relationship
+        - vital_type
+        - value_primary
+        - unit
       properties:
-        display_name:
+        vital_type:
+          $ref: '#/components/schemas/VitalType'
+        reading_date:
           type: string
-          minLength: 1
-          maxLength: 100
-          example: "Ketan"
-        relationship:
+          format: date
+          description: Date of the reading. Defaults to today if omitted.
+        value_primary:
+          type: number
+          format: double
+          exclusiveMinimum: 0
+          description: >
+            Primary measurement. For BLOOD_PRESSURE this is the systolic reading.
+        value_secondary:
+          type: number
+          format: double
+          nullable: true
+          description: >
+            Required for BLOOD_PRESSURE (diastolic). Must be omitted for all other types.
+        unit:
           type: string
-          minLength: 1
-          maxLength: 50
-          example: "Self"
-        date_of_birth:
+          maxLength: 20
+          example: "kg"
+        notes:
+          type: string
+          nullable: true
+        metadata:
+          type: object
+          description: >
+            Sparse measurement context.
+            Keys: time_of_day (MORNING|AFTERNOON|EVENING|NIGHT),
+            device, fasting_hours, context.
+          additionalProperties: true
+
+    ListVitalsResponse:
+      type: object
+      properties:
+        vitals:
+          type: array
+          items:
+            $ref: '#/components/schemas/VitalReading'
+        next_page_token:
+          type: string
+          nullable: true
+        total_size:
+          type: integer
+
+    DoctorVisit:
+      type: object
+      description: >
+        A personal wellness event: either an illness period or an actual doctor visit.
+        Scope: personal wellness notes only, not a medical record system.
+      properties:
+        name:
+          type: string
+          description: >
+            Resource name. Follows AIP-122.
+            Format: profiles/{profile_id}/doctor-visits/{visit_id}
+          readOnly: true
+        visit_id:
+          type: string
+          format: uuid
+          readOnly: true
+        profile_id:
+          type: string
+          format: uuid
+          readOnly: true
+        from_date:
+          type: string
+          format: date
+        to_date:
           type: string
           format: date
           nullable: true
-        blood_group:
+          description: Null for single-day events or ongoing illness.
+        visited_doctor:
+          type: boolean
+          description: >
+            True if an actual doctor was consulted.
+            False for illness periods tracked without a visit (e.g., home fever management).
+        doctor_name:
           type: string
           nullable: true
-          maxLength: 10
-          example: "B+"
+          description: Required when visited_doctor = true.
+        hospital_name:
+          type: string
+          nullable: true
+        speciality:
+          type: string
+          nullable: true
+          example: "Cardiologist"
+        symptoms:
+          type: string
+          nullable: true
+        diagnosis:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        follow_up_date:
+          type: string
+          format: date
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
 
-    UpdateHealthProfileRequest:
+    CreateDoctorVisitRequest:
+      type: object
+      required:
+        - from_date
+        - visited_doctor
+      properties:
+        from_date:
+          type: string
+          format: date
+        to_date:
+          type: string
+          format: date
+          nullable: true
+          description: End date of illness or visit. Must be >= from_date.
+        visited_doctor:
+          type: boolean
+          default: true
+        doctor_name:
+          type: string
+          maxLength: 100
+          nullable: true
+          description: Required when visited_doctor = true.
+        hospital_name:
+          type: string
+          maxLength: 200
+          nullable: true
+        speciality:
+          type: string
+          maxLength: 100
+          nullable: true
+        symptoms:
+          type: string
+          nullable: true
+        diagnosis:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        follow_up_date:
+          type: string
+          format: date
+          nullable: true
+        metadata:
+          type: object
+          description: >
+            Sparse enrichment. Keys: prescription_ref, tests_ordered,
+            test_results_url, insurance_claim.
+          additionalProperties: true
+
+    UpdateDoctorVisitRequest:
       type: object
       description: All fields optional. Only provided fields are updated.
       properties:
-        display_name:
-          type: string
-          minLength: 1
-          maxLength: 100
-        relationship:
-          type: string
-          minLength: 1
-          maxLength: 50
-        date_of_birth:
+        to_date:
           type: string
           format: date
           nullable: true
-        blood_group:
+        doctor_name:
+          type: string
+          maxLength: 100
+          nullable: true
+        hospital_name:
+          type: string
+          maxLength: 200
+          nullable: true
+        speciality:
+          type: string
+          maxLength: 100
+          nullable: true
+        symptoms:
           type: string
           nullable: true
-          maxLength: 10
+        diagnosis:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        follow_up_date:
+          type: string
+          format: date
+          nullable: true
+        metadata:
+          type: object
+          additionalProperties: true
 
-    ListHealthProfilesResponse:
+    ListDoctorVisitsResponse:
       type: object
       properties:
-        health_profiles:
+        doctor_visits:
           type: array
           items:
-            $ref: '#/components/schemas/HealthProfile'
+            $ref: '#/components/schemas/DoctorVisit'
+        next_page_token:
+          type: string
+          nullable: true
         total_size:
           type: integer
-          description: Total number of profiles
 
     Error:
       type: object
@@ -257,7 +636,7 @@ components:
           example: "NOT_FOUND"
         message:
           type: string
-          example: "Health profile not found"
+          example: "Profile not found"
         details:
           type: array
           items:
@@ -280,6 +659,9 @@ components:
             code: 400
             status: "INVALID_ARGUMENT"
             message: "Request validation failed"
+            details:
+              - field: "vital_type"
+                issue: "must not be null"
 
     NotFound:
       description: Resource not found
@@ -290,18 +672,7 @@ components:
           example:
             code: 404
             status: "NOT_FOUND"
-            message: "Health profile not found"
-
-    Conflict:
-      description: Conflicting state
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-          example:
-            code: 409
-            status: "ALREADY_EXISTS"
-            message: "Profile already exists"
+            message: "Profile not found"
 
     InternalError:
       description: Unexpected server error
