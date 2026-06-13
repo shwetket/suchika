@@ -4,155 +4,136 @@ This file covers local development setup, prerequisites, and run commands.
 
 ---
 
-## Frontend Setup
+## Prerequisites
 
-### Prerequisites
+| Tool | Version | Purpose |
+|---|---|---|
+| Java | 25+ | Backend runtime |
+| Gradle wrapper | (bundled) | No separate install needed |
+| Node.js | 18+ | Frontend |
+| PostgreSQL | 14+ | All domains (single instance) |
 
-- Node.js 18+
-- npm
-- Working backend service at `http://localhost:8080`
-- OpenAPI contract available via the backend
+No MongoDB required. All domains use PostgreSQL via a schema-per-domain architecture.
 
-### Install frontend dependencies
+---
+
+## One-Time Database Setup
+
+### 1. Create the database and run the bootstrap script
 
 ```bash
-cd web
-npm install
+# Connect as superuser and create the database
+psql -U postgres -c "CREATE DATABASE app_db;"
+
+# Run the bootstrap (creates schemas, app_user, and grants)
+psql -U postgres -d app_db -f application/flyway/00_bootstrap.sql
 ```
 
-### Generate API client
+The bootstrap creates five schemas (`profile`, `wealth`, `household`, `health`, `projections`)
+and a single `app_user` role used by all modules in local dev.
+
+### 2. Configure environment
+
+Copy the template and set your password:
 
 ```bash
-cd web
-npm run generate:api
+cp infrastructure/local/.env.template application/finance/.env
 ```
 
-This regenerates the typed API client in `web/src/api/generated/` from the live OpenAPI spec.
-Run this every time the backend API contract changes.
-
-### Run frontend
-
-```bash
-cd web
-npm start
-```
-
-Frontend runs at `http://localhost:3000`.
-
-### Build frontend
-
-```bash
-cd web
-npm run build
+Edit `application/finance/.env`:
+```properties
+DB_URL=jdbc:postgresql://localhost:5432/app_db
+DB_USERNAME=app_user
+DB_PASSWORD=your_secure_password_here
 ```
 
 ---
 
-## Backend Setup
+## Running the Backend
 
-### Prerequisites
-
-- **Java 25** — this project targets Java 25 to stay aligned with the latest LTS release cycle and leverage modern language features (e.g., records, pattern matching, virtual threads via Loom). Ensure your local JDK is Java 25+.
-- Gradle wrapper (`./gradlew` / `gradlew.bat`) — no separate Gradle install needed
-- PostgreSQL — for Wealth and Household domains
-- MongoDB — for Health domain
-
-### PostgreSQL: Create database and user
-
-```sql
-CREATE DATABASE app_db;
-CREATE USER app_user WITH PASSWORD 'yourpassword';
-GRANT ALL PRIVILEGES ON DATABASE app_db TO app_user;
-```
-
-### MongoDB: Create database
+Each domain is an independent Quarkus module. Run in separate terminals.
+Flyway migrations run automatically on startup — schemas are populated on first run.
 
 ```bash
-# Start MongoDB locally (default port 27017)
-mongod --dbpath /your/data/path
+# Profile domain (run first — other domains FK into profile)
+./gradlew :application:domain:profile:adapters:quarkusDev
 
-# MongoDB creates the database on first write — no manual creation needed
-# Default connection: mongodb://localhost:27017/suchika_health
-```
-
-### Configure environment
-
-Create `application/finance/.env`:
-
-```properties
-DB_USER=app_user
-DB_PASSWORD=yourpassword
-DB_URL=jdbc:postgresql://localhost:5432/app_db
-MONGO_URL=mongodb://localhost:27017/suchika_health
-```
-
-### Run backend modules
-
-Run all three modules in separate terminals:
-
-```bash
 # Wealth domain
-./gradlew :application:finance:quarkusDev
+./gradlew :application:domain:wealth:adapters:quarkusDev
 
 # Health domain
-./gradlew :application:health:quarkusDev
+./gradlew :application:domain:health:adapters:quarkusDev
 
 # Household domain
-./gradlew :application:records:quarkusDev
+./gradlew :application:domain:household:adapters:quarkusDev
 ```
 
-All modules are served from the single Quarkus runtime at `http://localhost:8080`.
-
-### API docs
+All modules are served from a single Quarkus runtime at `http://localhost:8080`.
 
 - Swagger UI: `http://localhost:8080/swagger-ui`
 - OpenAPI JSON: `http://localhost:8080/q/openapi`
 
 ---
 
-## Pre-Commit Hook Setup
-
-The project uses Husky to enforce checks before every commit.
-
-### Install Husky
+## Running the Frontend
 
 ```bash
+cd web
 npm install
+npm run generate:api   # Regenerate typed API client from OpenAPI spec
+npm start              # http://localhost:3000
 ```
 
-Husky is installed automatically via the `prepare` script in `package.json`.
+Run `npm run generate:api` every time the backend API contract changes.
 
-### What the pre-commit hook does
+---
 
-1. Runs `npm run generate:api` — keeps the generated API client in sync.
-2. Scans staged diff for plaintext password patterns — aborts commit if found.
-3. Runs `./gradlew test` — aborts commit if any test fails.
-
-### Manual hook trigger (for testing)
+## Tests
 
 ```bash
-.husky/pre-commit
+# All backend tests
+./gradlew test --continuous=false
+
+# Single module tests
+./gradlew :application:domain:wealth:domain:test
+
+# Frontend tests
+cd web && npm run test:ci
 ```
 
 ---
 
-## Infrastructure Setup
+## Pre-Commit Hook
 
-### Ports
+Husky runs automatically on every commit:
+1. `npm run generate:api` — keeps the API client in sync
+2. Scans staged diff for plaintext passwords
+3. `./gradlew test` — aborts if any test fails
+
+Install Husky (one-time, after `npm install` in the root):
+```bash
+npm install
+```
+
+---
+
+## Migration Rules
+
+Flyway migrations are in `application/flyway/{domain}/` and run automatically on module startup.
+
+- **Never edit a committed migration file.** Create a new versioned file instead.
+- `00_bootstrap.sql` is run manually once. Flyway does not manage it.
+- Migration dependency order: **profile → wealth → household → health → projections**
+
+---
+
+## Ports
 
 | Service | Port |
 |---|---|
 | Backend (Quarkus) | 8080 |
 | Frontend (React) | 3000 |
 | PostgreSQL | 5432 |
-| MongoDB | 27017 |
-
-### Notes
-
-- No Docker required for local development.
-- Ensure all four ports above are free before starting.
-- The backend reads DB credentials from `application/finance/.env`.
-- Flyway runs migrations automatically on backend startup — do not edit committed migration files.
 
 ---
 
@@ -160,12 +141,10 @@ Husky is installed automatically via the `prepare` script in `package.json`.
 
 | Issue | Solution |
 |---|---|
-| Backend cannot connect to PostgreSQL | Verify `application/finance/.env` and PostgreSQL service status |
-| Backend cannot connect to MongoDB | Verify MongoDB is running on port 27017 and `MONGO_URL` is set in `.env` |
-| Port 8080 in use | Stop the conflicting process or change port in `application.properties` |
+| Backend cannot connect to PostgreSQL | Check `application/finance/.env` and PostgreSQL service |
+| Flyway migration error on startup | Never edit a previous migration — create a new versioned file |
 | `npm install` fails | Run `npm install --legacy-peer-deps` in `web/` |
-| API client out of sync | Re-run `npm run generate:api` after any backend API change |
+| API client out of sync | Run `cd web && npm run generate:api` |
 | Gradle compile fails | Run `./gradlew clean` then retry |
-| Flyway migration error on startup | Never edit a previously run migration — create a new versioned file instead |
 | Pre-commit hook not running | Run `npm install` to reinstall Husky |
-| Backend fails to start | Check for any errors in the logs and ensure all dependencies are correctly installed and configured |
+| Profile module Flyway fails | Ensure `00_bootstrap.sql` was run first (creates schemas) |
