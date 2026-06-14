@@ -38,7 +38,7 @@ const EMPTY_EDIT_FORM = {
 
 function formatRelation(value) {
   if (!value) return '';
-  return value.replace(/_/g, ' ');
+  return value.replaceAll('_', ' ');
 }
 
 function StatusBadge({ active }) {
@@ -66,7 +66,7 @@ function ProfileCard({ profile, onEdit, onDeactivate }) {
       <div className="text-sm text-gray-600 space-y-1">
         {profile.dob && <p>DOB: {profile.dob}</p>}
         {profile.email_address && <p>Email: {profile.email_address}</p>}
-        {profile.gender && <p>Gender: {profile.gender.replace(/_/g, ' ')}</p>}
+        {profile.gender && <p>Gender: {profile.gender.replaceAll('_', ' ')}</p>}
         {profile.blood_type && <p>Blood Type: {profile.blood_type}</p>}
       </div>
 
@@ -454,7 +454,7 @@ export const Profiles = () => {
                 <option value="">Select gender</option>
                 {GENDERS.map((g) => (
                   <option key={g} value={g}>
-                    {g.replace(/_/g, ' ')}
+                    {g.replaceAll('_', ' ')}
                   </option>
                 ))}
               </select>
@@ -522,7 +522,7 @@ export const Profiles = () => {
                 <option value="">Select gender</option>
                 {GENDERS.map((g) => (
                   <option key={g} value={g}>
-                    {g.replace(/_/g, ' ')}
+                    {g.replaceAll('_', ' ')}
                   </option>
                 ))}
               </select>

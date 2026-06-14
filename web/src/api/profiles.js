@@ -6,7 +6,8 @@ export function listProfiles(adminId, isActive) {
   if (adminId != null) params.append('admin_id', adminId);
   if (isActive != null) params.append('is_active', String(isActive));
   const query = params.toString();
-  return get(`${API_ENDPOINTS.PROFILES}${query ? `?${query}` : ''}`);
+  const url = query ? `${API_ENDPOINTS.PROFILES}?${query}` : API_ENDPOINTS.PROFILES;
+  return get(url);
 }
 
 export const getProfile = (profileId) => get(`${API_ENDPOINTS.PROFILES}/${profileId}`);
