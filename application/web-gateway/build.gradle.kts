@@ -2,19 +2,21 @@ plugins {
     id("io.quarkus")
 }
 
+val quarkusBomVersion = "3.29.0"
+val junitVersion = "5.10.2"
+
 dependencies {
-    implementation(enforcedPlatform("io.quarkus.platform:quarkus-bom:3.29.0"))
-    
+    implementation(enforcedPlatform("io.quarkus.platform:quarkus-bom:$quarkusBomVersion"))
+
     // REST endpoints
     implementation("io.quarkus:quarkus-rest")
     implementation("io.quarkus:quarkus-rest-jackson")
-    
+
     // Domain ports for aggregation (BFF pattern)
     implementation(project(":application:domain:wealth:ports"))
     implementation(project(":application:domain:health:ports"))
-    
+
     // Tests
-    val junitVersion = "5.10.2"
     testImplementation("io.quarkus:quarkus-junit5")
     testImplementation("io.rest-assured:rest-assured")
     testImplementation("org.mockito:mockito-core")

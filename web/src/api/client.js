@@ -26,7 +26,9 @@ async function request(method, path, body, options = {}) {
 
     clearTimeout(timeoutId);
 
-    if (!response.ok) {
+    if (response.ok) {
+      return response.status === 204 ? null : response.json();
+    } else {
       // Try to parse structured error body from backend (ApplicationException shape)
       const err = await response.json().catch(() => ({}));
       const error = new Error(err.message || `HTTP ${response.status}`);
@@ -35,8 +37,6 @@ async function request(method, path, body, options = {}) {
       error.details = err.details;
       throw error;
     }
-
-    return response.status === 204 ? null : response.json();
   } catch (err) {
     clearTimeout(timeoutId);
     if (err.name === 'AbortError') throw new Error('Request timed out');

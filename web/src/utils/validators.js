@@ -16,7 +16,7 @@ export const validateEmail = (email) => {
 
   const atIndex = normalized.indexOf('@');
   if (atIndex <= 0) return false;
-  if (normalized.includes('@', atIndex + 1)) return false;
+  if (normalized.slice(atIndex + 1).includes('@')) return false;
 
   const dotIndex = normalized.indexOf('.', atIndex + 2);
   if (dotIndex === -1 || dotIndex === normalized.length - 1) return false;

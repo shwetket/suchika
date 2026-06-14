@@ -8,7 +8,6 @@ import com.suchika.shared.exception.ConflictException;
 import com.suchika.shared.exception.NotFoundException;
 import com.suchika.shared.logging.AppLogger;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 
 import java.util.List;
@@ -19,11 +18,13 @@ public class AdminService implements AdminUseCase {
 
     private static final String ADMIN_NOT_FOUND = "Admin not found: ";
 
-    @Inject
-    AdminRepository adminRepository;
+    private final AdminRepository adminRepository;
+    private final ProfileRepository profileRepository;
 
-    @Inject
-    ProfileRepository profileRepository;
+    public AdminService(AdminRepository adminRepository, ProfileRepository profileRepository) {
+        this.adminRepository = adminRepository;
+        this.profileRepository = profileRepository;
+    }
 
     @Override
     @Transactional

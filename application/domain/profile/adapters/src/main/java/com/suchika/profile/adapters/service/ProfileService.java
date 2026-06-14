@@ -10,7 +10,6 @@ import com.suchika.profile.ports.output.ProfileRepository;
 import com.suchika.shared.exception.NotFoundException;
 import com.suchika.shared.logging.AppLogger;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 
 import java.time.LocalDate;
@@ -21,12 +20,15 @@ import java.util.UUID;
 public class ProfileService implements ProfileUseCase {
 
     private static final String PROFILE_NOT_FOUND = "Profile not found: ";
+    private static final String ADMIN_NOT_FOUND = "Admin not found: ";
 
-    @Inject
-    ProfileRepository profileRepository;
+    private final ProfileRepository profileRepository;
+    private final AdminRepository adminRepository;
 
-    @Inject
-    AdminRepository adminRepository;
+    public ProfileService(ProfileRepository profileRepository, AdminRepository adminRepository) {
+        this.profileRepository = profileRepository;
+        this.adminRepository = adminRepository;
+    }
 
     @Override
     @Transactional
@@ -34,7 +36,7 @@ public class ProfileService implements ProfileUseCase {
                                  RelationToAdmin relationToAdmin, String emailAddress,
                                  Gender gender, BloodType bloodType) {
         adminRepository.findById(adminId)
-            .orElseThrow(() -> new NotFoundException("Admin not found: " + adminId));
+            .orElseThrow(() -> new NotFoundException(ADMIN_NOT_FOUND + adminId));
 
         Profile profile = new Profile();
         profile.setAdminId(adminId);

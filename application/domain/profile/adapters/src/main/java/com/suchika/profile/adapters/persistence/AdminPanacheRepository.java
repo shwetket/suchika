@@ -3,18 +3,19 @@ package com.suchika.profile.adapters.persistence;
 import com.suchika.profile.domain.Admin;
 import com.suchika.profile.ports.output.AdminRepository;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class AdminPanacheRepository implements AdminRepository {
 
-    @Inject
-    AdminDao dao;
+    private final AdminDao dao;
+
+    public AdminPanacheRepository(AdminDao dao) {
+        this.dao = dao;
+    }
 
     @Override
     public Admin save(Admin admin) {
@@ -34,7 +35,7 @@ public class AdminPanacheRepository implements AdminRepository {
 
     @Override
     public List<Admin> findAll() {
-        return dao.listAll().stream().map(AdminEntity::toDomain).collect(Collectors.toList());
+        return dao.listAll().stream().map(AdminEntity::toDomain).toList();
     }
 
     @Override

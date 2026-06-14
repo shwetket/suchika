@@ -4,7 +4,6 @@ import com.suchika.profile.adapters.http.dto.*;
 import com.suchika.profile.domain.Admin;
 import com.suchika.profile.ports.input.AdminUseCase;
 import com.suchika.shared.exception.BadRequestException;
-import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -17,8 +16,11 @@ import java.util.UUID;
 @Consumes(MediaType.APPLICATION_JSON)
 public class AdminResource {
 
-    @Inject
-    AdminUseCase adminUseCase;
+    private final AdminUseCase adminUseCase;
+
+    public AdminResource(AdminUseCase adminUseCase) {
+        this.adminUseCase = adminUseCase;
+    }
 
     @GET
     public ListAdminsResponse listAdmins() {

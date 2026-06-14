@@ -10,7 +10,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -22,11 +21,9 @@ class AdminServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new AdminService();
         adminRepo = new FakeAdminRepository();
         profileRepo = new FakeProfileRepository();
-        service.adminRepository = adminRepo;
-        service.profileRepository = profileRepo;
+        service = new AdminService(adminRepo, profileRepo);
     }
 
     @Test
@@ -203,7 +200,7 @@ class AdminServiceTest {
             return store.values().stream()
                 .filter(p -> adminId == null || adminId.equals(p.getAdminId()))
                 .filter(p -> isActive == null || isActive.equals(p.isActive()))
-                .collect(Collectors.toList());
+                .toList();
         }
 
         @Override

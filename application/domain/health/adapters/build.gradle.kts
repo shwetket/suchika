@@ -2,8 +2,11 @@ plugins {
     id("io.quarkus")
 }
 
+val quarkusBomVersion = "3.29.0"
+val junitVersion = "5.10.2"
+
 dependencies {
-    implementation(enforcedPlatform("io.quarkus.platform:quarkus-bom:3.29.0"))
+    implementation(enforcedPlatform("io.quarkus.platform:quarkus-bom:$quarkusBomVersion"))
 
     // Hexagonal architecture layers
     implementation(project(":application:domain:health:domain"))
@@ -22,7 +25,6 @@ dependencies {
     implementation(project(":shared"))
 
     // Tests
-    val junitVersion = "5.10.2"
     testImplementation("io.quarkus:quarkus-junit5")
     testImplementation("org.junit.jupiter:junit-jupiter-api:$junitVersion")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:$junitVersion")

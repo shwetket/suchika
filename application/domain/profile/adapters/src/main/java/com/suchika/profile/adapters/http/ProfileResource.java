@@ -7,7 +7,6 @@ import com.suchika.profile.domain.Profile;
 import com.suchika.profile.domain.RelationToAdmin;
 import com.suchika.profile.ports.input.ProfileUseCase;
 import com.suchika.shared.exception.BadRequestException;
-import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -20,8 +19,11 @@ import java.util.UUID;
 @Consumes(MediaType.APPLICATION_JSON)
 public class ProfileResource {
 
-    @Inject
-    ProfileUseCase profileUseCase;
+    private final ProfileUseCase profileUseCase;
+
+    public ProfileResource(ProfileUseCase profileUseCase) {
+        this.profileUseCase = profileUseCase;
+    }
 
     @GET
     public ListProfilesResponse listProfiles(

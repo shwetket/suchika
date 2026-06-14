@@ -2,13 +2,16 @@ plugins {
     id("io.quarkus")
 }
 
+val quarkusBomVersion = "3.29.0"
+val junitVersion = "5.10.2"
+
 dependencies {
-    implementation(enforcedPlatform("io.quarkus.platform:quarkus-bom:3.29.0"))
-    
+    implementation(enforcedPlatform("io.quarkus.platform:quarkus-bom:$quarkusBomVersion"))
+
     // Hexagonal architecture layers
     implementation(project(":application:domain:wealth:domain"))
     implementation(project(":application:domain:wealth:ports"))
-    
+
     // Quarkus framework
     implementation("io.quarkus:quarkus-arc")
     implementation("io.quarkus:quarkus-rest")
@@ -17,12 +20,11 @@ dependencies {
     implementation("io.quarkus:quarkus-jdbc-postgresql")
     implementation("io.quarkus:quarkus-flyway")
     implementation("io.quarkus:quarkus-smallrye-openapi")
-    
+
     // Shared utilities
     implementation(project(":shared"))
-    
+
     // Tests
-    val junitVersion = "5.10.2"
     testImplementation("io.quarkus:quarkus-junit5")
     testImplementation("org.junit.jupiter:junit-jupiter-api:$junitVersion")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:$junitVersion")

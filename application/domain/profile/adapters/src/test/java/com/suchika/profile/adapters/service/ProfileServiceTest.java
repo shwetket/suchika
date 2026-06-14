@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Test;
 import java.time.LocalDate;
 import java.time.Month;
 import java.util.*;
-import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -22,11 +21,9 @@ class ProfileServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ProfileService();
         adminRepo = new FakeAdminRepository();
         profileRepo = new FakeProfileRepository();
-        service.adminRepository = adminRepo;
-        service.profileRepository = profileRepo;
+        service = new ProfileService(profileRepo, adminRepo);
     }
 
     private UUID seedAdmin() {
@@ -201,7 +198,7 @@ class ProfileServiceTest {
             return store.values().stream()
                 .filter(p -> adminId == null || adminId.equals(p.getAdminId()))
                 .filter(p -> isActive == null || isActive.equals(p.isActive()))
-                .collect(Collectors.toList());
+                .toList();
         }
 
         @Override
