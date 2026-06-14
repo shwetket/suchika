@@ -8,9 +8,15 @@ val junitVersion = "5.10.2"
 dependencies {
     implementation(enforcedPlatform("io.quarkus.platform:quarkus-bom:$quarkusBomVersion"))
 
-    // REST endpoints
+    // REST endpoints (server-side)
     implementation("io.quarkus:quarkus-rest")
     implementation("io.quarkus:quarkus-rest-jackson")
+
+    // REST client (calls downstream domain services)
+    implementation("io.quarkus:quarkus-rest-client-jackson")
+
+    // Shared utilities (AppLogger, exceptions)
+    implementation(project(":shared"))
 
     // Domain ports for aggregation (BFF pattern)
     implementation(project(":application:domain:wealth:ports"))

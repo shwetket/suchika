@@ -1,0 +1,19 @@
+import { get, post, patch, del } from './client';
+import { API_ENDPOINTS } from '../utils/constants';
+
+export function listProfiles(adminId, isActive) {
+  const params = new URLSearchParams();
+  if (adminId != null) params.append('admin_id', adminId);
+  if (isActive != null) params.append('is_active', String(isActive));
+  const query = params.toString();
+  return get(`${API_ENDPOINTS.PROFILES}${query ? `?${query}` : ''}`);
+}
+
+export const getProfile = (profileId) => get(`${API_ENDPOINTS.PROFILES}/${profileId}`);
+
+export const createProfile = (data) => post(API_ENDPOINTS.PROFILES, data);
+
+export const updateProfile = (profileId, data) =>
+  patch(`${API_ENDPOINTS.PROFILES}/${profileId}`, data);
+
+export const deactivateProfile = (profileId) => del(`${API_ENDPOINTS.PROFILES}/${profileId}`);

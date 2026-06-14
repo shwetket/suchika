@@ -78,17 +78,17 @@ public class ProfileEntity extends PanacheEntityBase {
     }
 
     public Profile toDomain() {
-        return new Profile(
-            id,
-            adminId,
-            fullName,
-            dob,
-            relationToAdmin != null ? RelationToAdmin.valueOf(relationToAdmin) : null,
-            emailAddress,
-            gender != null ? Gender.valueOf(gender) : null,
-            bloodType != null ? parseBloodType(bloodType) : null,
-            active,
-            createdAt
-        );
+        return Profile.builder()
+            .id(id)
+            .adminId(adminId)
+            .fullName(fullName)
+            .dob(dob)
+            .relationToAdmin(relationToAdmin != null ? RelationToAdmin.valueOf(relationToAdmin) : null)
+            .emailAddress(emailAddress)
+            .gender(gender != null ? Gender.valueOf(gender) : null)
+            .bloodType(bloodType != null ? parseBloodType(bloodType) : null)
+            .active(active)
+            .createdAt(createdAt)
+            .build();
     }
 }
