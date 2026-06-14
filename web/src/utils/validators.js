@@ -8,8 +8,20 @@
  * @returns {boolean} True if valid email
  */
 export const validateEmail = (email) => {
-  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return re.test(String(email).toLowerCase());
+  if (typeof email !== 'string') return false;
+
+  const normalized = email.trim().toLowerCase();
+  if (normalized.length === 0) return false;
+  if (normalized.includes(' ')) return false;
+
+  const atIndex = normalized.indexOf('@');
+  if (atIndex <= 0) return false;
+  if (normalized.indexOf('@', atIndex + 1) !== -1) return false;
+
+  const dotIndex = normalized.indexOf('.', atIndex + 2);
+  if (dotIndex === -1 || dotIndex === normalized.length - 1) return false;
+
+  return true;
 };
 
 /**

@@ -4,6 +4,7 @@ import com.suchika.profile.domain.BloodType;
 import com.suchika.profile.domain.Gender;
 import com.suchika.profile.domain.Profile;
 import com.suchika.profile.domain.RelationToAdmin;
+import com.suchika.shared.logging.AppLogger;
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.*;
 
@@ -67,6 +68,15 @@ public class ProfileEntity extends PanacheEntityBase {
         return e;
     }
 
+    private static BloodType parseBloodType(String label) {
+        try {
+            return BloodType.fromLabel(label);
+        } catch (IllegalArgumentException e) {
+            AppLogger.warn("Unrecognized blood_type value in DB, returning null: %s", label);
+            return null;
+        }
+    }
+
     public Profile toDomain() {
         return new Profile(
             id,
@@ -76,7 +86,7 @@ public class ProfileEntity extends PanacheEntityBase {
             relationToAdmin != null ? RelationToAdmin.valueOf(relationToAdmin) : null,
             emailAddress,
             gender != null ? Gender.valueOf(gender) : null,
-            bloodType != null ? BloodType.fromLabel(bloodType) : null,
+            bloodType != null ? parseBloodType(bloodType) : null,
             active,
             createdAt
         );

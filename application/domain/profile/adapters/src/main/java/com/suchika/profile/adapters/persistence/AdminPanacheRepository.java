@@ -41,12 +41,4 @@ public class AdminPanacheRepository implements AdminRepository {
     public boolean existsByEmailAddress(String emailAddress) {
         return dao.count("emailAddress = ?1", emailAddress) > 0;
     }
-
-    @Override
-    public long countActiveProfilesByAdminId(UUID adminId) {
-        return dao.getEntityManager()
-            .createQuery("SELECT COUNT(p) FROM ProfileEntity p WHERE p.adminId = :adminId AND p.active = true", Long.class)
-            .setParameter("adminId", adminId)
-            .getSingleResult();
-    }
 }

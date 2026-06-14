@@ -15,6 +15,4 @@ public interface AdminRepository {
     List<Admin> findAll();
 
     boolean existsByEmailAddress(String emailAddress);
-
-    long countActiveProfilesByAdminId(UUID adminId);
 }

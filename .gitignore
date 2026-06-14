@@ -47,3 +47,4 @@ infrastructure/local/*.env
 ### Mac OS ###
 .DS_Store
 README.md
+/sonarqube-*/*

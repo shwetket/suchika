@@ -15,4 +15,6 @@ public interface ProfileRepository {
     List<Profile> findAll(UUID adminId, Boolean isActive);
 
     boolean existsById(UUID id);
+
+    long countActiveByAdminId(UUID adminId);
 }

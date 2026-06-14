@@ -18,6 +18,10 @@
             <option value="$PROJECT_DIR$/application/domain/household/adapters" />
             <option value="$PROJECT_DIR$/application/domain/household/domain" />
             <option value="$PROJECT_DIR$/application/domain/household/ports" />
+            <option value="$PROJECT_DIR$/application/domain/profile" />
+            <option value="$PROJECT_DIR$/application/domain/profile/adapters" />
+            <option value="$PROJECT_DIR$/application/domain/profile/domain" />
+            <option value="$PROJECT_DIR$/application/domain/profile/ports" />
             <option value="$PROJECT_DIR$/application/domain/wealth" />
             <option value="$PROJECT_DIR$/application/domain/wealth/adapters" />
             <option value="$PROJECT_DIR$/application/domain/wealth/domain" />
@@ -29,5 +33,6 @@
         </option>
       </GradleProjectSettings>
     </option>
+    <option name="offlineMode" value="true" />
   </component>
 </project>

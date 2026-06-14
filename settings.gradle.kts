@@ -1,3 +1,10 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
 rootProject.name = "suchika"
 
 // Backend domain modules - Hexagonal architecture with nested modules

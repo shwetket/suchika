@@ -52,4 +52,9 @@ public class ProfilePanacheRepository implements ProfileRepository {
     public boolean existsById(UUID id) {
         return dao.count("id = ?1", id) > 0;
     }
+
+    @Override
+    public long countActiveByAdminId(UUID adminId) {
+        return dao.count("adminId = ?1 and active = true", adminId);
+    }
 }

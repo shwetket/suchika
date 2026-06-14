@@ -3,6 +3,7 @@ package com.suchika.profile.adapters.service;
 import com.suchika.profile.domain.Admin;
 import com.suchika.profile.ports.input.AdminUseCase;
 import com.suchika.profile.ports.output.AdminRepository;
+import com.suchika.profile.ports.output.ProfileRepository;
 import com.suchika.shared.exception.ConflictException;
 import com.suchika.shared.exception.NotFoundException;
 import com.suchika.shared.logging.AppLogger;
@@ -18,6 +19,9 @@ public class AdminService implements AdminUseCase {
 
     @Inject
     AdminRepository adminRepository;
+
+    @Inject
+    ProfileRepository profileRepository;
 
     @Override
     @Transactional
@@ -58,6 +62,12 @@ public class AdminService implements AdminUseCase {
             }
             admin.setEmailAddress(emailAddress);
         }
+        if (Boolean.FALSE.equals(isActive)) {
+            long activeProfiles = profileRepository.countActiveByAdminId(adminId);
+            if (activeProfiles > 0) {
+                throw new ConflictException("Cannot deactivate admin with " + activeProfiles + " active profile(s)");
+            }
+        }
         if (isActive != null) admin.setActive(isActive);
 
         return adminRepository.save(admin);
@@ -69,7 +79,7 @@ public class AdminService implements AdminUseCase {
         Admin admin = adminRepository.findById(adminId)
             .orElseThrow(() -> new NotFoundException("Admin not found: " + adminId));
 
-        long activeProfiles = adminRepository.countActiveProfilesByAdminId(adminId);
+        long activeProfiles = profileRepository.countActiveByAdminId(adminId);
         if (activeProfiles > 0) {
             throw new ConflictException("Cannot deactivate admin with " + activeProfiles + " active profile(s)");
         }
