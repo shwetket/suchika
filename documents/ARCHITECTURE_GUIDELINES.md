@@ -1,79 +1,97 @@
 # Architecture Guidelines
 
 > Best practices for all developers. Follow these on every PR.
+> Enforced by ArchUnit in `shared/src/test/java/.../DomainRulesTest.java` — read that file before adding new classes.
 
 ---
 
 ## Domain Layer Rules
 
 - `domain/` must have **zero** dependencies on frameworks, adapters, or other domains.
-- No `@Inject`, no JPA annotations, no HTTP types in `domain/`.
+- No `@Inject`, no JPA annotations (`jakarta.persistence.*`), no HTTP types in `domain/`.
 - Business rules live here. Nothing else does.
+- ArchUnit enforces this automatically on every `./gradlew test` run.
 
 ---
 
-## Application Layer Rules
+## Hexagonal Layer Rules
 
-- `application/` orchestrates use cases. It calls ports — never adapters or DB directly.
-- No `HttpServletRequest`, no SQL, no direct MongoDB calls here.
-- Cross-domain logic goes through `shared/` orchestration interfaces only.
+Each domain has exactly three layers:
+
+| Layer | Package | Rule |
+|---|---|---|
+| `domain/` | Pure Java entities + business logic | Zero framework deps |
+| `ports/` | Use case interfaces (input) + repository interfaces (output) | Zero framework deps |
+| `adapters/` | HTTP controllers + Panache/JPA persistence | Framework allowed here only |
+
+- `adapters/` depends on `ports/` and `domain/` — never the reverse.
+- Cross-domain logic goes through API calls between services — no shared DB joins.
 
 ---
 
-## Adapter Rules
+## Multi-Service Architecture
 
-- `adapters/out/` depend on `infrastructure/` for shared plumbing (DB pools, config).
-- `adapters/in/http/` are thin. Translate HTTP → domain input. No business logic.
-- Adapters inject the active `profile_id` into every query. Domain layer never does this.
+Each domain runs as a separate Quarkus service on its own port. They share a single PostgreSQL database but each owns its own schema.
+
+| Service | Port | Schema |
+|---|---|---|
+| Profile | 8081 | `profile` |
+| Wealth | 8082 | `wealth` |
+| Health | 8083 | `health` |
+| Household | 8084 | `household` |
+| Web Gateway (BFF) | 8080 | `projections` (read-only, CQRS snapshots) |
+
+**Profile must start first** — all other services' Flyway migrations reference `profile.profile`.
+
+The web-gateway has no database of its own. It aggregates domain REST calls and serves the React frontend.
 
 ---
 
 ## Database Rules
 
-- **No cross-domain SQL joins. Ever.**
-- All PostgreSQL schema changes use versioned Flyway migrations. No manual edits on persistent DBs.
-- MongoDB collections are schema-validated at the application layer, not DB layer.
-- Each domain owns its tables. Other domains never read them directly.
+- **No cross-domain SQL joins. Ever.** Each domain service only queries its own schema.
+- All schema changes go through versioned Flyway migrations in `application/flyway/{domain}/`.
+- `application/flyway/00_bootstrap.sql` is run manually once as superuser — Flyway does not manage it.
+- Never edit a committed migration file — create a new versioned file.
+- No SQL ENUMs. Use plain `VARCHAR` for discriminator columns; enforce allowed values at the OpenAPI contract + Java enum level.
 
----
-
-## Security Rules
-
-- Every endpoint validates the active profile's role before processing.
-- Restricted profiles (Children) must not trigger queries to unauthorized domains (e.g., no Wealth queries from a Child profile).
-- Only short-lived OAuth access tokens for external integrations. No refresh tokens in DB.
-- Encrypt sensitive financial data at `adapters.out.persistence` before insertion.
-- Export data must be encrypted and signed. Import requires signature verification.
+**DB constraint philosophy:**
+- Keep in DB: `NOT NULL`, `PK`, `FK`, `UNIQUE`, business-rule `CHECK` constraints (`amount >= 0`, `end_date >= start_date`).
+- Do NOT add to DB: enum discriminators (account types, event types, vital types). These change by adding a value to the OpenAPI enum + Java enum, with no Flyway migration needed.
 
 ---
 
 ## API Rules
 
-- All endpoints served from the single Quarkus runtime on port `8080`.
-- Use generated OpenAPI clients on the frontend — never hand-roll HTTP calls.
-- Regenerate client after any spec change: `npm run generate:api`.
-- Cross-domain composite data goes through dedicated endpoints (`/api/v1/dashboard/actions`, `/api/v1/trips/{event_id}/feasibility`) — not by calling multiple domain APIs from the frontend.
+- Frontend talks only to the Web Gateway (BFF) at `http://localhost:8080`.
+- Domain services (8081–8084) are internal — the frontend never calls them directly.
+- Use the generated OpenAPI client on the frontend — never hand-roll HTTP calls or edit `web/src/api/generated.ts` manually.
+- Regenerate after any contract change: `cd web && npm run generate:api`.
+- Contract files live in `application/contract/{domain}.yaml`.
 
 ---
 
 ## Frontend Rules
 
 - Frontend lives in `web/`. No backend logic here.
-- API client code is generated — do not edit files in `web/src/api/generated/` by hand.
-- Route paths are segmented by domain: `/wealth`, `/household`, `/health`.
+- Tailwind CSS only — no CSS modules, no `style={{}}`, no other CSS frameworks.
 - State and presentation are separate from business rules.
+- Route paths are segmented by domain: `/wealth`, `/household`, `/health`.
 
 ---
 
-## Logging & Audit
+## Logging and Exceptions
 
-- All data access and modifications must be logged with timestamps and user IDs.
-- Use the shared logging utility in `shared/` — do not roll custom loggers per module.
+- Use `AppLogger` from `shared/` for all logging. No custom loggers per module.
+- Throw typed exceptions from `shared/exception/` hierarchy (`NotFoundException`, `BadRequestException`, etc.).
+- `ApplicationExceptionMapper` converts them to HTTP responses automatically.
+- Never log passwords, tokens, or PII.
 
 ---
 
 ## Testing
 
-- Domain logic is unit-tested with no framework setup required (no Spring context, no Quarkus test harness).
+- Domain logic is unit-tested with no framework setup (no Quarkus test harness needed).
 - Adapter tests use the real DB where possible (Testcontainers preferred).
 - No test should cross domain boundaries via the DB.
+- ArchUnit tests in `shared/` enforce all the rules above automatically.

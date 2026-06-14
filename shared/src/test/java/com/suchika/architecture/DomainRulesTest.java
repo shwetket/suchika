@@ -413,7 +413,7 @@ class DomainRulesTest {
     void application_code_must_not_use_raw_loggers() {
         noClasses()
             .that().resideInAPackage("com.suchika..")
-            .and().doNotResideInAPackage("com.suchika.shared..")
+            .and().resideOutsideOfPackage("com.suchika.shared..")
             .should().dependOnClassesThat()
             .resideInAnyPackage(
                 "org.slf4j..",
