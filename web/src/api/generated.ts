@@ -3,14 +3,517 @@
  * Do not make direct changes to the file.
  */
 
-export type paths = Record<string, never>;
+
+export interface paths {
+  "/v1/admins": {
+    /**
+     * List all admins
+     * @description Returns all admins. In v0.1 always returns exactly one. In v1.1+ each authenticated user is an independent admin. Not paginated — admin count is always tiny. Follows AIP-132.
+     */
+    get: operations["listAdmins"];
+    /**
+     * Create an admin
+     * @description Creates a new household admin. After creating an admin, create a profile with relation_to_admin = SELF to represent the admin's own member record. Follows AIP-133.
+     */
+    post: operations["createAdmin"];
+  };
+  "/v1/admins/{admin_id}": {
+    /**
+     * Get an admin
+     * @description Follows AIP-131.
+     */
+    get: operations["getAdmin"];
+    /**
+     * Deactivate an admin
+     * @description Soft-deletes an admin (is_active = false). An admin with active profiles cannot be deactivated. Follows AIP-135.
+     */
+    delete: operations["deactivateAdmin"];
+    /**
+     * Update an admin
+     * @description Partially updates an admin. Only provided fields are updated. Follows AIP-134.
+     */
+    patch: operations["updateAdmin"];
+  };
+  "/v1/profiles": {
+    /**
+     * List profiles
+     * @description Returns all household member profiles. Filter by admin_id to scope to one admin's household. Not paginated — always a small list. Follows AIP-132.
+     */
+    get: operations["listProfiles"];
+    /**
+     * Create a profile
+     * @description Creates a new household member profile. Requires admin_id. The SELF profile (admin's own member record) must be created first with relation_to_admin = SELF. Follows AIP-133.
+     */
+    post: operations["createProfile"];
+  };
+  "/v1/profiles/{profile_id}": {
+    /**
+     * Get a profile
+     * @description Follows AIP-131.
+     */
+    get: operations["getProfile"];
+    /**
+     * Deactivate a profile
+     * @description Soft-deletes a profile (is_active = false). The SELF profile of an active admin cannot be deactivated. Follows AIP-135.
+     */
+    delete: operations["deactivateProfile"];
+    /**
+     * Update a profile
+     * @description Partially updates a profile. Only provided fields are updated. Immutable after creation: full_name, dob, relation_to_admin, admin_id. Follows AIP-134.
+     */
+    patch: operations["updateProfile"];
+  };
+}
 
 export type webhooks = Record<string, never>;
 
-export type components = Record<string, never>;
+export interface components {
+  schemas: {
+    /**
+     * @description Relationship of this household member to the admin. PARENT_IN_LAW is distinct from PARENT because in Indian households in-laws have separate insurance, dependency, and inheritance profiles.
+     *
+     * @enum {string}
+     */
+    RelationToAdmin: "SELF" | "SPOUSE" | "CHILD" | "PARENT" | "PARENT_IN_LAW" | "SIBLING" | "GRANDPARENT" | "GRANDCHILD" | "OTHER";
+    /** @enum {string} */
+    Gender: "MALE" | "FEMALE" | "OTHER" | "PREFER_NOT_TO_SAY";
+    /**
+     * @description ABO + Rh blood group
+     * @enum {string}
+     */
+    BloodType: "A+" | "A-" | "B+" | "B-" | "AB+" | "AB-" | "O+" | "O-";
+    /** @description Household admin — the future authentication anchor */
+    AdminResponse: {
+      /**
+       * @description Resource name. Format: admins/{admin_id}
+       * @example admins/f0e1d2c3-b4a5-6789-0fed-cba987654321
+       */
+      name: string;
+      /** Format: uuid */
+      admin_id: string;
+      /** @example Ketan */
+      display_name: string;
+      /**
+       * Format: email
+       * @description Future v1.0 login credential. Nullable until Security milestone.
+       */
+      email_address?: string | null;
+      is_active: boolean;
+      /** Format: date-time */
+      created_at: string;
+    };
+    CreateAdminRequest: {
+      /** @example Ketan */
+      display_name: string;
+      /**
+       * Format: email
+       * @description Optional — required at v1.0 Security milestone for login.
+       */
+      email_address?: string | null;
+    };
+    /** @description All fields optional. Only provided fields are updated. */
+    UpdateAdminRequest: {
+      display_name?: string;
+      /** Format: email */
+      email_address?: string | null;
+      is_active?: boolean;
+    };
+    ListAdminsResponse: {
+      admins: components["schemas"]["AdminResponse"][];
+      total_size: number;
+    };
+    /** @description A household member identity record */
+    ProfileResponse: {
+      /**
+       * @description Resource name. Format: profiles/{profile_id}
+       * @example profiles/a1b2c3d4-e5f6-7890-abcd-ef1234567890
+       */
+      name: string;
+      /** Format: uuid */
+      profile_id: string;
+      /**
+       * Format: uuid
+       * @description Admin whose household this member belongs to.
+       */
+      admin_id: string;
+      /** @example Ketan Verma */
+      full_name: string;
+      /**
+       * Format: date
+       * @example 1988-03-15
+       */
+      dob: string;
+      relation_to_admin: components["schemas"]["RelationToAdmin"];
+      /**
+       * Format: email
+       * @example ketan@example.com
+       */
+      email_address?: string | null;
+      gender?: components["schemas"]["Gender"] | null;
+      blood_type?: components["schemas"]["BloodType"] | null;
+      is_active: boolean;
+      /** Format: date-time */
+      created_at: string;
+    };
+    CreateProfileRequest: {
+      /**
+       * Format: uuid
+       * @description Admin whose household this member belongs to.
+       */
+      admin_id: string;
+      /** @example Ketan Verma */
+      full_name: string;
+      /**
+       * Format: date
+       * @example 1988-03-15
+       */
+      dob: string;
+      relation_to_admin: components["schemas"]["RelationToAdmin"];
+      /** Format: email */
+      email_address?: string | null;
+      gender?: components["schemas"]["Gender"] | null;
+      blood_type?: components["schemas"]["BloodType"] | null;
+    };
+    /** @description Mutable fields only. full_name, dob, relation_to_admin, admin_id are immutable after creation and will be rejected if included. */
+    UpdateProfileRequest: {
+      /** Format: email */
+      email_address?: string | null;
+      gender?: components["schemas"]["Gender"] | null;
+      blood_type?: components["schemas"]["BloodType"] | null;
+      is_active?: boolean;
+    };
+    ListProfilesResponse: {
+      profiles: components["schemas"]["ProfileResponse"][];
+      total_size: number;
+    };
+  };
+  responses: never;
+  parameters: {
+    /** @description Unique identifier of the admin */
+    AdminId: string;
+  };
+  requestBodies: never;
+  headers: never;
+  pathItems: never;
+}
 
 export type $defs = Record<string, never>;
 
-export type external = Record<string, never>;
+export interface external {
+  "shared.yaml": {
+    paths: Record<string, never>;
+    webhooks: Record<string, never>;
+    components: {
+      schemas: {
+        /**
+         * @description ISO 4217 currency code. Currently INR only.
+         * @default INR
+         * @enum {string}
+         */
+        Currency: "INR";
+        /** @description Standard error response body. Follows AIP-193 and Google error model. All 4xx and 5xx responses use this schema. */
+        Error: {
+          /**
+           * @description HTTP status code mirrored in the body for client convenience.
+           * @example 404
+           */
+          code: number;
+          /**
+           * @description Machine-readable error status string. Maps to gRPC status codes. Values: INVALID_ARGUMENT (400), NOT_FOUND (404), ALREADY_EXISTS (409), INTERNAL (500).
+           *
+           * @example NOT_FOUND
+           * @enum {string}
+           */
+          status: "INVALID_ARGUMENT" | "NOT_FOUND" | "ALREADY_EXISTS" | "FAILED_PRECONDITION" | "INTERNAL";
+          /**
+           * @description Human-readable summary of the error. Suitable for display.
+           * @example Profile not found
+           */
+          message: string;
+          /** @description Field-level validation issues. Present on INVALID_ARGUMENT (400) errors. Empty or absent for all other error types. */
+          details?: external["shared.yaml"]["components"]["schemas"]["ValidationIssue"][];
+        };
+        /** @description A single field-level validation failure within an error response. */
+        ValidationIssue: {
+          /**
+           * @description Dot-notation path to the invalid field within the request body. Examples: "full_name", "account.credit_limit", "items[0].quantity".
+           *
+           * @example full_name
+           */
+          field: string;
+          /**
+           * @description Human-readable description of the constraint that was violated.
+           * @example must not be blank
+           */
+          issue: string;
+        };
+      };
+      responses: {
+        /** @description 400 — Request body or query parameters failed validation. The 'details' array lists every field that violated a constraint. */
+        BadRequest: {
+          content: {
+            "application/json": external["shared.yaml"]["components"]["schemas"]["Error"];
+          };
+        };
+        /** @description 404 — The requested resource does not exist. */
+        NotFound: {
+          content: {
+            "application/json": external["shared.yaml"]["components"]["schemas"]["Error"];
+          };
+        };
+        /** @description 409 — The request conflicts with existing state. Examples: duplicate unique value, deactivating a resource with active children. */
+        Conflict: {
+          content: {
+            "application/json": external["shared.yaml"]["components"]["schemas"]["Error"];
+          };
+        };
+        /** @description 409 — A precondition for this operation was not met. Examples: uploading to a deactivated account, deleting an admin with active members. */
+        FailedPrecondition: {
+          content: {
+            "application/json": external["shared.yaml"]["components"]["schemas"]["Error"];
+          };
+        };
+        /** @description 500 — An unexpected server-side error occurred. The client should retry with exponential backoff. */
+        InternalError: {
+          content: {
+            "application/json": external["shared.yaml"]["components"]["schemas"]["Error"];
+          };
+        };
+      };
+      parameters: {
+        /** @description Maximum number of items to return per page. Follows AIP-158 (Pagination). Default 20, maximum 100. */
+        PageSize?: number;
+        /** @description Opaque token from the previous response's next_page_token field. Omit for the first page. */
+        PageToken?: string;
+        /** @description Unique identifier of the household member profile. */
+        ProfileIdParam: string;
+      };
+      requestBodies: never;
+      headers: never;
+      pathItems: never;
+    };
+    $defs: Record<string, never>;
+  };
+}
 
-export type operations = Record<string, never>;
+export interface operations {
+
+  /**
+   * List all admins
+   * @description Returns all admins. In v0.1 always returns exactly one. In v1.1+ each authenticated user is an independent admin. Not paginated — admin count is always tiny. Follows AIP-132.
+   */
+  listAdmins: {
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ListAdminsResponse"];
+        };
+      };
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+    };
+  };
+  /**
+   * Create an admin
+   * @description Creates a new household admin. After creating an admin, create a profile with relation_to_admin = SELF to represent the admin's own member record. Follows AIP-133.
+   */
+  createAdmin: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateAdminRequest"];
+      };
+    };
+    responses: {
+      /** @description Admin created */
+      201: {
+        content: {
+          "application/json": components["schemas"]["AdminResponse"];
+        };
+      };
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      409: external["shared.yaml"]["components"]["responses"]["Conflict"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+    };
+  };
+  /**
+   * Get an admin
+   * @description Follows AIP-131.
+   */
+  getAdmin: {
+    parameters: {
+      path: {
+        admin_id: components["parameters"]["AdminId"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["AdminResponse"];
+        };
+      };
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+    };
+  };
+  /**
+   * Deactivate an admin
+   * @description Soft-deletes an admin (is_active = false). An admin with active profiles cannot be deactivated. Follows AIP-135.
+   */
+  deactivateAdmin: {
+    parameters: {
+      path: {
+        admin_id: components["parameters"]["AdminId"];
+      };
+    };
+    responses: {
+      /** @description Admin deactivated */
+      204: {
+        content: never;
+      };
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      409: external["shared.yaml"]["components"]["responses"]["FailedPrecondition"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+    };
+  };
+  /**
+   * Update an admin
+   * @description Partially updates an admin. Only provided fields are updated. Follows AIP-134.
+   */
+  updateAdmin: {
+    parameters: {
+      path: {
+        admin_id: components["parameters"]["AdminId"];
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateAdminRequest"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["AdminResponse"];
+        };
+      };
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+    };
+  };
+  /**
+   * List profiles
+   * @description Returns all household member profiles. Filter by admin_id to scope to one admin's household. Not paginated — always a small list. Follows AIP-132.
+   */
+  listProfiles: {
+    parameters: {
+      query?: {
+        /** @description Scope to one admin's household members. */
+        admin_id?: string;
+        is_active?: boolean;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ListProfilesResponse"];
+        };
+      };
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+    };
+  };
+  /**
+   * Create a profile
+   * @description Creates a new household member profile. Requires admin_id. The SELF profile (admin's own member record) must be created first with relation_to_admin = SELF. Follows AIP-133.
+   */
+  createProfile: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateProfileRequest"];
+      };
+    };
+    responses: {
+      /** @description Profile created */
+      201: {
+        content: {
+          "application/json": components["schemas"]["ProfileResponse"];
+        };
+      };
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      409: external["shared.yaml"]["components"]["responses"]["Conflict"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+    };
+  };
+  /**
+   * Get a profile
+   * @description Follows AIP-131.
+   */
+  getProfile: {
+    parameters: {
+      path: {
+        profile_id: external["shared.yaml"]["components"]["parameters"]["ProfileIdParam"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ProfileResponse"];
+        };
+      };
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+    };
+  };
+  /**
+   * Deactivate a profile
+   * @description Soft-deletes a profile (is_active = false). The SELF profile of an active admin cannot be deactivated. Follows AIP-135.
+   */
+  deactivateProfile: {
+    parameters: {
+      path: {
+        profile_id: external["shared.yaml"]["components"]["parameters"]["ProfileIdParam"];
+      };
+    };
+    responses: {
+      /** @description Profile deactivated */
+      204: {
+        content: never;
+      };
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      409: external["shared.yaml"]["components"]["responses"]["FailedPrecondition"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+    };
+  };
+  /**
+   * Update a profile
+   * @description Partially updates a profile. Only provided fields are updated. Immutable after creation: full_name, dob, relation_to_admin, admin_id. Follows AIP-134.
+   */
+  updateProfile: {
+    parameters: {
+      path: {
+        profile_id: external["shared.yaml"]["components"]["parameters"]["ProfileIdParam"];
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateProfileRequest"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ProfileResponse"];
+        };
+      };
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+    };
+  };
+}

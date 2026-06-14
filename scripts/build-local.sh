@@ -46,7 +46,7 @@ run_gradle() {
   local label="$1"; shift
   local t=$(date +%s)
   step "$label"
-  ./gradlew "$@" --continuous=false
+  ./gradlew "$@"
   ok "$label  ($(elapsed $t))"
 }
 
@@ -164,6 +164,7 @@ fi
 # ── 8. SonarQube analysis ──────────────────────────────────────────────────────
 if [ "$SKIP_SONAR" = false ]; then
   step "SonarQube analysis"
+  export GRADLE_USER_HOME="${GRADLE_USER_HOME:-$HOME/.gradle}"
 
   if ! curl -sf --max-time 3 http://localhost:9000/api/system/status > /dev/null 2>&1; then
     warn "SonarQube not running at http://localhost:9000 — skipping"

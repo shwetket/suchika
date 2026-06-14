@@ -14,7 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ./gradlew :application:domain:household:adapters:quarkusDev
 
 # Run all tests
-./gradlew test --continuous=false
+./gradlew test
 
 # Run tests for a specific module
 ./gradlew :application:domain:wealth:domain:test
