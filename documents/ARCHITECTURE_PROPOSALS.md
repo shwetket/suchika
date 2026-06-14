@@ -7,26 +7,9 @@
 
 ## PROP-001: Microservices Split
 
-**Status:** Open
+**Status:** Resolved — see ADR-002
 
-**Context:** Currently all three domains run in a single Quarkus runtime. As the system grows, independent deployment and scaling may be needed.
-
-**Option A — Stay monolith (status quo)**
-- Keep all modules in one Quarkus runtime.
-- Pro: simpler ops, no network overhead between domains.
-- Con: one domain's load spike affects all; single deploy unit.
-
-**Option B — Split into 3 Quarkus services**
-- `wealth-service`, `health-service`, `household-service` each deploy independently.
-- Pro: independent scaling and deployment.
-- Con: introduces network latency for cross-domain calls, more infra to manage.
-
-**Option C — Extract only Health service (hybrid)**
-- Health is already on MongoDB and is read-heavy. Extract it first as a pilot.
-- Pro: lower risk than full split; tests the approach.
-- Con: inconsistent architecture during transition.
-
-**Decision needed:** Which option? Who decides? Target date?
+**Decision made:** Four domain services + one BFF (web-gateway), each on its own port. Profile (8081), Wealth (8082), Health (8083), Household (8084), Web Gateway (8080). All share one PostgreSQL database with schema-per-domain isolation.
 
 ---
 
@@ -34,7 +17,7 @@
 
 **Status:** Open
 
-**Context:** The current rule is that Child profiles cannot query Wealth. But the `/api/v1/trips/{event_id}/feasibility` endpoint checks trip budget (Wealth) and vehicle compliance. Should this endpoint be accessible to Child profiles with redacted data, or blocked entirely?
+**Context:** The current rule is that Child profiles cannot query Wealth. But a future trip feasibility endpoint will check trip budget (Wealth) and vehicle compliance. Should this endpoint be accessible to Child profiles with redacted data, or blocked entirely?
 
 **Option A — Block entirely for restricted profiles**
 - Simple. Consistent with current RBAC rules.
@@ -72,10 +55,10 @@
 
 **Status:** Open
 
-**Context:** Current endpoints are under `/api/v1/`. Cross-domain endpoints are marked `v0.5+`. No formal versioning strategy exists yet.
+**Context:** Current endpoints are under `/v1/`. No formal versioning strategy exists yet.
 
 **Option A — URL versioning (current approach, extend it)**
-- Keep `/api/v1/` and add `/api/v2/` when breaking changes are needed.
+- Keep `/v1/` and add `/v2/` when breaking changes are needed.
 - Pro: simple, widely understood.
 - Con: can lead to long-lived parallel versions.
 
@@ -97,7 +80,7 @@
 
 **Status:** Open
 
-**Context:** The frontend is a React app. No state management library is specified in the current architecture doc. As cross-domain views (Unified Dashboard, Vacation Planner) grow, local component state will not be enough.
+**Context:** The frontend is a React app using Context API for auth state. As cross-domain views (Unified Dashboard, Vacation Planner) grow, local component state will not be enough.
 
 **Option A — React Query + local state only**
 - Use React Query for server state, `useState`/`useReducer` for local UI state.

@@ -56,6 +56,7 @@ Built on **Hexagonal Architecture** (Ports & Adapters). Currently at **v0.1** �
 
 
 
+
 ```
 suchika/
 ├── .husky/
@@ -65,6 +66,7 @@ suchika/
 │   │   ├── gateway.yaml
 │   │   ├── health.yaml
 │   │   ├── household.yaml
+│   │   ├── profile.yaml
 │   │   └── wealth.yaml
 │   ├── domain/
 │   │   ├── health/
@@ -131,6 +133,35 @@ suchika/
 │   │   │                   └── suchika/
 │   │   │                       └── health/
 │   │   ├── household/
+│   │   │   ├── adapters/
+│   │   │   │   ├── src/
+│   │   │   │   │   └── main/
+│   │   │   │   │       ├── java/
+│   │   │   │   │       └── resources/
+│   │   │   │   │           ├── db/
+│   │   │   │   │           └── application.properties
+│   │   │   │   └── build.gradle.kts
+│   │   │   ├── domain/
+│   │   │   │   ├── src/
+│   │   │   │   │   ├── main/
+│   │   │   │   │   │   └── java/
+│   │   │   │   │   └── test/
+│   │   │   │   │       └── java/
+│   │   │   │   └── build.gradle.kts
+│   │   │   ├── ports/
+│   │   │   │   ├── src/
+│   │   │   │   │   ├── main/
+│   │   │   │   │   │   └── java/
+│   │   │   │   │   └── test/
+│   │   │   │   │       └── java/
+│   │   │   │   └── build.gradle.kts
+│   │   │   ├── src/
+│   │   │   │   └── main/
+│   │   │   │       └── resources/
+│   │   │   │           └── db/
+│   │   │   │               └── migration/
+│   │   │   └── build.gradle.kts
+│   │   ├── profile/
 │   │   │   ├── adapters/
 │   │   │   │   ├── src/
 │   │   │   │   │   └── main/
@@ -228,15 +259,20 @@ suchika/
 │   │                           └── finance/
 │   ├── flyway/
 │   │   ├── health/
-│   │   │   ├── V4__create_health_profile_table.sql
-│   │   │   ├── V5__create_doctor_visit_table.sql
-│   │   │   └── V6__create_vital_reading_table.sql
+│   │   │   └── V1__init_health.sql
 │   │   ├── household/
-│   │   │   └── V3__create_goal_table.sql
-│   │   └── wealth/
-│   │       ├── V1__create_account_table.sql
-│   │       ├── V2__create_transaction_table.sql
-│   │       └── V7__add_jsonb_to_transaction.sql
+│   │   │   ├── V1__init_household.sql
+│   │   │   └── V2__goals.sql
+│   │   ├── profile/
+│   │   │   └── V1__init_profile.sql
+│   │   ├── projections/
+│   │   │   └── V1__init_projections.sql
+│   │   ├── wealth/
+│   │   │   ├── V1__init_ledger.sql
+│   │   │   ├── V2__physical_assets.sql
+│   │   │   ├── V3__upload_status.sql
+│   │   │   └── V4__enrich_account.sql
+│   │   └── 00_bootstrap.sql
 │   └── web-gateway/
 │       ├── src/
 │       │   ├── main/
@@ -246,6 +282,8 @@ suchika/
 │       │   │   │           └── gateway/
 │       │   │   └── resources/
 │       │   │       ├── health.yaml
+│       │   │       ├── household.yaml
+│       │   │       ├── profile.yaml
 │       │   │       └── wealth.yaml
 │       │   └── test/
 │       │       └── java/
@@ -255,8 +293,19 @@ suchika/
 │       └── build.gradle.kts
 ├── assets/
 │   └── images/
+│       ├── darkmode.png
+│       ├── darkmode.psd
+│       ├── github-logo.png
+│       ├── hackerrank_logo.png
+│       ├── lightmode.png
+│       ├── linkedin-logo.png
+│       ├── logo.svg
+│       ├── logo192.png
+│       ├── logo512.png
+│       ├── map.png
+│       └── WhatsApp-logo.png
 ├── documents/
-│   ├── temp/
+│   ├── ToBeDeleted/
 │   ├── AGENTS.md
 │   ├── ARCHITECTURE_DECISIONS.md
 │   ├── ARCHITECTURE_GUIDELINES.md
@@ -277,6 +326,8 @@ suchika/
 ├── infrastructure/
 │   ├── local/
 │   │   └── .env.template
+│   ├── resources/
+│   │   └── 00_bootstrap.sql
 │   └── build.gradle.kts
 ├── scripts/
 │   ├── check-migrations-location.sh
@@ -313,36 +364,27 @@ suchika/
 │   └── build.gradle.kts
 ├── web/
 │   ├── public/
-│   │   ├── css/
-│   │   │   └── style.css
-│   │   ├── html/
-│   │   │   ├── about.html
-│   │   │   ├── projects.html
-│   │   │   └── skill.html
 │   │   ├── images/
+│   │   │   ├── darkmode.png
+│   │   │   ├── darkmode.psd
+│   │   │   ├── github-logo.png
+│   │   │   ├── hackerrank_logo.png
+│   │   │   ├── lightmode.png
+│   │   │   ├── linkedin-logo.png
+│   │   │   ├── logo.svg
+│   │   │   ├── logo192.png
+│   │   │   ├── logo512.png
+│   │   │   ├── map.png
+│   │   │   └── WhatsApp-logo.png
 │   │   ├── favicon.ico
 │   │   ├── index.html
 │   │   ├── manifest.json
-│   │   ├── robots.txt
-│   │   └── tailwind.config.js
-│   ├── resources/
-│   │   ├── darkmode.png
-│   │   ├── darkmode.psd
-│   │   ├── github-logo.png
-│   │   ├── hackerrank_logo.png
-│   │   ├── lightmode.png
-│   │   ├── linkedin-logo.png
-│   │   ├── logo.svg
-│   │   ├── logo192.png
-│   │   ├── logo512.png
-│   │   ├── map.png
-│   │   └── WhatsApp-logo.png
+│   │   └── robots.txt
 │   ├── scripts/
 │   │   └── copy-assets.js
 │   ├── src/
 │   │   ├── api/
-│   │   │   ├── authApi.js
-│   │   │   ├── client.js
+│   │   │   ├── auth.js
 │   │   │   ├── generated.d.ts
 │   │   │   ├── generated.ts
 │   │   │   └── healthApi.js
@@ -358,28 +400,60 @@ suchika/
 │   │   │   │   ├── AdminReports.js
 │   │   │   │   ├── AdminSettings.js
 │   │   │   │   └── AdminUsers.js
+│   │   │   ├── Health/
+│   │   │   │   ├── DoctorVisits.js
+│   │   │   │   ├── index.js
+│   │   │   │   ├── Profile.js
+│   │   │   │   └── Vitals.js
+│   │   │   ├── Household/
+│   │   │   │   ├── Calendar.js
+│   │   │   │   ├── index.js
+│   │   │   │   ├── Inventory.js
+│   │   │   │   └── Profiles.js
 │   │   │   ├── Public/
 │   │   │   │   ├── About.js
 │   │   │   │   ├── Home.js
 │   │   │   │   ├── SignIn.js
 │   │   │   │   └── SignUp.js
-│   │   │   └── User/
-│   │   │       ├── Dashboard.js
-│   │   │       ├── Health.js
+│   │   │   ├── User/
+│   │   │   │   ├── Dashboard.js
+│   │   │   │   ├── Health.js
+│   │   │   │   └── Transactions.js
+│   │   │   └── Wealth/
+│   │   │       ├── Accounts.js
+│   │   │       ├── index.js
+│   │   │       ├── Reports.js
 │   │   │       └── Transactions.js
-│   │   ├── App.css
+│   │   ├── types/
+│   │   │   ├── auth.ts
+│   │   │   ├── health.ts
+│   │   │   ├── household.ts
+│   │   │   ├── index.ts
+│   │   │   └── wealth.ts
+│   │   ├── utils/
+│   │   │   ├── constants.js
+│   │   │   ├── errorHandler.js
+│   │   │   ├── formatters.js
+│   │   │   ├── index.js
+│   │   │   ├── logger.js
+│   │   │   └── validators.js
 │   │   ├── App.js
 │   │   ├── App.test.js
 │   │   ├── index.css
 │   │   ├── index.js
 │   │   ├── reportWebVitals.js
-│   │   └── setupTests.js
+│   │   ├── setupTests.js
+│   │   └── test-utils.js
+│   ├── .env.example
+│   ├── .env.local
 │   ├── .eslintrc.json
 │   ├── .gitignore
 │   ├── .prettierignore
 │   ├── .prettierrc.json
+│   ├── jsconfig.json
 │   ├── package-lock.json
-│   └── package.json
+│   ├── package.json
+│   └── tailwind.config.js
 ├── .gitignore
 ├── build.gradle.kts
 ├── CODE_OF_CONDUCT.md
@@ -392,6 +466,7 @@ suchika/
 ├── SECURITY.md
 └── settings.gradle.kts
 ```
+
 
 
 

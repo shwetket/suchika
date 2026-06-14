@@ -9,7 +9,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 
 IGNORED_DIRS = {'.git', 'node_modules', '.gradle', '.idea', 'build', 'out', 'target', '.github'}
-ROOT_DOCS = {'README.md', 'CODE_OF_CONDUCT.md', 'CONTRIBUTING.md', 'SECURITY.md', 'LICENSE'}
+ROOT_DOCS = {'README.md', 'CODE_OF_CONDUCT.md', 'CONTRIBUTING.md', 'SECURITY.md', 'CLAUDE.md', 'LICENSE'}
 
 
 def is_ignored(path: Path) -> bool:

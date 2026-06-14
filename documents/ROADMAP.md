@@ -105,8 +105,8 @@ For business rules and acceptance criteria per version, see [BUSINESS_REQUIREMEN
 ### Features
 
 - [ ] **Persistent Data Migration**
-  - Flyway versioned migrations enforced across all domains
-  - MongoDB Health data no longer ephemeral
+  - Flyway versioned migrations enforced and locked — no more ephemeral resets
+  - All five schemas treated as production data from this point forward
 
 - [ ] **Authentication (OIDC/OAuth2)**
   - External Identity Provider integration
@@ -158,7 +158,7 @@ For business rules and acceptance criteria per version, see [BUSINESS_REQUIREMEN
 ### Features
 
 - [ ] **Unified Data Export**
-  - Single trigger exports all data from PostgreSQL (Wealth, Household) and MongoDB (Health)
+  - Single trigger exports all data from all five PostgreSQL schemas
   - Packaged as structured JSON/CSV local backup
 
 - [ ] **1-Click Batch Folder Import**
