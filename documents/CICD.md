@@ -1,169 +1,125 @@
-# CICD
+# CI/CD
 
-## Pipeline Purpose
+## Pipeline Overview
 
-This file documents the automation jobs and technical pipeline rules for the Suchika project.
-The pipeline covers three backend modules (Wealth, Health, Household), one React frontend, and pre-commit enforcement.
+CI runs on every push and pull request via GitHub Actions (`.github/workflows/ci.yml`).
+Three sequential jobs — migration check → backend → frontend.
 
 ---
 
-## Backend Pipeline
+## CI Jobs
 
-### Compile all three domain modules
+### 1. `migration-location-check`
 
 ```bash
-# Wealth domain
-./gradlew :application:finance:compileJava
-
-# Health domain
-./gradlew :application:health:compileJava
-
-# Household domain (module name: records)
-./gradlew :application:records:compileJava
+bash scripts/check-migrations-location.sh
 ```
 
-> Note: `:application:records` is the Household domain backend module.
-> The module is named `records` because it handles the household records system (profiles, calendar, inventory).
+Verifies no Flyway migration files exist inside `*/adapters/**/db/migration/`. All migrations must live in `application/flyway/{domain}/`. Fails the entire pipeline if violated.
 
-### Run backend tests
+### 2. `backend` (needs: migration-location-check)
 
 ```bash
 ./gradlew test --continuous=false
 ```
 
-Run tests for all modules. Tests are required to pass before any commit merges.
+Runs all JUnit and ArchUnit tests across every module. Requires Java 21 (Temurin).
+ArchUnit enforces domain layer purity — any `@Inject`, JPA annotation, or HTTP type inside `domain/` fails here.
 
-### Verify Flyway migrations
-
-```bash
-./gradlew :application:finance:quarkusDev
-```
-
-Flyway runs automatically on startup. If any migration fails, the build is considered broken.
-Never edit a previously committed migration file — always add a new versioned file.
-
-### Verify MongoDB connection (Health domain)
-
-```bash
-./gradlew :application:health:quarkusDev
-```
-
-On startup, the Health module attempts a connection to MongoDB at `MONGO_URL`.
-If the connection fails, the build is considered broken.
-Ensure MongoDB is running on port `27017` in the CI environment.
-
----
-
-## Frontend Pipeline
-
-### Install dependencies
+### 3. `frontend` (needs: backend)
 
 ```bash
 cd web
 npm install
+npm run generate:api      # Regenerate typed client from application/contract/gateway.yaml
+npm run lint              # ESLint on src/ (*.js, *.jsx)
+npm run format:check      # Prettier check on src/ and public/
+npm run test:ci           # Jest, single run, no watch
+npm run build             # Production React build
 ```
 
-### Generate the OpenAPI client
-
-Run after any backend or contract change:
-
-```bash
-cd web
-npm run generate:api
-```
-
-This regenerates the typed API client in `web/src/api/generated/` from the live backend spec.
-
-### Build the production frontend
-
-```bash
-cd web
-npm run build
-```
+Requires Node.js 24.
 
 ---
 
-## API Contract Synchronization
+## Module Reference
 
-Three OpenAPI contract files must stay in sync with the backend:
-
-| Contract File | Domain |
-|---|---|
-| `openapi/finance.yaml` | Wealth |
-| `openapi/health.yaml` | Health |
-| `openapi/household.yaml` | Household |
-
-**Rules:**
-- When any OpenAPI file changes, regenerate the frontend client: `npm run generate:api`.
-- The generated client is stored in `web/src/api/generated/` and must be committed.
-- Never manually edit files inside `web/src/api/generated/` — they are always overwritten on regeneration.
-
----
-
-## Commit and CI Rules
-
-- Always run `npm install` after changing `web/package.json`.
-- Always run `npm run generate:api` after changing any backend API contract or OpenAPI file.
-- Run `./gradlew clean` if Gradle sync or compile fails.
-- Never edit a committed Flyway migration file.
-- All three backend modules must compile cleanly before a PR is merged.
-
----
-
-## Pre-Commit Hook (Husky)
-
-A Husky `pre-commit` hook is installed at `.husky/pre-commit` and enforces the following in order:
-
-### Step 1 — Regenerate API client
-
-```bash
-npm run generate:api
-```
-
-Keeps the generated frontend client in sync with the backend contract before every commit.
-
-### Step 2 — Secret scanning
-
-```bash
-git diff --cached | grep -E -q "password:\s*[A-Za-z0-9_\-]+"
-```
-
-Scans the staged diff for obvious plaintext password patterns.
-If a match is found, the commit is aborted with a clear error message.
-
-> This catches common accidental leaks only. Heavy secret scanning should run in CI, not pre-commit.
-
-### Step 3 — Run tests
-
-```bash
-./gradlew test --continuous=false
-```
-
-If any test fails (non-zero exit code), the commit is aborted.
-
----
-
-## Recommended CI Jobs
-
-| Job | Command | Trigger |
+| Gradle module | Domain | HTTP port |
 |---|---|---|
-| `backend-compile-wealth` | `./gradlew :application:finance:compileJava` | Every push |
-| `backend-compile-health` | `./gradlew :application:health:compileJava` | Every push |
-| `backend-compile-household` | `./gradlew :application:household:compileJava` | Every push |
-| `backend-test` | `./gradlew test --continuous=false` | Every push |
-| `frontend-build` | `cd web && npm install && npm run generate:api && npm run build` | Every push |
-| `migration-check` | `./gradlew :application:finance:quarkusDev` (startup only) | Every push |
-| `docs-check` | Verify all docs present, README tree updated | Every PR |
+| `:application:domain:profile:adapters` | Profile (identity anchor) | 8081 |
+| `:application:domain:wealth:adapters` | Wealth (accounts, transactions, assets) | 8082 |
+| `:application:domain:health:adapters` | Health (vitals, doctor visits) | 8083 |
+| `:application:domain:household:adapters` | Household (calendar, inventory, goals) | 8084 |
+| `:application:web-gateway` | BFF — aggregates domain REST calls | 8080 |
+| `web/` (React) | Frontend | 3000 |
+| PostgreSQL | Shared DB, schema-per-domain | 5432 |
+
+> Profile **must start first** — all other domain modules have Flyway migrations that reference `profile.profile`.
 
 ---
 
-## Environment Variables Required in CI
+## OpenAPI Contracts
 
-| Variable | Used By | Description |
+| Contract file | Serves | Port |
 |---|---|---|
-| `DB_USER` | Wealth, Household | PostgreSQL username |
-| `DB_PASSWORD` | Wealth, Household | PostgreSQL password |
-| `DB_URL` | Wealth, Household | PostgreSQL JDBC connection URL |
-| `MONGO_URL` | Health | MongoDB connection string |
+| `application/contract/profile.yaml` | Profile service | 8081 |
+| `application/contract/wealth.yaml` | Wealth service | 8082 |
+| `application/contract/health.yaml` | Health service | 8083 |
+| `application/contract/household.yaml` | Household service | 8084 |
+| `application/contract/gateway.yaml` | Web gateway (BFF) | 8080 |
 
-Set these as CI secrets (e.g., GitHub Actions Secrets) — never hardcode in source files.
+After any contract change, regenerate the frontend client:
+```bash
+cd web && npm run generate:api
+```
+The generated file is `web/src/api/generated.ts`. Never hand-edit it.
+
+---
+
+## Local Pre-Commit Verification
+
+Run before every commit to catch the same failures CI catches:
+
+```bash
+# Git Bash
+bash scripts/build-local.sh
+
+# PowerShell
+.\scripts\build-local.ps1
+```
+
+This script mirrors CI exactly:
+1. Migration location check
+2. `./gradlew test` (all JUnit + ArchUnit)
+3. `npm install`
+4. `npm run generate:api`
+5. `npm run format` (auto-fix — CI does format:check; local script fixes in place)
+6. `npm run lint`
+7. `npm run test:ci`
+8. `npm run build`
+
+---
+
+## Environment Variables
+
+| Variable | Used by | Description |
+|---|---|---|
+| `DB_URL` | All domain services | PostgreSQL JDBC URL (default: `jdbc:postgresql://localhost:5432/app_db`) |
+| `DB_USERNAME` | All domain services | DB user (default: `app_user`) |
+| `DB_PASSWORD` | All domain services | DB password |
+| `PROFILE_SERVICE_URL` | Web Gateway | Override profile service base URL (default: `http://localhost:8081`) |
+| `WEALTH_SERVICE_URL` | Web Gateway | Override wealth service base URL (default: `http://localhost:8082`) |
+| `HEALTH_SERVICE_URL` | Web Gateway | Override health service base URL (default: `http://localhost:8083`) |
+| `HOUSEHOLD_SERVICE_URL` | Web Gateway | Override household service base URL (default: `http://localhost:8084`) |
+
+Set `DB_PASSWORD` and any non-default values in `application/finance/.env` (copied from `infrastructure/local/.env.template`).
+In CI, set DB credentials as GitHub Actions Secrets.
+
+---
+
+## Key Rules
+
+- Never edit a committed Flyway migration — always add a new versioned file.
+- Always run `npm run generate:api` after any backend contract change.
+- All domain services use the same PostgreSQL database (`app_db`) with separate schemas per domain.
+- No cross-domain SQL joins, ever.
