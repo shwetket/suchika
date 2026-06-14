@@ -48,6 +48,7 @@ Built on **Hexagonal Architecture** (Ports & Adapters). Currently at **v0.1** â€
 | API Style | Google AIP (resource-oriented) |
 | Frontend | React (JavaScript) |
 | Architecture | Hexagonal (Ports & Adapters) |
+| Code Quality | SonarQube Community Edition (local analysis) |
 
 ---
 

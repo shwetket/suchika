@@ -5,15 +5,17 @@ package com.suchika.shared.exception;
  */
 public class NotImplementedException extends ApplicationException {
 
+    private static final String CODE = "NOT_IMPLEMENTED";
+
     public NotImplementedException(String message) {
-        super(501, "NOT_IMPLEMENTED", message);
+        super(501, CODE, message);
     }
 
     public NotImplementedException(String message, String details) {
-        super(501, "NOT_IMPLEMENTED", message, details);
+        super(501, CODE, message, details);
     }
 
     public NotImplementedException(String message, Throwable cause) {
-        super(501, "NOT_IMPLEMENTED", message, cause);
+        super(501, CODE, message, cause);
     }
 }

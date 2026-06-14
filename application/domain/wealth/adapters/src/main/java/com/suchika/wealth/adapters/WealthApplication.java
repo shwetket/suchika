@@ -5,7 +5,9 @@ import io.quarkus.runtime.annotations.QuarkusMain;
 
 @QuarkusMain(name = "wealth")
 public class WealthApplication {
-    static void main(String... args) {
+    private WealthApplication() {}
+
+    public static void main(String[] args) {
         Quarkus.run(args);
     }
 }

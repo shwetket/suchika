@@ -29,6 +29,7 @@ export async function signIn(credentials) {
 
     return await handleAPIResponse(response);
   } catch (error) {
+    console.warn('Auth API unavailable, using demo fallback:', error.message);
     return {
       username: credentials.username,
       role: credentials.role || 'user',

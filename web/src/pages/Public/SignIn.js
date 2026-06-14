@@ -35,8 +35,11 @@ export const SignIn = () => {
         <h1 className="text-3xl font-bold mb-6">Sign In</h1>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-gray-700 mb-2">Username</label>
+            <label htmlFor="username" className="block text-gray-700 mb-2">
+              Username
+            </label>
             <input
+              id="username"
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
@@ -46,8 +49,11 @@ export const SignIn = () => {
           </div>
 
           <div>
-            <label className="block text-gray-700 mb-2">Role</label>
+            <label htmlFor="role" className="block text-gray-700 mb-2">
+              Role
+            </label>
             <select
+              id="role"
               value={role}
               onChange={(e) => setRole(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"

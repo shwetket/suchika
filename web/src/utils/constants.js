@@ -1,42 +1,53 @@
 /**
  * Application Constants
+ *
+ * Domain base URLs — each Quarkus module runs on its own port in dev mode.
+ * The web-gateway (BFF) on port 8080 will eventually proxy all domains,
+ * making API_BASE_URL the only URL the frontend needs.
+ *
+ * Port mapping (from OpenAPI server URLs):
+ *   profile   → 8081
+ *   wealth    → 8082
+ *   health    → 8083
+ *   household → 8084
+ *   gateway   → 8080  ← target for all frontend calls once gateway is built
  */
-
 export const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080';
-export const API_TIMEOUT = parseInt(process.env.REACT_APP_API_TIMEOUT || '10000', 10);
+export const API_TIMEOUT = Number.parseInt(process.env.REACT_APP_API_TIMEOUT || '10000', 10);
 
 export const USER_ROLES = {
   ADMIN: 'admin',
   USER: 'user',
-  CHILD: 'child',
 };
 
 export const API_ENDPOINTS = {
-  // Auth
-  LOGIN: '/api/v1/auth/login',
-  LOGOUT: '/api/v1/auth/logout',
-  AUTH_PROFILE: '/api/v1/auth/profile',
+  // Auth (will live in gateway)
+  LOGIN: '/v1/auth/login',
+  LOGOUT: '/v1/auth/logout',
 
-  // Wealth
-  ACCOUNTS: '/api/v1/wealth/accounts',
-  TRANSACTIONS: '/api/v1/wealth/transactions',
-  DASHBOARD: '/api/v1/wealth/dashboard',
+  // Profile domain
+  ADMINS: '/v1/admins',
+  PROFILES: '/v1/profiles',
 
-  // Household
-  PROFILES: '/api/v1/household/profiles',
-  EVENTS: '/api/v1/household/events',
-  INVENTORY: '/api/v1/household/inventory',
+  // Wealth domain
+  ACCOUNTS: '/v1/accounts',
+  TRANSACTIONS: '/v1/transactions',
+  PHYSICAL_ASSETS: '/v1/physical-assets',
 
-  // Health
-  VITALS: '/api/v1/health/vitals',
-  DOCTORS: '/api/v1/health/doctors',
-  HEALTH_PROFILE: '/api/v1/health/profile',
+  // Household domain
+  EVENTS: '/v1/events',
+  INVENTORY: '/v1/inventory',
+  GOALS: '/v1/goals',
+
+  // Health domain
+  VITALS: '/v1/vitals',
+  DOCTOR_VISITS: '/v1/doctor-visits',
 };
 
 export const STORAGE_KEYS = {
   TOKEN: 'auth_token',
-  USER: 'auth_user',
-  PREFERENCES: 'user_preferences',
+  USER: 'user',
+  THEME: 'theme',
 };
 
 export const ROUTE_PATHS = {
@@ -46,22 +57,18 @@ export const ROUTE_PATHS = {
 
   DASHBOARD: '/dashboard',
 
-  WEALTH: '/wealth',
   WEALTH_ACCOUNTS: '/wealth/accounts',
   WEALTH_TRANSACTIONS: '/wealth/transactions',
   WEALTH_REPORTS: '/wealth/reports',
 
-  HOUSEHOLD: '/household',
   HOUSEHOLD_PROFILES: '/household/profiles',
   HOUSEHOLD_CALENDAR: '/household/calendar',
   HOUSEHOLD_INVENTORY: '/household/inventory',
 
-  HEALTH: '/health',
   HEALTH_VITALS: '/health/vitals',
   HEALTH_DOCTORS: '/health/doctors',
   HEALTH_PROFILE: '/health/profile',
 
-  ADMIN: '/admin',
   ADMIN_USERS: '/admin/users',
   ADMIN_SETTINGS: '/admin/settings',
   ADMIN_REPORTS: '/admin/reports',
@@ -77,8 +84,6 @@ export const ERROR_MESSAGES = {
 };
 
 export const SUCCESS_MESSAGES = {
-  LOGIN_SUCCESS: 'Login successful!',
-  LOGOUT_SUCCESS: 'Logged out successfully.',
   CREATE_SUCCESS: 'Created successfully.',
   UPDATE_SUCCESS: 'Updated successfully.',
   DELETE_SUCCESS: 'Deleted successfully.',

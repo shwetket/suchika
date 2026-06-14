@@ -16,7 +16,7 @@ export const validateEmail = (email) => {
 
   const atIndex = normalized.indexOf('@');
   if (atIndex <= 0) return false;
-  if (normalized.indexOf('@', atIndex + 1) !== -1) return false;
+  if (normalized.includes('@', atIndex + 1)) return false;
 
   const dotIndex = normalized.indexOf('.', atIndex + 2);
   if (dotIndex === -1 || dotIndex === normalized.length - 1) return false;
@@ -43,7 +43,7 @@ export const validatePassword = (password) => {
   if (/[A-Z]/.test(password)) score += 1;
   else feedback.push('Add uppercase letters');
 
-  if (/[0-9]/.test(password)) score += 1;
+  if (/\d/.test(password)) score += 1;
   else feedback.push('Add numbers');
 
   if (/[^a-zA-Z0-9]/.test(password)) score += 1;

@@ -46,7 +46,7 @@ export class ApplicationException extends Error {
     this.message = message;
     this.details = details;
     this.cause = cause;
-    this.timestamp = new Date().getTime();
+    this.timestamp = Date.now();
   }
 
   /**

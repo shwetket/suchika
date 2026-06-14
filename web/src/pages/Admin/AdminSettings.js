@@ -15,16 +15,22 @@ export const AdminSettings = () => {
           <h2 className="text-2xl font-bold mb-4">Application Settings</h2>
           <div className="space-y-4">
             <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
-              <label className="font-semibold">Enable User Registration</label>
-              <input type="checkbox" defaultChecked className="w-5 h-5" />
+              <label htmlFor="enable-registration" className="font-semibold">
+                Enable User Registration
+              </label>
+              <input id="enable-registration" type="checkbox" defaultChecked className="w-5 h-5" />
             </div>
             <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
-              <label className="font-semibold">Require Email Verification</label>
-              <input type="checkbox" className="w-5 h-5" />
+              <label htmlFor="require-email-verification" className="font-semibold">
+                Require Email Verification
+              </label>
+              <input id="require-email-verification" type="checkbox" className="w-5 h-5" />
             </div>
             <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
-              <label className="font-semibold">Enable Demo Mode</label>
-              <input type="checkbox" defaultChecked className="w-5 h-5" />
+              <label htmlFor="enable-demo-mode" className="font-semibold">
+                Enable Demo Mode
+              </label>
+              <input id="enable-demo-mode" type="checkbox" defaultChecked className="w-5 h-5" />
             </div>
           </div>
         </div>

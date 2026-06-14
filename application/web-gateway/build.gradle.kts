@@ -14,11 +14,12 @@ dependencies {
     implementation(project(":application:domain:health:ports"))
     
     // Tests
+    val junitVersion = "5.10.2"
     testImplementation("io.quarkus:quarkus-junit5")
     testImplementation("io.rest-assured:rest-assured")
     testImplementation("org.mockito:mockito-core")
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.10.2")
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.2")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:$junitVersion")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:$junitVersion")
 }
 
 // ARCHITECTURAL GUARDRAIL VERIFICATION:

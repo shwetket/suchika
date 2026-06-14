@@ -5,7 +5,9 @@ import io.quarkus.runtime.annotations.QuarkusMain;
 
 @QuarkusMain(name = "profile")
 public class ProfileApplication {
-    static void main(String... args) {
+    private ProfileApplication() {}
+
+    public static void main(String[] args) {
         Quarkus.run(args);
     }
 }

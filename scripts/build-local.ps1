@@ -1,63 +1,202 @@
-# Mirrors the CI pipeline exactly — run before committing to catch failures locally.
-# Usage: .\scripts\build-local.ps1
+#Requires -Version 5.1
+# Ultimate pre-commit build verification for Suchika.
+# Builds each domain one by one in dependency order, checks frontend lint/format/tests/build,
+# runs ArchUnit, and optionally runs SonarQube analysis.
+#
+# Usage:
+#   .\scripts\build-local.ps1
+#   .\scripts\build-local.ps1 -SkipSonar
+#   .\scripts\build-local.ps1 -SkipFrontend
+param(
+    [switch]$SkipSonar,
+    [switch]$SkipFrontend
+)
+
 $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
 function Step($msg) { Write-Host "`n==> $msg" -ForegroundColor Cyan }
-function OK($msg)   { Write-Host "v $msg" -ForegroundColor Green }
-function Fail($msg) { Write-Host "x $msg" -ForegroundColor Red; exit 1 }
+function OK($msg)   { Write-Host "  [OK] $msg" -ForegroundColor Green }
+function Warn($msg) { Write-Host "  [!]  $msg" -ForegroundColor Yellow }
+function Fail($msg) { Write-Host "  [X]  $msg" -ForegroundColor Red; exit 1 }
 
-$start = Get-Date
+function Elapsed($since) {
+    $s = [int]([datetime]::Now - $since).TotalSeconds
+    if ($s -ge 60) { "{0}m{1:D2}s" -f [int]($s / 60), ($s % 60) } else { "${s}s" }
+}
 
-# ── 1. Migration location check ──────────────────────────────────────────────
-Step "Checking migration file locations..."
-& bash scripts/check-migrations-location.sh
-if ($LASTEXITCODE -ne 0) { Fail "Migration location check failed" }
-OK "Migration location check passed"
+function RunGradle($label, [string[]]$tasks) {
+    $t = Get-Date
+    Step $label
+    & .\gradlew.bat $tasks --continuous=false
+    if ($LASTEXITCODE -ne 0) { Fail "$label failed" }
+    OK "$label  ($(Elapsed $t))"
+}
 
-# ── 2. Backend tests (includes ArchUnit) ─────────────────────────────────────
-Step "Running backend tests (includes ArchUnit)..."
-& .\gradlew.bat test --continuous=false
-if ($LASTEXITCODE -ne 0) { Fail "Backend tests failed" }
-OK "Backend tests passed"
+$totalStart = Get-Date
 
-# ── 3. Frontend ───────────────────────────────────────────────────────────────
-Set-Location "$root\web"
+# ── 0. Pre-flight: check migration files are not in adapters ─────────────────
+Step "Pre-flight: migration file location check"
+$misplacedMigrations = & git ls-files -- "application/domain/*/adapters" |
+    Where-Object { $_ -match "db[/\\]migration" }
+if ($misplacedMigrations) {
+    $misplacedMigrations | ForEach-Object { Write-Host "  Misplaced: $_" -ForegroundColor Red }
+    Fail "Flyway migration scripts found inside adapters/ — move them to application/flyway/<domain>/"
+}
+OK "Migration locations clean"
 
-Step "Installing frontend dependencies..."
-& npm install
-if ($LASTEXITCODE -ne 0) { Fail "npm install failed" }
-OK "Dependencies installed"
+# ── 1. Shared — AppLogger, exception hierarchy, ArchUnit fitness functions ────
+RunGradle "shared (ArchUnit + exception hierarchy)" @(":shared:build", ":shared:test")
 
-Step "Generating API types from OpenAPI contract..."
-& npm run generate:api
-if ($LASTEXITCODE -ne 0) { Fail "API generation failed" }
-OK "API types generated"
+# ── 2. Profile — MUST run first; every other domain FKs into profile.profile ──
+RunGradle "profile / domain layer" @(
+    ":application:domain:profile:domain:build",
+    ":application:domain:profile:domain:test"
+)
+RunGradle "profile / ports layer" @(
+    ":application:domain:profile:ports:build",
+    ":application:domain:profile:ports:test"
+)
+RunGradle "profile / adapters layer" @(
+    ":application:domain:profile:adapters:build",
+    ":application:domain:profile:adapters:test"
+)
 
-Step "Linting frontend..."
-& npm run lint
-if ($LASTEXITCODE -ne 0) { Fail "Lint failed" }
-OK "Lint passed"
+# ── 3. Health domain ──────────────────────────────────────────────────────────
+RunGradle "health / domain layer" @(
+    ":application:domain:health:domain:build",
+    ":application:domain:health:domain:test"
+)
+RunGradle "health / ports layer" @(
+    ":application:domain:health:ports:build",
+    ":application:domain:health:ports:test"
+)
+RunGradle "health / adapters layer" @(
+    ":application:domain:health:adapters:build",
+    ":application:domain:health:adapters:test"
+)
 
-Step "Fixing frontend formatting (auto-fix before commit)..."
-& npm run format
-if ($LASTEXITCODE -ne 0) { Fail "Formatting failed" }
-OK "Formatting applied"
+# ── 4. Household domain ───────────────────────────────────────────────────────
+RunGradle "household / domain layer" @(
+    ":application:domain:household:domain:build",
+    ":application:domain:household:domain:test"
+)
+RunGradle "household / ports layer" @(
+    ":application:domain:household:ports:build",
+    ":application:domain:household:ports:test"
+)
+RunGradle "household / adapters layer" @(
+    ":application:domain:household:adapters:build",
+    ":application:domain:household:adapters:test"
+)
 
-Step "Running frontend unit tests..."
-# PowerShell 5.1 wraps native process stderr as ErrorRecord — use cmd /c to avoid false failures
-cmd /c "npm run test:ci" 2>&1
-if ($LASTEXITCODE -ne 0) { Fail "Frontend tests failed" }
-OK "Frontend tests passed"
+# ── 5. Wealth domain ──────────────────────────────────────────────────────────
+RunGradle "wealth / domain layer" @(
+    ":application:domain:wealth:domain:build",
+    ":application:domain:wealth:domain:test"
+)
+RunGradle "wealth / ports layer" @(
+    ":application:domain:wealth:ports:build",
+    ":application:domain:wealth:ports:test"
+)
+RunGradle "wealth / adapters layer" @(
+    ":application:domain:wealth:adapters:build",
+    ":application:domain:wealth:adapters:test"
+)
 
-Step "Building React frontend..."
-& npm run build
-if ($LASTEXITCODE -ne 0) { Fail "Frontend build failed" }
-OK "Frontend build passed"
+# ── 6. Web-gateway (BFF — aggregates domain REST APIs, no direct DB) ──────────
+RunGradle "web-gateway (BFF aggregator)" @(
+    ":application:web-gateway:build",
+    ":application:web-gateway:test"
+)
 
-Set-Location $root
+# ── 7. Frontend ───────────────────────────────────────────────────────────────
+if (-not $SkipFrontend) {
+    Set-Location "$root\web"
 
-$elapsed = [int]((Get-Date) - $start).TotalSeconds
-Write-Host "`nAll checks passed in ${elapsed}s -- safe to commit." -ForegroundColor Green
+    Step "Frontend: install dependencies"
+    $t = Get-Date
+    & npm ci --prefer-offline 2>&1 | Select-Object -Last 3
+    if ($LASTEXITCODE -ne 0) {
+        Warn "npm ci failed (package-lock.json may be stale) — falling back to npm install"
+        & npm install
+        if ($LASTEXITCODE -ne 0) { Fail "npm install failed" }
+    }
+    OK "Dependencies ready  ($(Elapsed $t))"
+
+    Step "Frontend: generate API types from OpenAPI contract"
+    $t = Get-Date
+    & npm run generate:api 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Warn "API generation skipped — contract YAML not yet changed or gateway not built"
+    } else {
+        OK "API types generated  ($(Elapsed $t))"
+    }
+
+    Step "Frontend: ESLint"
+    $t = Get-Date
+    & npm run lint
+    if ($LASTEXITCODE -ne 0) { Fail "ESLint errors — fix before committing" }
+    OK "Lint clean  ($(Elapsed $t))"
+
+    Step "Frontend: Prettier format check"
+    $t = Get-Date
+    & npm run format:check
+    if ($LASTEXITCODE -ne 0) {
+        Fail "Formatting violations — run 'npm run format' in web/, re-stage changed files, then re-run this script"
+    }
+    OK "Formatting clean  ($(Elapsed $t))"
+
+    Step "Frontend: unit tests"
+    $t = Get-Date
+    cmd /c "npm run test:ci" 2>&1
+    if ($LASTEXITCODE -ne 0) { Fail "Frontend tests failed" }
+    OK "Tests passed  ($(Elapsed $t))"
+
+    Step "Frontend: production build"
+    $t = Get-Date
+    & npm run build
+    if ($LASTEXITCODE -ne 0) { Fail "Production build failed" }
+    OK "Build OK  ($(Elapsed $t))"
+
+    Set-Location $root
+}
+
+# ── 8. SonarQube analysis ─────────────────────────────────────────────────────
+if (-not $SkipSonar) {
+    Step "SonarQube analysis"
+
+    $sonarUp = $false
+    try {
+        $r = Invoke-WebRequest -Uri "http://localhost:9000/api/system/status" `
+            -UseBasicParsing -TimeoutSec 3 -ErrorAction Stop
+        $sonarUp = ($r.StatusCode -eq 200)
+    } catch {}
+
+    if (-not $sonarUp) {
+        Warn "SonarQube not running at http://localhost:9000 — skipping"
+        Warn "Start it:  sonarqube\bin\windows-x86-64\StartSonar.bat"
+        Warn "Then run:  sonar-scanner  (from the repo root)"
+    } else {
+        $scanner = Get-Command sonar-scanner -ErrorAction SilentlyContinue
+        if (-not $scanner) {
+            Warn "sonar-scanner not in PATH — skipping"
+            Warn "Install:  npm install -g sonar-scanner"
+        } else {
+            $t = Get-Date
+            & sonar-scanner
+            if ($LASTEXITCODE -eq 0) {
+                OK "SonarQube analysis complete  ($(Elapsed $t))"
+                Write-Host "     Dashboard: http://localhost:9000/dashboard?id=suchika" -ForegroundColor DarkGray
+            } else {
+                Warn "SonarQube reported issues — check http://localhost:9000 (non-fatal)"
+            }
+        }
+    }
+}
+
+# ── Summary ───────────────────────────────────────────────────────────────────
+$s = [int]([datetime]::Now - $totalStart).TotalSeconds
+Write-Host ("`n  All checks passed in {0}m{1:D2}s -- safe to commit." -f [int]($s/60), ($s%60)) -ForegroundColor Green

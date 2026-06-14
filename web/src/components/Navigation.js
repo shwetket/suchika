@@ -1,4 +1,5 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
@@ -83,4 +84,9 @@ export const Navigation = ({ theme, onToggleTheme }) => {
       </div>
     </nav>
   );
+};
+
+Navigation.propTypes = {
+  theme: PropTypes.string.isRequired,
+  onToggleTheme: PropTypes.func.isRequired,
 };

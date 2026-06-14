@@ -11,7 +11,6 @@ import jakarta.ws.rs.core.Response;
 
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Path("/v1/admins")
 @Produces(MediaType.APPLICATION_JSON)
@@ -24,7 +23,7 @@ public class AdminResource {
     @GET
     public ListAdminsResponse listAdmins() {
         List<AdminResponse> admins = adminUseCase.listAdmins()
-            .stream().map(AdminResponse::from).collect(Collectors.toList());
+            .stream().map(AdminResponse::from).toList();
         return new ListAdminsResponse(admins);
     }
 

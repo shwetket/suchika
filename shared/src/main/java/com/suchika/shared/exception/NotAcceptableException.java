@@ -5,15 +5,17 @@ package com.suchika.shared.exception;
  */
 public class NotAcceptableException extends ApplicationException {
 
+    private static final String CODE = "NOT_ACCEPTABLE";
+
     public NotAcceptableException(String message) {
-        super(406, "NOT_ACCEPTABLE", message);
+        super(406, CODE, message);
     }
 
     public NotAcceptableException(String message, String details) {
-        super(406, "NOT_ACCEPTABLE", message, details);
+        super(406, CODE, message, details);
     }
 
     public NotAcceptableException(String message, Throwable cause) {
-        super(406, "NOT_ACCEPTABLE", message, cause);
+        super(406, CODE, message, cause);
     }
 }

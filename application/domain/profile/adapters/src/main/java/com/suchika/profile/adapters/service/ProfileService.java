@@ -20,6 +20,8 @@ import java.util.UUID;
 @ApplicationScoped
 public class ProfileService implements ProfileUseCase {
 
+    private static final String PROFILE_NOT_FOUND = "Profile not found: ";
+
     @Inject
     ProfileRepository profileRepository;
 
@@ -52,7 +54,7 @@ public class ProfileService implements ProfileUseCase {
     @Override
     public Profile getProfile(UUID profileId) {
         return profileRepository.findById(profileId)
-            .orElseThrow(() -> new NotFoundException("Profile not found: " + profileId));
+            .orElseThrow(() -> new NotFoundException(PROFILE_NOT_FOUND + profileId));
     }
 
     @Override
@@ -65,7 +67,7 @@ public class ProfileService implements ProfileUseCase {
     public Profile updateProfile(UUID profileId, String emailAddress, Gender gender,
                                  BloodType bloodType, Boolean isActive) {
         Profile profile = profileRepository.findById(profileId)
-            .orElseThrow(() -> new NotFoundException("Profile not found: " + profileId));
+            .orElseThrow(() -> new NotFoundException(PROFILE_NOT_FOUND + profileId));
 
         if (emailAddress != null) profile.setEmailAddress(emailAddress);
         if (gender != null) profile.setGender(gender);
@@ -79,7 +81,7 @@ public class ProfileService implements ProfileUseCase {
     @Transactional
     public void deactivateProfile(UUID profileId) {
         Profile profile = profileRepository.findById(profileId)
-            .orElseThrow(() -> new NotFoundException("Profile not found: " + profileId));
+            .orElseThrow(() -> new NotFoundException(PROFILE_NOT_FOUND + profileId));
 
         profile.setActive(false);
         profileRepository.save(profile);

@@ -8,6 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -40,7 +41,7 @@ class ProfileServiceTest {
     @Test
     void createProfile_adminNotFound_throwsNotFoundException() {
         assertThrows(NotFoundException.class, () ->
-            service.createProfile(UUID.randomUUID(), "Ketan", LocalDate.of(1988, 3, 15),
+            service.createProfile(UUID.randomUUID(), "Ketan", LocalDate.of(1988, Month.MARCH, 15),
                 RelationToAdmin.SELF, null, null, null));
     }
 
@@ -48,13 +49,13 @@ class ProfileServiceTest {
     void createProfile_happyPath_returnsProfileWithAllFields() {
         UUID adminId = seedAdmin();
 
-        Profile result = service.createProfile(adminId, "Ketan", LocalDate.of(1988, 3, 15),
+        Profile result = service.createProfile(adminId, "Ketan", LocalDate.of(1988, Month.MARCH, 15),
             RelationToAdmin.SELF, "k@example.com", Gender.MALE, BloodType.A_POSITIVE);
 
         assertNotNull(result.getId());
         assertEquals(adminId, result.getAdminId());
         assertEquals("Ketan", result.getFullName());
-        assertEquals(LocalDate.of(1988, 3, 15), result.getDob());
+        assertEquals(LocalDate.of(1988, Month.MARCH, 15), result.getDob());
         assertEquals(RelationToAdmin.SELF, result.getRelationToAdmin());
         assertEquals("k@example.com", result.getEmailAddress());
         assertEquals(Gender.MALE, result.getGender());
@@ -66,7 +67,7 @@ class ProfileServiceTest {
     void createProfile_nullOptionalFields_succeeds() {
         UUID adminId = seedAdmin();
 
-        Profile result = service.createProfile(adminId, "Ketan", LocalDate.of(1988, 3, 15),
+        Profile result = service.createProfile(adminId, "Ketan", LocalDate.of(1988, Month.MARCH, 15),
             RelationToAdmin.SELF, null, null, null);
 
         assertNotNull(result.getId());
@@ -78,7 +79,7 @@ class ProfileServiceTest {
     @Test
     void getProfile_found_returnsProfile() {
         UUID adminId = seedAdmin();
-        Profile created = service.createProfile(adminId, "Ketan", LocalDate.of(1988, 3, 15),
+        Profile created = service.createProfile(adminId, "Ketan", LocalDate.of(1988, Month.MARCH, 15),
             RelationToAdmin.SELF, null, null, null);
 
         Profile found = service.getProfile(created.getId());
@@ -95,8 +96,8 @@ class ProfileServiceTest {
     void listProfiles_filterByAdminId_returnsOnlyThatAdminsProfiles() {
         UUID adminId1 = seedAdmin();
         UUID adminId2 = seedAdmin();
-        service.createProfile(adminId1, "Ketan", LocalDate.of(1988, 3, 15), RelationToAdmin.SELF, null, null, null);
-        service.createProfile(adminId2, "Shweta", LocalDate.of(1990, 6, 20), RelationToAdmin.SELF, null, null, null);
+        service.createProfile(adminId1, "Ketan", LocalDate.of(1988, Month.MARCH, 15), RelationToAdmin.SELF, null, null, null);
+        service.createProfile(adminId2, "Shweta", LocalDate.of(1990, Month.JUNE, 20), RelationToAdmin.SELF, null, null, null);
 
         List<Profile> result = service.listProfiles(adminId1, null);
 
@@ -113,7 +114,7 @@ class ProfileServiceTest {
     @Test
     void updateProfile_patchesOnlyProvidedFields() {
         UUID adminId = seedAdmin();
-        Profile created = service.createProfile(adminId, "Ketan", LocalDate.of(1988, 3, 15),
+        Profile created = service.createProfile(adminId, "Ketan", LocalDate.of(1988, Month.MARCH, 15),
             RelationToAdmin.SELF, "old@example.com", Gender.MALE, null);
 
         Profile updated = service.updateProfile(
@@ -128,7 +129,7 @@ class ProfileServiceTest {
     @Test
     void updateProfile_setIsActiveFalse_deactivatesProfile() {
         UUID adminId = seedAdmin();
-        Profile created = service.createProfile(adminId, "Ketan", LocalDate.of(1988, 3, 15),
+        Profile created = service.createProfile(adminId, "Ketan", LocalDate.of(1988, Month.MARCH, 15),
             RelationToAdmin.SELF, null, null, null);
 
         Profile updated = service.updateProfile(created.getId(), null, null, null, false);
@@ -144,7 +145,7 @@ class ProfileServiceTest {
     @Test
     void deactivateProfile_setsActiveToFalse() {
         UUID adminId = seedAdmin();
-        Profile created = service.createProfile(adminId, "Ketan", LocalDate.of(1988, 3, 15),
+        Profile created = service.createProfile(adminId, "Ketan", LocalDate.of(1988, Month.MARCH, 15),
             RelationToAdmin.SELF, null, null, null);
         assertTrue(created.isActive());
 

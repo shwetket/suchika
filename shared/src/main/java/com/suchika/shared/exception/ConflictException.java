@@ -5,15 +5,17 @@ package com.suchika.shared.exception;
  */
 public class ConflictException extends ApplicationException {
 
+    private static final String CODE = "CONFLICT";
+
     public ConflictException(String message) {
-        super(409, "CONFLICT", message);
+        super(409, CODE, message);
     }
 
     public ConflictException(String message, String details) {
-        super(409, "CONFLICT", message, details);
+        super(409, CODE, message, details);
     }
 
     public ConflictException(String message, Throwable cause) {
-        super(409, "CONFLICT", message, cause);
+        super(409, CODE, message, cause);
     }
 }

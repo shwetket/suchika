@@ -134,6 +134,69 @@ Flyway migrations are in `application/flyway/{domain}/` and run automatically on
 | Backend (Quarkus) | 8080 |
 | Frontend (React) | 3000 |
 | PostgreSQL | 5432 |
+| SonarQube (local) | 9000 |
+
+---
+
+## Code Quality: SonarQube Community Edition (Local)
+
+SonarQube provides comprehensive code quality analysis including architectural rules, security issues, and code smells.
+
+### Setup (one-time)
+
+1. **Download SonarQube Community Edition**
+   - Go to: https://www.sonarsource.com/products/sonarqube/downloads/
+   - Extract to a local folder
+
+2. **Start SonarQube**
+   ```bash
+   cd /path/to/sonarqube/bin/windows-x86-64
+   ./StartSonar.bat
+   ```
+   Then open `http://localhost:9000` (default login: `admin` / `admin`)
+
+3. **Install Sonar Scanner**
+   ```bash
+   npm install -g sonar-scanner
+   ```
+
+4. **Create a project token**
+   - Login to SonarQube
+   - Click `Create new project` → set `Project key` to `suchika`
+   - Go to `Security` → `Tokens` → generate and copy your token
+
+5. **Update `sonar-project.properties`**
+   ```bash
+   # Replace YOUR_TOKEN with the token from step 4
+   echo "sonar.login=YOUR_TOKEN" >> sonar-project.properties
+   ```
+
+### Run Analysis
+
+After building the backend (`./gradlew build --no-daemon`):
+
+```bash
+sonar-scanner
+```
+
+View results: `http://localhost:9000/projects/suchika`
+
+### Use the Pre-Commit Script
+
+The unified build script runs everything including SonarQube:
+
+```bash
+# Bash
+bash scripts/build-local.sh
+
+# PowerShell
+.\scripts\build-local.ps1
+```
+
+This runs:
+- Backend tests + ArchUnit
+- Frontend tests + lint + format
+- Full Sonar analysis (includes SonarQube server check)
 
 ---
 

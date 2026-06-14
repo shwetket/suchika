@@ -5,15 +5,17 @@ package com.suchika.shared.exception;
  */
 public class UnauthorizedException extends ApplicationException {
 
+    private static final String CODE = "UNAUTHORIZED";
+
     public UnauthorizedException(String message) {
-        super(401, "UNAUTHORIZED", message);
+        super(401, CODE, message);
     }
 
     public UnauthorizedException(String message, String details) {
-        super(401, "UNAUTHORIZED", message, details);
+        super(401, CODE, message, details);
     }
 
     public UnauthorizedException(String message, Throwable cause) {
-        super(401, "UNAUTHORIZED", message, cause);
+        super(401, CODE, message, cause);
     }
 }

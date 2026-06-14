@@ -23,6 +23,15 @@ export const AdminReports = () => {
     loadReports();
   }, []);
 
+  let apiStatusLabel;
+  if (apiStatus === 'Pending') {
+    apiStatusLabel = 'Checking…';
+  } else if (apiStatus === 'Healthy') {
+    apiStatusLabel = '✓ Healthy';
+  } else {
+    apiStatusLabel = '✕ Unavailable';
+  }
+
   return (
     <div className="p-8 max-w-6xl mx-auto">
       <h1 className="text-4xl font-bold mb-4">📊 System Reports</h1>
@@ -57,16 +66,11 @@ export const AdminReports = () => {
               <span
                 className={`font-bold ${apiStatus === 'Healthy' ? 'text-green-600' : 'text-red-600'}`}
               >
-                {apiStatus === 'Pending'
-                  ? 'Checking…'
-                  : apiStatus === 'Healthy'
-                    ? '✓ Healthy'
-                    : '✕ Unavailable'}
+                {apiStatusLabel}
               </span>
             </p>
             <p>
-              Backend Response:{' '}
-              <span className="font-bold text-gray-900">{error ? error : 'OK'}</span>
+              Backend Response: <span className="font-bold text-gray-900">{error ?? 'OK'}</span>
             </p>
             <p>
               Contract Mode:{' '}

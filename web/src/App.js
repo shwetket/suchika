@@ -36,6 +36,11 @@ import {
   HealthProfile as HealthProfilePage,
 } from './pages/Health';
 
+function resolveTheme(theme, prefersDark) {
+  if (theme !== 'auto') return theme;
+  return prefersDark ? 'dark' : 'light';
+}
+
 function App() {
   const [theme, setTheme] = useState('auto');
 
@@ -46,14 +51,14 @@ function App() {
 
   useEffect(() => {
     const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)')?.matches ?? false;
-    const activeTheme = theme === 'auto' ? (prefersDark ? 'dark' : 'light') : theme;
+    const activeTheme = resolveTheme(theme, prefersDark);
     document.documentElement.classList.toggle('dark', activeTheme === 'dark');
     document.documentElement.classList.toggle('light', activeTheme === 'light');
   }, [theme]);
 
   const toggleTheme = () => {
     const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)')?.matches ?? false;
-    const currentTheme = theme === 'auto' ? (prefersDark ? 'dark' : 'light') : theme;
+    const currentTheme = resolveTheme(theme, prefersDark);
     const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
     setTheme(nextTheme);
     window.localStorage.setItem('theme', nextTheme);

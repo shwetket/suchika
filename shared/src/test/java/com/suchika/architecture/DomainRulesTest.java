@@ -74,7 +74,7 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
  */
 class DomainRulesTest {
 
-    private static JavaClasses ALL_CLASSES;
+    private static JavaClasses allClasses;
 
     @BeforeAll
     static void importClasses() {
@@ -82,7 +82,7 @@ class DomainRulesTest {
         // In a multi-module Gradle build, each domain's adapters module should
         // declare testImplementation(project(":shared")) to run these rules
         // against its own compiled classes.
-        ALL_CLASSES = new ClassFileImporter().importPackages("com.suchika");
+        allClasses = new ClassFileImporter().importPackages("com.suchika");
     }
 
 
@@ -118,7 +118,7 @@ class DomainRulesTest {
                 "io.quarkus.panache.."
             )
             .allowEmptyShould(true)
-            .check(ALL_CLASSES);
+            .check(allClasses);
     }
 
     /**
@@ -146,7 +146,7 @@ class DomainRulesTest {
                 "io.smallrye.."
             )
             .allowEmptyShould(true)
-            .check(ALL_CLASSES);
+            .check(allClasses);
     }
 
     /**
@@ -167,7 +167,7 @@ class DomainRulesTest {
             .should().dependOnClassesThat()
             .resideInAnyPackage("..ports..", "..adapters..")
             .allowEmptyShould(true)
-            .check(ALL_CLASSES);
+            .check(allClasses);
     }
 
 
@@ -194,7 +194,7 @@ class DomainRulesTest {
             .should().dependOnClassesThat()
             .resideInAPackage("..adapters..")
             .allowEmptyShould(true)
-            .check(ALL_CLASSES);
+            .check(allClasses);
     }
 
     /**
@@ -213,7 +213,7 @@ class DomainRulesTest {
             .that().resideInAPackage("..ports.input..")
             .should().beInterfaces()
             .allowEmptyShould(true)
-            .check(ALL_CLASSES);
+            .check(allClasses);
     }
 
     /**
@@ -232,7 +232,7 @@ class DomainRulesTest {
             .that().resideInAPackage("..ports.output..")
             .should().beInterfaces()
             .allowEmptyShould(true)
-            .check(ALL_CLASSES);
+            .check(allClasses);
     }
 
 
@@ -259,7 +259,7 @@ class DomainRulesTest {
             .that().areAnnotatedWith("jakarta.persistence.Entity")
             .should().resideInAPackage("..adapters..")
             .allowEmptyShould(true)
-            .check(ALL_CLASSES);
+            .check(allClasses);
     }
 
 
@@ -294,7 +294,7 @@ class DomainRulesTest {
                 "com.suchika.profile.."
             )
             .allowEmptyShould(true)
-            .check(ALL_CLASSES);
+            .check(allClasses);
     }
 
     /**
@@ -311,7 +311,7 @@ class DomainRulesTest {
                 "com.suchika.profile.."
             )
             .allowEmptyShould(true)
-            .check(ALL_CLASSES);
+            .check(allClasses);
     }
 
     /**
@@ -328,7 +328,7 @@ class DomainRulesTest {
                 "com.suchika.profile.."
             )
             .allowEmptyShould(true)
-            .check(ALL_CLASSES);
+            .check(allClasses);
     }
 
     /**
@@ -350,7 +350,7 @@ class DomainRulesTest {
                 "com.suchika.household.."
             )
             .allowEmptyShould(true)
-            .check(ALL_CLASSES);
+            .check(allClasses);
     }
 
 
@@ -385,7 +385,7 @@ class DomainRulesTest {
                 "com.suchika.health.."
             )
             .allowEmptyShould(true)
-            .check(ALL_CLASSES);
+            .check(allClasses);
     }
 
 
@@ -420,6 +420,6 @@ class DomainRulesTest {
                 "java.util.logging.."
             )
             .allowEmptyShould(true)
-            .check(ALL_CLASSES);
+            .check(allClasses);
     }
 }

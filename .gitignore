@@ -44,7 +44,13 @@ bin/
 infrastructure/local/.env
 infrastructure/local/*.env
 
+### Secrets — never commit tokens ###
+gradle.properties
+sonar-project.properties
+
 ### Mac OS ###
 .DS_Store
 README.md
 /sonarqube-*/*
+.scannerwork/.sonar_lock
+.scannerwork/report-task.txt

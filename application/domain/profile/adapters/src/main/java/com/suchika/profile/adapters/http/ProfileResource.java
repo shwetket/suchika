@@ -14,7 +14,6 @@ import jakarta.ws.rs.core.Response;
 
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Path("/v1/profiles")
 @Produces(MediaType.APPLICATION_JSON)
@@ -29,7 +28,7 @@ public class ProfileResource {
             @QueryParam("admin_id") UUID adminId,
             @QueryParam("is_active") Boolean isActive) {
         List<ProfileResponse> profiles = profileUseCase.listProfiles(adminId, isActive)
-            .stream().map(ProfileResponse::from).collect(Collectors.toList());
+            .stream().map(ProfileResponse::from).toList();
         return new ListProfilesResponse(profiles);
     }
 

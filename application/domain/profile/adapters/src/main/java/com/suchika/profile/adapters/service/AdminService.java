@@ -17,6 +17,8 @@ import java.util.UUID;
 @ApplicationScoped
 public class AdminService implements AdminUseCase {
 
+    private static final String ADMIN_NOT_FOUND = "Admin not found: ";
+
     @Inject
     AdminRepository adminRepository;
 
@@ -41,7 +43,7 @@ public class AdminService implements AdminUseCase {
     @Override
     public Admin getAdmin(UUID adminId) {
         return adminRepository.findById(adminId)
-            .orElseThrow(() -> new NotFoundException("Admin not found: " + adminId));
+            .orElseThrow(() -> new NotFoundException(ADMIN_NOT_FOUND + adminId));
     }
 
     @Override
@@ -53,7 +55,7 @@ public class AdminService implements AdminUseCase {
     @Transactional
     public Admin updateAdmin(UUID adminId, String displayName, String emailAddress, Boolean isActive) {
         Admin admin = adminRepository.findById(adminId)
-            .orElseThrow(() -> new NotFoundException("Admin not found: " + adminId));
+            .orElseThrow(() -> new NotFoundException(ADMIN_NOT_FOUND + adminId));
 
         if (displayName != null) admin.setDisplayName(displayName);
         if (emailAddress != null) {
@@ -77,7 +79,7 @@ public class AdminService implements AdminUseCase {
     @Transactional
     public void deactivateAdmin(UUID adminId) {
         Admin admin = adminRepository.findById(adminId)
-            .orElseThrow(() -> new NotFoundException("Admin not found: " + adminId));
+            .orElseThrow(() -> new NotFoundException(ADMIN_NOT_FOUND + adminId));
 
         long activeProfiles = profileRepository.countActiveByAdminId(adminId);
         if (activeProfiles > 0) {
