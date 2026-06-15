@@ -8,7 +8,7 @@ This file covers local development setup, prerequisites, and run commands.
 
 | Tool | Version | Purpose |
 |---|---|---|
-| Java | 25+ | Backend runtime |
+| Java | 17 | Backend runtime |
 | Gradle wrapper | (bundled) | No separate install needed |
 | Node.js | 18+ | Frontend |
 | PostgreSQL | 14+ | All domains (single instance) |
@@ -17,9 +17,52 @@ No MongoDB required. All domains use PostgreSQL via a schema-per-domain architec
 
 ---
 
+## Quick Start (Windows / PowerShell)
+
+Load the developer aliases once per terminal session, then use short commands for everything:
+
+```powershell
+# From repo root — activate all dev aliases
+. .\scripts\dev-aliases.ps1
+
+# First-time setup (DB + .env + npm install)
+setup-dev
+
+# Start all services (opens separate windows; profile starts FIRST)
+da          # short for dev-all
+
+# Check all services are UP
+status
+```
+
+Type `help-dev` after loading the aliases to see the full command reference.
+
+### Key aliases
+
+| Alias | Full name | Action |
+|---|---|---|
+| `dp` | `dev-profile` | Start profile service (port 8081) — always first |
+| `da` | `dev-all` | Start all 6 services in dependency order |
+| `ba` | `build-all` | Build everything (Gradle cache on) |
+| `bv` | `build-verify` | Full pre-commit check: no-cache + tests + Sonar |
+| `tsa` | `test-all` | Run all backend tests |
+| `ss` | `sonar-scan` | Analyse + open dashboard |
+| `sa` | `stop-all` | Kill all services |
+| `gapi` | `generate-api` | Regenerate `web/src/api/generated.ts` |
+| `status` | — | Show HTTP/TCP health of all services |
+
+---
+
 ## One-Time Database Setup
 
-### 1. Create the database and run the bootstrap script
+### Option A — via script
+
+```powershell
+. .\scripts\dev-aliases.ps1
+setup-dev
+```
+
+### Option B — manually
 
 ```bash
 # Connect as superuser and create the database
@@ -29,23 +72,21 @@ psql -U postgres -c "CREATE DATABASE app_db;"
 psql -U postgres -d app_db -f application/flyway/00_bootstrap.sql
 ```
 
-The bootstrap creates five schemas (`profile`, `wealth`, `household`, `health`, `projections`)
-and a single `app_user` role used by all modules in local dev.
-
-### 2. Configure environment
-
-Copy the template and set your password:
+Then copy and edit the environment file:
 
 ```bash
 cp infrastructure/local/.env.template application/finance/.env
 ```
 
-Edit `application/finance/.env`:
+`application/finance/.env`:
 ```properties
 DB_URL=jdbc:postgresql://localhost:5432/app_db
 DB_USERNAME=app_user
 DB_PASSWORD=your_secure_password_here
 ```
+
+The bootstrap creates five schemas (`profile`, `wealth`, `household`, `health`, `projections`)
+and a single `app_user` role used by all modules in local dev.
 
 ---
 
@@ -54,21 +95,40 @@ DB_PASSWORD=your_secure_password_here
 Each domain is an independent Quarkus module. Run in separate terminals.
 Flyway migrations run automatically on startup — schemas are populated on first run.
 
-```bash
-# Profile domain (run first — other domains FK into profile)
-./gradlew :application:domain:profile:adapters:quarkusDev
+> **Profile MUST start first** — other domains FK into `profile.profile`.
 
-# Wealth domain
-./gradlew :application:domain:wealth:adapters:quarkusDev
+### Via aliases (recommended)
 
-# Health domain
-./gradlew :application:domain:health:adapters:quarkusDev
-
-# Household domain
-./gradlew :application:domain:household:adapters:quarkusDev
+```powershell
+dp    # profile  → http://localhost:8081
+dw    # wealth   → http://localhost:8082
+dh    # health   → http://localhost:8083
+dho   # household→ http://localhost:8084
+dg    # gateway  → http://localhost:8080
 ```
 
-All modules are served from a single Quarkus runtime at `http://localhost:8080`.
+### Via Gradle directly
+
+```bash
+./gradlew :application:domain:profile:adapters:quarkusDev    # 8081
+./gradlew :application:domain:wealth:adapters:quarkusDev     # 8082
+./gradlew :application:domain:health:adapters:quarkusDev     # 8083
+./gradlew :application:domain:household:adapters:quarkusDev  # 8084
+./gradlew :application:web-gateway:quarkusDev                # 8080 (BFF)
+```
+
+### Ports
+
+| Service | Port | Notes |
+|---|---|---|
+| web-gateway (BFF) | 8080 | Aggregates domain services; Swagger UI here |
+| profile | 8081 | Identity anchor — start first |
+| wealth | 8082 | |
+| health | 8083 | |
+| household | 8084 | |
+| React dev server | 3000 | `npm start` or `dwb` |
+| PostgreSQL | 5432 | |
+| SonarQube (local) | 9000 | |
 
 - Swagger UI: `http://localhost:8080/swagger-ui`
 - OpenAPI JSON: `http://localhost:8080/q/openapi`
@@ -84,35 +144,66 @@ npm run generate:api   # Regenerate typed API client from OpenAPI spec
 npm start              # http://localhost:3000
 ```
 
-Run `npm run generate:api` every time the backend API contract changes.
+Or via alias: `dwb` (opens a new terminal window).
+
+Run `npm run generate:api` (or `gapi`) every time the backend API contract changes.
 
 ---
 
 ## Tests
 
-```bash
+```powershell
 # All backend tests
-./gradlew test --continuous=false
+tsa                    # alias → ./gradlew test
 
-# Single module tests
+# Single domain
+test-profile           # or: test-wealth, test-health, test-household, test-gateway
 ./gradlew :application:domain:wealth:domain:test
 
 # Frontend tests
+test-web               # npm run test:ci (single-run)
 cd web && npm run test:ci
 ```
 
 ---
 
-## Pre-Commit Hook
+## Pre-Commit Verification
 
-Husky runs automatically on every commit:
-1. `npm run generate:api` — keeps the API client in sync
-2. Scans staged diff for plaintext passwords
-3. `./gradlew test` — aborts if any test fails
+Before committing, run the full verification build:
 
-Install Husky (one-time, after `npm install` in the root):
-```bash
-npm install
+```powershell
+bv    # build-verify
+```
+
+This runs (via `scripts/build-local.ps1`):
+1. `./gradlew clean build --no-build-cache` — backend tests + ArchUnit
+2. `npm run lint && npm run test:ci` — frontend lint + tests
+3. `sonar-scanner` — full Sonar analysis (starts server if needed)
+
+Any failure stops the pipeline. Fix and rerun before committing.
+
+---
+
+## Code Quality: SonarQube
+
+### Setup (one-time)
+
+1. Download SonarQube Community Edition and extract it locally.
+2. Start SonarQube:
+   ```powershell
+   sonar-start    # starts server + opens http://localhost:9000
+   ```
+3. Login (`admin` / `admin`), create a project key `suchika`, generate a token.
+4. Add your token to `sonar-project.properties` (this file is gitignored):
+   ```properties
+   sonar.login=YOUR_TOKEN
+   ```
+5. Install sonar-scanner globally: `npm install -g sonar-scanner`
+
+### Run analysis
+
+```powershell
+ss    # sonar-scan — builds + analyses + opens dashboard
 ```
 
 ---
@@ -123,80 +214,22 @@ Flyway migrations are in `application/flyway/{domain}/` and run automatically on
 
 - **Never edit a committed migration file.** Create a new versioned file instead.
 - `00_bootstrap.sql` is run manually once. Flyway does not manage it.
-- Migration dependency order: **profile → wealth → household → health → projections**
+- Migration startup order: **profile → wealth → household → health**
 
 ---
 
-## Ports
+## Typical Inner-Loop Workflow
 
-| Service | Port |
-|---|---|
-| Backend (Quarkus) | 8080 |
-| Frontend (React) | 3000 |
-| PostgreSQL | 5432 |
-| SonarQube (local) | 9000 |
-
----
-
-## Code Quality: SonarQube Community Edition (Local)
-
-SonarQube provides comprehensive code quality analysis including architectural rules, security issues, and code smells.
-
-### Setup (one-time)
-
-1. **Download SonarQube Community Edition**
-   - Go to: https://www.sonarsource.com/products/sonarqube/downloads/
-   - Extract to a local folder
-
-2. **Start SonarQube**
-   ```bash
-   cd /path/to/sonarqube/bin/windows-x86-64
-   ./StartSonar.bat
-   ```
-   Then open `http://localhost:9000` (default login: `admin` / `admin`)
-
-3. **Install Sonar Scanner**
-   ```bash
-   npm install -g sonar-scanner
-   ```
-
-4. **Create a project token**
-   - Login to SonarQube
-   - Click `Create new project` → set `Project key` to `suchika`
-   - Go to `Security` → `Tokens` → generate and copy your token
-
-5. **Update `sonar-project.properties`**
-   ```bash
-   # Replace YOUR_TOKEN with the token from step 4
-   echo "sonar.login=YOUR_TOKEN" >> sonar-project.properties
-   ```
-
-### Run Analysis
-
-After building the backend (`./gradlew build --no-daemon`):
-
-```bash
-sonar-scanner
+```powershell
+dp              # 1. Start profile (ALWAYS first)
+da              # 2. Start all remaining services
+status          # 3. Confirm all UP
+# ... edit code ...
+bp              # 4. Rebuild changed service (e.g. bp for profile)
+tsa             # 5. Run all tests
+ss              # 6. Sonar scan
+bv              # 7. Full pre-commit check before pushing
 ```
-
-View results: `http://localhost:9000/projects/suchika`
-
-### Use the Pre-Commit Script
-
-The unified build script runs everything including SonarQube:
-
-```bash
-# Bash
-bash scripts/build-local.sh
-
-# PowerShell
-.\scripts\build-local.ps1
-```
-
-This runs:
-- Backend tests + ArchUnit
-- Frontend tests + lint + format
-- Full Sonar analysis (includes SonarQube server check)
 
 ---
 
@@ -204,10 +237,11 @@ This runs:
 
 | Issue | Solution |
 |---|---|
-| Backend cannot connect to PostgreSQL | Check `application/finance/.env` and PostgreSQL service |
+| Backend cannot connect to PostgreSQL | Check `application/finance/.env` and PostgreSQL service. Run `db-start`. |
 | Flyway migration error on startup | Never edit a previous migration — create a new versioned file |
 | `npm install` fails | Run `npm install --legacy-peer-deps` in `web/` |
-| API client out of sync | Run `cd web && npm run generate:api` |
-| Gradle compile fails | Run `./gradlew clean` then retry |
-| Pre-commit hook not running | Run `npm install` to reinstall Husky |
-| Profile module Flyway fails | Ensure `00_bootstrap.sql` was run first (creates schemas) |
+| API client out of sync | Run `gapi` (or `cd web && npm run generate:api`) |
+| Gradle compile fails | Run `clean-builds` then retry |
+| Profile module Flyway fails | Ensure `00_bootstrap.sql` was run first (`setup-dev` does this) |
+| Port already in use | Run `stop-all` (or `sa`) then `dev-all` |
+| Aliases not found | Dot-source the file: `. .\scripts\dev-aliases.ps1` |

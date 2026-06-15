@@ -6,12 +6,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Backend
 ```bash
-# Run a domain module in dev mode (hot reload, port 8080)
-# Run profile FIRST — other domains FK into profile.profile
+# Start domain services (hot reload). Run profile FIRST — other domains FK into profile.profile.
+# Port assignments: profile=8081, wealth=8082, health=8083, household=8084, gateway=8080
 ./gradlew :application:domain:profile:adapters:quarkusDev
 ./gradlew :application:domain:wealth:adapters:quarkusDev
 ./gradlew :application:domain:health:adapters:quarkusDev
 ./gradlew :application:domain:household:adapters:quarkusDev
+./gradlew :application:web-gateway:quarkusDev   # BFF aggregator; frontend talks only to this
 
 # Run all tests
 ./gradlew test
@@ -29,6 +30,7 @@ npm install
 npm run generate:api   # Regenerate typed API client — run after any contract change
 npm start              # Dev server at http://localhost:3000
 npm run lint
+npm run lint:fix       # Auto-fix ESLint errors
 npm run format
 npm run test:ci        # Single-run (non-watch)
 ```
@@ -58,7 +60,11 @@ Each domain has three layers:
 - `ports/` — interface contracts: input ports (use cases), output ports (persistence)
 - `adapters/` — HTTP controllers and Panache/JPA persistence implementations
 
-`web-gateway` is a Backend-for-Frontend (BFF) aggregator for cross-domain dashboard data. It has no database dependency — it composes domain REST calls and runs CQRS projections.
+Package convention: `com.suchika.{domain}.domain.*` / `.ports.input.*` / `.ports.output.*` / `.adapters.*`
+
+`web-gateway` is a Backend-for-Frontend (BFF) aggregator for cross-domain dashboard data. It has no database dependency — it composes domain REST calls via MicroProfile Rest Client and runs CQRS projections. Domain service contracts (`application/contract/{domain}.yaml`) are mirrored into `application/web-gateway/src/main/resources/` for the Rest Client. The gateway contract (`application/contract/gateway.yaml`) is what the frontend generates its typed client from.
+
+**Frontend talks only to the gateway at `http://localhost:8080`** — never to domain services directly. Domain service Swagger UIs are available at `http://localhost:{port}/swagger-ui`.
 
 ## Database Structure
 
@@ -105,7 +111,11 @@ The calculation engine lives in `web-gateway` (the BFF), which has read access t
 
 **No SQL ENUMs ever.** Use plain `VARCHAR` with no CHECK constraint for discriminator columns.
 
-**API client:** After any backend contract change, regenerate with `cd web && npm run generate:api`. Never hand-edit `web/src/api/generated.ts`.
+**Profile-scoped isolation (ADR-006):** Every DB query across all domains must filter by the active `profile_id`. This filter is injected in the `adapters/` layer — never in `domain/` or `ports/`.
+
+**API client:** After any backend contract change, regenerate with `cd web && npm run generate:api`. Never hand-edit `web/src/api/generated.ts`. The frontend API base URL is `REACT_APP_API_BASE_URL` (defaults to `http://localhost:8080`).
+
+**Frontend structure:** Pages live in `src/pages/Public/` (no auth), `src/pages/User/` (user + admin), `src/pages/Admin/` (admin only). Wrap protected routes in `<ProtectedRoute requiredRole="admin">`. Use `useAuth()` for role checks. Route paths are domain-segmented: `/wealth`, `/household`, `/health`. API calls go in custom hooks or `useEffect` — never in component render.
 
 **Logging & exceptions:** Use `AppLogger` from `shared/` for all logging. Throw typed exceptions from `shared/exception/` hierarchy (`NotFoundException`, `BadRequestException`, etc.) — `ApplicationExceptionMapper` converts them to HTTP responses automatically.
 
