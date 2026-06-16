@@ -94,4 +94,9 @@ The web-gateway has no database of its own. It aggregates domain REST calls and 
 - Domain logic is unit-tested with no framework setup (no Quarkus test harness needed).
 - Adapter tests use the real DB where possible (Testcontainers preferred).
 - No test should cross domain boundaries via the DB.
+- **Web Gateway (BFF) Tests**:
+  - Test all REST endpoints in the BFF (`web-gateway`) using **RestAssured** and `@QuarkusTest`.
+  - To keep local builds fast and isolated, mock the downstream MicroProfile REST clients using **Mockito `@InjectMock`** on client interfaces (e.g., `WealthServiceClient`).
+  - Do not spin up downstream domain databases or mock servers for unit/integration validation of the BFF endpoints unless specifically testing connection resiliency.
 - ArchUnit tests in `shared/` enforce all the rules above automatically.
+

@@ -10,7 +10,7 @@ import java.util.UUID;
 
 public interface VitalReadingUseCase {
 
-    VitalReading record(UUID profileId, VitalType vitalType, LocalDate readingDate,
+    VitalReading recordReading(UUID profileId, VitalType vitalType, LocalDate readingDate,
                         BigDecimal valuePrimary, BigDecimal valueSecondary,
                         String unit, String notes);
 

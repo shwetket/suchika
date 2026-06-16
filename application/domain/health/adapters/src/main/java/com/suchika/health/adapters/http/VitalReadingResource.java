@@ -36,11 +36,11 @@ public class VitalReadingResource {
     }
 
     @POST
-    public Response record(RecordVitalReadingRequest request) {
+    public Response recordVitalReading(RecordVitalReadingRequest request) {
         if (request == null) throw new BadRequestException("Request body is required");
         VitalType vitalType = parseVitalType(request.vitalType);
         VitalReadingResponse response = VitalReadingResponse.from(
-                useCase.record(request.profileId, vitalType, request.readingDate,
+                useCase.recordReading(request.profileId, vitalType, request.readingDate,
                         request.valuePrimary, request.valueSecondary, request.unit, request.notes));
         return Response.status(201).entity(response).build();
     }

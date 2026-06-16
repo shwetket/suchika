@@ -2,6 +2,10 @@ plugins {
     java
 }
 
+tasks.withType<Jar> {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
 val quarkusBomVersion = "3.29.0"
 val archunitVersion = "1.4.1"
 

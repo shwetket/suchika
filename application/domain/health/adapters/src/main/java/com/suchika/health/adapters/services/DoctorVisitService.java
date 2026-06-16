@@ -1,12 +1,15 @@
 package com.suchika.health.adapters.services;
 
 import com.suchika.health.domain.DoctorVisit;
+import com.suchika.health.ports.input.CreateDoctorVisitCommand;
 import com.suchika.health.ports.input.DoctorVisitUseCase;
+import com.suchika.health.ports.input.UpdateDoctorVisitCommand;
 import com.suchika.health.ports.output.DoctorVisitRepository;
 import com.suchika.shared.exception.BadRequestException;
 import com.suchika.shared.exception.NotFoundException;
 import com.suchika.shared.logging.AppLogger;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.transaction.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -22,28 +25,27 @@ public class DoctorVisitService implements DoctorVisitUseCase {
     }
 
     @Override
-    public DoctorVisit create(UUID profileId, LocalDate fromDate, LocalDate toDate,
-                              boolean visitedDoctor, String doctorName, String hospitalName,
-                              String speciality, String symptoms, String diagnosis,
-                              String notes, LocalDate followUpDate) {
-        validateCreate(profileId, fromDate, toDate, visitedDoctor, doctorName);
+    @Transactional
+    public DoctorVisit create(CreateDoctorVisitCommand command) {
+        validateCreate(command.profileId(), command.fromDate(), command.toDate(),
+                command.visitedDoctor(), command.doctorName());
 
         DoctorVisit visit = DoctorVisit.builder()
-                .profileId(profileId)
-                .fromDate(fromDate)
-                .toDate(toDate)
-                .visitedDoctor(visitedDoctor)
-                .doctorName(doctorName)
-                .hospitalName(hospitalName)
-                .speciality(speciality)
-                .symptoms(symptoms)
-                .diagnosis(diagnosis)
-                .notes(notes)
-                .followUpDate(followUpDate)
+                .profileId(command.profileId())
+                .fromDate(command.fromDate())
+                .toDate(command.toDate())
+                .visitedDoctor(command.visitedDoctor())
+                .doctorName(command.doctorName())
+                .hospitalName(command.hospitalName())
+                .speciality(command.speciality())
+                .symptoms(command.symptoms())
+                .diagnosis(command.diagnosis())
+                .notes(command.notes())
+                .followUpDate(command.followUpDate())
                 .build();
 
         DoctorVisit saved = repository.save(visit);
-        AppLogger.info("Created doctor visit for profile %s on %s", profileId, fromDate);
+        AppLogger.info("Created doctor visit for profile %s on %s", command.profileId(), command.fromDate());
         return saved;
     }
 
@@ -62,12 +64,12 @@ public class DoctorVisitService implements DoctorVisitUseCase {
     }
 
     @Override
-    public DoctorVisit update(UUID id, LocalDate toDate, String doctorName, String hospitalName,
-                              String speciality, String symptoms, String diagnosis,
-                              String notes, LocalDate followUpDate) {
+    @Transactional
+    public DoctorVisit update(UUID id, UpdateDoctorVisitCommand command) {
         DoctorVisit existing = repository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Doctor visit not found: " + id));
 
+        LocalDate toDate = command.toDate();
         if (toDate != null && toDate.isBefore(existing.getFromDate())) {
             throw new BadRequestException("to_date cannot be before from_date");
         }
@@ -78,13 +80,13 @@ public class DoctorVisitService implements DoctorVisitUseCase {
                 .fromDate(existing.getFromDate())
                 .toDate(toDate != null ? toDate : existing.getToDate())
                 .visitedDoctor(existing.isVisitedDoctor())
-                .doctorName(doctorName != null ? doctorName : existing.getDoctorName())
-                .hospitalName(hospitalName != null ? hospitalName : existing.getHospitalName())
-                .speciality(speciality != null ? speciality : existing.getSpeciality())
-                .symptoms(symptoms != null ? symptoms : existing.getSymptoms())
-                .diagnosis(diagnosis != null ? diagnosis : existing.getDiagnosis())
-                .notes(notes != null ? notes : existing.getNotes())
-                .followUpDate(followUpDate != null ? followUpDate : existing.getFollowUpDate())
+                .doctorName(command.doctorName() != null ? command.doctorName() : existing.getDoctorName())
+                .hospitalName(command.hospitalName() != null ? command.hospitalName() : existing.getHospitalName())
+                .speciality(command.speciality() != null ? command.speciality() : existing.getSpeciality())
+                .symptoms(command.symptoms() != null ? command.symptoms() : existing.getSymptoms())
+                .diagnosis(command.diagnosis() != null ? command.diagnosis() : existing.getDiagnosis())
+                .notes(command.notes() != null ? command.notes() : existing.getNotes())
+                .followUpDate(command.followUpDate() != null ? command.followUpDate() : existing.getFollowUpDate())
                 .createdAt(existing.getCreatedAt())
                 .build();
 
@@ -92,6 +94,7 @@ public class DoctorVisitService implements DoctorVisitUseCase {
     }
 
     @Override
+    @Transactional
     public void delete(UUID id) {
         if (!repository.existsById(id)) {
             throw new NotFoundException("Doctor visit not found: " + id);

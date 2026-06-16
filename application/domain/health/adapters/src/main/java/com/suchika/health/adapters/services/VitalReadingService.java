@@ -8,6 +8,7 @@ import com.suchika.shared.exception.BadRequestException;
 import com.suchika.shared.exception.NotFoundException;
 import com.suchika.shared.logging.AppLogger;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.transaction.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -24,7 +25,8 @@ public class VitalReadingService implements VitalReadingUseCase {
     }
 
     @Override
-    public VitalReading record(UUID profileId, VitalType vitalType, LocalDate readingDate,
+    @Transactional
+    public VitalReading recordReading(UUID profileId, VitalType vitalType, LocalDate readingDate,
                                BigDecimal valuePrimary, BigDecimal valueSecondary,
                                String unit, String notes) {
         validate(profileId, vitalType, readingDate, valuePrimary, valueSecondary, unit);
@@ -59,6 +61,7 @@ public class VitalReadingService implements VitalReadingUseCase {
     }
 
     @Override
+    @Transactional
     public void delete(UUID id) {
         if (!repository.existsById(id)) {
             throw new NotFoundException("Vital reading not found: " + id);

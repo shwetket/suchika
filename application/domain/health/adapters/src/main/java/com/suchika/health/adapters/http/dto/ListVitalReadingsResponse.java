@@ -1,13 +1,21 @@
 package com.suchika.health.adapters.http.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import io.quarkus.runtime.annotations.RegisterForReflection;
+
 import java.util.List;
 
+@RegisterForReflection
 public class ListVitalReadingsResponse {
-    public List<VitalReadingResponse> vital_readings;
-    public int total_size;
+
+    @JsonProperty("vital_readings")
+    public List<VitalReadingResponse> vitalReadings;
+
+    @JsonProperty("total_size")
+    public int totalSize;
 
     public ListVitalReadingsResponse(List<VitalReadingResponse> readings) {
-        this.vital_readings = readings;
-        this.total_size = readings.size();
+        this.vitalReadings = readings;
+        this.totalSize = readings.size();
     }
 }

@@ -3,16 +3,9 @@ openapi: 3.1.0
 info:
   title: Health API
   description: >
-    Manages vital sign readings and doctor visit records for household members.
-    Resources are nested under profiles — every reading belongs to exactly one
-    household member.
-
-    BLOOD_PRESSURE readings require both value_primary (systolic) and
-    value_secondary (diastolic) to be provided. All other vital types use
-    value_primary only; value_secondary must be omitted or null.
-
-    Follows Google AIP resource-oriented design with pagination (AIP-158).
-    Vital readings are paginated because they accumulate continuously over years.
+    Manages biometric readings and doctor visits for household members.
+    Identity comes from profile.profile — no separate health-profile entity.
+    Follows Google AIP resource-oriented design.
   version: 1.0.0
 
 servers:
@@ -20,184 +13,140 @@ servers:
     description: Local development
 
 tags:
-  - name: Vitals
-    description: Biometric vital sign readings (weight, BP, blood sugar, etc.)
+  - name: Vital Readings
+    description: Time-series biometric measurements (weight, BP, blood sugar, etc.)
   - name: Doctor Visits
-    description: Doctor appointment and visit records
+    description: Illness periods and doctor consultations
 
 paths:
 
-  # ============================================================
-  # VITAL READINGS — nested under profile
-  # ============================================================
+  # ── Vital Readings ────────────────────────────────────────────────────────────
 
-  /v1/profiles/{profile_id}/vitals:
+  /v1/vitals:
 
     get:
-      tags: [Vitals]
-      operationId: listVitals
+      tags: [Vital Readings]
+      operationId: listVitalReadings
       summary: List vital readings for a profile
       description: >
-        Returns paginated vital readings for a household member, newest first.
-        Filter by vital_type to narrow to one metric.
-        Follows AIP-132 + AIP-158.
+        Returns all readings for the given profile_id in reverse chronological
+        order (newest first). Optionally filter by vital_type.
+        Covers v0.2 Use Case 2.1 — Time-Series Ledger.
       parameters:
-        - $ref: './shared.yaml#/components/parameters/ProfileIdParam'
-        - $ref: './shared.yaml#/components/parameters/PageSize'
-        - $ref: './shared.yaml#/components/parameters/PageToken'
+        - name: profile_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
         - name: vital_type
           in: query
           required: false
           schema:
             $ref: '#/components/schemas/VitalType'
-        - name: from_date
-          in: query
-          required: false
-          description: Inclusive start date filter.
-          schema:
-            type: string
-            format: date
-        - name: to_date
-          in: query
-          required: false
-          description: Inclusive end date filter.
-          schema:
-            type: string
-            format: date
       responses:
         '200':
-          description: OK
+          description: Readings returned newest-first
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ListVitalsResponse'
+                $ref: '#/components/schemas/ListVitalReadingsResponse'
         '400':
-          $ref: './shared.yaml#/components/responses/BadRequest'
-        '404':
-          $ref: './shared.yaml#/components/responses/NotFound'
+          $ref: '#/components/responses/BadRequest'
         '500':
-          $ref: './shared.yaml#/components/responses/InternalError'
+          $ref: '#/components/responses/InternalError'
 
     post:
-      tags: [Vitals]
-      operationId: createVital
-      summary: Record a vital reading
+      tags: [Vital Readings]
+      operationId: recordVitalReading
+      summary: Record a biometric reading
       description: >
-        Records a new biometric reading. For BLOOD_PRESSURE,
-        both value_primary (systolic) and value_secondary (diastolic)
-        are required. For all other types, provide value_primary only.
-        Follows AIP-133.
-      parameters:
-        - $ref: './shared.yaml#/components/parameters/ProfileIdParam'
+        Records a new reading. For BLOOD_PRESSURE, value_secondary (diastolic)
+        is required. Readings are immutable — delete and re-record to correct.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateVitalRequest'
+              $ref: '#/components/schemas/RecordVitalReadingRequest'
       responses:
         '201':
-          description: Vital reading recorded
+          description: Reading recorded
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/VitalResponse'
+                $ref: '#/components/schemas/VitalReading'
         '400':
-          $ref: './shared.yaml#/components/responses/BadRequest'
-        '404':
-          $ref: './shared.yaml#/components/responses/NotFound'
+          $ref: '#/components/responses/BadRequest'
         '500':
-          $ref: './shared.yaml#/components/responses/InternalError'
+          $ref: '#/components/responses/InternalError'
 
-  /v1/profiles/{profile_id}/vitals/{vital_id}:
+  /v1/vitals/{id}:
 
     get:
-      tags: [Vitals]
-      operationId: getVital
-      summary: Get a vital reading
-      description: Follows AIP-131.
+      tags: [Vital Readings]
+      operationId: getVitalReading
+      summary: Get a specific vital reading
       parameters:
-        - $ref: './shared.yaml#/components/parameters/ProfileIdParam'
-        - $ref: '#/components/parameters/VitalId'
+        - $ref: '#/components/parameters/Id'
       responses:
         '200':
-          description: OK
+          description: Reading found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/VitalResponse'
+                $ref: '#/components/schemas/VitalReading'
         '404':
-          $ref: './shared.yaml#/components/responses/NotFound'
+          $ref: '#/components/responses/NotFound'
         '500':
-          $ref: './shared.yaml#/components/responses/InternalError'
+          $ref: '#/components/responses/InternalError'
 
     delete:
-      tags: [Vitals]
-      operationId: deleteVital
+      tags: [Vital Readings]
+      operationId: deleteVitalReading
       summary: Delete a vital reading
-      description: >
-        Hard-deletes a vital reading. Used to correct accidental entries.
-        Follows AIP-135.
       parameters:
-        - $ref: './shared.yaml#/components/parameters/ProfileIdParam'
-        - $ref: '#/components/parameters/VitalId'
+        - $ref: '#/components/parameters/Id'
       responses:
         '204':
-          description: Vital reading deleted
+          description: Reading deleted
         '404':
-          $ref: './shared.yaml#/components/responses/NotFound'
+          $ref: '#/components/responses/NotFound'
         '500':
-          $ref: './shared.yaml#/components/responses/InternalError'
+          $ref: '#/components/responses/InternalError'
 
-  # ============================================================
-  # DOCTOR VISITS — nested under profile
-  # ============================================================
+  # ── Doctor Visits ─────────────────────────────────────────────────────────────
 
-  /v1/profiles/{profile_id}/doctor-visits:
+  /v1/doctor-visits:
 
     get:
       tags: [Doctor Visits]
       operationId: listDoctorVisits
       summary: List doctor visits for a profile
-      description: >
-        Returns all doctor visits for a household member, newest first.
-        Not paginated — visit count per member is always manageable.
-        Follows AIP-132.
+      description: Returns visits newest-first.
       parameters:
-        - $ref: './shared.yaml#/components/parameters/ProfileIdParam'
-        - name: from_date
+        - name: profile_id
           in: query
-          required: false
-          description: Inclusive start date filter.
+          required: true
           schema:
             type: string
-            format: date
-        - name: to_date
-          in: query
-          required: false
-          description: Inclusive end date filter.
-          schema:
-            type: string
-            format: date
+            format: uuid
       responses:
         '200':
-          description: OK
+          description: Visits listed
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListDoctorVisitsResponse'
-        '404':
-          $ref: './shared.yaml#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '500':
-          $ref: './shared.yaml#/components/responses/InternalError'
+          $ref: '#/components/responses/InternalError'
 
     post:
       tags: [Doctor Visits]
       operationId: createDoctorVisit
-      summary: Record a doctor visit
-      description: Follows AIP-133.
-      parameters:
-        - $ref: './shared.yaml#/components/parameters/ProfileIdParam'
+      summary: Log a doctor visit or illness period
       requestBody:
         required: true
         content:
@@ -206,51 +155,43 @@ paths:
               $ref: '#/components/schemas/CreateDoctorVisitRequest'
       responses:
         '201':
-          description: Doctor visit recorded
+          description: Visit logged
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DoctorVisitResponse'
+                $ref: '#/components/schemas/DoctorVisit'
         '400':
-          $ref: './shared.yaml#/components/responses/BadRequest'
-        '404':
-          $ref: './shared.yaml#/components/responses/NotFound'
+          $ref: '#/components/responses/BadRequest'
         '500':
-          $ref: './shared.yaml#/components/responses/InternalError'
+          $ref: '#/components/responses/InternalError'
 
-  /v1/profiles/{profile_id}/doctor-visits/{visit_id}:
+  /v1/doctor-visits/{id}:
 
     get:
       tags: [Doctor Visits]
       operationId: getDoctorVisit
-      summary: Get a doctor visit
-      description: Follows AIP-131.
+      summary: Get a specific doctor visit
       parameters:
-        - $ref: './shared.yaml#/components/parameters/ProfileIdParam'
-        - $ref: '#/components/parameters/VisitId'
+        - $ref: '#/components/parameters/Id'
       responses:
         '200':
-          description: OK
+          description: Visit found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DoctorVisitResponse'
+                $ref: '#/components/schemas/DoctorVisit'
         '404':
-          $ref: './shared.yaml#/components/responses/NotFound'
+          $ref: '#/components/responses/NotFound'
         '500':
-          $ref: './shared.yaml#/components/responses/InternalError'
+          $ref: '#/components/responses/InternalError'
 
     patch:
       tags: [Doctor Visits]
       operationId: updateDoctorVisit
       summary: Update a doctor visit
-      description: >
-        Partially updates a doctor visit record. Typically used to add
-        notes, prescription details, or follow-up date after the visit.
-        Follows AIP-134.
+      description: Only provided fields are updated.
       parameters:
-        - $ref: './shared.yaml#/components/parameters/ProfileIdParam'
-        - $ref: '#/components/parameters/VisitId'
+        - $ref: '#/components/parameters/Id'
       requestBody:
         required: true
         content:
@@ -259,71 +200,48 @@ paths:
               $ref: '#/components/schemas/UpdateDoctorVisitRequest'
       responses:
         '200':
-          description: OK
+          description: Visit updated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DoctorVisitResponse'
+                $ref: '#/components/schemas/DoctorVisit'
         '400':
-          $ref: './shared.yaml#/components/responses/BadRequest'
+          $ref: '#/components/responses/BadRequest'
         '404':
-          $ref: './shared.yaml#/components/responses/NotFound'
+          $ref: '#/components/responses/NotFound'
         '500':
-          $ref: './shared.yaml#/components/responses/InternalError'
+          $ref: '#/components/responses/InternalError'
 
     delete:
       tags: [Doctor Visits]
       operationId: deleteDoctorVisit
       summary: Delete a doctor visit
-      description: >
-        Hard-deletes a doctor visit record. Used to correct accidental entries.
-        Follows AIP-135.
       parameters:
-        - $ref: './shared.yaml#/components/parameters/ProfileIdParam'
-        - $ref: '#/components/parameters/VisitId'
+        - $ref: '#/components/parameters/Id'
       responses:
         '204':
-          description: Doctor visit deleted
+          description: Visit deleted
         '404':
-          $ref: './shared.yaml#/components/responses/NotFound'
+          $ref: '#/components/responses/NotFound'
         '500':
-          $ref: './shared.yaml#/components/responses/InternalError'
+          $ref: '#/components/responses/InternalError'
 
 components:
 
   parameters:
 
-    VitalId:
-      name: vital_id
+    Id:
+      name: id
       in: path
       required: true
-      description: Unique identifier of the vital reading.
-      schema:
-        type: string
-        format: uuid
-
-    VisitId:
-      name: visit_id
-      in: path
-      required: true
-      description: Unique identifier of the doctor visit.
       schema:
         type: string
         format: uuid
 
   schemas:
 
-    # ----------------------------------------------------------
-    # ENUMS
-    # ----------------------------------------------------------
-
     VitalType:
       type: string
-      description: >
-        The biometric metric being recorded.
-        BLOOD_PRESSURE is the only type that requires value_secondary (diastolic).
-        BMI is typically calculated from WEIGHT + HEIGHT readings, but can also
-        be recorded directly from a smart scale.
       enum:
         - WEIGHT
         - HEIGHT
@@ -336,214 +254,126 @@ components:
         - BMI
         - WAIST_CIRCUMFERENCE
 
-    # ----------------------------------------------------------
-    # VITAL READING DTOs
-    # ----------------------------------------------------------
-
-    VitalResponse:
+    VitalReading:
       type: object
-      description: A single biometric vital sign reading for a household member.
-      required:
-        - name
-        - vital_id
-        - profile_id
-        - vital_type
-        - value_primary
-        - unit
-        - recorded_at
-        - created_at
       properties:
-        name:
-          type: string
-          description: "Resource name. Format: profiles/{profile_id}/vitals/{vital_id}"
-          readOnly: true
-        vital_id:
+        id:
           type: string
           format: uuid
           readOnly: true
         profile_id:
           type: string
           format: uuid
-          readOnly: true
         vital_type:
           $ref: '#/components/schemas/VitalType'
+        reading_date:
+          type: string
+          format: date
+          example: "2026-06-16"
         value_primary:
           type: number
           format: double
-          minimum: 0
-          exclusiveMinimum: 0
-          description: >
-            Primary measurement value. For BLOOD_PRESSURE this is the systolic reading.
-            For all other types, this is the sole measurement.
-          example: 120.0
+          description: Main measurement value (weight in kg, systolic BP, etc.)
         value_secondary:
           type: number
           format: double
           nullable: true
-          minimum: 0
-          exclusiveMinimum: 0
-          description: >
-            Secondary measurement value. Required for BLOOD_PRESSURE (diastolic reading).
-            Null for all other vital types.
-          example: 80.0
+          description: Diastolic BP only; null for all other types
         unit:
           type: string
-          minLength: 1
-          maxLength: 20
-          description: >
-            Measurement unit string. Examples: kg, cm, mmHg, mg/dL, bpm, °C, %, kg/m².
-            Not an enum — units evolve and are validated in the Java service layer.
-          example: "mmHg"
+          example: "kg"
         notes:
           type: string
           nullable: true
-          maxLength: 500
-          description: Optional contextual notes (e.g., "measured after 8h fast", "post-exercise").
-        recorded_at:
-          type: string
-          format: date-time
-          description: When the measurement was taken (may differ from created_at for manual entry).
-          example: "2026-06-13T07:30:00+05:30"
         created_at:
           type: string
           format: date-time
-          description: When the record was entered into the system.
           readOnly: true
 
-    CreateVitalRequest:
+    RecordVitalReadingRequest:
       type: object
       required:
+        - profile_id
         - vital_type
+        - reading_date
         - value_primary
         - unit
-        - recorded_at
       properties:
+        profile_id:
+          type: string
+          format: uuid
         vital_type:
           $ref: '#/components/schemas/VitalType'
+        reading_date:
+          type: string
+          format: date
         value_primary:
           type: number
           format: double
-          minimum: 0
           exclusiveMinimum: 0
-          example: 120.0
         value_secondary:
           type: number
           format: double
           nullable: true
-          minimum: 0
-          exclusiveMinimum: 0
-          description: >
-            Required when vital_type = BLOOD_PRESSURE (diastolic value).
-            Must be omitted or null for all other vital types.
-          example: 80.0
         unit:
           type: string
-          minLength: 1
           maxLength: 20
-          example: "mmHg"
         notes:
           type: string
           nullable: true
-          maxLength: 500
-        recorded_at:
-          type: string
-          format: date-time
-          description: >
-            When the measurement was actually taken. Use current time for live readings.
-            May be a past timestamp for manually entered historical data.
-          example: "2026-06-13T07:30:00+05:30"
 
-    ListVitalsResponse:
+    ListVitalReadingsResponse:
       type: object
-      required:
-        - vitals
-        - total_size
       properties:
-        vitals:
+        vital_readings:
           type: array
           items:
-            $ref: '#/components/schemas/VitalResponse'
+            $ref: '#/components/schemas/VitalReading'
         total_size:
           type: integer
-          minimum: 0
-          description: Total matching readings (ignoring pagination).
-        next_page_token:
-          type: string
-          nullable: true
-          description: Opaque token for the next page. Null when on last page.
 
-    # ----------------------------------------------------------
-    # DOCTOR VISIT DTOs
-    # ----------------------------------------------------------
-
-    DoctorVisitResponse:
+    DoctorVisit:
       type: object
-      description: A doctor visit or medical appointment record.
-      required:
-        - name
-        - visit_id
-        - profile_id
-        - from_date
-        - created_at
       properties:
-        name:
-          type: string
-          description: "Resource name. Format: profiles/{profile_id}/doctor-visits/{visit_id}"
-          readOnly: true
-        visit_id:
+        id:
           type: string
           format: uuid
           readOnly: true
         profile_id:
           type: string
           format: uuid
-          readOnly: true
         from_date:
           type: string
           format: date
-          description: Date the appointment started (or single-day visit date).
-          example: "2026-06-10"
         to_date:
           type: string
           format: date
           nullable: true
-          description: >
-            End date for multi-day hospitalizations. Null for outpatient/single-day visits.
-            Must be >= from_date when provided.
-          example: "2026-06-12"
+        visited_doctor:
+          type: boolean
+          default: true
         doctor_name:
           type: string
           nullable: true
-          maxLength: 200
-          example: "Dr. Priya Sharma"
-        speciality:
-          type: string
-          nullable: true
-          maxLength: 100
-          description: Medical speciality (e.g., "Cardiologist", "General Physician").
-          example: "Cardiologist"
         hospital_name:
           type: string
           nullable: true
-          maxLength: 200
-          example: "Ruby Hall Clinic"
-        reason:
+        speciality:
           type: string
           nullable: true
-          maxLength: 500
-          description: Reason for visit or diagnosis summary.
-          example: "Annual cardiac checkup"
-        prescription_notes:
+        symptoms:
           type: string
           nullable: true
-          maxLength: 2000
-          description: Prescription or treatment plan notes.
+        diagnosis:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
         follow_up_date:
           type: string
           format: date
           nullable: true
-          description: Date of the next scheduled follow-up appointment.
-          example: "2026-09-10"
         created_at:
           type: string
           format: date-time
@@ -552,57 +382,52 @@ components:
     CreateDoctorVisitRequest:
       type: object
       required:
+        - profile_id
         - from_date
+        - visited_doctor
       properties:
+        profile_id:
+          type: string
+          format: uuid
         from_date:
           type: string
           format: date
-          example: "2026-06-10"
         to_date:
           type: string
           format: date
           nullable: true
-          description: Must be >= from_date when provided.
-          example: "2026-06-12"
+        visited_doctor:
+          type: boolean
         doctor_name:
           type: string
           nullable: true
-          maxLength: 200
-          example: "Dr. Priya Sharma"
-        speciality:
-          type: string
-          nullable: true
           maxLength: 100
-          example: "Cardiologist"
         hospital_name:
           type: string
           nullable: true
           maxLength: 200
-          example: "Ruby Hall Clinic"
-        reason:
+        speciality:
           type: string
           nullable: true
-          maxLength: 500
-          example: "Annual cardiac checkup"
-        prescription_notes:
+          maxLength: 100
+        symptoms:
           type: string
           nullable: true
-          maxLength: 2000
+        diagnosis:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
         follow_up_date:
           type: string
           format: date
           nullable: true
-          example: "2026-09-10"
 
     UpdateDoctorVisitRequest:
       type: object
-      description: >
-        All fields optional. Typically used to add prescription notes,
-        speciality, or follow-up date after an initial quick entry.
+      description: All fields optional. Only provided fields are updated.
       properties:
-        from_date:
-          type: string
-          format: date
         to_date:
           type: string
           format: date
@@ -610,23 +435,23 @@ components:
         doctor_name:
           type: string
           nullable: true
-          maxLength: 200
-        speciality:
-          type: string
-          nullable: true
           maxLength: 100
         hospital_name:
           type: string
           nullable: true
           maxLength: 200
-        reason:
+        speciality:
           type: string
           nullable: true
-          maxLength: 500
-        prescription_notes:
+        symptoms:
           type: string
           nullable: true
-          maxLength: 2000
+        diagnosis:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
         follow_up_date:
           type: string
           format: date
@@ -634,14 +459,53 @@ components:
 
     ListDoctorVisitsResponse:
       type: object
-      required:
-        - visits
-        - total_size
       properties:
-        visits:
+        doctor_visits:
           type: array
           items:
-            $ref: '#/components/schemas/DoctorVisitResponse'
+            $ref: '#/components/schemas/DoctorVisit'
         total_size:
           type: integer
-          minimum: 0
+
+    Error:
+      type: object
+      required: [code, message, status]
+      properties:
+        code:
+          type: integer
+        status:
+          type: string
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              issue:
+                type: string
+
+  responses:
+
+    BadRequest:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    InternalError:
+      description: Unexpected server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

@@ -34,7 +34,7 @@ public interface ProfileServiceClient {
 
     @DELETE
     @Path("/profiles/{profileId}")
-    Response deactivateProfile(@PathParam("profileId") UUID profileId);
+    void deactivateProfile(@PathParam("profileId") UUID profileId);
 
     @GET
     @Path("/admins")

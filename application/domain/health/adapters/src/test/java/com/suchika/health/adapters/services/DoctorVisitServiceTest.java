@@ -1,6 +1,8 @@
 package com.suchika.health.adapters.services;
 
 import com.suchika.health.domain.DoctorVisit;
+import com.suchika.health.ports.input.CreateDoctorVisitCommand;
+import com.suchika.health.ports.input.UpdateDoctorVisitCommand;
 import com.suchika.health.ports.output.DoctorVisitRepository;
 import com.suchika.shared.exception.BadRequestException;
 import com.suchika.shared.exception.NotFoundException;
@@ -9,11 +11,15 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class DoctorVisitServiceTest {
+
+    private static final LocalDate TODAY = LocalDate.of(2024, Month.JANUARY, 15);
+    private static final LocalDate YESTERDAY = LocalDate.of(2024, Month.JANUARY, 14);
 
     private StubDoctorVisitRepository repository;
     private DoctorVisitService service;
@@ -26,9 +32,9 @@ class DoctorVisitServiceTest {
 
     @Test
     void create_visited_doctor_happy_path() {
-        UUID profileId = UUID.randomUUID();
-        DoctorVisit visit = service.create(profileId, LocalDate.now(), null,
-                true, "Dr. Sharma", "Apollo", "General", null, null, null, null);
+        CreateDoctorVisitCommand command = visitCmd(UUID.randomUUID(), true, "Dr. Sharma", "Apollo", "General");
+
+        DoctorVisit visit = service.create(command);
 
         assertNotNull(visit);
         assertEquals("Dr. Sharma", visit.getDoctorName());
@@ -37,9 +43,9 @@ class DoctorVisitServiceTest {
 
     @Test
     void create_illness_without_visit() {
-        UUID profileId = UUID.randomUUID();
-        DoctorVisit visit = service.create(profileId, LocalDate.now(), null,
-                false, null, null, null, "Fever", null, null, null);
+        CreateDoctorVisitCommand command = noVisitCmd(UUID.randomUUID(), "Fever");
+
+        DoctorVisit visit = service.create(command);
 
         assertFalse(visit.isVisitedDoctor());
         assertNull(visit.getDoctorName());
@@ -47,40 +53,41 @@ class DoctorVisitServiceTest {
 
     @Test
     void create_requires_doctor_name_when_visited() {
-        assertThrows(BadRequestException.class, () ->
-                service.create(UUID.randomUUID(), LocalDate.now(), null,
-                        true, null, null, null, null, null, null, null));
+        CreateDoctorVisitCommand command = visitCmd(UUID.randomUUID(), true, null, null, null);
+
+        assertThrows(BadRequestException.class, () -> service.create(command));
     }
 
     @Test
     void create_rejects_to_date_before_from_date() {
-        assertThrows(BadRequestException.class, () ->
-                service.create(UUID.randomUUID(), LocalDate.now(), LocalDate.now().minusDays(1),
-                        false, null, null, null, null, null, null, null));
+        CreateDoctorVisitCommand command = new CreateDoctorVisitCommand(
+                UUID.randomUUID(), TODAY, YESTERDAY, false, null, null, null, null, null, null, null);
+
+        assertThrows(BadRequestException.class, () -> service.create(command));
     }
 
     @Test
     void create_rejects_null_profile_id() {
-        assertThrows(BadRequestException.class, () ->
-                service.create(null, LocalDate.now(), null,
-                        false, null, null, null, null, null, null, null));
+        CreateDoctorVisitCommand command = noVisitCmd(null, null);
+
+        assertThrows(BadRequestException.class, () -> service.create(command));
     }
 
     @Test
     void create_rejects_null_from_date() {
-        assertThrows(BadRequestException.class, () ->
-                service.create(UUID.randomUUID(), null, null,
-                        false, null, null, null, null, null, null, null));
+        CreateDoctorVisitCommand command = new CreateDoctorVisitCommand(
+                UUID.randomUUID(), null, null, false, null, null, null, null, null, null, null);
+
+        assertThrows(BadRequestException.class, () -> service.create(command));
     }
 
     @Test
     void update_partial_fields() {
-        UUID profileId = UUID.randomUUID();
-        DoctorVisit created = service.create(profileId, LocalDate.now(), null,
-                true, "Dr. Sharma", null, null, null, null, null, null);
+        DoctorVisit created = service.create(visitCmd(UUID.randomUUID(), true, "Dr. Sharma", null, null));
 
-        DoctorVisit updated = service.update(created.getId(), null, null,
-                "Apollo Hospital", null, null, "Viral fever", null, null);
+        UpdateDoctorVisitCommand command = new UpdateDoctorVisitCommand(
+                null, null, "Apollo Hospital", null, null, "Viral fever", null, null);
+        DoctorVisit updated = service.update(created.getId(), command);
 
         assertEquals("Dr. Sharma", updated.getDoctorName());
         assertEquals("Apollo Hospital", updated.getHospitalName());
@@ -89,17 +96,18 @@ class DoctorVisitServiceTest {
 
     @Test
     void update_rejects_to_date_before_from_date() {
-        DoctorVisit created = service.create(UUID.randomUUID(), LocalDate.now(), null,
-                false, null, null, null, null, null, null, null);
+        DoctorVisit created = service.create(noVisitCmd(UUID.randomUUID(), null));
+        UUID createdId = created.getId();
 
-        assertThrows(BadRequestException.class, () ->
-                service.update(created.getId(), LocalDate.now().minusDays(1),
-                        null, null, null, null, null, null, null));
+        UpdateDoctorVisitCommand command = new UpdateDoctorVisitCommand(
+                YESTERDAY, null, null, null, null, null, null, null);
+        assertThrows(BadRequestException.class, () -> service.update(createdId, command));
     }
 
     @Test
     void getById_throws_not_found() {
-        assertThrows(NotFoundException.class, () -> service.getById(UUID.randomUUID()));
+        UUID unknownId = UUID.randomUUID();
+        assertThrows(NotFoundException.class, () -> service.getById(unknownId));
     }
 
     @Test
@@ -109,7 +117,23 @@ class DoctorVisitServiceTest {
 
     @Test
     void delete_throws_not_found_for_unknown_id() {
-        assertThrows(NotFoundException.class, () -> service.delete(UUID.randomUUID()));
+        UUID unknownId = UUID.randomUUID();
+        assertThrows(NotFoundException.class, () -> service.delete(unknownId));
+    }
+
+    // ── Test helpers ─────────────────────────────────────────────────────────
+
+    private static CreateDoctorVisitCommand visitCmd(UUID profileId, boolean visitedDoctor,
+            String doctorName, String hospital, String speciality) {
+        return new CreateDoctorVisitCommand(
+                profileId, TODAY, null, visitedDoctor, doctorName, hospital, speciality,
+                null, null, null, null);
+    }
+
+    private static CreateDoctorVisitCommand noVisitCmd(UUID profileId, String symptoms) {
+        return new CreateDoctorVisitCommand(
+                profileId, TODAY, null, false, null, null, null,
+                symptoms, null, null, null);
     }
 
     // ── Stub repository ───────────────────────────────────────────────────────
@@ -129,7 +153,7 @@ class DoctorVisitServiceTest {
                     .speciality(visit.getSpeciality()).symptoms(visit.getSymptoms())
                     .diagnosis(visit.getDiagnosis()).notes(visit.getNotes())
                     .followUpDate(visit.getFollowUpDate())
-                    .createdAt(visit.getCreatedAt() != null ? visit.getCreatedAt() : Instant.now())
+                    .createdAt(visit.getCreatedAt() != null ? visit.getCreatedAt() : Instant.EPOCH)
                     .build();
             store.put(id, stored);
             return stored;

@@ -4,7 +4,9 @@ import com.suchika.health.adapters.http.dto.CreateDoctorVisitRequest;
 import com.suchika.health.adapters.http.dto.DoctorVisitResponse;
 import com.suchika.health.adapters.http.dto.ListDoctorVisitsResponse;
 import com.suchika.health.adapters.http.dto.UpdateDoctorVisitRequest;
+import com.suchika.health.ports.input.CreateDoctorVisitCommand;
 import com.suchika.health.ports.input.DoctorVisitUseCase;
+import com.suchika.health.ports.input.UpdateDoctorVisitCommand;
 import com.suchika.shared.exception.BadRequestException;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -34,12 +36,12 @@ public class DoctorVisitResource {
     @POST
     public Response create(CreateDoctorVisitRequest request) {
         if (request == null) throw new BadRequestException("Request body is required");
-        boolean visitedDoctor = request.visitedDoctor != null && request.visitedDoctor;
-        DoctorVisitResponse response = DoctorVisitResponse.from(
-                useCase.create(request.profileId, request.fromDate, request.toDate,
-                        visitedDoctor, request.doctorName, request.hospitalName,
-                        request.speciality, request.symptoms, request.diagnosis,
-                        request.notes, request.followUpDate));
+        CreateDoctorVisitCommand command = new CreateDoctorVisitCommand(
+                request.profileId, request.fromDate, request.toDate,
+                request.visitedDoctor != null && request.visitedDoctor,
+                request.doctorName, request.hospitalName, request.speciality,
+                request.symptoms, request.diagnosis, request.notes, request.followUpDate);
+        DoctorVisitResponse response = DoctorVisitResponse.from(useCase.create(command));
         return Response.status(201).entity(response).build();
     }
 
@@ -53,10 +55,10 @@ public class DoctorVisitResource {
     @Path("/{id}")
     public DoctorVisitResponse update(@PathParam("id") UUID id, UpdateDoctorVisitRequest request) {
         if (request == null) throw new BadRequestException("Request body is required");
-        return DoctorVisitResponse.from(
-                useCase.update(id, request.toDate, request.doctorName, request.hospitalName,
-                        request.speciality, request.symptoms, request.diagnosis,
-                        request.notes, request.followUpDate));
+        UpdateDoctorVisitCommand command = new UpdateDoctorVisitCommand(
+                request.toDate, request.doctorName, request.hospitalName, request.speciality,
+                request.symptoms, request.diagnosis, request.notes, request.followUpDate);
+        return DoctorVisitResponse.from(useCase.update(id, command));
     }
 
     @DELETE

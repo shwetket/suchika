@@ -422,4 +422,38 @@ class DomainRulesTest {
             .allowEmptyShould(true)
             .check(allClasses);
     }
+
+    /**
+     * Web gateway resource classes must have corresponding test classes.
+     *
+     * <p>Rationale: Enforces that developer agents cannot write new gateway
+     * resources without also writing API/integration tests.
+     */
+    @Test
+    void gateway_resources_must_have_corresponding_test() {
+        classes()
+            .that().resideInAPackage("com.suchika.gateway..")
+            .and().haveSimpleNameEndingWith("Resource")
+            .should(new com.tngtech.archunit.lang.ArchCondition<com.tngtech.archunit.core.domain.JavaClass>("have a corresponding test class") {
+                @Override
+                public void check(com.tngtech.archunit.core.domain.JavaClass resourceClass, com.tngtech.archunit.lang.ConditionEvents events) {
+                    String testClassName = resourceClass.getName() + "Test";
+                    String itClassName = resourceClass.getName() + "IT";
+                    boolean exists = false;
+                    for (com.tngtech.archunit.core.domain.JavaClass clazz : allClasses) {
+                        if (clazz.getName().equals(testClassName) || clazz.getName().equals(itClassName)) {
+                            exists = true;
+                            break;
+                        }
+                    }
+                    if (!exists) {
+                        events.add(com.tngtech.archunit.lang.SimpleConditionEvent.violated(resourceClass,
+                            "Gateway resource " + resourceClass.getName() + " does not have a corresponding test class (e.g. " + testClassName + ")"));
+                    }
+                }
+            })
+            .allowEmptyShould(true)
+            .check(allClasses);
+    }
 }
+

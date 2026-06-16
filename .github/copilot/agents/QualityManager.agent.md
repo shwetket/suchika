@@ -27,5 +27,7 @@ Guidance:
 - Ensure documentation is consistent with the current repo layout and build steps.
 - Use `web` as the frontend directory.
 - Prioritize testability, build verification, and release readiness.
+- Ensure all endpoints in `web-gateway` have automated test coverage using RestAssured + Mockito (`@InjectMock`).
+- Verify that `./gradlew test` executes successfully and no ArchUnit rules are broken before committing code.
 
-Focus on quality checks, documentation alignment, and build stability.
+Focus on quality checks, documentation alignment, test coverage, and build stability.

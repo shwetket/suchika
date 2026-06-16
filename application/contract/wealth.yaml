@@ -248,11 +248,6 @@ components:
           nullable: true
           description: Applicable only for CREDIT_CARD accounts
           example: 200000.00
-        loan_outstanding:
-          type: number
-          format: double
-          nullable: true
-          description: Remaining principal for loan accounts
         interest_rate:
           type: number
           format: double
@@ -268,7 +263,8 @@ components:
           type: number
           format: double
           nullable: true
-          description: Current market value for investment accounts
+          description: Current market value for investment accounts. Calculated by web-gateway.
+          readOnly: true
         is_active:
           type: boolean
           default: true
@@ -304,10 +300,6 @@ components:
           type: number
           format: double
           nullable: true
-        loan_outstanding:
-          type: number
-          format: double
-          nullable: true
         interest_rate:
           type: number
           format: double
@@ -334,19 +326,11 @@ components:
           type: number
           format: double
           nullable: true
-        loan_outstanding:
-          type: number
-          format: double
-          nullable: true
         interest_rate:
           type: number
           format: double
           nullable: true
         emi_amount:
-          type: number
-          format: double
-          nullable: true
-        current_value:
           type: number
           format: double
           nullable: true

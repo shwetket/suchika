@@ -40,11 +40,12 @@ public class ProfileGatewayResource {
     @Path("/profiles")
     public Response createProfile(JsonNode body) {
         AppLogger.info("Gateway: creating profile");
-        Response upstream = profileServiceClient.createProfile(body);
-        return Response.status(upstream.getStatus())
-                .entity(upstream.readEntity(String.class))
-                .type(MediaType.APPLICATION_JSON)
-                .build();
+        try (Response upstream = profileServiceClient.createProfile(body)) {
+            return Response.status(upstream.getStatus())
+                    .entity(upstream.readEntity(String.class))
+                    .type(MediaType.APPLICATION_JSON)
+                    .build();
+        }
     }
 
     @GET

@@ -9,7 +9,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -30,8 +32,8 @@ class VitalReadingServiceTest {
     @Test
     void record_weight_happy_path() {
         UUID profileId = UUID.randomUUID();
-        VitalReading saved = service.record(profileId, VitalType.WEIGHT,
-                LocalDate.now(), new BigDecimal("72.5"), null, "kg", null);
+        VitalReading saved = service.recordReading(profileId, VitalType.WEIGHT,
+                LocalDate.of(2024, Month.JANUARY, 15), new BigDecimal("72.5"), null, "kg", null);
 
         assertNotNull(saved);
         assertEquals(profileId, saved.getProfileId());
@@ -43,15 +45,15 @@ class VitalReadingServiceTest {
     void record_blood_pressure_requires_secondary_value() {
         UUID profileId = UUID.randomUUID();
         assertThrows(BadRequestException.class, () ->
-                service.record(profileId, VitalType.BLOOD_PRESSURE,
-                        LocalDate.now(), new BigDecimal("120"), null, "mmHg", null));
+                service.recordReading(profileId, VitalType.BLOOD_PRESSURE,
+                        LocalDate.of(2024, Month.JANUARY, 15), new BigDecimal("120"), null, "mmHg", null));
     }
 
     @Test
     void record_blood_pressure_with_both_values_succeeds() {
         UUID profileId = UUID.randomUUID();
-        VitalReading saved = service.record(profileId, VitalType.BLOOD_PRESSURE,
-                LocalDate.now(), new BigDecimal("120"), new BigDecimal("80"), "mmHg", null);
+        VitalReading saved = service.recordReading(profileId, VitalType.BLOOD_PRESSURE,
+                LocalDate.of(2024, Month.JANUARY, 15), new BigDecimal("120"), new BigDecimal("80"), "mmHg", null);
 
         assertEquals(new BigDecimal("120"), saved.getValuePrimary());
         assertEquals(new BigDecimal("80"), saved.getValueSecondary());
@@ -61,27 +63,28 @@ class VitalReadingServiceTest {
     void record_rejects_zero_value() {
         UUID profileId = UUID.randomUUID();
         assertThrows(BadRequestException.class, () ->
-                service.record(profileId, VitalType.WEIGHT,
-                        LocalDate.now(), BigDecimal.ZERO, null, "kg", null));
+                service.recordReading(profileId, VitalType.WEIGHT,
+                        LocalDate.of(2024, Month.JANUARY, 15), BigDecimal.ZERO, null, "kg", null));
     }
 
     @Test
     void record_rejects_null_profile_id() {
         assertThrows(BadRequestException.class, () ->
-                service.record(null, VitalType.WEIGHT,
-                        LocalDate.now(), new BigDecimal("70"), null, "kg", null));
+                service.recordReading(null, VitalType.WEIGHT,
+                        LocalDate.of(2024, Month.JANUARY, 15), new BigDecimal("70"), null, "kg", null));
     }
 
     @Test
     void record_rejects_blank_unit() {
         assertThrows(BadRequestException.class, () ->
-                service.record(UUID.randomUUID(), VitalType.WEIGHT,
-                        LocalDate.now(), new BigDecimal("70"), null, "  ", null));
+                service.recordReading(UUID.randomUUID(), VitalType.WEIGHT,
+                        LocalDate.of(2024, Month.JANUARY, 15), new BigDecimal("70"), null, "  ", null));
     }
 
     @Test
     void getById_throws_not_found_for_unknown_id() {
-        assertThrows(NotFoundException.class, () -> service.getById(UUID.randomUUID()));
+        UUID unknownId = UUID.randomUUID();
+        assertThrows(NotFoundException.class, () -> service.getById(unknownId));
     }
 
     @Test
@@ -92,8 +95,8 @@ class VitalReadingServiceTest {
     @Test
     void listByProfile_returns_readings_for_profile() {
         UUID profileId = UUID.randomUUID();
-        service.record(profileId, VitalType.WEIGHT, LocalDate.now().minusDays(1), new BigDecimal("72"), null, "kg", null);
-        service.record(profileId, VitalType.WEIGHT, LocalDate.now(), new BigDecimal("71.5"), null, "kg", null);
+        service.recordReading(profileId, VitalType.WEIGHT, LocalDate.of(2024, Month.JANUARY, 14), new BigDecimal("72"), null, "kg", null);
+        service.recordReading(profileId, VitalType.WEIGHT, LocalDate.of(2024, Month.JANUARY, 15), new BigDecimal("71.5"), null, "kg", null);
 
         List<VitalReading> readings = service.listByProfile(profileId, null);
         assertEquals(2, readings.size());
@@ -101,7 +104,8 @@ class VitalReadingServiceTest {
 
     @Test
     void delete_throws_not_found_for_unknown_id() {
-        assertThrows(NotFoundException.class, () -> service.delete(UUID.randomUUID()));
+        UUID unknownId = UUID.randomUUID();
+        assertThrows(NotFoundException.class, () -> service.delete(unknownId));
     }
 
     // ── Stub repository ───────────────────────────────────────────────────────
@@ -122,7 +126,7 @@ class VitalReadingServiceTest {
                     .valueSecondary(reading.getValueSecondary())
                     .unit(reading.getUnit())
                     .notes(reading.getNotes())
-                    .createdAt(java.time.Instant.now())
+                    .createdAt(Instant.EPOCH)
                     .build();
             store.put(id, stored);
             return stored;
