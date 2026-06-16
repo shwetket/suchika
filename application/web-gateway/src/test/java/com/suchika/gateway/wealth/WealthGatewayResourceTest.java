@@ -1,58 +1,47 @@
 package com.suchika.gateway.wealth;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
-import jakarta.ws.rs.core.Response;
-import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
-
+import java.util.UUID;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
 
 @QuarkusTest
 class WealthGatewayResourceTest {
 
-    @InjectMock
-    @RestClient
-    WealthServiceClient wealthServiceClient;
-
-    private final ObjectMapper mapper = new ObjectMapper();
-
     @Test
-    void testListAccounts() throws Exception {
-        JsonNode mockResponse = mapper.readTree("[{\"id\":\"f3b90000-0000-0000-0000-000000000000\",\"account_name\":\"Test Account\"}]");
-        Mockito.when(wealthServiceClient.listAccounts("SAVINGS", true)).thenReturn(mockResponse);
-
+    void testGetSeededAccount() {
+        // Assert on the seeded account from R__seed_wealth_test_data.sql
         given()
-                .queryParam("account_type", "SAVINGS")
-                .queryParam("is_active", true)
                 .when()
-                .get("/v1/accounts")
+                .get("/v1/accounts/f3b90000-0000-0000-0000-000000000000")
                 .then()
                 .statusCode(200)
-                .contentType(ContentType.JSON)
-                .body("[0].account_name", is("Test Account"));
+                .body("id", is("f3b90000-0000-0000-0000-000000000000"))
+                .body("account_name", is("Test Account"))
+                .body("institution_name", is("Test Bank"));
     }
 
     @Test
     void testCreateAccount() {
-        Response mockResponse = Mockito.mock(Response.class);
-        Mockito.when(mockResponse.getStatus()).thenReturn(201);
-        Mockito.when(mockResponse.readEntity(String.class)).thenReturn("{\"id\":\"f3b90000-0000-0000-0000-000000000000\"}");
-        
-        Mockito.when(wealthServiceClient.createAccount(Mockito.any())).thenReturn(mockResponse);
+        String uniqueName = "E2E Account - " + UUID.randomUUID();
+        String accountJson = "{"
+                + "\"account_name\":\"" + uniqueName + "\","
+                + "\"account_type\":\"SAVINGS\","
+                + "\"institution_name\":\"E2E Bank\","
+                + "\"opening_balance\":5000.00"
+                + "}";
 
         given()
                 .contentType(ContentType.JSON)
-                .body("{\"account_name\":\"New Account\"}")
+                .body(accountJson)
                 .when()
                 .post("/v1/accounts")
                 .then()
                 .statusCode(201)
-                .body("id", is("f3b90000-0000-0000-0000-000000000000"));
+                .body("id", notNullValue())
+                .body("account_name", is(uniqueName));
     }
 }

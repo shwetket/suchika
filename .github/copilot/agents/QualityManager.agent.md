@@ -27,7 +27,8 @@ Guidance:
 - Ensure documentation is consistent with the current repo layout and build steps.
 - Use `web` as the frontend directory.
 - Prioritize testability, build verification, and release readiness.
-- Ensure all endpoints in `web-gateway` have automated test coverage using RestAssured + Mockito (`@InjectMock`).
+- Ensure all endpoints in `web-gateway` have automated test coverage using RestAssured, validating real responses from the running microservices.
+- Ensure Flyway repeatable test seed migrations (`R__seed_*_test_data.sql` in `filesystem:../../../flyway/test-seed/{domain}`) are maintained and updated if new DB constraints or structural changes are added.
 - Verify that `./gradlew test` executes successfully and no ArchUnit rules are broken before committing code.
 
 Focus on quality checks, documentation alignment, test coverage, and build stability.

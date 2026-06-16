@@ -95,8 +95,11 @@ The web-gateway has no database of its own. It aggregates domain REST calls and 
 - Adapter tests use the real DB where possible (Testcontainers preferred).
 - No test should cross domain boundaries via the DB.
 - **Web Gateway (BFF) Tests**:
-  - Test all REST endpoints in the BFF (`web-gateway`) using **RestAssured** and `@QuarkusTest`.
-  - To keep local builds fast and isolated, mock the downstream MicroProfile REST clients using **Mockito `@InjectMock`** on client interfaces (e.g., `WealthServiceClient`).
-  - Do not spin up downstream domain databases or mock servers for unit/integration validation of the BFF endpoints unless specifically testing connection resiliency.
+  - Test REST endpoints in the BFF (`web-gateway`) using **RestAssured** and `@QuarkusTest` against the actual running downstream domain services.
+  - No mocks or stubbing services are used. Validations are executed against the actual database-backed responses.
+  - **Flyway Test Seeding**: To establish a clean database state before running integration tests, use the **Flyway Repeatable Migrations** concept (`R__seed_*_test_data.sql` located under `application/flyway/test-seed/{domain}/`).
+  - These repeatable migrations run automatically in `dev` and `test` profiles (configured via `%dev.quarkus.flyway.locations` and `%test.quarkus.flyway.locations`). They truncate existing tables and seed a set of well-known records (e.g., Admin `00000000-0000-0000-0000-000000000001` and Profile `00000000-0000-0000-0000-000000000002`).
+  - Integration tests must verify endpoints against these seeded records or perform self-contained writes referencing them.
 - ArchUnit tests in `shared/` enforce all the rules above automatically.
+
 

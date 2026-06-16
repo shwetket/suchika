@@ -158,8 +158,8 @@ Already shown above — applies project-wide.
 When adding new REST endpoints to the BFF (`web-gateway` module):
 - You MUST write a corresponding integration test class in `application/web-gateway/src/test/java/com/suchika/gateway/`.
 - Use **RestAssured** (`given().when().get().then()`) to test the HTTP request/response format and status codes.
-- Do NOT call real downstream microservices or run local databases. Instead, mock the REST client interfaces (e.g., `WealthServiceClient`) using Mockito `@InjectMock` and `@RestClient`.
-- Mock any `Response` objects returned by client calls so they correctly return `.getStatus()` and `.readEntity(String.class)` inside try-with-resources.
+- Do NOT mock or stub downstream REST services. Tests must verify endpoints against the actual database-backed responses of the running microservices.
+- **Seeding Test Data**: Utilize the **Flyway Repeatable Migrations** located in `application/flyway/test-seed/{domain}/R__seed_*_test_data.sql`. These migrations execute automatically in `dev` and `test` profiles, setting up standard records (Admin ID `00000000-0000-0000-0000-000000000001`, Profile ID `00000000-0000-0000-0000-000000000002`). Ensure your tests verify against these seeded records or create unique test resources referencing them.
 
 ---
 

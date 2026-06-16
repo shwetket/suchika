@@ -11,7 +11,7 @@ import java.util.UUID;
 
 @RegisterForReflection
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class DoctorVisitResponse {
+public class DoctorVisitResponse extends DoctorVisitFields {
 
     @JsonProperty("id")
     public UUID id;
@@ -22,32 +22,8 @@ public class DoctorVisitResponse {
     @JsonProperty("from_date")
     public LocalDate fromDate;
 
-    @JsonProperty("to_date")
-    public LocalDate toDate;
-
     @JsonProperty("visited_doctor")
     public boolean visitedDoctor;
-
-    @JsonProperty("doctor_name")
-    public String doctorName;
-
-    @JsonProperty("hospital_name")
-    public String hospitalName;
-
-    @JsonProperty("speciality")
-    public String speciality;
-
-    @JsonProperty("symptoms")
-    public String symptoms;
-
-    @JsonProperty("diagnosis")
-    public String diagnosis;
-
-    @JsonProperty("notes")
-    public String notes;
-
-    @JsonProperty("follow_up_date")
-    public LocalDate followUpDate;
 
     @JsonProperty("created_at")
     public Instant createdAt;

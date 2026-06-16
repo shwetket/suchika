@@ -1,56 +1,55 @@
 package com.suchika.gateway.profile;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
-import jakarta.ws.rs.core.Response;
-import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
-
+import java.util.UUID;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
 
 @QuarkusTest
 class ProfileGatewayResourceTest {
 
-    @InjectMock
-    @RestClient
-    ProfileServiceClient profileServiceClient;
-
-    private final ObjectMapper mapper = new ObjectMapper();
-
     @Test
-    void testListAdmins() throws Exception {
-        JsonNode mockResponse = mapper.readTree("[{\"id\":\"f3b90000-0000-0000-0000-000000000000\",\"email\":\"admin@suchika.com\"}]");
-        Mockito.when(profileServiceClient.listAdmins()).thenReturn(mockResponse);
-
+    void testGetSeededAdminAndProfile() {
+        // Assert on the seeded admin
         given()
                 .when()
                 .get("/v1/admins")
                 .then()
                 .statusCode(200)
-                .contentType(ContentType.JSON)
-                .body("[0].email", is("admin@suchika.com"));
+                .body("admins.find { it.id == '00000000-0000-0000-0000-000000000001' }.email_address", is("admin@test.com"));
+
+        // Assert on the seeded profile
+        given()
+                .when()
+                .get("/v1/profiles/00000000-0000-0000-0000-000000000002")
+                .then()
+                .statusCode(200)
+                .body("id", is("00000000-0000-0000-0000-000000000002"))
+                .body("full_name", is("Test Member"));
     }
 
     @Test
     void testCreateProfile() {
-        Response mockResponse = Mockito.mock(Response.class);
-        Mockito.when(mockResponse.getStatus()).thenReturn(201);
-        Mockito.when(mockResponse.readEntity(String.class)).thenReturn("{\"id\":\"f3b90000-0000-0000-0000-000000000001\"}");
-
-        Mockito.when(profileServiceClient.createProfile(Mockito.any())).thenReturn(mockResponse);
+        String uniqueEmail = "member-" + UUID.randomUUID() + "@test.com";
+        String profileJson = "{"
+                + "\"admin_id\":\"00000000-0000-0000-0000-000000000001\","
+                + "\"full_name\":\"E2E Member\","
+                + "\"dob\":\"1995-08-25\","
+                + "\"relation_to_admin\":\"SIBLING\","
+                + "\"email_address\":\"" + uniqueEmail + "\""
+                + "}";
 
         given()
                 .contentType(ContentType.JSON)
-                .body("{\"first_name\":\"John\",\"last_name\":\"Doe\",\"role\":\"USER\"}")
+                .body(profileJson)
                 .when()
                 .post("/v1/profiles")
                 .then()
                 .statusCode(201)
-                .body("id", is("f3b90000-0000-0000-0000-000000000001"));
+                .body("id", notNullValue())
+                .body("full_name", is("E2E Member"));
     }
 }
