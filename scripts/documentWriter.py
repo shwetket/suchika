@@ -187,10 +187,25 @@ def process_temp(repo_root: Path):
     return results
 
 
+def should_include_in_tree(path: Path) -> bool:
+    if path.name in IGNORED_DIRS:
+        return False
+    if path.name.startswith('.'):
+        return False
+    if path.is_dir() and path.name.lower().startswith('sonarqube'):
+        return False
+    if path.is_file() and path.suffix.lower() in {'.java', '.js', '.class'}:
+        return False
+    return True
+
+
 def generate_tree(repo_root: Path):
     lines = []
     def walk(dir_path: Path, indent: str = ''):
-        items = sorted([p for p in dir_path.iterdir() if p.name not in IGNORED_DIRS], key=lambda x: (x.is_file(), x.name.lower()))
+        items = sorted(
+            [p for p in dir_path.iterdir() if should_include_in_tree(p)],
+            key=lambda x: (x.is_file(), x.name.lower())
+        )
         for idx, item in enumerate(items):
             connector = '├── ' if idx < len(items)-1 else '└── '
             rel = item.relative_to(repo_root)
