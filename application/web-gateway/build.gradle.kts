@@ -4,6 +4,7 @@ plugins {
 
 val quarkusBomVersion = "3.29.0"
 val junitVersion = "5.10.2"
+val postgresqlVersion = "42.7.3"
 
 dependencies {
     implementation(enforcedPlatform("io.quarkus.platform:quarkus-bom:$quarkusBomVersion"))
@@ -27,7 +28,7 @@ dependencies {
     testImplementation("io.quarkus:quarkus-junit5-mockito")
     testImplementation("io.rest-assured:rest-assured")
     testImplementation("org.mockito:mockito-core")
-    testImplementation("org.postgresql:postgresql:42.7.3")
+    testImplementation("org.postgresql:postgresql:$postgresqlVersion")
     testImplementation("org.junit.jupiter:junit-jupiter-api:$junitVersion")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:$junitVersion")
 }

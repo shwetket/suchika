@@ -9,7 +9,6 @@ export const AdminReports = () => {
   useEffect(() => {
     async function loadReports() {
       try {
-        // TODO: Hook up shared backend contract data via generated OpenAPI client
         setProfileCount(0);
         setApiStatus('Healthy');
       } catch (err) {

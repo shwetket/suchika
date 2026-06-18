@@ -51,4 +51,24 @@ class WealthGatewayResourceTest {
                 .body("account_id", notNullValue())
                 .body("account_name", is(uniqueName));
     }
+
+    @Test
+    void testListTransactionsForSeededAccount() {
+        given()
+                .when()
+                .get("/v1/accounts/f3b90000-0000-0000-0000-000000000000/transactions")
+                .then()
+                .statusCode(200)
+                .body("transactions", notNullValue());
+    }
+
+    @Test
+    void testListUploadsForSeededAccount() {
+        given()
+                .when()
+                .get("/v1/accounts/f3b90000-0000-0000-0000-000000000000/uploads")
+                .then()
+                .statusCode(200)
+                .body("uploads", notNullValue());
+    }
 }

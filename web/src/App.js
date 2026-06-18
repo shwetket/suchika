@@ -45,23 +45,23 @@ function App() {
   const [theme, setTheme] = useState('auto');
 
   useEffect(() => {
-    const savedTheme = window.localStorage.getItem('theme');
+    const savedTheme = globalThis.localStorage.getItem('theme');
     setTheme(savedTheme === 'light' || savedTheme === 'dark' ? savedTheme : 'auto');
   }, []);
 
   useEffect(() => {
-    const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)')?.matches ?? false;
+    const prefersDark = globalThis.matchMedia?.('(prefers-color-scheme: dark)')?.matches ?? false;
     const activeTheme = resolveTheme(theme, prefersDark);
     document.documentElement.classList.toggle('dark', activeTheme === 'dark');
     document.documentElement.classList.toggle('light', activeTheme === 'light');
   }, [theme]);
 
   const toggleTheme = () => {
-    const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)')?.matches ?? false;
+    const prefersDark = globalThis.matchMedia?.('(prefers-color-scheme: dark)')?.matches ?? false;
     const currentTheme = resolveTheme(theme, prefersDark);
     const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
     setTheme(nextTheme);
-    window.localStorage.setItem('theme', nextTheme);
+    globalThis.localStorage.setItem('theme', nextTheme);
   };
 
   return (

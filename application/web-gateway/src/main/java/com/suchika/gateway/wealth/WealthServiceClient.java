@@ -35,4 +35,32 @@ public interface WealthServiceClient {
     @DELETE
     @Path("/accounts/{accountId}")
     void deactivateAccount(@PathParam("accountId") UUID accountId);
+
+    @GET
+    @Path("/accounts/{accountId}/transactions")
+    JsonNode listTransactions(
+            @PathParam("accountId") UUID accountId,
+            @QueryParam("from") String from,
+            @QueryParam("to") String to,
+            @QueryParam("txn_type") String txnType);
+
+    @GET
+    @Path("/accounts/{accountId}/transactions/{txnId}")
+    JsonNode getTransaction(
+            @PathParam("accountId") UUID accountId,
+            @PathParam("txnId") UUID txnId);
+
+    @POST
+    @Path("/accounts/{accountId}/uploads")
+    Response uploadStatement(@PathParam("accountId") UUID accountId, JsonNode body);
+
+    @GET
+    @Path("/accounts/{accountId}/uploads")
+    JsonNode listUploads(@PathParam("accountId") UUID accountId);
+
+    @DELETE
+    @Path("/accounts/{accountId}/uploads/{uploadId}")
+    void rollbackUpload(
+            @PathParam("accountId") UUID accountId,
+            @PathParam("uploadId") UUID uploadId);
 }
