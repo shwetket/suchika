@@ -28,7 +28,7 @@ public class AccountService implements AccountUseCase {
 
     @Override
     @Transactional
-    public Account createAccount(String accountName, AccountType accountType, String institutionName,
+    public Account createAccount(UUID profileId, String accountName, AccountType accountType, String institutionName,
                                   BigDecimal openingBalance, BigDecimal creditLimit,
                                   BigDecimal interestRate, BigDecimal emiAmount) {
         if (accountName == null || accountName.isBlank()) {
@@ -42,6 +42,7 @@ public class AccountService implements AccountUseCase {
         }
 
         Account account = Account.builder()
+                .profileId(profileId)
                 .accountName(accountName)
                 .accountType(accountType)
                 .institutionName(institutionName)
@@ -63,8 +64,8 @@ public class AccountService implements AccountUseCase {
     }
 
     @Override
-    public List<Account> listAccounts(AccountType accountType, Boolean isActive) {
-        return repository.findAll(accountType, isActive);
+    public List<Account> listAccounts(UUID profileId, AccountType accountType, Boolean isActive) {
+        return repository.findAll(profileId, accountType, isActive);
     }
 
     @Override

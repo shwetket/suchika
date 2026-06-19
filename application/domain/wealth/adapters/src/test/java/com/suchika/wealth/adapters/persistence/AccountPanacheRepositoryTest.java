@@ -56,11 +56,11 @@ class AccountPanacheRepositoryTest {
         repository.save(account("CC Acc", AccountType.CREDIT_CARD, "ICICI Bank", null));
         repository.save(account("Loan Acc", AccountType.HOME_LOAN, "SBI", null));
 
-        List<Account> savingsOnly = repository.findAll(AccountType.SAVINGS, null);
+        List<Account> savingsOnly = repository.findAll(null, AccountType.SAVINGS, null);
         assertTrue(savingsOnly.stream().allMatch(a -> a.getAccountType() == AccountType.SAVINGS));
         assertTrue(savingsOnly.stream().anyMatch(a -> a.getAccountName().equals("Savings Acc")));
 
-        List<Account> ccOnly = repository.findAll(AccountType.CREDIT_CARD, null);
+        List<Account> ccOnly = repository.findAll(null, AccountType.CREDIT_CARD, null);
         assertTrue(ccOnly.stream().allMatch(a -> a.getAccountType() == AccountType.CREDIT_CARD));
     }
 
@@ -73,11 +73,11 @@ class AccountPanacheRepositoryTest {
         inactive.setActive(false);
         repository.save(inactive);
 
-        List<Account> activeOnly = repository.findAll(null, true);
+        List<Account> activeOnly = repository.findAll(null, null, true);
         assertTrue(activeOnly.stream().anyMatch(a -> a.getAccountName().equals("Active Acc")));
         assertTrue(activeOnly.stream().noneMatch(a -> a.getAccountName().equals("Inactive Acc")));
 
-        List<Account> inactiveOnly = repository.findAll(null, false);
+        List<Account> inactiveOnly = repository.findAll(null, null, false);
         assertTrue(inactiveOnly.stream().anyMatch(a -> a.getAccountName().equals("Inactive Acc")));
     }
 
@@ -90,10 +90,30 @@ class AccountPanacheRepositoryTest {
         savingsB.setActive(false);
         repository.save(savingsB);
 
-        List<Account> activeSavings = repository.findAll(AccountType.SAVINGS, true);
+        List<Account> activeSavings = repository.findAll(null, AccountType.SAVINGS, true);
         assertTrue(activeSavings.stream().anyMatch(a -> a.getAccountName().equals("Savings A")));
         assertTrue(activeSavings.stream().noneMatch(a -> a.getAccountName().equals("Savings B")));
         assertTrue(activeSavings.stream().noneMatch(a -> a.getAccountType() == AccountType.CREDIT_CARD));
+    }
+
+    @Test
+    void findAll_filtersByProfileId() {
+        // Use the seeded profile ID — random UUIDs would violate the FK on profile_id
+        UUID seededProfileId = UUID.fromString("00000000-0000-0000-0000-000000000002");
+
+        repository.save(accountWithProfile("Profile Scoped Acc 1", AccountType.SAVINGS, "Bank A", seededProfileId));
+        repository.save(accountWithProfile("Profile Scoped Acc 2", AccountType.CURRENT, "Bank A", seededProfileId));
+        // null profile_id — should not be returned when filtering by seededProfileId
+        repository.save(account("Unscoped Acc", AccountType.SAVINGS, "Bank B", null));
+
+        List<Account> forProfile = repository.findAll(seededProfileId, null, null);
+        assertTrue(forProfile.stream().allMatch(a -> seededProfileId.equals(a.getProfileId())));
+        assertTrue(forProfile.stream().anyMatch(a -> a.getAccountName().equals("Profile Scoped Acc 1")));
+        assertTrue(forProfile.stream().anyMatch(a -> a.getAccountName().equals("Profile Scoped Acc 2")));
+        assertTrue(forProfile.stream().noneMatch(a -> a.getAccountName().equals("Unscoped Acc")));
+
+        List<Account> unfiltered = repository.findAll(null, null, null);
+        assertTrue(unfiltered.stream().anyMatch(a -> a.getAccountName().equals("Unscoped Acc")));
     }
 
     @Test
@@ -130,6 +150,16 @@ class AccountPanacheRepositoryTest {
                 .accountType(type)
                 .institutionName(institution)
                 .openingBalance(openingBalance != null ? openingBalance : BigDecimal.ZERO)
+                .build();
+    }
+
+    private Account accountWithProfile(String name, AccountType type, String institution, UUID profileId) {
+        return Account.builder()
+                .accountName(name)
+                .accountType(type)
+                .institutionName(institution)
+                .openingBalance(BigDecimal.ZERO)
+                .profileId(profileId)
                 .build();
     }
 }

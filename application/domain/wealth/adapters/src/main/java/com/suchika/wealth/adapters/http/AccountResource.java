@@ -28,20 +28,23 @@ public class AccountResource {
     @GET
     public Response listAccounts(
             @QueryParam("account_type") String accountTypeParam,
-            @QueryParam("is_active") Boolean isActive) {
+            @QueryParam("is_active") Boolean isActive,
+            @QueryParam("profile_id") UUID profileId) {
         AccountType accountType = parseAccountType(accountTypeParam);
-        List<AccountResponse> accounts = useCase.listAccounts(accountType, isActive)
+        List<AccountResponse> accounts = useCase.listAccounts(profileId, accountType, isActive)
                 .stream().map(AccountResponse::from).toList();
         return Response.ok(new ListAccountsResponse(accounts)).build();
     }
 
     @POST
-    public Response createAccount(CreateAccountRequest request) {
+    public Response createAccount(
+            @QueryParam("profile_id") UUID profileId,
+            CreateAccountRequest request) {
         if (request == null) throw new BadRequestException("Request body is required");
         AccountType accountType = parseAccountType(request.accountType);
         if (accountType == null) throw new BadRequestException("account_type is required");
         AccountResponse response = AccountResponse.from(
-                useCase.createAccount(request.accountName, accountType, request.institutionName,
+                useCase.createAccount(profileId, request.accountName, accountType, request.institutionName,
                         request.openingBalance, request.creditLimit, request.interestRate, request.emiAmount));
         return Response.status(201).entity(response).build();
     }

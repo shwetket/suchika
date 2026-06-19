@@ -35,20 +35,30 @@ public class AccountPanacheRepository implements AccountRepository {
     }
 
     @Override
-    public List<Account> findAll(AccountType accountType, Boolean isActive) {
-        if (accountType != null && isActive != null) {
-            return dao.find("accountType = ?1 and active = ?2", accountType.name(), isActive)
-                    .stream().map(AccountEntity::toDomain).toList();
+    public List<Account> findAll(UUID profileId, AccountType accountType, Boolean isActive) {
+        StringBuilder query = new StringBuilder();
+        List<Object> params = new java.util.ArrayList<>();
+
+        if (profileId != null) {
+            query.append("profileId = ?").append(params.size() + 1);
+            params.add(profileId);
         }
         if (accountType != null) {
-            return dao.find("accountType = ?1", accountType.name())
-                    .stream().map(AccountEntity::toDomain).toList();
+            if (!query.isEmpty()) query.append(" and ");
+            query.append("accountType = ?").append(params.size() + 1);
+            params.add(accountType.name());
         }
         if (isActive != null) {
-            return dao.find("active = ?1", isActive)
-                    .stream().map(AccountEntity::toDomain).toList();
+            if (!query.isEmpty()) query.append(" and ");
+            query.append("active = ?").append(params.size() + 1);
+            params.add(isActive);
         }
-        return dao.listAll().stream().map(AccountEntity::toDomain).toList();
+
+        if (query.isEmpty()) {
+            return dao.listAll().stream().map(AccountEntity::toDomain).toList();
+        }
+        return dao.find(query.toString(), params.toArray())
+                .stream().map(AccountEntity::toDomain).toList();
     }
 
     @Override

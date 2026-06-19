@@ -42,6 +42,12 @@ paths:
           required: false
           schema:
             type: boolean
+        - name: profile_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
           description: Successfully listed accounts
@@ -62,6 +68,13 @@ paths:
         Creates a new account.
         Follows AIP-133 (Standard Create).
         The name field must be unique per institution.
+      parameters:
+        - name: profile_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
       requestBody:
         required: true
         content:

@@ -26,15 +26,18 @@ public class WealthGatewayResource {
     @Path("/accounts")
     public JsonNode listAccounts(
             @QueryParam("account_type") String accountType,
-            @QueryParam("is_active") Boolean isActive) {
-        return wealthServiceClient.listAccounts(accountType, isActive);
+            @QueryParam("is_active") Boolean isActive,
+            @QueryParam("profile_id") String profileId) {
+        return wealthServiceClient.listAccounts(accountType, isActive, profileId);
     }
 
     @POST
     @Path("/accounts")
-    public Response createAccount(JsonNode body) {
+    public Response createAccount(
+            @QueryParam("profile_id") String profileId,
+            JsonNode body) {
         AppLogger.info("Gateway: creating account");
-        try (Response upstream = wealthServiceClient.createAccount(body)) {
+        try (Response upstream = wealthServiceClient.createAccount(profileId, body)) {
             return Response.status(upstream.getStatus())
                     .entity(upstream.readEntity(String.class))
                     .type(MediaType.APPLICATION_JSON)

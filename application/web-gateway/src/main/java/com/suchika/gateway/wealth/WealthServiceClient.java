@@ -18,11 +18,14 @@ public interface WealthServiceClient {
     @Path("/accounts")
     JsonNode listAccounts(
             @QueryParam("account_type") String accountType,
-            @QueryParam("is_active") Boolean isActive);
+            @QueryParam("is_active") Boolean isActive,
+            @QueryParam("profile_id") String profileId);
 
     @POST
     @Path("/accounts")
-    Response createAccount(JsonNode body);
+    Response createAccount(
+            @QueryParam("profile_id") String profileId,
+            JsonNode body);
 
     @GET
     @Path("/accounts/{accountId}")

@@ -13,7 +13,7 @@ public interface AccountRepository {
 
     Optional<Account> findById(UUID id);
 
-    List<Account> findAll(AccountType accountType, Boolean isActive);
+    List<Account> findAll(UUID profileId, AccountType accountType, Boolean isActive);
 
     boolean existsById(UUID id);
 

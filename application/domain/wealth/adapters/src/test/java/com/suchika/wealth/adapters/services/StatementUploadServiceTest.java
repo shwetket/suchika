@@ -217,7 +217,7 @@ class StatementUploadServiceTest {
         public Optional<Account> findById(UUID id) { return Optional.ofNullable(store.get(id)); }
 
         @Override
-        public List<Account> findAll(AccountType accountType, Boolean isActive) { return List.copyOf(store.values()); }
+        public List<Account> findAll(UUID profileId, AccountType accountType, Boolean isActive) { return List.copyOf(store.values()); }
 
         @Override
         public boolean existsById(UUID id) { return store.containsKey(id); }

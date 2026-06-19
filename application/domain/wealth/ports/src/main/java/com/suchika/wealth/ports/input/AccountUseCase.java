@@ -9,13 +9,13 @@ import java.util.UUID;
 
 public interface AccountUseCase {
 
-    Account createAccount(String accountName, AccountType accountType, String institutionName,
+    Account createAccount(UUID profileId, String accountName, AccountType accountType, String institutionName,
                            BigDecimal openingBalance, BigDecimal creditLimit,
                            BigDecimal interestRate, BigDecimal emiAmount);
 
     Account getAccount(UUID id);
 
-    List<Account> listAccounts(AccountType accountType, Boolean isActive);
+    List<Account> listAccounts(UUID profileId, AccountType accountType, Boolean isActive);
 
     Account updateAccount(UUID id, String accountName, BigDecimal openingBalance, BigDecimal creditLimit,
                            BigDecimal interestRate, BigDecimal emiAmount, Boolean isActive);
