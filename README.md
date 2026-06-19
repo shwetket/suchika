@@ -44,6 +44,7 @@ cd web && npm install && npm start   # http://localhost:3000
 | [REQUIREMENTS_household_domain](./documents/REQUIREMENTS_household_domain.md) | Household domain feature specs (v0.3+) |
 | [REQUIREMENTS_cross_domain](./documents/REQUIREMENTS_cross_domain.md) | Cross-domain and dashboard specs |
 | [FRONTEND_GUIDELINES](./documents/FRONTEND_GUIDELINES.md) | React/Tailwind/ESLint standards |
+| [E2E_TESTING](./documents/E2E_TESTING.md) | Playwright E2E test suite — setup, commands, conventions |
 | [LOGGING_AND_EXCEPTIONS](./documents/LOGGING_AND_EXCEPTIONS.md) | AppLogger and exception hierarchy |
 | [CICD](./documents/CICD.md) | Build and automation pipeline rules |
 | [V02_DEVELOPMENT_PLAN](./documents/V02_DEVELOPMENT_PLAN.md) | v0.2 implementation plan and phase breakdown |
@@ -122,6 +123,7 @@ suchika/
 │   ├── ARCHITECTURE_PROPOSALS.md
 │   ├── BUSINESS_REQUIREMENTS.md
 │   ├── CICD.md
+│   ├── E2E_TESTING.md                   <- Playwright E2E test suite docs
 │   ├── FRONTEND_GUIDELINES.md
 │   ├── LOGGING_AND_EXCEPTIONS.md
 │   ├── QA_API_TEST_RESULTS.md
@@ -143,6 +145,13 @@ suchika/
 │       │   └── mapper/
 │       └── test/java/com/suchika/architecture/   <- ArchUnit domain rules
 └── web/                                 <- React frontend (talks only to gateway)
+    ├── e2e/                             <- Playwright E2E specs (17 tests)
+    │   ├── auth.spec.js
+    │   ├── health.spec.js
+    │   ├── navigation.spec.js
+    │   ├── profiles.spec.js
+    │   └── wealth.spec.js
+    ├── playwright.config.js             <- Chromium, headless, baseURL :3000
     ├── public/
     └── src/
         ├── api/generated.ts             <- Auto-generated from gateway.yaml (do not hand-edit)
@@ -214,6 +223,47 @@ Each domain owns its schema. No cross-domain SQL joins.
 - Calendar events, grocery inventory, household goals
 
 See [ROADMAP](./documents/ROADMAP.md) and [BUSINESS_REQUIREMENTS](./documents/BUSINESS_REQUIREMENTS.md) for the full milestone plan.
+
+---
+
+## Testing
+
+### Unit tests (Jest — 79 tests)
+
+```bash
+cd web && npm run test:ci   # single run, no watch (matches CI)
+```
+
+### Backend tests
+
+```bash
+./gradlew test              # all modules
+./gradlew :application:domain:wealth:domain:test   # single module example
+```
+
+### E2E tests (Playwright — 17 tests)
+
+Playwright tests cover auth, navigation, profiles, wealth, and health flows.
+
+**Startup order:**
+
+```bash
+./gradlew :application:domain:profile:adapters:quarkusDev   # port 8081 — start FIRST
+./gradlew :application:domain:wealth:adapters:quarkusDev    # port 8082
+./gradlew :application:domain:health:adapters:quarkusDev    # port 8083
+./gradlew :application:web-gateway:quarkusDev               # port 8080 (BFF)
+cd web && npm start                                          # port 3000
+```
+
+**Run tests** (in a second terminal, after dev server is up):
+
+```bash
+cd web && npm run test:e2e          # headless
+cd web && npm run test:e2e:headed   # visible browser
+cd web && npm run test:e2e:report   # open HTML report
+```
+
+Page-load and navigation tests pass without a backend running — only the dev server is required. See [E2E_TESTING](./documents/E2E_TESTING.md) for full details.
 
 ---
 

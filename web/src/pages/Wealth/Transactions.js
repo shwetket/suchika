@@ -170,6 +170,8 @@ TransactionsTab.defaultProps = { accountId: null };
 function UploadTab({ accountId }) {
   const [fileName, setFileName] = useState('');
   const [csvContent, setCsvContent] = useState('');
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = React.useRef(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
@@ -239,35 +241,82 @@ function UploadTab({ accountId }) {
     }
   }, [accountId, rollbackTarget, loadUploads]);
 
+  const readFile = useCallback((file) => {
+    if (!file) return;
+    setFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (e) => setCsvContent(e.target.result);
+    reader.readAsText(file);
+  }, []);
+
+  const handleFileChange = useCallback(
+    (e) => {
+      readFile(e.target.files[0]);
+    },
+    [readFile]
+  );
+
+  const handleDragOver = useCallback((e) => {
+    e.preventDefault();
+    setDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback(() => {
+    setDragOver(false);
+  }, []);
+
+  const handleDrop = useCallback(
+    (e) => {
+      e.preventDefault();
+      setDragOver(false);
+      readFile(e.dataTransfer.files[0]);
+    },
+    [readFile]
+  );
+
   return (
     <div className="space-y-6">
       <form onSubmit={handleUpload} className="space-y-4">
-        <div className="flex flex-col gap-1">
-          <label htmlFor="upload-file-name" className="text-sm font-medium text-gray-700">
-            File Name <span className="text-red-500">*</span>
-          </label>
+        <div
+          role="button"
+          tabIndex={0}
+          aria-label="Drop zone: drag a CSV file here or click to browse"
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current && fileInputRef.current.click()}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              fileInputRef.current && fileInputRef.current.click();
+            }
+          }}
+          className={`border-2 border-dashed rounded-lg px-6 py-10 text-center cursor-pointer transition-colors ${
+            dragOver
+              ? 'border-indigo-500 bg-indigo-50'
+              : 'border-gray-300 hover:border-indigo-400 hover:bg-gray-50'
+          }`}
+        >
           <input
-            id="upload-file-name"
-            type="text"
-            value={fileName}
-            onChange={(e) => setFileName(e.target.value)}
-            placeholder="e.g. june-2025.csv"
-            className={inputClass}
+            ref={fileInputRef}
+            id="upload-file-input"
+            type="file"
+            accept=".csv"
+            className="hidden"
+            onChange={handleFileChange}
           />
+          {fileName ? (
+            <div>
+              <p className="text-sm font-medium text-gray-900">{fileName}</p>
+              <p className="text-xs text-gray-500 mt-1">File ready. Click or drag to replace.</p>
+            </div>
+          ) : (
+            <div>
+              <p className="text-sm font-medium text-gray-700">Drag CSV here or click to browse</p>
+              <p className="text-xs text-gray-400 mt-1">Only .csv files accepted</p>
+            </div>
+          )}
         </div>
-        <div className="flex flex-col gap-1">
-          <label htmlFor="upload-csv-content" className="text-sm font-medium text-gray-700">
-            CSV Content <span className="text-red-500">*</span>
-          </label>
-          <textarea
-            id="upload-csv-content"
-            value={csvContent}
-            onChange={(e) => setCsvContent(e.target.value)}
-            rows={8}
-            placeholder="Paste CSV rows here..."
-            className={`${inputClass} font-mono resize-y`}
-          />
-        </div>
+
         {uploadError && <p className="text-red-600 text-sm">{uploadError}</p>}
         {uploadSuccess && (
           <p className="text-green-600 text-sm">Statement uploaded successfully.</p>
@@ -275,7 +324,7 @@ function UploadTab({ accountId }) {
         <button
           type="submit"
           disabled={uploading}
-          className="px-4 py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+          className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50 text-sm"
         >
           {uploading ? 'Uploading...' : 'Upload Statement'}
         </button>

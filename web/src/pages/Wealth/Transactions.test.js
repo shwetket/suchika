@@ -42,6 +42,22 @@ beforeEach(() => {
   listUploads.mockResolvedValue({ uploads: [] });
 });
 
+async function selectAccount() {
+  await waitFor(() => screen.getByText('Alice'));
+  fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: 'p1' } });
+  await waitFor(() => screen.getByText('SBI Savings'));
+  fireEvent.change(screen.getAllByRole('combobox')[1], { target: { value: 'a1' } });
+}
+
+async function openUploadTab() {
+  await selectAccount();
+  await waitFor(() => screen.getByText('Upload Statement'));
+  const uploadTabBtn = screen
+    .getAllByRole('button', { name: /Upload Statement/i })
+    .find((b) => b.type === 'button');
+  fireEvent.click(uploadTabBtn);
+}
+
 describe('WealthTransactions page', () => {
   it('renders without crashing', () => {
     render(<WealthTransactions />);
@@ -57,65 +73,66 @@ describe('WealthTransactions page', () => {
 
   it('shows empty state when no transactions', async () => {
     render(<WealthTransactions />);
-    await waitFor(() => screen.getByText('Alice'));
-
-    const profileSelect = screen.getAllByRole('combobox')[0];
-    fireEvent.change(profileSelect, { target: { value: 'p1' } });
-
-    await waitFor(() => screen.getByText('SBI Savings'));
-
-    const accountSelect = screen.getAllByRole('combobox')[1];
-    fireEvent.change(accountSelect, { target: { value: 'a1' } });
-
+    await selectAccount();
     await waitFor(() => {
       expect(screen.getByText(/No transactions found/i)).toBeInTheDocument();
     });
   });
 
-  it('switches to Upload Statement tab', async () => {
+  it('switches to Upload Statement tab and shows drop zone', async () => {
     render(<WealthTransactions />);
-    await waitFor(() => screen.getByText('Alice'));
-
-    const profileSelect = screen.getAllByRole('combobox')[0];
-    fireEvent.change(profileSelect, { target: { value: 'p1' } });
-
-    await waitFor(() => screen.getByText('SBI Savings'));
-
-    const accountSelect = screen.getAllByRole('combobox')[1];
-    fireEvent.change(accountSelect, { target: { value: 'a1' } });
-
-    await waitFor(() => screen.getByText('Upload Statement'));
-    const uploadTab = screen
-      .getAllByRole('button', { name: /Upload Statement/i })
-      .find((b) => b.type === 'button');
-    fireEvent.click(uploadTab);
-
-    expect(screen.getByPlaceholderText(/e\.g\. june-2025\.csv/i)).toBeInTheDocument();
+    await openUploadTab();
+    expect(
+      screen.getByRole('button', {
+        name: /drop zone/i,
+      })
+    ).toBeInTheDocument();
   });
 
-  it('calls uploadStatement with correct args on form submit', async () => {
+  it('shows file name in drop zone after file selected', async () => {
+    render(<WealthTransactions />);
+    await openUploadTab();
+
+    const fileInput = document.querySelector('input[type="file"]');
+    const file = new File(['date,amount\n2025-01-01,100'], 'test.csv', { type: 'text/csv' });
+
+    // Mock FileReader
+    const mockReadAsText = jest.fn();
+    const mockFileReader = {
+      readAsText: mockReadAsText,
+      onload: null,
+    };
+    jest.spyOn(globalThis, 'FileReader').mockImplementation(() => mockFileReader);
+
+    fireEvent.change(fileInput, { target: { files: [file] } });
+
+    // Simulate FileReader onload
+    mockFileReader.onload({ target: { result: 'date,amount\n2025-01-01,100' } });
+
+    await waitFor(() => {
+      expect(screen.getByText('test.csv')).toBeInTheDocument();
+    });
+
+    globalThis.FileReader.mockRestore();
+  });
+
+  it('calls uploadStatement with file name and content on submit', async () => {
     uploadStatement.mockResolvedValue({});
     render(<WealthTransactions />);
-    await waitFor(() => screen.getByText('Alice'));
+    await openUploadTab();
 
-    fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: 'p1' } });
-    await waitFor(() => screen.getByText('SBI Savings'));
-    fireEvent.change(screen.getAllByRole('combobox')[1], { target: { value: 'a1' } });
+    const fileInput = document.querySelector('input[type="file"]');
+    const csvText = 'date,amount,type\n2025-01-01,100,CREDIT';
+    const file = new File([csvText], 'june-2025.csv', { type: 'text/csv' });
 
-    await waitFor(() => screen.getByText('Upload Statement'));
-    const uploadTabBtn = screen
-      .getAllByRole('button', { name: /Upload Statement/i })
-      .find((b) => b.type === 'button');
-    fireEvent.click(uploadTabBtn);
+    const mockReadAsText = jest.fn();
+    const mockFileReader = { readAsText: mockReadAsText, onload: null };
+    jest.spyOn(globalThis, 'FileReader').mockImplementation(() => mockFileReader);
 
-    await waitFor(() => screen.getByPlaceholderText(/june-2025\.csv/i));
+    fireEvent.change(fileInput, { target: { files: [file] } });
+    mockFileReader.onload({ target: { result: csvText } });
 
-    fireEvent.change(screen.getByPlaceholderText(/june-2025\.csv/i), {
-      target: { value: 'test.csv' },
-    });
-    fireEvent.change(screen.getByPlaceholderText(/Paste CSV rows/i), {
-      target: { value: 'date,amount,type\n2025-01-01,100,CREDIT' },
-    });
+    await waitFor(() => screen.getByText('june-2025.csv'));
 
     const submitBtn = screen
       .getAllByRole('button', { name: /Upload Statement/i })
@@ -123,11 +140,23 @@ describe('WealthTransactions page', () => {
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
-      expect(uploadStatement).toHaveBeenCalledWith(
-        'a1',
-        'test.csv',
-        'date,amount,type\n2025-01-01,100,CREDIT'
-      );
+      expect(uploadStatement).toHaveBeenCalledWith('a1', 'june-2025.csv', csvText);
+    });
+
+    globalThis.FileReader.mockRestore();
+  });
+
+  it('shows error when submitting with no file selected', async () => {
+    render(<WealthTransactions />);
+    await openUploadTab();
+
+    const submitBtn = screen
+      .getAllByRole('button', { name: /Upload Statement/i })
+      .find((b) => b.type === 'submit');
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText(/file name is required/i)).toBeInTheDocument();
     });
   });
 
@@ -144,12 +173,7 @@ describe('WealthTransactions page', () => {
       ],
     });
     render(<WealthTransactions />);
-    await waitFor(() => screen.getByText('Alice'));
-
-    fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: 'p1' } });
-    await waitFor(() => screen.getByText('SBI Savings'));
-    fireEvent.change(screen.getAllByRole('combobox')[1], { target: { value: 'a1' } });
-
+    await selectAccount();
     await waitFor(() => {
       expect(screen.getByText('Salary')).toBeInTheDocument();
     });

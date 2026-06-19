@@ -167,7 +167,49 @@ npm test          # Watch mode for local development
 
 ---
 
-## 9. Pre-Commit Checklist
+## 9. E2E Testing (Playwright)
+
+Use **Playwright** for end-to-end tests. Do not use Cypress or Selenium.
+
+### Spec file location
+
+All spec files live in `web/e2e/`. Config is `web/playwright.config.js` (Chromium only, headless).
+
+### Running
+
+```bash
+cd web && npm run test:e2e          # headless — requires dev server on :3000
+cd web && npm run test:e2e:headed   # visible browser for debugging
+cd web && npm run test:e2e:report   # open HTML report from last run
+```
+
+The dev server (`npm start`) must be running before executing any E2E test. The gateway (`:8080`) is optional — page-load and navigation tests pass without a backend.
+
+### Locator rules
+
+- Use role-based locators: `getByRole`, `getByLabel`, `getByText` — **no CSS selectors**.
+- Scope nav locators to the navigation landmark to avoid collisions with page content that shares the same label:
+
+```js
+// Good
+const nav = page.getByRole('navigation');
+await nav.getByRole('link', { name: 'Wealth' }).click();
+
+// Bad — may match heading or breadcrumb with the same text
+await page.getByRole('link', { name: 'Wealth' }).click();
+```
+
+### Test design rules
+
+- Tests must pass when **only the dev server is running** (auth spec uses a demo fallback — no live auth backend required).
+- Do not assert on specific data values from the database (row counts, amounts). Test page structure and navigation instead.
+- Each spec file covers one domain area; keep specs independent — no shared state between test files.
+
+See [E2E_TESTING](./E2E_TESTING.md) for the full test inventory and startup order for data tests.
+
+---
+
+## 10. Pre-Commit Checklist
 
 - [ ] `npm run lint` passes
 - [ ] `npm run format` applied
@@ -179,7 +221,7 @@ npm test          # Watch mode for local development
 
 ---
 
-## 10. Common Mistakes
+## 11. Common Mistakes
 
 | Bad | Fix |
 |---|---|
@@ -194,7 +236,7 @@ npm test          # Watch mode for local development
 
 ---
 
-## 11. Troubleshooting
+## 12. Troubleshooting
 
 **Port 3000 already in use:**
 ```bash

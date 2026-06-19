@@ -12,13 +12,6 @@ import { SignUp } from './pages/Public/SignUp';
 
 // User Pages
 import { Dashboard } from './pages/User/Dashboard';
-import { Transactions as UserTransactions } from './pages/User/Transactions';
-import { Health } from './pages/User/Health';
-
-// Admin Pages
-import { AdminUsers } from './pages/Admin/AdminUsers';
-import { AdminSettings } from './pages/Admin/AdminSettings';
-import { AdminReports } from './pages/Admin/AdminReports';
 
 import {
   Accounts as WealthAccounts,
@@ -75,28 +68,16 @@ function App() {
           <Route path="/signin" element={<SignIn />} />
           <Route path="/signup" element={<SignUp />} />
 
+          {/* Redirect old stub routes */}
+          <Route path="/transactions" element={<Navigate to="/wealth/transactions" replace />} />
+          <Route path="/health" element={<Navigate to="/health/vitals" replace />} />
+
           {/* User Routes - requires 'user' role or higher */}
           <Route
             path="/dashboard"
             element={
               <ProtectedRoute requiredRole="user">
                 <Dashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/transactions"
-            element={
-              <ProtectedRoute requiredRole="user">
-                <UserTransactions />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/health"
-            element={
-              <ProtectedRoute requiredRole="user">
-                <Health />
               </ProtectedRoute>
             }
           />
@@ -175,32 +156,6 @@ function App() {
             element={
               <ProtectedRoute requiredRole="user">
                 <HealthProfilePage />
-              </ProtectedRoute>
-            }
-          />
-
-          {/* Admin Routes - requires 'admin' role */}
-          <Route
-            path="/admin/users"
-            element={
-              <ProtectedRoute requiredRole="admin">
-                <AdminUsers />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/settings"
-            element={
-              <ProtectedRoute requiredRole="admin">
-                <AdminSettings />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/reports"
-            element={
-              <ProtectedRoute requiredRole="admin">
-                <AdminReports />
               </ProtectedRoute>
             }
           />
