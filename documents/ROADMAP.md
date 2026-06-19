@@ -5,43 +5,82 @@ For business rules and acceptance criteria per version, see [BUSINESS_REQUIREMEN
 
 ---
 
-## v0.2 — Usable Local App
+## v0.2 — Usable Local App [COMPLETE — UAT-READY]
 
-**Focus:** Logical data integrity, usable ledger features, and basic scheduling.
+**Focus:** Profile, Wealth, and Health domains fully usable as a local pilot. UAT window covers these three domains only.
 
-### Features
+### Features Delivered
 
-- [ ] **Deduplication Logic**
-  - Same-file duplicates: store all as distinct valid events
-  - Cross-file duplicates: reject matching records from new uploads
+- [x] **Profile Domain**
+  - Create household admin
+  - Create, list, view, edit, and deactivate household member profiles
+  - Supported relation types: SELF, SPOUSE, CHILD, PARENT, SIBLING, OTHER
 
-- [ ] **Biometric History**
-  - Query and display biometric entries in chronological order
+- [x] **Wealth — Accounts**
+  - Create, list (filter by type and active status), view, update, and deactivate accounts
+  - Supported account types: SAVINGS, CURRENT, CREDIT_CARD, HOME_LOAN, PERSONAL_LOAN, INVESTMENT, FD
+  - All account records scoped to `profile_id`
 
-- [ ] **Itinerary & Task Management**
-  - Group sub-events under a master event (holidays, guest visits)
-  - Conflict detection for overlapping events on same profile
-  - Assign tasks to child profiles with hard deadlines
+- [x] **Wealth — Transactions**
+  - List transactions with filter by date range and transaction type (CREDIT / DEBIT)
+  - Transactions scoped to account and `profile_id`
+
+- [x] **Wealth — Statement Upload**
+  - Upload CSV file and parse transactions
+  - Upload lifecycle tracked as PENDING → SUCCESS / FAILED
+  - Rollback: delete all transactions linked to a specific upload
+
+- [x] **Wealth — Deduplication Logic**
+  - Same-file identical rows stored as distinct valid events
+  - Cross-file duplicates (matching record already exists) are rejected
+
+- [x] **Health — Vital Readings**
+  - Log readings for: WEIGHT, HEIGHT, BLOOD_PRESSURE, BLOOD_SUGAR_FASTING, BLOOD_SUGAR_PP, HEART_RATE, TEMPERATURE, OXYGEN_SATURATION, BMI, WAIST_CIRCUMFERENCE
+  - List and filter by vital type
+  - Delete a reading
+  - All readings scoped to `profile_id`
+
+- [x] **Health — Doctor Visits**
+  - Create a visit record: from_date, to_date, visited_doctor flag, doctor_name, hospital_name, speciality, symptoms, diagnosis, notes, follow_up_date
+  - List visits filtered by profile
+  - Update and delete a visit record
+
+- [x] **Frontend**
+  - React pages for Profile, Wealth (Accounts, Transactions, Upload), and Health (Vitals, Doctor Visits) — all complete
+
+### Out of Scope for v0.2 UAT
+- Household domain (calendar events, inventory items, goals) — deferred to v0.3
+- SonarQube clean pass — deferred to v0.3
+- Dashboard wired to live data — deferred to v0.3
 
 ---
 
 ## v0.3 — Enhanced Local App
 
-**Focus:** Expand parsing capabilities, introduce physical asset compliance and home automation.
+**Focus:** Household domain, code quality gate, and dashboard live data. Completes the full three-domain local app.
 
 ### Features
 
-- [ ] **Investment CSV Parsing**
-  - Extract date, amount, type from mutual fund CSVs
-  - Store domain-specific metadata: Units and NAV
+- [ ] **Household — Calendar Events**
+  - Create calendar events with start date, end date, and assigned `profile_id`
+  - Group sub-events under a master event (holidays, guest visits)
+  - Conflict detection: flag overlapping master events for the same profile
 
-- [ ] **Vehicle Asset Compliance Tracking**
-  - Registry: Make, Model, Registration Number, Registration Type
-  - Track PUC, Insurance, and Road Tax (including BH-Series biennial schedule)
+- [ ] **Household — Inventory Items**
+  - Ingest grocery order history from external exports (Flipkart, Instamart, Country Delight)
+  - Consolidate into a unified raw inventory ledger
 
-- [ ] **Home Automation Mapping**
-  - Register smart home devices and their operational states
-  - Map household daily routines to device configurations
+- [ ] **Household — Task Tracking**
+  - Assign tasks to specific child profiles with hard deadlines linked to calendar
+
+- [ ] **Household — Frontend**
+  - React pages for Calendar Events and Inventory
+
+- [ ] **Dashboard — Live Data**
+  - Wire dashboard aggregation to live domain data via web-gateway projections
+
+- [ ] **SonarQube Clean Pass**
+  - Zero blocker and critical issues across all modules
 
 ---
 
@@ -80,8 +119,7 @@ For business rules and acceptance criteria per version, see [BUSINESS_REQUIREMEN
   - Single read-only dashboard aggregating alerts from all 3 domains
   - Upcoming calendar events, vehicle compliance deadlines, biometric streak gaps
 
-- [ ] **Profile Association for Health**
-  - Tag every biometric document with a valid `profile_id` from Household domain
+Note: Profile-scoped data isolation (`profile_id` filtering on all domains) was delivered in v0.2 and is not a v0.5 item.
 
 ---
 
@@ -311,15 +349,17 @@ Each milestone requires the previous to be stable before starting.
 
 ## Success Metrics
 
-| Milestone | Key Metric |
-|---|---|
-| v0.1 | Upload 100+ transactions from 3+ CSVs without data loss |
-| v0.4 | Zero silent data drops on malformed input |
-| v0.5 | Cross-domain vacation planner works end-to-end |
-| v1.0 | Auth + encryption pass local security review |
-| v1.3 | Full data export/import round-trip verified |
-| v2.0 | Local AI daily briefing generates without errors |
-| v4.1 | 1000+ active Pro users, <100ms API p99 |
+| Milestone | Key Metric | Status |
+|---|---|---|
+| v0.1 | Upload 100+ transactions from 3+ CSVs without data loss | DONE |
+| v0.2 | Profile + Wealth + Health UAT-ready; statement upload lifecycle (PENDING/SUCCESS/FAILED) verified; all data member-scoped | DONE |
+| v0.3 | Household domain live; SonarQube zero blockers; dashboard shows live data | PLANNED |
+| v0.4 | Zero silent data drops on malformed input | PLANNED |
+| v0.5 | Cross-domain vacation planner works end-to-end | PLANNED |
+| v1.0 | Auth + encryption pass local security review | PLANNED |
+| v1.3 | Full data export/import round-trip verified | PLANNED |
+| v2.0 | Local AI daily briefing generates without errors | PLANNED |
+| v4.1 | 1000+ active Pro users, <100ms API p99 | PLANNED |
 
 ---
 

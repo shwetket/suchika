@@ -242,7 +242,7 @@ export const Vitals = () => {
           vital_type: addForm.vital_type,
           reading_date: addForm.reading_date,
           value_primary: Number(addForm.value_primary),
-          value_secondary: addForm.value_secondary !== '' ? Number(addForm.value_secondary) : null,
+          value_secondary: addForm.value_secondary === '' ? null : Number(addForm.value_secondary),
           unit: addForm.unit || null,
           notes: addForm.notes || null,
         });

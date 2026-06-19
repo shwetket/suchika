@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -27,13 +28,13 @@ class TransactionServiceTest {
     @Test
     void listByAccount_delegatesToRepoWithAllFilterParams() {
         UUID accountId = UUID.randomUUID();
-        LocalDate from = LocalDate.of(2026, 1, 1);
-        LocalDate to = LocalDate.of(2026, 6, 30);
+        LocalDate from = LocalDate.of(2026, Month.JANUARY, 1);
+        LocalDate to = LocalDate.of(2026, Month.JUNE, 30);
 
         Transaction txn = Transaction.builder()
                 .id(UUID.randomUUID())
                 .accountId(accountId)
-                .txnDate(LocalDate.of(2026, 3, 15))
+                .txnDate(LocalDate.of(2026, Month.MARCH, 15))
                 .amount(new BigDecimal("500.00"))
                 .txnType(TxnType.CREDIT)
                 .description("Test credit")
@@ -68,7 +69,7 @@ class TransactionServiceTest {
         Transaction txn = Transaction.builder()
                 .id(id)
                 .accountId(UUID.randomUUID())
-                .txnDate(LocalDate.of(2026, 6, 1))
+                .txnDate(LocalDate.of(2026, Month.JUNE, 1))
                 .amount(new BigDecimal("100.00"))
                 .txnType(TxnType.DEBIT)
                 .description("ATM withdrawal")

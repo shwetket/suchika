@@ -5,6 +5,7 @@ import com.suchika.shared.exception.ConflictException;
 import com.suchika.shared.exception.NotFoundException;
 import com.suchika.wealth.domain.Account;
 import com.suchika.wealth.domain.AccountType;
+import com.suchika.wealth.ports.input.CreateAccountCommand;
 import com.suchika.wealth.ports.output.AccountRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,10 +26,16 @@ class AccountServiceTest {
         service = new AccountService(repo);
     }
 
+    private static CreateAccountCommand cmd(String name, AccountType type, String institution,
+                                            BigDecimal openingBalance, BigDecimal creditLimit,
+                                            BigDecimal interestRate, BigDecimal emiAmount) {
+        return new CreateAccountCommand(name, type, institution, openingBalance, creditLimit, interestRate, emiAmount);
+    }
+
     @Test
     void createAccount_happyPath_returnsAccountWithId() {
-        Account result = service.createAccount(null, "HDFC Savings", AccountType.SAVINGS, "HDFC Bank",
-                new BigDecimal("50000.00"), null, null, null);
+        Account result = service.createAccount(null,
+                cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", new BigDecimal("50000.00"), null, null, null));
 
         assertNotNull(result.getId());
         assertEquals("HDFC Savings", result.getAccountName());
@@ -39,8 +46,8 @@ class AccountServiceTest {
 
     @Test
     void createAccount_nullOpeningBalance_defaultsToZero() {
-        Account result = service.createAccount(null, "HDFC Savings", AccountType.SAVINGS, "HDFC Bank",
-                null, null, null, null);
+        Account result = service.createAccount(null,
+                cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
 
         assertEquals(0, BigDecimal.ZERO.compareTo(result.getOpeningBalance()));
     }
@@ -48,24 +55,28 @@ class AccountServiceTest {
     @Test
     void createAccount_blankName_throwsBadRequest() {
         assertThrows(BadRequestException.class,
-                () -> service.createAccount(null, "  ", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
+                () -> service.createAccount(null,
+                        cmd("  ", AccountType.SAVINGS, "HDFC Bank", null, null, null, null)));
     }
 
     @Test
     void createAccount_nullType_throwsBadRequest() {
         assertThrows(BadRequestException.class,
-                () -> service.createAccount(null, "HDFC Savings", null, "HDFC Bank", null, null, null, null));
+                () -> service.createAccount(null,
+                        cmd("HDFC Savings", null, "HDFC Bank", null, null, null, null)));
     }
 
     @Test
     void createAccount_blankInstitution_throwsBadRequest() {
         assertThrows(BadRequestException.class,
-                () -> service.createAccount(null, "HDFC Savings", AccountType.SAVINGS, " ", null, null, null, null));
+                () -> service.createAccount(null,
+                        cmd("HDFC Savings", AccountType.SAVINGS, " ", null, null, null, null)));
     }
 
     @Test
     void getAccount_found_returnsAccount() {
-        Account created = service.createAccount(null, "HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null);
+        Account created = service.createAccount(null,
+                cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
 
         Account found = service.getAccount(created.getId());
 
@@ -79,8 +90,8 @@ class AccountServiceTest {
 
     @Test
     void listAccounts_filtersByTypeAndActive() {
-        service.createAccount(null, "HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null);
-        service.createAccount(null, "ICICI Credit Card", AccountType.CREDIT_CARD, "ICICI Bank", null, null, null, null);
+        service.createAccount(null, cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
+        service.createAccount(null, cmd("ICICI Credit Card", AccountType.CREDIT_CARD, "ICICI Bank", null, null, null, null));
 
         assertEquals(1, service.listAccounts(null, AccountType.CREDIT_CARD, null).size());
         assertEquals(2, service.listAccounts(null, null, true).size());
@@ -88,8 +99,8 @@ class AccountServiceTest {
 
     @Test
     void updateAccount_partialFields_updatesOnlyProvided() {
-        Account account = service.createAccount(null, "HDFC Savings", AccountType.SAVINGS, "HDFC Bank",
-                new BigDecimal("1000"), null, null, null);
+        Account account = service.createAccount(null,
+                cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", new BigDecimal("1000"), null, null, null));
 
         Account updated = service.updateAccount(account.getId(), "HDFC Salary", null, null, null, null, null);
 
@@ -99,7 +110,8 @@ class AccountServiceTest {
 
     @Test
     void updateAccount_blankName_throwsBadRequest() {
-        Account account = service.createAccount(null, "HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null);
+        Account account = service.createAccount(null,
+                cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
 
         assertThrows(BadRequestException.class,
                 () -> service.updateAccount(account.getId(), "  ", null, null, null, null, null));
@@ -107,7 +119,8 @@ class AccountServiceTest {
 
     @Test
     void updateAccount_deactivateWithoutTransactions_succeeds() {
-        Account account = service.createAccount(null, "HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null);
+        Account account = service.createAccount(null,
+                cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
 
         Account updated = service.updateAccount(account.getId(), null, null, null, null, null, false);
 
@@ -116,7 +129,8 @@ class AccountServiceTest {
 
     @Test
     void updateAccount_deactivateWithTransactions_throwsConflict() {
-        Account account = service.createAccount(null, "HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null);
+        Account account = service.createAccount(null,
+                cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
         repo.markHasTransactions(account.getId());
 
         assertThrows(ConflictException.class,
@@ -125,7 +139,8 @@ class AccountServiceTest {
 
     @Test
     void deactivateAccount_noTransactions_setsInactive() {
-        Account account = service.createAccount(null, "HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null);
+        Account account = service.createAccount(null,
+                cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
 
         service.deactivateAccount(account.getId());
 
@@ -134,7 +149,8 @@ class AccountServiceTest {
 
     @Test
     void deactivateAccount_withTransactions_throwsConflict() {
-        Account account = service.createAccount(null, "HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null);
+        Account account = service.createAccount(null,
+                cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
         repo.markHasTransactions(account.getId());
 
         assertThrows(ConflictException.class, () -> service.deactivateAccount(account.getId()));

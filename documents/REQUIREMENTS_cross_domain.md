@@ -1,6 +1,10 @@
 # Cross-Domain Integration
 
-**Focus:** Inter-domain data querying, composite feature logic, unified dashboards, and AI data synthesis. 
+**Focus:** Inter-domain data querying, composite feature logic, unified dashboards, and AI data synthesis.
+
+## Universal Rule: Member-Scoped Data Isolation (v0.1 onward) [DONE in v0.2]
+
+Every domain (Wealth, Health, Household) enforces `profile_id`-scoped data isolation. This is not a cross-domain feature — it is a structural invariant present in each domain independently. All data records carry a `profile_id` foreign key referencing `profile.profile`. All list, view, create, update, and delete operations are scoped to the active `profile_id`. This rule was fully delivered as part of v0.2.
 
 ## v0.1 to v0.4: Domain Isolation Strategy
 **Objective:** Stabilize core technical capabilities independently.
@@ -34,7 +38,7 @@
 
 ### Epic 4: Global Data Archiving
 #### Use Case 4.1: Cross-Domain Data Export
-* **Unified Export:** The system must provide a single execution trigger that queries the PostgreSQL instances (Wealth, Household) and the MongoDB instance (Health), packaging all user data into a standardized, structured local backup format (e.g., JSON/CSV archives).
+* **Unified Export:** The system must provide a single execution trigger that queries all five PostgreSQL schemas (profile, wealth, health, household, projections) and packages all user data into a standardized, structured local backup format (e.g., JSON/CSV archives).
 
 ## v2.0: Local AI (Long-Term Vision)
 **Objective:** Enable a local Large Language Model to act as a unified reasoning engine over personal data.

@@ -6,6 +6,7 @@ import com.suchika.wealth.adapters.http.dto.ListAccountsResponse;
 import com.suchika.wealth.adapters.http.dto.UpdateAccountRequest;
 import com.suchika.wealth.domain.AccountType;
 import com.suchika.wealth.ports.input.AccountUseCase;
+import com.suchika.wealth.ports.input.CreateAccountCommand;
 import com.suchika.shared.exception.BadRequestException;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -43,10 +44,10 @@ public class AccountResource {
         if (request == null) throw new BadRequestException("Request body is required");
         AccountType accountType = parseAccountType(request.accountType);
         if (accountType == null) throw new BadRequestException("account_type is required");
-        AccountResponse response = AccountResponse.from(
-                useCase.createAccount(profileId, request.accountName, accountType, request.institutionName,
-                        request.openingBalance, request.creditLimit, request.interestRate, request.emiAmount));
-        return Response.status(201).entity(response).build();
+        CreateAccountCommand command = new CreateAccountCommand(
+                request.accountName, accountType, request.institutionName,
+                request.openingBalance, request.creditLimit, request.interestRate, request.emiAmount);
+        return Response.status(201).entity(AccountResponse.from(useCase.createAccount(profileId, command))).build();
     }
 
     @GET

@@ -13,7 +13,7 @@ const ACCOUNT_TYPES = [
   'FD',
 ];
 const TYPE_TABS = ['ALL', ...ACCOUNT_TYPES];
-const LOAN_TYPES = ['HOME_LOAN', 'PERSONAL_LOAN'];
+const LOAN_TYPES = new Set(['HOME_LOAN', 'PERSONAL_LOAN']);
 
 const EMPTY_ADD = {
   account_name: '',
@@ -157,7 +157,7 @@ AccountCard.propTypes = {
 };
 
 function AccountFormFields({ form, onChange }) {
-  const isLoan = LOAN_TYPES.includes(form.account_type);
+  const isLoan = LOAN_TYPES.has(form.account_type);
   const isCredit = form.account_type === 'CREDIT_CARD';
   return (
     <>
@@ -328,10 +328,10 @@ export const Accounts = () => {
           account_name: addForm.account_name.trim(),
           account_type: addForm.account_type,
           institution_name: addForm.institution_name.trim(),
-          opening_balance: addForm.opening_balance !== '' ? Number(addForm.opening_balance) : 0,
-          credit_limit: addForm.credit_limit !== '' ? Number(addForm.credit_limit) : null,
-          interest_rate: addForm.interest_rate !== '' ? Number(addForm.interest_rate) : null,
-          emi_amount: addForm.emi_amount !== '' ? Number(addForm.emi_amount) : null,
+          opening_balance: addForm.opening_balance === '' ? 0 : Number(addForm.opening_balance),
+          credit_limit: addForm.credit_limit === '' ? null : Number(addForm.credit_limit),
+          interest_rate: addForm.interest_rate === '' ? null : Number(addForm.interest_rate),
+          emi_amount: addForm.emi_amount === '' ? null : Number(addForm.emi_amount),
         });
         setShowAdd(false);
         setAddForm(EMPTY_ADD);
@@ -372,10 +372,10 @@ export const Accounts = () => {
         await updateAccount(editingAccount.account_id, {
           account_name: editForm.account_name || null,
           opening_balance:
-            editForm.opening_balance !== '' ? Number(editForm.opening_balance) : null,
-          credit_limit: editForm.credit_limit !== '' ? Number(editForm.credit_limit) : null,
-          interest_rate: editForm.interest_rate !== '' ? Number(editForm.interest_rate) : null,
-          emi_amount: editForm.emi_amount !== '' ? Number(editForm.emi_amount) : null,
+            editForm.opening_balance === '' ? null : Number(editForm.opening_balance),
+          credit_limit: editForm.credit_limit === '' ? null : Number(editForm.credit_limit),
+          interest_rate: editForm.interest_rate === '' ? null : Number(editForm.interest_rate),
+          emi_amount: editForm.emi_amount === '' ? null : Number(editForm.emi_amount),
           is_active: editForm.is_active,
         });
         setEditingAccount(null);

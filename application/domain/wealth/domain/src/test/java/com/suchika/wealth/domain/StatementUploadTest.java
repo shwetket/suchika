@@ -16,7 +16,7 @@ class StatementUploadTest {
         StatementUpload upload = StatementUpload.builder()
                 .accountId(accountId)
                 .fileName("statement.csv")
-                .uploadDate(Instant.now())
+                .uploadDate(Instant.parse("2026-06-01T00:00:00Z"))
                 .build();
 
         assertEquals(UploadStatus.PENDING, upload.getStatus());
@@ -27,7 +27,7 @@ class StatementUploadTest {
         StatementUpload upload = StatementUpload.builder()
                 .accountId(UUID.randomUUID())
                 .fileName("statement.csv")
-                .uploadDate(Instant.now())
+                .uploadDate(Instant.parse("2026-06-01T00:00:00Z"))
                 .build();
 
         assertEquals(UploadStatus.PENDING, upload.getStatus());

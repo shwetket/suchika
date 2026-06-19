@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -40,13 +41,13 @@ class TransactionPanacheRepositoryTest {
         UUID accountId = saveAccount();
         UUID uploadId = saveUpload(accountId);
 
-        Transaction saved = repository.save(transaction(accountId, uploadId, LocalDate.of(2026, 6, 1),
+        Transaction saved = repository.save(transaction(accountId, uploadId, LocalDate.of(2026, Month.JUNE, 1),
                 new BigDecimal("1000.00"), TxnType.CREDIT, "Salary"));
 
         assertNotNull(saved.getId());
         assertEquals(accountId, saved.getAccountId());
         assertEquals(uploadId, saved.getUploadId());
-        assertEquals(LocalDate.of(2026, 6, 1), saved.getTxnDate());
+        assertEquals(LocalDate.of(2026, Month.JUNE, 1), saved.getTxnDate());
         assertEquals(0, new BigDecimal("1000.00").compareTo(saved.getAmount()));
         assertEquals(TxnType.CREDIT, saved.getTxnType());
         assertEquals("Salary", saved.getDescription());
@@ -66,9 +67,9 @@ class TransactionPanacheRepositoryTest {
         UUID accountId = saveAccount();
         UUID uploadId = saveUpload(accountId);
 
-        repository.save(transaction(accountId, uploadId, LocalDate.of(2026, 3, 1),
+        repository.save(transaction(accountId, uploadId, LocalDate.of(2026, Month.MARCH, 1),
                 new BigDecimal("500.00"), TxnType.DEBIT, "Rent"));
-        repository.save(transaction(accountId, uploadId, LocalDate.of(2026, 4, 1),
+        repository.save(transaction(accountId, uploadId, LocalDate.of(2026, Month.APRIL, 1),
                 new BigDecimal("200.00"), TxnType.DEBIT, "Electricity"));
 
         List<Transaction> result = repository.findByAccountId(accountId, null, null, null);
@@ -81,12 +82,12 @@ class TransactionPanacheRepositoryTest {
         UUID accountId = saveAccount();
         UUID uploadId = saveUpload(accountId);
 
-        repository.save(transaction(accountId, uploadId, LocalDate.of(2026, 1, 1),
+        repository.save(transaction(accountId, uploadId, LocalDate.of(2026, Month.JANUARY, 1),
                 new BigDecimal("100.00"), TxnType.DEBIT, "January bill"));
-        repository.save(transaction(accountId, uploadId, LocalDate.of(2026, 6, 1),
+        repository.save(transaction(accountId, uploadId, LocalDate.of(2026, Month.JUNE, 1),
                 new BigDecimal("200.00"), TxnType.DEBIT, "June bill"));
 
-        List<Transaction> result = repository.findByAccountId(accountId, LocalDate.of(2026, 6, 1), null, null);
+        List<Transaction> result = repository.findByAccountId(accountId, LocalDate.of(2026, Month.JUNE, 1), null, null);
 
         assertEquals(1, result.size());
         assertEquals("June bill", result.get(0).getDescription());
@@ -97,12 +98,12 @@ class TransactionPanacheRepositoryTest {
         UUID accountId = saveAccount();
         UUID uploadId = saveUpload(accountId);
 
-        repository.save(transaction(accountId, uploadId, LocalDate.of(2026, 1, 15),
+        repository.save(transaction(accountId, uploadId, LocalDate.of(2026, Month.JANUARY, 15),
                 new BigDecimal("150.00"), TxnType.DEBIT, "January purchase"));
-        repository.save(transaction(accountId, uploadId, LocalDate.of(2026, 2, 10),
+        repository.save(transaction(accountId, uploadId, LocalDate.of(2026, Month.FEBRUARY, 10),
                 new BigDecimal("300.00"), TxnType.DEBIT, "February purchase"));
 
-        List<Transaction> result = repository.findByAccountId(accountId, null, LocalDate.of(2026, 1, 31), null);
+        List<Transaction> result = repository.findByAccountId(accountId, null, LocalDate.of(2026, Month.JANUARY, 31), null);
 
         assertEquals(1, result.size());
         assertEquals("January purchase", result.get(0).getDescription());
@@ -113,9 +114,9 @@ class TransactionPanacheRepositoryTest {
         UUID accountId = saveAccount();
         UUID uploadId = saveUpload(accountId);
 
-        repository.save(transaction(accountId, uploadId, LocalDate.of(2026, 5, 1),
+        repository.save(transaction(accountId, uploadId, LocalDate.of(2026, Month.MAY, 1),
                 new BigDecimal("5000.00"), TxnType.CREDIT, "Salary credit"));
-        repository.save(transaction(accountId, uploadId, LocalDate.of(2026, 5, 5),
+        repository.save(transaction(accountId, uploadId, LocalDate.of(2026, Month.MAY, 5),
                 new BigDecimal("200.00"), TxnType.DEBIT, "ATM withdrawal"));
 
         List<Transaction> result = repository.findByAccountId(accountId, null, null, TxnType.CREDIT);
@@ -129,7 +130,7 @@ class TransactionPanacheRepositoryTest {
     void existsByUniqueKey_true_whenMatchFound() {
         UUID accountId = saveAccount();
         UUID uploadId = saveUpload(accountId);
-        LocalDate txnDate = LocalDate.of(2026, 6, 10);
+        LocalDate txnDate = LocalDate.of(2026, Month.JUNE, 10);
         BigDecimal amount = new BigDecimal("750.00");
 
         repository.save(transaction(accountId, uploadId, txnDate, amount, TxnType.DEBIT, "Grocery store"));
@@ -141,7 +142,7 @@ class TransactionPanacheRepositoryTest {
     void existsByUniqueKey_false_whenDescriptionDiffers() {
         UUID accountId = saveAccount();
         UUID uploadId = saveUpload(accountId);
-        LocalDate txnDate = LocalDate.of(2026, 6, 10);
+        LocalDate txnDate = LocalDate.of(2026, Month.JUNE, 10);
         BigDecimal amount = new BigDecimal("750.00");
 
         repository.save(transaction(accountId, uploadId, txnDate, amount, TxnType.DEBIT, "Grocery store"));

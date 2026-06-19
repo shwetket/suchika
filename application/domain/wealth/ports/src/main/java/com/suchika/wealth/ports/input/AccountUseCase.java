@@ -9,9 +9,7 @@ import java.util.UUID;
 
 public interface AccountUseCase {
 
-    Account createAccount(UUID profileId, String accountName, AccountType accountType, String institutionName,
-                           BigDecimal openingBalance, BigDecimal creditLimit,
-                           BigDecimal interestRate, BigDecimal emiAmount);
+    Account createAccount(UUID profileId, CreateAccountCommand command);
 
     Account getAccount(UUID id);
 

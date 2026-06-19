@@ -1,549 +1,123 @@
-# Suchika (सूचिका)
+﻿# Suchika (सूचिका)
 
-A personal data record management system managing **Wealth**, **Household**, and **Health** domains with a React frontend.
+A personal household management system covering **Profile**, **Wealth**, and **Health** domains with a React frontend. **v0.2 complete** — Profile identity, Wealth accounts/transactions/assets, and Health vital readings/doctor visits are all live.
 
-Built on **Hexagonal Architecture** (Ports & Adapters). Currently at **v0.1** — Wealth CSV upload workflow (happy path).
+Built on **Hexagonal Architecture** (Ports & Adapters) with four isolated Quarkus domain services behind a BFF web-gateway.
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 1. **Clone & setup:** See [Contributing / Getting Started](./CONTRIBUTING.md)
-2. **Run the unified backend:**
+2. **One-time DB bootstrap:**
 ```bash
-   ./gradlew :application:wealth:quarkusDev   # Single Quarkus application
-   cd web && npm install && npm start          # Frontend
+psql -U postgres -c "CREATE DATABASE app_db;"
+psql -U postgres -d app_db -f application/flyway/00_bootstrap.sql
 ```
-3. **Open app:** `http://localhost:3000`
+3. **Start domain services (profile first — others FK into it):**
+```bash
+./gradlew :application:domain:profile:adapters:quarkusDev   # port 8081
+./gradlew :application:domain:wealth:adapters:quarkusDev    # port 8082
+./gradlew :application:domain:health:adapters:quarkusDev    # port 8083
+./gradlew :application:web-gateway:quarkusDev               # port 8080 (BFF)
+```
+4. **Start frontend:**
+```bash
+cd web && npm install && npm start   # http://localhost:3000
+```
+5. **Open app:** `http://localhost:3000` — frontend talks only to the gateway at `http://localhost:8080`
 
 ---
 
-## 📖 Documentation
+## Documentation
 
 | Document | Purpose |
 |---|---|
 | [CONTRIBUTING](./CONTRIBUTING.md) | Local dev setup, prerequisites, run commands |
-| [ARCHITECTURE](./documents/ARCHITECTURE_GUIDELINES.md) | System design and hexagonal architecture |
-| [FRONTEND_GUIDELINES](./documents/FRONTEND_GUIDELINES.md) | React standards, guardrails, and linting rules |
+| [ARCHITECTURE_GUIDELINES](./documents/ARCHITECTURE_GUIDELINES.md) | System design, hexagonal architecture, ADR index |
+| [ARCHITECTURE_DECISIONS](./documents/ARCHITECTURE_DECISIONS.md) | All ADRs (ADR-001 through ADR-012) |
+| [ARCHITECTURE_PROPOSALS](./documents/ARCHITECTURE_PROPOSALS.md) | Pending proposals under review |
 | [BUSINESS_REQUIREMENTS](./documents/BUSINESS_REQUIREMENTS.md) | Functional specs, versioned epics, domain rules |
+| [ROADMAP](./documents/ROADMAP.md) | Milestone plan v0.2 through v4.1 |
+| [REQUIREMENTS_wealth_domain](./documents/REQUIREMENTS_wealth_domain.md) | Wealth domain feature specs |
+| [REQUIREMENTS_health_domain](./documents/REQUIREMENTS_health_domain.md) | Health domain feature specs |
+| [REQUIREMENTS_household_domain](./documents/REQUIREMENTS_household_domain.md) | Household domain feature specs (v0.3+) |
+| [REQUIREMENTS_cross_domain](./documents/REQUIREMENTS_cross_domain.md) | Cross-domain and dashboard specs |
+| [FRONTEND_GUIDELINES](./documents/FRONTEND_GUIDELINES.md) | React/Tailwind/ESLint standards |
+| [LOGGING_AND_EXCEPTIONS](./documents/LOGGING_AND_EXCEPTIONS.md) | AppLogger and exception hierarchy |
 | [CICD](./documents/CICD.md) | Build and automation pipeline rules |
-| [LOGGING_AND_EXCEPTIONS](./documents/LOGGING_AND_EXCEPTIONS.md) | Logger utility and common exception handling |
-| [AGENTS](./documents/AGENTS.md) | AI helper roles and documentation agents |
-| [ROADMAP](./documents/ROADMAP.md) | Future milestones v0.2 → v4.1 |
+| [V02_DEVELOPMENT_PLAN](./documents/V02_DEVELOPMENT_PLAN.md) | v0.2 implementation plan and phase breakdown |
+| [QA_API_TEST_RESULTS](./documents/QA_API_TEST_RESULTS.md) | API test results and QA sign-off |
+| [AGENTS](./documents/AGENTS.md) | AI agent roles and responsibilities |
 | [SECURITY](./SECURITY.md) | Vulnerability reporting and version support |
 
 ---
 
-## 🛠 Tech Stack
+## Tech Stack
 
 | Layer | Technology |
 |---|---|
 | Backend Language | Java 25 |
 | Backend Framework | Quarkus 3.29.0 |
 | Build Tool | Gradle 9.3.0 (Kotlin DSL) |
-| Relational DB | PostgreSQL (Wealth + Household domains) |
-| Document DB | MongoDB (Health domain) |
-| Schema Migrations | Flyway (PostgreSQL) |
+| Database | PostgreSQL — single `app_db` with five schemas |
+| Schema Migrations | Flyway (per-domain, auto-run on startup) |
 | API Contract | OpenAPI 3.1.0 (contract-first) |
 | API Style | Google AIP (resource-oriented) |
-| Frontend | React (JavaScript) |
+| Frontend | React (JavaScript) + Tailwind CSS |
 | Architecture | Hexagonal (Ports & Adapters) |
 | Code Quality | SonarQube Community Edition (local analysis) |
 
 ---
 
-## 📁 Repository Structure
-
-
-
-
-
+## Repository Structure
 
 ```
 suchika/
+├── .claude/                             <- Claude Code agent definitions
+│   └── agents/
+├── .github/                             <- GitHub workflows, issue templates, Copilot agents
+│   ├── copilot/agents/
+│   ├── ISSUE_TEMPLATE/
+│   └── workflows/
 ├── application/
-│   ├── contract/
-│   │   ├── gateway.yaml
+│   ├── contract/                        <- OpenAPI contracts (source of truth)
+│   │   ├── gateway.yaml                 <- BFF contract (frontend generates typed client from this)
 │   │   ├── health.yaml
 │   │   ├── household.yaml
 │   │   ├── profile.yaml
 │   │   └── wealth.yaml
 │   ├── domain/
-│   │   ├── health/
+│   │   ├── health/                      <- Health domain (port 8083)
+│   │   │   ├── adapters/                <- JAX-RS controllers + Panache persistence
+│   │   │   ├── domain/                  <- Pure Java business logic (no framework deps)
+│   │   │   └── ports/                   <- Input/output port interfaces
+│   │   ├── household/                   <- Household domain (port 8084, v0.3)
 │   │   │   ├── adapters/
-│   │   │   │   ├── bin/
-│   │   │   │   │   ├── main/
-│   │   │   │   │   │   └── com/
-│   │   │   │   │   │       └── suchika/
-│   │   │   │   │   │           └── health/
-│   │   │   │   │   │               └── adapters/
-│   │   │   │   │   │                   ├── http/
-│   │   │   │   │   │                   │   └── dto/
-│   │   │   │   │   │                   ├── persistence/
-│   │   │   │   │   │                   └── services/
-│   │   │   │   │   └── test/
-│   │   │   │   │       └── com/
-│   │   │   │   │           └── suchika/
-│   │   │   │   │               └── health/
-│   │   │   │   │                   └── adapters/
-│   │   │   │   │                       └── services/
-│   │   │   │   ├── src/
-│   │   │   │   │   ├── main/
-│   │   │   │   │   │   ├── java/
-│   │   │   │   │   │   │   └── com/
-│   │   │   │   │   │   │       └── suchika/
-│   │   │   │   │   │   │           └── health/
-│   │   │   │   │   │   │               └── adapters/
-│   │   │   │   │   │   │                   ├── http/
-│   │   │   │   │   │   │                   │   └── dto/
-│   │   │   │   │   │   │                   ├── persistence/
-│   │   │   │   │   │   │                   └── services/
-│   │   │   │   │   │   └── resources/
-│   │   │   │   │   │       └── application.properties
-│   │   │   │   │   └── test/
-│   │   │   │   │       └── java/
-│   │   │   │   │           └── com/
-│   │   │   │   │               └── suchika/
-│   │   │   │   │                   └── health/
-│   │   │   │   │                       └── adapters/
-│   │   │   │   │                           └── services/
-│   │   │   │   └── build.gradle.kts
-│   │   │   ├── bin/
-│   │   │   │   ├── main/
-│   │   │   │   │   └── com/
-│   │   │   │   │       └── suchika/
-│   │   │   │   │           └── health/
-│   │   │   │   └── test/
-│   │   │   │       └── com/
-│   │   │   │           └── suchika/
-│   │   │   │               └── health/
 │   │   │   ├── domain/
-│   │   │   │   ├── bin/
-│   │   │   │   │   ├── main/
-│   │   │   │   │   │   └── com/
-│   │   │   │   │   │       └── suchika/
-│   │   │   │   │   │           └── health/
-│   │   │   │   │   │               └── domain/
-│   │   │   │   │   └── test/
-│   │   │   │   │       └── com/
-│   │   │   │   │           └── suchika/
-│   │   │   │   │               └── health/
-│   │   │   │   │                   └── domain/
-│   │   │   │   ├── src/
-│   │   │   │   │   ├── main/
-│   │   │   │   │   │   ├── java/
-│   │   │   │   │   │   │   └── com/
-│   │   │   │   │   │   │       └── suchika/
-│   │   │   │   │   │   │           └── health/
-│   │   │   │   │   │   │               └── domain/
-│   │   │   │   │   │   └── resources/
-│   │   │   │   │   └── test/
-│   │   │   │   │       └── java/
-│   │   │   │   │           └── com/
-│   │   │   │   │               └── suchika/
-│   │   │   │   │                   └── health/
-│   │   │   │   │                       └── domain/
-│   │   │   │   └── build.gradle.kts
-│   │   │   ├── ports/
-│   │   │   │   ├── bin/
-│   │   │   │   │   ├── main/
-│   │   │   │   │   │   └── com/
-│   │   │   │   │   │       └── suchika/
-│   │   │   │   │   │           └── health/
-│   │   │   │   │   │               └── ports/
-│   │   │   │   │   │                   ├── input/
-│   │   │   │   │   │                   └── output/
-│   │   │   │   │   └── test/
-│   │   │   │   │       └── com/
-│   │   │   │   │           └── suchika/
-│   │   │   │   │               └── health/
-│   │   │   │   │                   └── ports/
-│   │   │   │   ├── src/
-│   │   │   │   │   ├── main/
-│   │   │   │   │   │   ├── java/
-│   │   │   │   │   │   │   └── com/
-│   │   │   │   │   │   │       └── suchika/
-│   │   │   │   │   │   │           └── health/
-│   │   │   │   │   │   │               └── ports/
-│   │   │   │   │   │   │                   ├── input/
-│   │   │   │   │   │   │                   └── output/
-│   │   │   │   │   │   └── resources/
-│   │   │   │   │   └── test/
-│   │   │   │   │       └── java/
-│   │   │   │   │           └── com/
-│   │   │   │   │               └── suchika/
-│   │   │   │   │                   └── health/
-│   │   │   │   │                       └── ports/
-│   │   │   │   └── build.gradle.kts
-│   │   │   └── src/
-│   │   │       ├── main/
-│   │   │       │   ├── java/
-│   │   │       │   │   └── com/
-│   │   │       │   │       └── suchika/
-│   │   │       │   │           └── health/
-│   │   │       │   └── resources/
-│   │   │       └── test/
-│   │   │           └── java/
-│   │   │               └── com/
-│   │   │                   └── suchika/
-│   │   │                       └── health/
-│   │   ├── household/
+│   │   │   └── ports/
+│   │   ├── profile/                     <- Profile domain (port 8081) — start this first
 │   │   │   ├── adapters/
-│   │   │   │   ├── bin/
-│   │   │   │   │   └── main/
-│   │   │   │   ├── src/
-│   │   │   │   │   └── main/
-│   │   │   │   │       ├── java/
-│   │   │   │   │       └── resources/
-│   │   │   │   │           ├── db/
-│   │   │   │   │           └── application.properties
-│   │   │   │   └── build.gradle.kts
-│   │   │   ├── bin/
-│   │   │   │   └── main/
 │   │   │   ├── domain/
-│   │   │   │   ├── bin/
-│   │   │   │   │   ├── main/
-│   │   │   │   │   └── test/
-│   │   │   │   ├── src/
-│   │   │   │   │   ├── main/
-│   │   │   │   │   │   └── java/
-│   │   │   │   │   └── test/
-│   │   │   │   │       └── java/
-│   │   │   │   └── build.gradle.kts
-│   │   │   ├── ports/
-│   │   │   │   ├── bin/
-│   │   │   │   │   ├── main/
-│   │   │   │   │   └── test/
-│   │   │   │   ├── src/
-│   │   │   │   │   ├── main/
-│   │   │   │   │   │   └── java/
-│   │   │   │   │   └── test/
-│   │   │   │   │       └── java/
-│   │   │   │   └── build.gradle.kts
-│   │   │   ├── src/
-│   │   │   │   └── main/
-│   │   │   │       └── resources/
-│   │   │   │           └── db/
-│   │   │   │               └── migration/
-│   │   │   └── build.gradle.kts
-│   │   ├── profile/
-│   │   │   ├── adapters/
-│   │   │   │   ├── bin/
-│   │   │   │   │   ├── main/
-│   │   │   │   │   │   └── com/
-│   │   │   │   │   │       └── suchika/
-│   │   │   │   │   │           └── profile/
-│   │   │   │   │   │               └── adapters/
-│   │   │   │   │   │                   ├── http/
-│   │   │   │   │   │                   │   └── dto/
-│   │   │   │   │   │                   ├── persistence/
-│   │   │   │   │   │                   └── service/
-│   │   │   │   │   └── test/
-│   │   │   │   │       └── com/
-│   │   │   │   │           └── suchika/
-│   │   │   │   │               └── profile/
-│   │   │   │   │                   └── adapters/
-│   │   │   │   │                       └── service/
-│   │   │   │   ├── src/
-│   │   │   │   │   ├── main/
-│   │   │   │   │   │   ├── java/
-│   │   │   │   │   │   │   └── com/
-│   │   │   │   │   │   │       └── suchika/
-│   │   │   │   │   │   │           └── profile/
-│   │   │   │   │   │   │               └── adapters/
-│   │   │   │   │   │   │                   ├── http/
-│   │   │   │   │   │   │                   │   └── dto/
-│   │   │   │   │   │   │                   ├── persistence/
-│   │   │   │   │   │   │                   └── service/
-│   │   │   │   │   │   └── resources/
-│   │   │   │   │   │       ├── db/
-│   │   │   │   │   │       └── application.properties
-│   │   │   │   │   └── test/
-│   │   │   │   │       └── java/
-│   │   │   │   │           └── com/
-│   │   │   │   │               └── suchika/
-│   │   │   │   │                   └── profile/
-│   │   │   │   │                       └── adapters/
-│   │   │   │   │                           └── service/
-│   │   │   │   └── build.gradle.kts
-│   │   │   ├── bin/
-│   │   │   │   └── main/
-│   │   │   ├── domain/
-│   │   │   │   ├── bin/
-│   │   │   │   │   ├── main/
-│   │   │   │   │   │   └── com/
-│   │   │   │   │   │       └── suchika/
-│   │   │   │   │   │           └── profile/
-│   │   │   │   │   │               └── domain/
-│   │   │   │   │   └── test/
-│   │   │   │   │       └── com/
-│   │   │   │   │           └── suchika/
-│   │   │   │   │               └── profile/
-│   │   │   │   │                   └── domain/
-│   │   │   │   ├── src/
-│   │   │   │   │   ├── main/
-│   │   │   │   │   │   └── java/
-│   │   │   │   │   │       └── com/
-│   │   │   │   │   │           └── suchika/
-│   │   │   │   │   │               └── profile/
-│   │   │   │   │   │                   └── domain/
-│   │   │   │   │   └── test/
-│   │   │   │   │       └── java/
-│   │   │   │   │           └── com/
-│   │   │   │   │               └── suchika/
-│   │   │   │   │                   └── profile/
-│   │   │   │   │                       └── domain/
-│   │   │   │   └── build.gradle.kts
-│   │   │   ├── ports/
-│   │   │   │   ├── bin/
-│   │   │   │   │   ├── main/
-│   │   │   │   │   │   └── com/
-│   │   │   │   │   │       └── suchika/
-│   │   │   │   │   │           └── profile/
-│   │   │   │   │   │               └── ports/
-│   │   │   │   │   │                   ├── input/
-│   │   │   │   │   │                   └── output/
-│   │   │   │   │   └── test/
-│   │   │   │   ├── src/
-│   │   │   │   │   ├── main/
-│   │   │   │   │   │   └── java/
-│   │   │   │   │   │       └── com/
-│   │   │   │   │   │           └── suchika/
-│   │   │   │   │   │               └── profile/
-│   │   │   │   │   │                   └── ports/
-│   │   │   │   │   │                       ├── input/
-│   │   │   │   │   │                       └── output/
-│   │   │   │   │   └── test/
-│   │   │   │   │       └── java/
-│   │   │   │   └── build.gradle.kts
-│   │   │   ├── src/
-│   │   │   │   └── main/
-│   │   │   │       └── resources/
-│   │   │   │           └── db/
-│   │   │   │               └── migration/
-│   │   │   └── build.gradle.kts
-│   │   └── wealth/
+│   │   │   └── ports/
+│   │   └── wealth/                      <- Wealth domain (port 8082)
 │   │       ├── adapters/
-│   │       │   ├── bin/
-│   │       │   │   ├── main/
-│   │       │   │   │   └── com/
-│   │       │   │   │       └── suchika/
-│   │       │   │   │           ├── finance/
-│   │       │   │   │           │   └── adapters/
-│   │       │   │   │           └── wealth/
-│   │       │   │   │               └── adapters/
-│   │       │   │   │                   ├── http/
-│   │       │   │   │                   │   └── dto/
-│   │       │   │   │                   ├── persistence/
-│   │       │   │   │                   └── services/
-│   │       │   │   └── test/
-│   │       │   │       └── com/
-│   │       │   │           └── suchika/
-│   │       │   │               ├── finance/
-│   │       │   │               │   └── adapters/
-│   │       │   │               └── wealth/
-│   │       │   │                   └── adapters/
-│   │       │   │                       └── services/
-│   │       │   ├── src/
-│   │       │   │   ├── main/
-│   │       │   │   │   ├── java/
-│   │       │   │   │   │   └── com/
-│   │       │   │   │   │       └── suchika/
-│   │       │   │   │   │           ├── finance/
-│   │       │   │   │   │           │   └── adapters/
-│   │       │   │   │   │           └── wealth/
-│   │       │   │   │   │               └── adapters/
-│   │       │   │   │   │                   ├── http/
-│   │       │   │   │   │                   │   └── dto/
-│   │       │   │   │   │                   ├── persistence/
-│   │       │   │   │   │                   └── services/
-│   │       │   │   │   └── resources/
-│   │       │   │   │       ├── db/
-│   │       │   │   │       │   └── migration/
-│   │       │   │   │       └── application.properties
-│   │       │   │   └── test/
-│   │       │   │       └── java/
-│   │       │   │           └── com/
-│   │       │   │               └── suchika/
-│   │       │   │                   ├── finance/
-│   │       │   │                   │   └── adapters/
-│   │       │   │                   └── wealth/
-│   │       │   │                       └── adapters/
-│   │       │   │                           └── services/
-│   │       │   └── build.gradle.kts
-│   │       ├── bin/
-│   │       │   ├── main/
-│   │       │   │   └── com/
-│   │       │   │       └── suchika/
-│   │       │   │           └── finance/
-│   │       │   └── test/
-│   │       │       └── com/
-│   │       │           └── suchika/
-│   │       │               └── finance/
 │   │       ├── domain/
-│   │       │   ├── bin/
-│   │       │   │   ├── main/
-│   │       │   │   │   └── com/
-│   │       │   │   │       └── suchika/
-│   │       │   │   │           ├── finance/
-│   │       │   │   │           │   └── domain/
-│   │       │   │   │           └── wealth/
-│   │       │   │   │               └── domain/
-│   │       │   │   └── test/
-│   │       │   │       └── com/
-│   │       │   │           └── suchika/
-│   │       │   │               └── finance/
-│   │       │   │                   └── domain/
-│   │       │   ├── src/
-│   │       │   │   ├── main/
-│   │       │   │   │   ├── java/
-│   │       │   │   │   │   └── com/
-│   │       │   │   │   │       └── suchika/
-│   │       │   │   │   │           ├── finance/
-│   │       │   │   │   │           │   └── domain/
-│   │       │   │   │   │           └── wealth/
-│   │       │   │   │   │               └── domain/
-│   │       │   │   │   └── resources/
-│   │       │   │   └── test/
-│   │       │   │       └── java/
-│   │       │   │           └── com/
-│   │       │   │               └── suchika/
-│   │       │   │                   └── finance/
-│   │       │   │                       └── domain/
-│   │       │   └── build.gradle.kts
-│   │       ├── ports/
-│   │       │   ├── bin/
-│   │       │   │   ├── main/
-│   │       │   │   │   └── com/
-│   │       │   │   │       └── suchika/
-│   │       │   │   │           ├── finance/
-│   │       │   │   │           │   └── ports/
-│   │       │   │   │           └── wealth/
-│   │       │   │   │               └── ports/
-│   │       │   │   │                   ├── input/
-│   │       │   │   │                   └── output/
-│   │       │   │   └── test/
-│   │       │   │       └── com/
-│   │       │   │           └── suchika/
-│   │       │   │               └── finance/
-│   │       │   │                   └── ports/
-│   │       │   ├── src/
-│   │       │   │   ├── main/
-│   │       │   │   │   ├── java/
-│   │       │   │   │   │   └── com/
-│   │       │   │   │   │       └── suchika/
-│   │       │   │   │   │           ├── finance/
-│   │       │   │   │   │           │   └── ports/
-│   │       │   │   │   │           └── wealth/
-│   │       │   │   │   │               └── ports/
-│   │       │   │   │   │                   ├── input/
-│   │       │   │   │   │                   └── output/
-│   │       │   │   │   └── resources/
-│   │       │   │   └── test/
-│   │       │   │       └── java/
-│   │       │   │           └── com/
-│   │       │   │               └── suchika/
-│   │       │   │                   └── finance/
-│   │       │   │                       └── ports/
-│   │       │   └── build.gradle.kts
-│   │       └── src/
-│   │           ├── main/
-│   │           │   ├── java/
-│   │           │   │   └── com/
-│   │           │   │       └── suchika/
-│   │           │   │           └── finance/
-│   │           │   └── resources/
-│   │           └── test/
-│   │               └── java/
-│   │                   └── com/
-│   │                       └── suchika/
-│   │                           └── finance/
-│   ├── finance/
-│   ├── flyway/
+│   │       └── ports/
+│   ├── flyway/                          <- Flyway migrations (per domain, auto-run on startup)
+│   │   ├── 00_bootstrap.sql             <- Run manually once as superuser before first start
 │   │   ├── health/
-│   │   │   ├── V1__init_health.sql
-│   │   │   └── V2__remove_enum_constraints.sql
 │   │   ├── household/
-│   │   │   ├── V1__init_household.sql
-│   │   │   ├── V2__goals.sql
-│   │   │   └── V3__remove_enum_constraints.sql
 │   │   ├── profile/
-│   │   │   ├── V1__init_profile.sql
-│   │   │   └── V2__add_admin_table.sql
 │   │   ├── projections/
-│   │   │   └── V1__init_projections.sql
 │   │   ├── test-seed/
-│   │   │   ├── health/
-│   │   │   │   └── R__seed_health_test_data.sql
-│   │   │   ├── profile/
-│   │   │   │   └── R__seed_profile_test_data.sql
-│   │   │   └── wealth/
-│   │   │       └── R__seed_wealth_test_data.sql
-│   │   ├── wealth/
-│   │   │   ├── V1__init_ledger.sql
-│   │   │   ├── V2__physical_assets.sql
-│   │   │   ├── V3__upload_status.sql
-│   │   │   ├── V4__enrich_account.sql
-│   │   │   └── V5__remove_enum_constraints.sql
-│   │   └── 00_bootstrap.sql
-│   └── web-gateway/
-│       ├── bin/
-│       │   ├── main/
-│       │   │   └── com/
-│       │   │       └── suchika/
-│       │   │           └── gateway/
-│       │   │               ├── health/
-│       │   │               ├── profile/
-│       │   │               └── wealth/
-│       │   └── test/
-│       │       └── com/
-│       │           └── suchika/
-│       │               └── gateway/
-│       │                   ├── health/
-│       │                   ├── profile/
-│       │                   └── wealth/
-│       ├── src/
-│       │   ├── main/
-│       │   │   ├── java/
-│       │   │   │   └── com/
-│       │   │   │       └── suchika/
-│       │   │   │           └── gateway/
-│       │   │   │               ├── health/
-│       │   │   │               ├── profile/
-│       │   │   │               └── wealth/
-│       │   │   └── resources/
-│       │   │       ├── application.properties
-│       │   │       ├── health.yaml
-│       │   │       ├── household.yaml
-│       │   │       ├── profile.yaml
-│       │   │       ├── shared.yaml
-│       │   │       └── wealth.yaml
-│       │   └── test/
-│       │       └── java/
-│       │           └── com/
-│       │               └── suchika/
-│       │                   └── gateway/
-│       │                       ├── health/
-│       │                       ├── profile/
-│       │                       └── wealth/
-│       └── build.gradle.kts
+│   │   └── wealth/
+│   └── web-gateway/                     <- BFF aggregator (port 8080) — no DB, composes domain calls
 ├── assets/
 │   └── images/
-│       ├── darkmode.png
-│       ├── darkmode.psd
-│       ├── github-logo.png
-│       ├── hackerrank_logo.png
-│       ├── lightmode.png
-│       ├── linkedin-logo.png
-│       ├── logo.svg
-│       ├── logo192.png
-│       ├── logo512.png
-│       ├── map.png
-│       └── WhatsApp-logo.png
-├── documents/
-│   ├── ToBeDeleted/
+├── documents/                           <- All project documentation
 │   ├── AGENTS.md
-│   ├── ARCHITECTURE_DECISIONS.md
+│   ├── ARCHITECTURE_DECISIONS.md        <- ADR-001 through ADR-012
 │   ├── ARCHITECTURE_GUIDELINES.md
 │   ├── ARCHITECTURE_PROPOSALS.md
 │   ├── BUSINESS_REQUIREMENTS.md
@@ -557,206 +131,107 @@ suchika/
 │   ├── REQUIREMENTS_wealth_domain.md
 │   ├── ROADMAP.md
 │   └── V02_DEVELOPMENT_PLAN.md
-├── gradle/
-│   └── wrapper/
-│       ├── gradle-wrapper.jar
-│       └── gradle-wrapper.properties
-├── infrastructure/
-│   ├── local/
-│   ├── resources/
-│   └── build.gradle.kts
-├── scripts/
-│   ├── build-local.ps1
-│   ├── build-local.sh
-│   ├── build-service.ps1
-│   ├── check-migrations-location.sh
-│   ├── check-prerequisites.ps1
-│   ├── check-prerequisites.sh
-│   ├── clean-all.ps1
-│   ├── clean-builds.ps1
-│   ├── db-reset.ps1
-│   ├── db-shell.ps1
-│   ├── db-start.ps1
-│   ├── dev-aliases.ps1
-│   ├── dev-service.ps1
-│   ├── documentWriter.py
-│   ├── generate-api.ps1
-│   ├── health-check.ps1
-│   ├── health-check.sh
-│   ├── logs.ps1
-│   ├── setup-dev.ps1
-│   ├── sonar-scan.ps1
-│   ├── sonar-start.ps1
-│   ├── stop-all.ps1
-│   └── test-service.ps1
-├── shared/
-│   ├── bin/
-│   │   ├── main/
-│   │   │   └── com/
-│   │   │       └── suchika/
-│   │   │           └── shared/
-│   │   │               ├── dto/
-│   │   │               ├── exception/
-│   │   │               ├── logging/
-│   │   │               └── mapper/
-│   │   └── test/
-│   │       └── com/
-│   │           └── suchika/
-│   │               └── architecture/
-│   ├── src/
-│   │   ├── main/
-│   │   │   ├── java/
-│   │   │   │   └── com/
-│   │   │   │       └── suchika/
-│   │   │   │           └── shared/
-│   │   │   │               ├── dto/
-│   │   │   │               ├── exception/
-│   │   │   │               ├── logging/
-│   │   │   │               └── mapper/
-│   │   │   └── resources/
-│   │   │       └── META-INF/
-│   │   │           └── beans.xml
-│   │   └── test/
-│   │       └── java/
-│   │           └── com/
-│   │               └── suchika/
-│   │                   └── architecture/
-│   └── build.gradle.kts
-├── web/
-│   ├── public/
-│   │   ├── favicon.ico
-│   │   ├── index.html
-│   │   ├── manifest.json
-│   │   └── robots.txt
-│   ├── src/
-│   │   ├── api/
-│   │   │   ├── generated.d.ts
-│   │   │   └── generated.ts
-│   │   ├── components/
-│   │   │   └── shared/
-│   │   │       └── ComingSoon.jsx
-│   │   ├── context/
-│   │   ├── hooks/
-│   │   ├── pages/
-│   │   │   ├── Admin/
-│   │   │   ├── Health/
-│   │   │   ├── Household/
-│   │   │   ├── Public/
-│   │   │   ├── User/
-│   │   │   └── Wealth/
-│   │   ├── types/
-│   │   │   ├── auth.ts
-│   │   │   ├── health.ts
-│   │   │   ├── household.ts
-│   │   │   ├── index.ts
-│   │   │   └── wealth.ts
-│   │   ├── utils/
-│   │   └── index.css
-│   ├── jsconfig.json
-│   ├── package-lock.json
-│   └── package.json
-├── build.gradle.kts
-├── CLAUDE.md
-├── CODE_OF_CONDUCT.md
-├── CONTRIBUTING.md
-├── gradle.properties
-├── gradlew
-├── gradlew.bat
-├── LICENSE
-├── package-lock.json
-├── README.md
-├── SECURITY.md
-├── settings.gradle.kts
-└── sonar-project.properties
+├── gradle/wrapper/
+├── infrastructure/local/                <- Local env config (.env.template)
+├── scripts/                             <- Dev helper scripts (PowerShell + bash)
+├── shared/                              <- Cross-domain: AppLogger, exceptions, ArchUnit tests
+│   └── src/
+│       ├── main/java/com/suchika/shared/
+│       │   ├── dto/
+│       │   ├── exception/
+│       │   ├── logging/
+│       │   └── mapper/
+│       └── test/java/com/suchika/architecture/   <- ArchUnit domain rules
+└── web/                                 <- React frontend (talks only to gateway)
+    ├── public/
+    └── src/
+        ├── api/generated.ts             <- Auto-generated from gateway.yaml (do not hand-edit)
+        ├── components/
+        ├── context/
+        ├── hooks/
+        ├── pages/
+        │   ├── Admin/
+        │   ├── Health/
+        │   ├── Household/
+        │   ├── Public/
+        │   ├── User/
+        │   └── Wealth/
+        ├── types/
+        └── utils/
 ```
 
+---
 
+## Architecture Overview
 
+Four isolated Quarkus domain services, each following Hexagonal Architecture (Ports & Adapters):
 
+```
+application/domain/
+├── profile/    ← identity anchor; every other domain FKs into profile.profile (port 8081)
+├── wealth/     ← accounts, transactions, physical assets (port 8082)
+├── health/     ← vital readings, doctor visits (port 8083)
+└── household/  ← calendar, grocery inventory, goals (deferred to v0.3, port 8084)
 
+application/web-gateway/   ← BFF aggregator; frontend talks only here (port 8080)
+```
+
+Each domain has three layers:
+- `domain/` — pure Java business logic, zero framework dependencies
+- `ports/` — input ports (use cases) and output ports (persistence contracts)
+- `adapters/` — JAX-RS controllers and Panache/JPA persistence
+
+**Key rule:** `domain/` must have zero framework dependencies. Enforced by ArchUnit in `shared/`.
 
 ---
 
-## 🏗 Architecture Overview
+## Database
 
-Hexagonal architecture with clear separation of concerns across three isolated domains:
-┌──── DOMAIN ────┐
-HTTP   → │ ports/in       │ → DB
-│ application    │
-│   ↓            │
-│ ports/out      │
-└────────────────┘
-↑        ↑
-adapters/   adapters/
-in (HTTP)   out (DB)
-Domains:  wealth | household | health
-DBs:      PostgreSQL (wealth, household) | MongoDB (health)
-**Key rule:** Domain logic is framework-agnostic and fully testable. No dependencies on Quarkus, Panache, or external libraries inside `domain/`.
+Single PostgreSQL database (`app_db`) with five schemas:
+
+| Schema | Content |
+|---|---|
+| `profile` | `admin`, `profile` — household manager and all members |
+| `wealth` | `account`, `transaction`, `statement_upload`, `physical_asset` |
+| `health` | `vital_reading`, `doctor_visit` |
+| `household` | `calendar_event`, `inventory_item`, `goal` (v0.3) |
+| `projections` | `dashboard_snapshot` — CQRS read model owned by web-gateway |
+
+Each domain owns its schema. No cross-domain SQL joins.
 
 ---
 
-## 💾 Database
+## Current Status: v0.2 Complete
 
-| Domain | DB | Key Tables / Collections |
-|---|---|---|
-| Wealth | PostgreSQL (`app_db`) | `banking_transaction`, `investment_transaction`, `vehicle_asset` |
-| Household | PostgreSQL (`app_db`) | `household_profile`, `calendar_event`, `inventory_item` |
-| Health | MongoDB | `biometric_entry`, `health_profile` |
+**Shipped in v0.2:**
+- Profile domain — household members and admin identity
+- Wealth domain — accounts, CSV transaction upload, physical assets
+- Health domain — vital readings (weight, BP, blood sugar), doctor visits
+- Web-gateway BFF — dashboard snapshot projection (CQRS)
+- React frontend — wealth, health, and profile pages
 
-Each domain owns its tables — no cross-domain joins.
+**Next: v0.3 — Household Domain**
+- Calendar events, grocery inventory, household goals
 
----
-
-## 🔗 API
-
-**Base path:** `/api/v1`
-
-| Domain | Endpoint | Method | Purpose |
-|---|---|---|---|
-| Wealth | `/transactions:uploadCsv` | POST | Upload CSV file |
-| Wealth | `/transactions` | GET | List transactions |
-| Wealth | `/transactions:config` | GET | Get dropdown values |
-| Wealth | `/accounts` | GET/POST | Manage accounts |
-| Health | `/health-profiles` | GET/POST | Manage health profiles |
-| Household | *(coming in v0.1+)* | — | Profiles, calendar, inventory |
-
-See [ARCHITECTURE](./documents/ARCHITECTURE_GUIDELINES.md) for full API spec.
+See [ROADMAP](./documents/ROADMAP.md) and [BUSINESS_REQUIREMENTS](./documents/BUSINESS_REQUIREMENTS.md) for the full milestone plan.
 
 ---
 
-## 📍 Current Milestone: v0.1 — Wealth CSV Upload
+## Contributing
 
-**In scope:**
-- Upload banking & investment transactions from CSV
-- Automatic deduplication (flag cross-file duplicates)
-- Configuration-driven account names
-- Manual biometric logging (Health)
-- Household profile registry and basic calendar
-
-**Not in v0.1:**
-- Cross-domain logic (deferred to v0.5)
-- Auth / encryption (deferred to v1.0)
-- Error handling for malformed data (deferred to v0.4)
-- External API integrations (deferred to v1.0+)
-
-See [ROADMAP](./documents/ROADMAP.md) and [BUSINESS_REQUIREMENTS](./documents/BUSINESS_REQUIREMENTS.md) for full milestone plan.
-
----
-
-## 🤝 Contributing
-
-1. Read [ARCHITECTURE](./documents/ARCHITECTURE_GUIDELINES.md) to understand the design
-2. Follow Hexagonal Architecture rules (domain is framework-free)
-3. Keep migrations sequential (never edit a committed migration)
-4. Run tests before committing
+1. Read [ARCHITECTURE_GUIDELINES](./documents/ARCHITECTURE_GUIDELINES.md) to understand the design
+2. Follow Hexagonal Architecture rules — `domain/` is framework-free
+3. Start profile service first — other domains FK into `profile.profile`
+4. Keep Flyway migrations sequential; never edit a committed migration
+5. Run `./gradlew test` before committing
 
 See [CONTRIBUTING](./CONTRIBUTING.md) for full setup instructions.
 
 ---
 
-## 📞 Support
+## Support
 
 - **Setup issues?** → [CONTRIBUTING](./CONTRIBUTING.md)
-- **API details?** → [ARCHITECTURE](./documents/ARCHITECTURE_GUIDELINES.md)
+- **Architecture rules?** → [ARCHITECTURE_GUIDELINES](./documents/ARCHITECTURE_GUIDELINES.md)
 - **Business rules?** → [BUSINESS_REQUIREMENTS](./documents/BUSINESS_REQUIREMENTS.md)
 - **Security issues?** → [SECURITY](./SECURITY.md)

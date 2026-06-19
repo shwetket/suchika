@@ -67,7 +67,8 @@ The web-gateway has no database of its own. It aggregates domain REST calls and 
 - Domain services (8081–8084) are internal — the frontend never calls them directly.
 - Use the generated OpenAPI client on the frontend — never hand-roll HTTP calls or edit `web/src/api/generated.ts` manually.
 - Regenerate after any contract change: `cd web && npm run generate:api`.
-- Contract files live in `application/contract/{domain}.yaml`.
+- **Source of truth for the frontend client is `application/contract/gateway.yaml`** — not the individual domain contracts.
+- Domain contracts (`application/contract/{domain}.yaml`) serve only as the MicroProfile Rest Client spec inside `web-gateway`.
 
 ---
 
@@ -77,6 +78,15 @@ The web-gateway has no database of its own. It aggregates domain REST calls and 
 - Tailwind CSS only — no CSS modules, no `style={{}}`, no other CSS frameworks.
 - State and presentation are separate from business rules.
 - Route paths are segmented by domain: `/wealth`, `/household`, `/health`.
+
+---
+
+## Profile-ID Scoping
+
+- Every DB query in every domain must filter by the active `profile_id`.
+- This filter is injected in the `adapters/` layer only — never in `domain/` or `ports/`.
+- Domain entities and use cases must never receive or hold tenant-isolation logic.
+- ArchUnit rules in `shared/` enforce that the domain layer stays free of adapter concerns.
 
 ---
 
@@ -92,14 +102,19 @@ The web-gateway has no database of its own. It aggregates domain REST calls and 
 ## Testing
 
 - Domain logic is unit-tested with no framework setup (no Quarkus test harness needed).
-- Adapter tests use the real DB where possible (Testcontainers preferred).
+- Adapter tests use the real DB — Testcontainers with real PostgreSQL. No H2, no in-memory mocks.
 - No test should cross domain boundaries via the DB.
-- **Web Gateway (BFF) Tests**:
-  - Test REST endpoints in the BFF (`web-gateway`) using **RestAssured** and `@QuarkusTest` against the actual running downstream domain services.
-  - No mocks or stubbing services are used. Validations are executed against the actual database-backed responses.
-  - **Flyway Test Seeding**: To establish a clean database state before running integration tests, use the **Flyway Repeatable Migrations** concept (`R__seed_*_test_data.sql` located under `application/flyway/test-seed/{domain}/`).
-  - These repeatable migrations run automatically in `dev` and `test` profiles (configured via `%dev.quarkus.flyway.locations` and `%test.quarkus.flyway.locations`). They truncate existing tables and seed a set of well-known records (e.g., Admin `00000000-0000-0000-0000-000000000001` and Profile `00000000-0000-0000-0000-000000000002`).
-  - Integration tests must verify endpoints against these seeded records or perform self-contained writes referencing them.
-- ArchUnit tests in `shared/` enforce all the rules above automatically.
+
+**Web Gateway (BFF) Tests — `@InjectMock @RestClient` pattern (ADR-011):**
+- Gateway tests use `@QuarkusTest` + RestAssured but do **not** require live downstream domain services.
+- Inject mock Rest Clients with `@InjectMock @RestClient` to isolate the gateway from domain service availability.
+- Each test stubs the downstream call (e.g., `Mockito.when(profileClient.getProfile(...)).thenReturn(...)`) and asserts only gateway behavior — routing, aggregation, response mapping.
+- This replaces the earlier "live services + Flyway seeding" approach, which required all four domain services to be running during CI.
+
+**Flyway Repeatable Migrations (domain adapter tests only):**
+- `R__seed_*_test_data.sql` files under `application/flyway/test-seed/{domain}/` seed well-known records (Admin `00000000-0000-0000-0000-000000000001`, Profile `00000000-0000-0000-0000-000000000002`).
+- These run automatically in `dev` and `test` profiles via `%test.quarkus.flyway.locations`.
+- Domain adapter integration tests reference these seeded records or perform self-contained writes against them.
+- ArchUnit tests in `shared/` enforce all layer rules automatically on every `./gradlew test` run.
 
 

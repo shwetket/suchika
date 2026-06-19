@@ -83,9 +83,14 @@ All five services share one PostgreSQL database (`app_db`), each owning a separa
 
 **Status:** Accepted
 
-**Decision:** Every DB query across all domains must be scoped to the active `profile_id`. Adapters inject this filter — never the domain layer.
+**Decision:** Every DB query across all domains must be scoped to the active `profile_id`. Adapters inject this filter — never the domain or ports layer.
 
-**Rationale:** Ensures multi-tenancy safety without leaking tenant logic into business rules.
+**Implementation:**
+- All Panache repository methods in `adapters/out/persistence/` accept `profileId` as an explicit parameter and append it to every query predicate.
+- Domain use case interfaces in `ports/in/` carry `profileId` as a method argument so adapters can pass it through — but domain entities never store or reason about it.
+- `profile_id UUID REFERENCES profile.profile(id)` is a column on every domain table; the FK is enforced in the DB, the filter is enforced in the adapter.
+
+**Rationale:** Ensures data isolation between household members without leaking multi-tenancy logic into business rules. Domain tests use plain `new` and never need a `profileId` context object.
 
 ---
 
@@ -133,3 +138,48 @@ cd web && npm run generate:api
 **Decision:** Discriminator columns (account types, event types, vital types, relation values, etc.) use plain `VARCHAR` with no `CHECK` constraint in PostgreSQL. Allowed values are enforced at the OpenAPI contract (enum on the schema field) and Java enum + `@Valid` annotation.
 
 **Rationale:** Adding a new discriminator value requires only a contract + code change — no Flyway migration needed. SQL ENUMs require `ALTER TYPE` to add values, creating unnecessary migration friction.
+
+---
+
+## ADR-011: Gateway Test Isolation via `@InjectMock @RestClient`
+
+**Status:** Accepted — implemented in v0.2
+
+**Decision:** Web-gateway (`web-gateway`) integration tests use `@QuarkusTest` + RestAssured with `@InjectMock @RestClient` to stub downstream domain service calls. Live domain services are not required during gateway test runs.
+
+**Pattern:**
+```java
+@QuarkusTest
+class ProfileGatewayResourceTest {
+    @InjectMock
+    @RestClient
+    ProfileServiceClient profileClient;
+
+    @Test
+    void getProfile_returns200() {
+        Mockito.when(profileClient.getProfile(any())).thenReturn(stubbedResponse());
+        given().when().get("/api/v1/gateway/profiles/{id}", PROFILE_ID)
+               .then().statusCode(200);
+    }
+}
+```
+
+**Rationale:** The earlier approach required all four domain services to be running (with Flyway-seeded data) before gateway tests could execute. This made CI fragile and slow. With `@InjectMock @RestClient`, gateway tests verify only gateway logic — routing, aggregation, response shaping — independent of service availability. Domain adapter tests continue to use Testcontainers for real DB coverage.
+
+---
+
+## ADR-012: Household Domain Deferred to v0.3
+
+**Status:** Accepted — decided 2026-06-19
+
+**Decision:** The `household` domain (calendar events, inventory items, goals) is not implemented in v0.2. The Household Quarkus service module skeleton exists at `:application:domain:household:adapters` (port 8084) but contains zero Java files. `HouseholdGatewayResource` in `web-gateway` is not implemented. Frontend pages under `src/pages/Household/` show "Coming Soon" stubs.
+
+**v0.3 work required:**
+- Domain entities: `CalendarEvent`, `InventoryItem`, `Goal`
+- Ports, services, JPA persistence, JAX-RS controllers
+- Flyway migrations under `application/flyway/household/`
+- `HouseholdServiceClient` + `HouseholdGatewayResource`
+- Household paths added to `application/contract/gateway.yaml`
+- Frontend: `Calendar.js`, `Inventory.js`, `Goals.js` pages + Jest tests
+
+**Rationale:** Household has zero backend files — building it before UAT would delay the pilot window significantly. Profile + Wealth + Health cover all high-priority user actions for the v0.2 pilot. Household feedback can be collected separately in v0.3.

@@ -243,10 +243,11 @@ function UploadTab({ accountId }) {
     <div className="space-y-6">
       <form onSubmit={handleUpload} className="space-y-4">
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-gray-700">
+          <label htmlFor="upload-file-name" className="text-sm font-medium text-gray-700">
             File Name <span className="text-red-500">*</span>
           </label>
           <input
+            id="upload-file-name"
             type="text"
             value={fileName}
             onChange={(e) => setFileName(e.target.value)}
@@ -255,10 +256,11 @@ function UploadTab({ accountId }) {
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-gray-700">
+          <label htmlFor="upload-csv-content" className="text-sm font-medium text-gray-700">
             CSV Content <span className="text-red-500">*</span>
           </label>
           <textarea
+            id="upload-csv-content"
             value={csvContent}
             onChange={(e) => setCsvContent(e.target.value)}
             rows={8}

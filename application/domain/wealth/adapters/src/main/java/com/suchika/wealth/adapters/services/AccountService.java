@@ -7,6 +7,7 @@ import com.suchika.shared.logging.AppLogger;
 import com.suchika.wealth.domain.Account;
 import com.suchika.wealth.domain.AccountType;
 import com.suchika.wealth.ports.input.AccountUseCase;
+import com.suchika.wealth.ports.input.CreateAccountCommand;
 import com.suchika.wealth.ports.output.AccountRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
@@ -28,32 +29,30 @@ public class AccountService implements AccountUseCase {
 
     @Override
     @Transactional
-    public Account createAccount(UUID profileId, String accountName, AccountType accountType, String institutionName,
-                                  BigDecimal openingBalance, BigDecimal creditLimit,
-                                  BigDecimal interestRate, BigDecimal emiAmount) {
-        if (accountName == null || accountName.isBlank()) {
+    public Account createAccount(UUID profileId, CreateAccountCommand command) {
+        if (command.accountName() == null || command.accountName().isBlank()) {
             throw new BadRequestException("account_name is required");
         }
-        if (accountType == null) {
+        if (command.accountType() == null) {
             throw new BadRequestException("account_type is required");
         }
-        if (institutionName == null || institutionName.isBlank()) {
+        if (command.institutionName() == null || command.institutionName().isBlank()) {
             throw new BadRequestException("institution_name is required");
         }
 
         Account account = Account.builder()
                 .profileId(profileId)
-                .accountName(accountName)
-                .accountType(accountType)
-                .institutionName(institutionName)
-                .openingBalance(openingBalance != null ? openingBalance : BigDecimal.ZERO)
-                .creditLimit(creditLimit)
-                .interestRate(interestRate)
-                .emiAmount(emiAmount)
+                .accountName(command.accountName())
+                .accountType(command.accountType())
+                .institutionName(command.institutionName())
+                .openingBalance(command.openingBalance() != null ? command.openingBalance() : BigDecimal.ZERO)
+                .creditLimit(command.creditLimit())
+                .interestRate(command.interestRate())
+                .emiAmount(command.emiAmount())
                 .build();
 
         Account saved = repository.save(account);
-        AppLogger.info("Account created: %s (%s)", saved.getId(), accountType);
+        AppLogger.info("Account created: %s (%s)", saved.getId(), command.accountType());
         return saved;
     }
 

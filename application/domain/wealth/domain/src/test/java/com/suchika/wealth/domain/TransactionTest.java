@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.Map;
 import java.util.UUID;
 
@@ -17,9 +18,9 @@ class TransactionTest {
         UUID id = UUID.randomUUID();
         UUID accountId = UUID.randomUUID();
         UUID uploadId = UUID.randomUUID();
-        LocalDate txnDate = LocalDate.of(2026, 6, 1);
+        LocalDate txnDate = LocalDate.of(2026, Month.JUNE, 1);
         BigDecimal amount = new BigDecimal("1500.75");
-        Instant createdAt = Instant.now();
+        Instant createdAt = Instant.parse("2026-06-01T10:00:00Z");
         Map<String, String> metadata = Map.of("ref", "ABC123");
 
         Transaction txn = Transaction.builder()
@@ -48,7 +49,7 @@ class TransactionTest {
     @Test
     void builder_requiredFieldsOnly_optionalFieldsAreNull() {
         UUID accountId = UUID.randomUUID();
-        LocalDate txnDate = LocalDate.of(2026, 1, 15);
+        LocalDate txnDate = LocalDate.of(2026, Month.JANUARY, 15);
         BigDecimal amount = new BigDecimal("200.00");
 
         Transaction txn = Transaction.builder()
