@@ -16,6 +16,22 @@ jobs:
   backend:
     runs-on: ubuntu-latest
     needs: migration-location-check
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: local_dev_only
+          TZ: Asia/Kolkata
+          PGTZ: Asia/Kolkata
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -24,7 +40,15 @@ jobs:
           java-version: 21
       - name: Make Gradle wrapper executable
         run: chmod +x ./gradlew
-      - name: Run backend tests
+      - name: Bootstrap database
+        env:
+          PGPASSWORD: local_dev_only
+        run: |
+          psql -h localhost -U postgres -c "CREATE DATABASE app_db;"
+          psql -h localhost -U postgres -d app_db -f application/flyway/00_bootstrap.sql
+      - name: Run profile tests first (establishes profile.profile for cross-domain FK)
+        run: ./gradlew :application:domain:profile:adapters:test
+      - name: Run all backend tests
         run: ./gradlew test
 
   frontend:

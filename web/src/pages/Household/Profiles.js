@@ -72,6 +72,7 @@ function ProfileCard({ profile, onEdit, onDeactivate }) {
 
       <div className="flex gap-2 pt-2">
         <button
+          type="button"
           onClick={() => onEdit(profile)}
           className="flex-1 border border-blue-600 text-blue-600 py-1.5 rounded text-sm font-medium hover:bg-blue-50"
         >
@@ -79,6 +80,7 @@ function ProfileCard({ profile, onEdit, onDeactivate }) {
         </button>
         {profile.is_active && (
           <button
+            type="button"
             onClick={() => onDeactivate(profile)}
             className="flex-1 border border-red-500 text-red-500 py-1.5 rounded text-sm font-medium hover:bg-red-50"
           >
@@ -112,6 +114,7 @@ function Modal({ title, onClose, children }) {
         <div className="flex items-center justify-between p-5 border-b">
           <h2 className="text-xl font-bold">{title}</h2>
           <button
+            type="button"
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
           >
@@ -318,6 +321,7 @@ export const Profiles = () => {
           <p className="text-gray-500 mt-1">Manage members of your household</p>
         </div>
         <button
+          type="button"
           onClick={handleAddOpen}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700"
         >
@@ -338,6 +342,7 @@ export const Profiles = () => {
           return (
             <button
               key={label}
+              type="button"
               onClick={() => setFilterActive(value)}
               className={`px-4 py-1.5 rounded-full text-sm font-medium ${cls}`}
             >
@@ -358,7 +363,7 @@ export const Profiles = () => {
       {!loading && profiles.length === 0 && (
         <div className="text-center py-16 text-gray-400">
           No profiles found.{' '}
-          <button onClick={handleAddOpen} className="text-blue-600 hover:underline">
+          <button type="button" onClick={handleAddOpen} className="text-blue-600 hover:underline">
             Add the first one.
           </button>
         </div>
@@ -590,12 +595,14 @@ export const Profiles = () => {
             </p>
             <div className="flex justify-end gap-3">
               <button
+                type="button"
                 onClick={() => setConfirmTarget(null)}
                 className="px-4 py-2 border border-gray-300 rounded text-sm text-gray-600 hover:bg-gray-50"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleDeactivate}
                 disabled={deactivating}
                 className="px-4 py-2 bg-red-600 text-white rounded text-sm font-medium hover:bg-red-700 disabled:opacity-50"

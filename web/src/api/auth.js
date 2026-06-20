@@ -1,5 +1,5 @@
 import { API_BASE_URL } from '../utils/constants';
-import { handleAPIResponse, createApplicationException } from '../utils/errorHandler';
+import { handleAPIResponse, createApplicationException, logError } from '../utils/errorHandler';
 
 /**
  * Sign in with backend auth endpoint.
@@ -32,7 +32,7 @@ export async function signIn(credentials) {
     if (error?.status) {
       throw error;
     }
-    console.warn('Auth API unavailable, using demo fallback:', error.message);
+    logError('auth', error);
     return {
       username: credentials.username,
       role: credentials.role || 'user',

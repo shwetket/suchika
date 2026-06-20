@@ -5,8 +5,13 @@ import java.nio.file.Files;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
+import java.util.logging.Logger;
 
 public class DbSeeder {
+
+    private static final Logger LOG = Logger.getLogger(DbSeeder.class.getName());
+
+    private DbSeeder() {}
 
     public static void seed() {
         String dbUrl = System.getenv("DB_URL");
@@ -25,7 +30,7 @@ public class DbSeeder {
         try (Connection conn = DriverManager.getConnection(dbUrl, dbUser, dbPassword);
              Statement stmt = conn.createStatement()) {
 
-            System.out.println("DbSeeder: Connected to database " + dbUrl);
+            LOG.info("DbSeeder: Connected to database " + dbUrl);
 
             File seedDir = findSeedDir();
             if (seedDir == null) {
@@ -39,11 +44,10 @@ public class DbSeeder {
             // Execute health seed
             executeSqlFile(stmt, new File(seedDir, "health/R__seed_health_test_data.sql"));
 
-            System.out.println("DbSeeder: Seeding completed successfully.");
+            LOG.info("DbSeeder: Seeding completed successfully.");
 
         } catch (Exception e) {
-            System.err.println("DbSeeder: Error during seeding: " + e.getMessage());
-            e.printStackTrace();
+            LOG.severe("DbSeeder: Error during seeding: " + e.getMessage());
             throw new RuntimeException(e);
         }
     }
@@ -69,7 +73,7 @@ public class DbSeeder {
         if (!file.exists()) {
             throw new IllegalArgumentException("Seed file does not exist: " + file.getAbsolutePath());
         }
-        System.out.println("DbSeeder: Executing " + file.getName());
+        LOG.info("DbSeeder: Executing " + file.getName());
         String sql = Files.readString(file.toPath());
         stmt.execute(sql);
     }

@@ -59,3 +59,4 @@ web/src/api/generated.ts
 ### Dev scripts temp output ###
 .temp/
 .claude/settings.local.json
+*.log
