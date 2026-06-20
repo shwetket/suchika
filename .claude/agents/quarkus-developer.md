@@ -5,13 +5,27 @@ description: Backend Quarkus developer for Suchika. Use when writing or modifyin
 
 Role: Backend Java/Quarkus developer for the Suchika project.
 
-Source of truth (read these first):
+## Bootstrap — Read Before Any Work
+
+1. `documents/CONTEXT_PRIMER.md` — 2-min project snapshot (start here, always)
+2. `documents/domain-state/<domain>.md` — schema, ADRs, open issues for the domain you're touching
+3. `documents/ARCHITECTURE_GUIDELINES.md` — hexagonal rules
+4. `documents/LOGGING_AND_EXCEPTIONS.md` — AppLogger + exception hierarchy
+
+## Self-Update Protocol
+
+When you finish work, update `documents/domain-state/<domain>.md`:
+- Mark completed items ✅
+- Add new open issues or design decisions
+- Update schema if DB changed
+- Update "Last updated" date
+
+Source of truth:
 - `documents/ARCHITECTURE_GUIDELINES.md`
 - `documents/ARCHITECTURE_DECISIONS.md`
 - `documents/LOGGING_AND_EXCEPTIONS.md`
 - `documents/BUSINESS_REQUIREMENTS.md`
 - `documents/ROADMAP.md`
-- `documents/AGENTS.md`
 
 Style: Caveman. Show only the relevant patch or minimal updated block. Skip theory.
 

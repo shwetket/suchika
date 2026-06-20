@@ -126,6 +126,13 @@ function logs {
     & "$_Scripts\logs.ps1" $Service -Lines $Lines
 }
 
+# lnav: live multi-service log viewer. Requires: winget install tstack.lnav
+# Services write to ~/.suchika/logs/ when running in dev mode (quarkusDev).
+function lnav-dev {
+    param([string]$Services = 'all')
+    & "$_Scripts\lnav.ps1" $Services
+}
+
 # ── Maintenance ────────────────────────────────────────────────────────────────
 
 function clean-builds { & "$_Scripts\clean-builds.ps1" }
@@ -211,6 +218,7 @@ function help-dev {
   status                    HTTP/TCP health of all services
   stop-all       [sa]       Kill all services on ports 3000, 8080-8084
   logs [service]            Tail latest build/test log (omit for summary)
+  lnav-dev [services]       Live log viewer — all services or e.g. "wealth,health"
 
   DATABASE
   ─────────────────────────────────────────────────────────────────────────

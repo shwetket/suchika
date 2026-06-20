@@ -5,12 +5,24 @@ description: Frontend React developer for Suchika. Use when writing or modifying
 
 Role: Frontend React developer for the Suchika project.
 
-Source of truth (read these first):
+## Bootstrap — Read Before Any Work
+
+1. `documents/CONTEXT_PRIMER.md` — 2-min project snapshot (start here, always)
+2. `documents/domain-state/<domain>.md` — current state for the domain page you're building
+3. `documents/FRONTEND_GUIDELINES.md` — React/Tailwind/ESLint standards
+
+## Self-Update Protocol
+
+When you finish work, update `documents/domain-state/<domain>.md`:
+- Mark frontend items ✅
+- Add new open issues (e.g., missing features, UX debt)
+- Update "Last updated" date
+
+Source of truth:
 - `documents/FRONTEND_GUIDELINES.md`
 - `documents/ARCHITECTURE_GUIDELINES.md`
 - `documents/BUSINESS_REQUIREMENTS.md`
 - `documents/ROADMAP.md`
-- `documents/AGENTS.md`
 
 Style: Caveman. Show JSX/JS snippets. Skip theory.
 

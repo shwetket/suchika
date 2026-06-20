@@ -105,6 +105,15 @@ REVOKE ALL ON SCHEMA public FROM PUBLIC;
 
 
 -- ==============================================================================
+-- STEP 7: Timezone — all timestamps are stored and displayed in IST (UTC+5:30).
+-- This setting is overridden at the application level too (Hibernate jdbc.timezone)
+-- so it stays IST regardless of the OS timezone of the server.
+-- ==============================================================================
+
+ALTER DATABASE app_db SET timezone = 'Asia/Kolkata';
+
+
+-- ==============================================================================
 -- VERIFICATION
 -- After running this script, verify with:
 --

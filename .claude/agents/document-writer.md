@@ -9,6 +9,12 @@ Style: Caveman. Short broken grammar. Simple verbs. Grunt confirmation when done
 
 Authority: Full CRUD on `/documents/`. Read-only on root markdown files.
 
+## Priority When Updating Docs
+
+Always keep these two files current — they are the agent bootstrap chain:
+1. `documents/CONTEXT_PRIMER.md` — project snapshot, re-sync after every milestone
+2. `documents/domain-state/<domain>.md` — domain state, update after any feature lands
+
 Behavior when invoked:
 1. Scan repository for all `*.md` files.
 2. Preserve at root: `README.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `CLAUDE.md`.

@@ -2,6 +2,19 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Agent Bootstrap Protocol
+
+Before starting any task, read these two files — they give complete project context in ~3 minutes:
+
+1. **[documents/CONTEXT_PRIMER.md](documents/CONTEXT_PRIMER.md)** — current version, service map, key invariants, what's done
+2. **[documents/domain-state/\<domain\>.md](documents/domain-state/)** — schema, ADRs, open issues for the domain being touched
+
+After completing any task, update the relevant `documents/domain-state/<domain>.md`.
+
+Use domain-specific agents when available: `wealth-developer`, `health-developer`, `profile-developer`, `household-developer` — they have domain context pre-loaded.
+
+---
+
 ## Commands
 
 ### Backend
@@ -111,6 +124,8 @@ The calculation engine lives in `web-gateway` (the BFF), which has read access t
 
 **No SQL ENUMs ever.** Use plain `VARCHAR` with no CHECK constraint for discriminator columns.
 
+**Timestamps are always IST (UTC+5:30):** All `TIMESTAMPTZ` columns use `Asia/Kolkata` enforced at two levels — `ALTER DATABASE app_db SET timezone = 'Asia/Kolkata'` in `00_bootstrap.sql`, and `quarkus.hibernate-orm.jdbc.timezone=Asia/Kolkata` in every service's `application.properties`. Never store or read timestamps in any other timezone. New services must include both settings.
+
 **Profile-scoped isolation (ADR-006):** Every DB query across all domains must filter by the active `profile_id`. This filter is injected in the `adapters/` layer — never in `domain/` or `ports/`.
 
 **API client:** After any backend contract change, regenerate with `cd web && npm run generate:api`. Never hand-edit `web/src/api/generated.ts`. The frontend API base URL is `REACT_APP_API_BASE_URL` (defaults to `http://localhost:8080`).
@@ -121,9 +136,31 @@ The calculation engine lives in `web-gateway` (the BFF), which has read access t
 
 **Styling:** Tailwind CSS only in the frontend. No CSS modules, no inline `style={{}}`, no other CSS frameworks.
 
+## GitHub Codespaces
+
+This repo is Codespaces-ready. The `.devcontainer/` directory configures a two-container environment:
+- **app** — Java 17 + Node 18 + PowerShell Core (for `.ps1` scripts)
+- **db** — PostgreSQL 16 in IST timezone
+
+**First time in Codespaces:**
+1. Open the repo in Codespaces — `setup.sh` runs automatically and bootstraps the database
+2. Open a terminal and run: `. ./scripts/dev-aliases.sh` (or reload the terminal — it auto-loads)
+3. Type `help-dev` to see all commands
+4. Run `dp` (start profile service first), then `dw`, `dh`, `dg`, `dwb`
+
+**Key Codespaces differences vs Windows:**
+- Services run in background (no new terminal windows); watch via `lnav-dev`
+- `DB_URL` env var is set to `db:5432` (the PostgreSQL container name); no `.env` change needed
+- Use `scripts/dev-aliases.sh` (not `.ps1`) — the bash version is auto-loaded in Codespaces terminals
+- SonarQube is not available in Codespaces (too resource-intensive for free tier); run `ss` locally before PRs
+- Port forwarding: VS Code shows forwarded ports in the Ports panel; use the public URL for browser access
+
+**Prebuilds:** The `onCreateCommand` in `devcontainer.json` downloads all Gradle and npm dependencies during prebuild, so new codespaces are ready in ~30 seconds instead of ~5 minutes. Enable prebuilds in GitHub repo settings under Codespaces → Prebuilds.
+
 ## Key Documentation
 
 - [documents/ARCHITECTURE_GUIDELINES.md](documents/ARCHITECTURE_GUIDELINES.md) — architectural rules enforced on every PR
 - [documents/BUSINESS_REQUIREMENTS.md](documents/BUSINESS_REQUIREMENTS.md) — feature specs and milestone roadmap
 - [documents/FRONTEND_GUIDELINES.md](documents/FRONTEND_GUIDELINES.md) — React/Tailwind/ESLint standards
 - [documents/LOGGING_AND_EXCEPTIONS.md](documents/LOGGING_AND_EXCEPTIONS.md) — shared logger and exception usage
+- [documents/SCRIPTS.md](documents/SCRIPTS.md) — all scripts in scripts/ with parameters and aliases

@@ -5,7 +5,20 @@ description: Architecture designer for Suchika. Use when designing new domains, 
 
 Role: Architecture designer for the Suchika project.
 
-Source of truth (read these first):
+## Bootstrap — Read Before Any Work
+
+1. `documents/CONTEXT_PRIMER.md` — current version, what's done, what's next
+2. `documents/domain-state/<domain>.md` — domain-specific state if the design touches a domain
+3. `documents/ARCHITECTURE_DECISIONS.md` — existing ADRs
+
+## Self-Update Protocol
+
+After any architectural decision or structural change, update:
+- `documents/ARCHITECTURE_DECISIONS.md` — new ADR entry
+- `documents/domain-state/<domain>.md` — add design decision under "Key Design Decisions"
+- `documents/CONTEXT_PRIMER.md` — if invariants list changes
+
+Source of truth:
 - `documents/ARCHITECTURE_DECISIONS.md`
 - `documents/ARCHITECTURE_GUIDELINES.md`
 - `documents/ARCHITECTURE_PROPOSALS.md`
@@ -13,7 +26,6 @@ Source of truth (read these first):
 - `documents/ROADMAP.md`
 - `documents/LOGGING_AND_EXCEPTIONS.md`
 - `documents/CICD.md`
-- `documents/AGENTS.md`
 - `README.md`
 
 Style: Caveman. Short. Direct. No long paragraphs. Give steps or code, not essays.
