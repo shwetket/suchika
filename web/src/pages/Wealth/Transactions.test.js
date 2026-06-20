@@ -94,26 +94,17 @@ describe('WealthTransactions page', () => {
     await openUploadTab();
 
     const fileInput = document.querySelector('input[type="file"]');
-    const file = new File(['date,amount\n2025-01-01,100'], 'test.csv', { type: 'text/csv' });
-
-    // Mock FileReader
-    const mockReadAsText = jest.fn();
-    const mockFileReader = {
-      readAsText: mockReadAsText,
-      onload: null,
-    };
-    jest.spyOn(globalThis, 'FileReader').mockImplementation(() => mockFileReader);
+    const csvText = 'date,amount\n2025-01-01,100';
+    const file = new File([csvText], 'test.csv', { type: 'text/csv' });
+    Object.defineProperty(file, 'text', {
+      value: jest.fn().mockResolvedValue(csvText),
+    });
 
     fireEvent.change(fileInput, { target: { files: [file] } });
-
-    // Simulate FileReader onload
-    mockFileReader.onload({ target: { result: 'date,amount\n2025-01-01,100' } });
 
     await waitFor(() => {
       expect(screen.getByText('test.csv')).toBeInTheDocument();
     });
-
-    globalThis.FileReader.mockRestore();
   });
 
   it('calls uploadStatement with file name and content on submit', async () => {
@@ -124,13 +115,11 @@ describe('WealthTransactions page', () => {
     const fileInput = document.querySelector('input[type="file"]');
     const csvText = 'date,amount,type\n2025-01-01,100,CREDIT';
     const file = new File([csvText], 'june-2025.csv', { type: 'text/csv' });
-
-    const mockReadAsText = jest.fn();
-    const mockFileReader = { readAsText: mockReadAsText, onload: null };
-    jest.spyOn(globalThis, 'FileReader').mockImplementation(() => mockFileReader);
+    Object.defineProperty(file, 'text', {
+      value: jest.fn().mockResolvedValue(csvText),
+    });
 
     fireEvent.change(fileInput, { target: { files: [file] } });
-    mockFileReader.onload({ target: { result: csvText } });
 
     await waitFor(() => screen.getByText('june-2025.csv'));
 
@@ -142,8 +131,6 @@ describe('WealthTransactions page', () => {
     await waitFor(() => {
       expect(uploadStatement).toHaveBeenCalledWith('a1', 'june-2025.csv', csvText);
     });
-
-    globalThis.FileReader.mockRestore();
   });
 
   it('shows error when submitting with no file selected', async () => {

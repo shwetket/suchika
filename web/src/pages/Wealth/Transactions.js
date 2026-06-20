@@ -244,9 +244,7 @@ function UploadTab({ accountId }) {
   const readFile = useCallback((file) => {
     if (!file) return;
     setFileName(file.name);
-    const reader = new FileReader();
-    reader.onload = (e) => setCsvContent(e.target.result);
-    reader.readAsText(file);
+    file.text().then((text) => setCsvContent(text));
   }, []);
 
   const handleFileChange = useCallback(
@@ -277,20 +275,19 @@ function UploadTab({ accountId }) {
   return (
     <div className="space-y-6">
       <form onSubmit={handleUpload} className="space-y-4">
-        <div
-          role="button"
-          tabIndex={0}
+        <button
+          type="button"
           aria-label="Drop zone: drag a CSV file here or click to browse"
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          onClick={() => fileInputRef.current && fileInputRef.current.click()}
+          onClick={() => fileInputRef.current?.click()}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
-              fileInputRef.current && fileInputRef.current.click();
+              fileInputRef.current?.click();
             }
           }}
-          className={`border-2 border-dashed rounded-lg px-6 py-10 text-center cursor-pointer transition-colors ${
+          className={`w-full border-2 border-dashed rounded-lg px-6 py-10 text-center cursor-pointer transition-colors ${
             dragOver
               ? 'border-indigo-500 bg-indigo-50'
               : 'border-gray-300 hover:border-indigo-400 hover:bg-gray-50'
@@ -315,7 +312,7 @@ function UploadTab({ accountId }) {
               <p className="text-xs text-gray-400 mt-1">Only .csv files accepted</p>
             </div>
           )}
-        </div>
+        </button>
 
         {uploadError && <p className="text-red-600 text-sm">{uploadError}</p>}
         {uploadSuccess && (
