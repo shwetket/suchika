@@ -34,6 +34,7 @@ cd web && npm install && npm start   # http://localhost:3000
 | Document | Purpose |
 |---|---|
 | [CONTRIBUTING](./CONTRIBUTING.md) | Local dev setup, prerequisites, run commands |
+| [CONTEXT_PRIMER](./documents/CONTEXT_PRIMER.md) | Project snapshot — read this first every session |
 | [ARCHITECTURE_GUIDELINES](./documents/ARCHITECTURE_GUIDELINES.md) | System design, hexagonal architecture, ADR index |
 | [ARCHITECTURE_DECISIONS](./documents/ARCHITECTURE_DECISIONS.md) | All ADRs (ADR-001 through ADR-012) |
 | [ARCHITECTURE_PROPOSALS](./documents/ARCHITECTURE_PROPOSALS.md) | Pending proposals under review |
@@ -46,7 +47,8 @@ cd web && npm install && npm start   # http://localhost:3000
 | [FRONTEND_GUIDELINES](./documents/FRONTEND_GUIDELINES.md) | React/Tailwind/ESLint standards |
 | [E2E_TESTING](./documents/E2E_TESTING.md) | Playwright E2E test suite — setup, commands, conventions |
 | [LOGGING_AND_EXCEPTIONS](./documents/LOGGING_AND_EXCEPTIONS.md) | AppLogger and exception hierarchy |
-| [CICD](./documents/CICD.md) | Build and automation pipeline rules |
+| [CICD](./documents/CICD.md) | Build and automation pipeline, branch/PR governance rules |
+| [SCRIPTS](./documents/SCRIPTS.md) | All scripts in scripts/ with parameters and aliases |
 | [V02_DEVELOPMENT_PLAN](./documents/V02_DEVELOPMENT_PLAN.md) | v0.2 implementation plan and phase breakdown |
 | [QA_API_TEST_RESULTS](./documents/QA_API_TEST_RESULTS.md) | API test results and QA sign-off |
 | [AGENTS](./documents/AGENTS.md) | AI agent roles and responsibilities |
@@ -75,12 +77,21 @@ cd web && npm install && npm start   # http://localhost:3000
 
 ```
 suchika/
-├── .claude/                             <- Claude Code agent definitions
-│   └── agents/
-├── .github/                             <- GitHub workflows, issue templates, Copilot agents
-│   ├── copilot/agents/
-│   ├── ISSUE_TEMPLATE/
-│   └── workflows/
+├── .claude/                             <- Claude Code agent definitions and commands
+│   ├── agents/
+│   └── commands/
+├── .devcontainer/                       <- GitHub Codespaces dev environment
+│   ├── devcontainer.json
+│   ├── docker-compose.yml
+│   └── setup.sh
+├── .github/                             <- GitHub Actions workflows and PR governance
+│   ├── workflows/
+│   │   ├── branch-name-check.yml        <- Enforces feat/fix/chore/docs branch naming
+│   │   ├── ci.yml                       <- Main CI: migration check → backend → frontend
+│   │   ├── pr-labeler.yml               <- Auto-labels PRs by changed paths
+│   │   └── pr-title-lint.yml            <- Enforces Conventional Commits PR titles
+│   ├── CODEOWNERS                       <- Defines required reviewers per path
+│   └── labeler.yml                      <- Path-to-label mapping for pr-labeler
 ├── application/
 │   ├── contract/                        <- OpenAPI contracts (source of truth)
 │   │   ├── gateway.yaml                 <- BFF contract (frontend generates typed client from this)
@@ -117,12 +128,18 @@ suchika/
 ├── assets/
 │   └── images/
 ├── documents/                           <- All project documentation
+│   ├── domain-state/                    <- Per-domain state files (schema, ADRs, open issues)
+│   │   ├── health.md
+│   │   ├── household.md
+│   │   ├── profile.md
+│   │   └── wealth.md
 │   ├── AGENTS.md
 │   ├── ARCHITECTURE_DECISIONS.md        <- ADR-001 through ADR-012
 │   ├── ARCHITECTURE_GUIDELINES.md
 │   ├── ARCHITECTURE_PROPOSALS.md
 │   ├── BUSINESS_REQUIREMENTS.md
 │   ├── CICD.md
+│   ├── CONTEXT_PRIMER.md                <- Agent bootstrap: read this first every session
 │   ├── E2E_TESTING.md                   <- Playwright E2E test suite docs
 │   ├── FRONTEND_GUIDELINES.md
 │   ├── LOGGING_AND_EXCEPTIONS.md
@@ -132,6 +149,7 @@ suchika/
 │   ├── REQUIREMENTS_household_domain.md
 │   ├── REQUIREMENTS_wealth_domain.md
 │   ├── ROADMAP.md
+│   ├── SCRIPTS.md
 │   └── V02_DEVELOPMENT_PLAN.md
 ├── gradle/wrapper/
 ├── infrastructure/local/                <- Local env config (.env.template)

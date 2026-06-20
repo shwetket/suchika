@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [main]
   pull_request:
 
 jobs:
@@ -40,14 +40,19 @@ jobs:
           java-version: 21
       - name: Make Gradle wrapper executable
         run: chmod +x ./gradlew
-      - name: Bootstrap database
+      - name: Bootstrap database and apply profile schema
         env:
           PGPASSWORD: local_dev_only
         run: |
           psql -h localhost -U postgres -c "CREATE DATABASE app_db;"
           psql -h localhost -U postgres -d app_db -f application/flyway/00_bootstrap.sql
-      - name: Run profile tests first (establishes profile.profile for cross-domain FK)
-        run: ./gradlew :application:domain:profile:adapters:test
+          # Profile schema must exist before health/wealth/household migrations run —
+          # all three have FK REFERENCES profile.profile. Profile adapter tests are
+          # plain JUnit (no @QuarkusTest), so Quarkus/Flyway never runs for them.
+          psql -h localhost -U app_user -d app_db \
+            -f application/flyway/profile/V1__init_profile.sql \
+            -f application/flyway/profile/V2__add_admin_table.sql \
+            -f application/flyway/test-seed/profile/R__seed_profile_test_data.sql
       - name: Run all backend tests
         run: ./gradlew test
 

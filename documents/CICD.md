@@ -117,9 +117,38 @@ In CI, set DB credentials as GitHub Actions Secrets.
 
 ---
 
+## Branch & PR Governance Workflows
+
+Three additional workflows run on every pull request (not on direct pushes):
+
+### `branch-name-check.yml`
+
+Rejects PR source branches that do not match the approved prefixes:
+`feat/`, `fix/`, `chore/`, `docs/`, `refactor/`, `test/`
+
+### `pr-title-lint.yml`
+
+Enforces Conventional Commits format on the PR title.
+Valid pattern: `<type>(<scope>): <description>` — e.g. `feat(wealth): add CSV upload endpoint`
+Allowed types: `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `ci`, `perf`
+
+### `pr-labeler.yml`
+
+Auto-labels PRs using `.github/labeler.yml` path-to-label mapping.
+Labels are applied based on which paths changed (e.g. `domain/health` → `health`, `web/src` → `frontend`).
+
+### `CODEOWNERS`
+
+`.github/CODEOWNERS` defines required reviewers per path. GitHub enforces these reviewers must approve before a PR can merge (when branch protection is active).
+
+---
+
 ## Key Rules
 
 - Never edit a committed Flyway migration — always add a new versioned file.
 - Always run `npm run generate:api` after any backend contract change.
 - All domain services use the same PostgreSQL database (`app_db`) with separate schemas per domain.
 - No cross-domain SQL joins, ever.
+- CI triggers on `main` branch only — `master` trigger was removed.
+- Branch names must follow `feat/`, `fix/`, `chore/`, `docs/`, `refactor/`, or `test/` prefix convention.
+- PR titles must follow Conventional Commits format.

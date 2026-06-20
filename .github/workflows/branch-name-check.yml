@@ -1,0 +1,32 @@
+name: Branch Name Check
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+jobs:
+  check-branch-name:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate branch naming convention
+        run: |
+          BRANCH="${{ github.head_ref }}"
+          # Allowed: <type>/<kebab-case-description>
+          # Types: feat, fix, docs, refactor, chore, test, ci, hotfix, perf
+          PATTERN="^(feat|fix|docs|refactor|chore|test|ci|hotfix|perf)/[a-z0-9]([a-z0-9-]*[a-z0-9])?$"
+          if [[ ! "$BRANCH" =~ $PATTERN ]]; then
+            echo "::error::Branch '$BRANCH' does not match the required naming convention."
+            echo ""
+            echo "Required format:  <type>/<description>"
+            echo "  type        — one of: feat, fix, docs, refactor, chore, test, ci, hotfix, perf"
+            echo "  description — lowercase letters, numbers, and hyphens only (no underscores)"
+            echo ""
+            echo "Valid examples:"
+            echo "  feat/wealth-csv-upload"
+            echo "  fix/health-negative-weight-validation"
+            echo "  docs/update-adr-007"
+            echo "  chore/bump-quarkus-3-17"
+            echo "  refactor/profile-service-extract-validator"
+            exit 1
+          fi
+          echo "Branch name '$BRANCH' is valid."
