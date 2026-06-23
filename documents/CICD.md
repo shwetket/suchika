@@ -1,5 +1,25 @@
 # CI/CD
 
+| | |
+|---|---|
+| **Type** | Reference |
+| **Audience** | All developers |
+| **Status** | Active |
+| **Last updated** | 2026-06-23 |
+
+## Objective
+
+Describe every automated check that runs on push and pull request — pipeline jobs, environment requirements, branch and PR naming rules, and local pre-commit verification. This is the reference for understanding why CI passes or fails.
+
+## Use Cases
+
+- When a CI check fails and you need to understand what it does and how to fix it
+- Before opening a PR — check branch naming and PR title rules
+- When adding a new GitHub Actions workflow — follow the conventions described here
+- When setting up a new developer machine — use the local pre-commit verification steps
+
+---
+
 ## Pipeline Overview
 
 CI runs on every push and pull request via GitHub Actions (`.github/workflows/ci.yml`).

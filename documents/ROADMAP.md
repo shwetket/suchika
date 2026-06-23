@@ -1,7 +1,21 @@
 # Roadmap — Future Milestones
 
-This document outlines planned features beyond the current **v0.1** milestone.
-For business rules and acceptance criteria per version, see [BUSINESS_REQUIREMENTS](./BUSINESS_REQUIREMENTS.md).
+| | |
+|---|---|
+| **Type** | Reference |
+| **Audience** | All developers, product |
+| **Status** | Active |
+| **Last updated** | 2026-06-23 |
+
+## Objective
+
+Show what has been shipped and what is planned at each milestone, with the features delivered per version. This is the milestone-level view — for business rules and acceptance criteria within each version, see [BUSINESS_REQUIREMENTS.md](./BUSINESS_REQUIREMENTS.md). The version table in BUSINESS_REQUIREMENTS.md and this document cover the same milestones from different angles; keep them in sync when adding new milestones.
+
+## Use Cases
+
+- Quick overview of where the project stands and what comes next
+- When planning sprint scope — identify which features belong to the upcoming milestone
+- When onboarding — understand the evolution of the system at a glance
 
 ---
 

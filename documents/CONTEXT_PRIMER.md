@@ -1,5 +1,24 @@
 # Context Primer — Suchika
 
+| | |
+|---|---|
+| **Type** | Reference |
+| **Audience** | AI agents, new developers |
+| **Status** | Active |
+| **Last updated** | 2026-06-23 |
+
+## Objective
+
+Provide a compact project snapshot that any agent or developer can read in ~2 minutes to get full context before starting work. This is the mandatory first read — everything else in `documents/` is depth on a specific topic.
+
+## Use Cases
+
+- **Always** — read this before starting any task in this repo
+- After a long gap away from the project — re-sync on current version and domain status
+- When handing off work to another agent or developer
+
+---
+
 **Read this first.** Compact project snapshot for fast agent bootstrapping. ~2 min read.
 For depth, follow the links to domain-state files or documents/.
 

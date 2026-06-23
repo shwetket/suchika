@@ -1,5 +1,24 @@
 # Health & Biometrics Domain
 
+| | |
+|---|---|
+| **Type** | Requirements |
+| **Audience** | Developers, product |
+| **Status** | Active |
+| **Last updated** | 2026-06-23 |
+
+## Objective
+
+Define all functional requirements, epics, and acceptance criteria for the Health domain across every version milestone. This is the single source of truth for what the health service must do — vital readings, doctor visits, and future external fitness integrations.
+
+## Use Cases
+
+- Before implementing any health feature — verify its milestone and acceptance criteria here
+- When writing a new epic or use case — append to the correct version section
+- When reviewing a PR for the health domain — check that delivered behaviour matches the criteria marked `[DONE]`
+
+---
+
 **Focus:** Time-series biometric tracking, medical visit records, and personal wellness data.
 
 ## v0.1: Prototype (Minimal Features, Happy Path) [DONE]

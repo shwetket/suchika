@@ -1,5 +1,24 @@
 # Cross-Domain Integration
 
+| | |
+|---|---|
+| **Type** | Requirements |
+| **Audience** | Developers, product |
+| **Status** | Active |
+| **Last updated** | 2026-06-23 |
+
+## Objective
+
+Define requirements for features that span more than one domain — composite views, unified dashboards, and AI synthesis. Cross-domain logic is strictly prohibited before v0.5; this document records what is planned and why the isolation constraint exists.
+
+## Use Cases
+
+- Before proposing any feature that reads from two or more domains — check whether it is permitted in the current milestone
+- When designing the web-gateway BFF aggregation logic for dashboard features (v0.5+)
+- When evaluating whether a new requirement is truly cross-domain or can be self-contained within a single domain
+
+---
+
 **Focus:** Inter-domain data querying, composite feature logic, unified dashboards, and AI data synthesis.
 
 ## Universal Rule: Member-Scoped Data Isolation (v0.1 onward) [DONE in v0.2]

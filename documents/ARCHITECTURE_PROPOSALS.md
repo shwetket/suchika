@@ -1,7 +1,31 @@
 # Architecture Proposals
 
-> Open questions. Each needs a team decision before implementation.
-> Once decided, move the outcome to ARCHITECTURE_DECISIONS.md and close the proposal.
+| | |
+|---|---|
+| **Type** | Reference — Proposal Log |
+| **Audience** | All developers |
+| **Status** | Active |
+| **Last updated** | 2026-06-23 |
+
+## Objective
+
+Track open architectural questions that need a team decision before implementation begins. Once a decision is made, the outcome moves to [ARCHITECTURE_DECISIONS.md](./ARCHITECTURE_DECISIONS.md) and the proposal is closed here.
+
+## Use Cases
+
+- Before starting work on a feature that touches a cross-cutting concern
+- When two developers disagree on approach and need to formalise options
+- When reviewing what decisions are still outstanding
+
+## Proposal Index
+
+| Proposal | Title | Status |
+|---|---|---|
+| [PROP-001](#prop-001-microservices-split) | Microservices Split | Resolved → ADR-002 |
+| [PROP-002](#prop-002-cross-domain-data-in-restricted-profiles) | Cross-Domain Data in Restricted Profiles | Open |
+| [PROP-003](#prop-003-event-sourcing-for-wealth-transactions) | Event Sourcing for Wealth Transactions | Open |
+| [PROP-004](#prop-004-api-versioning-strategy) | API Versioning Strategy | Open |
+| [PROP-005](#prop-005-frontend-state-management) | Frontend State Management | Open |
 
 ---
 

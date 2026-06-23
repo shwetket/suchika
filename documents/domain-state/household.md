@@ -1,5 +1,17 @@
 # Household Domain State
 
+## Objective
+
+Document the planned design for the household domain so that v0.3 development can start without redesigning from scratch. Nothing is built yet — this file captures the intended schema, API contract, and the constraints agreed on before implementation begins.
+
+## Use Cases
+
+- Before starting v0.3 household work — read this file first; it defines the schema and the key constraints to follow
+- When creating `application/contract/household.yaml` — the Planned API Contract section outlines the surface area
+- After completing household milestones — update Implementation Status to reflect what's done
+
+---
+
 **Last updated:** 2026-06-20
 **Version:** v0.3 planned — NOT started
 **Port:** 8084

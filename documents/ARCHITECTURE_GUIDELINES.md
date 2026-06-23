@@ -1,7 +1,22 @@
 # Architecture Guidelines
 
-> Best practices for all developers. Follow these on every PR.
-> Enforced by ArchUnit in `shared/src/test/java/.../DomainRulesTest.java` — read that file before adding new classes.
+| | |
+|---|---|
+| **Type** | Guideline |
+| **Audience** | All developers |
+| **Status** | Active |
+| **Last updated** | 2026-06-23 |
+
+## Objective
+
+Define the non-negotiable structural rules that govern all code in this repository. These rules are enforced by ArchUnit and CI — a violation fails the build, not just a code review.
+
+## Use Cases
+
+- Before adding a new Java class anywhere in `domain/`, `ports/`, or `adapters/`
+- Before writing or modifying a Flyway migration
+- Before adding a DB constraint or discriminator column
+- When a PR review questions a structural decision ("why can't I use `@Inject` here?")
 
 ---
 

@@ -1,5 +1,17 @@
 # Wealth Domain State
 
+## Objective
+
+Give any agent or developer instant context on the wealth domain — accounts, transactions, CSV uploads, physical assets. Includes schema, ADRs baked into Key Design Decisions, and the current backlog.
+
+## Use Cases
+
+- Before working on wealth backend or frontend — check Implementation Status and Key Files
+- When adding a new feature to wealth — review Key Design Decisions to avoid re-introducing known anti-patterns (e.g., profileId in CreateAccountCommand)
+- After completing wealth work — update Implementation Status and Open Issues
+
+---
+
 **Last updated:** 2026-06-20
 **Version:** v0.2 complete — UAT-ready
 **Port:** 8082
