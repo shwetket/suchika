@@ -17,12 +17,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: migration-location-check
     env:
-      # GRADLE_OPTS applies to the Gradle client (wrapper) JVM only — NOT the daemon.
-      # Daemon memory is set via org.gradle.jvmargs in gradle.properties.
-      # workers.max=2 caps parallel compilation forks on the 5 GB runner.
-      # --no-daemon is passed explicitly on the command; -Dorg.gradle.daemon=false in GRADLE_OPTS
-      # is unreliable (daemon still spawns) — see CI fix commit for details.
-      GRADLE_OPTS: "-Dorg.gradle.workers.max=2"
+      # --no-daemon means the Gradle client JVM handles all compilation — GRADLE_OPTS controls it.
+      # org.gradle.jvmargs in gradle.properties is only read by the daemon (irrelevant here).
+      # 3g heap is required for Quarkus annotation processing across all modules.
+      # workers.max=2 caps parallel compilation forks on the CI runner.
+      GRADLE_OPTS: "-Xmx3g -XX:MaxMetaspaceSize=512m -Dorg.gradle.workers.max=2"
 
     services:
       postgres:
