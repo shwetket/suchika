@@ -1,5 +1,17 @@
 # Profile Domain State
 
+## Objective
+
+Give any agent or developer instant context on the profile domain — what's built, the database schema, the API contract, and where the key files are. Profile is the identity anchor; read this before touching any other domain because every domain FKs into `profile.profile`.
+
+## Use Cases
+
+- Before working on profile backend or frontend — check Implementation Status and Key Files
+- When adding a new domain table — confirm the `profile_id FK → profile.profile(id)` pattern
+- After completing profile work — update Implementation Status and Open Issues
+
+---
+
 **Last updated:** 2026-06-20
 **Version:** v0.2 complete — UAT-ready
 **Port:** 8081

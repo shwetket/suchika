@@ -1,5 +1,26 @@
 # v0.2 Development Plan — UAT-Ready Pilot
 
+| | |
+|---|---|
+| **Type** | Reference |
+| **Audience** | Developers, project leads |
+| **Status** | Historical — v0.2 is complete |
+| **Last updated** | 2026-06-23 |
+
+## Objective
+
+Record the planning decisions, scope cuts, and task breakdown that shaped the v0.2 UAT milestone. Kept as a historical artefact so future contributors understand why Household was deferred to v0.3 and what the UAT readiness bar was.
+
+## Use Cases
+
+- Understanding why a feature was deferred — scope decisions are documented in the "Current State" section
+- Planning v0.3 — the "v0.3 Scope" section here is the starting point for the next iteration
+- Post-mortem or retrospective — review what was estimated vs. what was actually built
+
+> **Status note:** v0.2 shipped. All Phase A tasks are done; the ❌ markers below reflect the state when this plan was written, not current code state. For live implementation status, read the domain-state files.
+
+---
+
 **Effort key:** S = <1 h · M = 1–3 h · L = 3–6 h
 
 **v0.2 goal:** Profile + Wealth + Health fully working end-to-end. Household deferred to v0.3 — too much zero-to-running work to fit before UAT.

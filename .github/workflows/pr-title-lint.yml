@@ -1,0 +1,38 @@
+name: PR Title Lint
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  lint-title:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate PR title (Conventional Commits)
+        run: |
+          TITLE="${{ github.event.pull_request.title }}"
+          # Format: <type>(<optional-scope>): <description>
+          # Max 72 chars on the first line (GitHub convention)
+          PATTERN="^(feat|fix|docs|refactor|chore|test|ci|hotfix|perf)(\((profile|wealth|health|household|gateway|web|ci|shared)\))?: .{1,72}$"
+          if [[ ! "$TITLE" =~ $PATTERN ]]; then
+            echo "::error::PR title does not follow Conventional Commits format."
+            echo ""
+            echo "Required:  <type>(<optional-scope>): <short description>"
+            echo ""
+            echo "Types:   feat | fix | docs | refactor | chore | test | ci | hotfix | perf"
+            echo "Scopes:  profile | wealth | health | household | gateway | web | ci | shared"
+            echo ""
+            echo "Valid examples:"
+            echo "  feat(wealth): add CSV upload for bank statements"
+            echo "  fix(health): reject negative weight readings at API boundary"
+            echo "  docs: add ADR-007 for cross-domain event model"
+            echo "  chore(ci): add SonarCloud analysis as required check"
+            echo "  refactor(profile): extract validation into domain service"
+            echo ""
+            echo "Your title: '$TITLE'"
+            exit 1
+          fi
+          echo "PR title is valid: $TITLE"

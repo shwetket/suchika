@@ -1,5 +1,24 @@
 # QA API Test Results
 
+| | |
+|---|---|
+| **Type** | Reference |
+| **Audience** | QA, developers |
+| **Status** | Active |
+| **Last updated** | 2026-06-23 |
+
+## Objective
+
+Capture API test run results executed by the quality-manager agent. Each run is an immutable record appended as a new section — it provides a traceability trail of what was tested, what broke, and what was fixed at each milestone.
+
+## Use Cases
+
+- After a QA run — append a new run section following the format of Run 1 below
+- Investigating a production bug — check whether the affected endpoint was tested and what its status was
+- Pre-UAT sign-off — verify all critical endpoints pass before tagging a release
+
+---
+
 Manual API verification executed by the quality-manager agent.  
 Each run is appended as a new section below.
 

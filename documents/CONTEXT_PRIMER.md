@@ -1,5 +1,24 @@
 # Context Primer — Suchika
 
+| | |
+|---|---|
+| **Type** | Reference |
+| **Audience** | AI agents, new developers |
+| **Status** | Active |
+| **Last updated** | 2026-06-23 |
+
+## Objective
+
+Provide a compact project snapshot that any agent or developer can read in ~2 minutes to get full context before starting work. This is the mandatory first read — everything else in `documents/` is depth on a specific topic.
+
+## Use Cases
+
+- **Always** — read this before starting any task in this repo
+- After a long gap away from the project — re-sync on current version and domain status
+- When handing off work to another agent or developer
+
+---
+
 **Read this first.** Compact project snapshot for fast agent bootstrapping. ~2 min read.
 For depth, follow the links to domain-state files or documents/.
 
@@ -81,6 +100,23 @@ Update `documents/domain-state/<domain>.md` — mark done items, add new open is
 
 ---
 
+## Branch & PR Governance
+
+Six governance files added to `.github/` in v0.2 post-release:
+
+| File | Purpose |
+|---|---|
+| `.github/CODEOWNERS` | Defines required reviewers per path — code owners must approve before merge |
+| `.github/pull_request_template.md` | Standard PR description template auto-loaded on PR creation |
+| `.github/labeler.yml` | Path-to-label mapping used by the pr-labeler workflow |
+| `.github/workflows/branch-name-check.yml` | Rejects branches that don't match `feat/`, `fix/`, `chore/`, `docs/`, `refactor/`, `test/` prefixes |
+| `.github/workflows/pr-title-lint.yml` | Enforces Conventional Commits format on PR titles (e.g. `feat(wealth): add CSV upload`) |
+| `.github/workflows/pr-labeler.yml` | Auto-labels PRs based on changed file paths (domain, frontend, infra, docs, etc.) |
+
+CI workflow (`.github/workflows/ci.yml`) triggers on `main` branch only — dead `master` trigger removed.
+
+---
+
 ## Where to Find Things
 
 | Need | Location |
@@ -92,6 +128,8 @@ Update `documents/domain-state/<domain>.md` — mark done items, add new open is
 | Frontend guidelines | `documents/FRONTEND_GUIDELINES.md` |
 | E2E tests | `documents/E2E_TESTING.md` |
 | Scripts / dev commands | `documents/SCRIPTS.md` |
+| CI/CD pipeline | `documents/CICD.md` |
+| PR governance | `.github/CODEOWNERS`, `.github/workflows/branch-name-check.yml`, `.github/workflows/pr-title-lint.yml` |
 | OpenAPI contracts | `application/contract/<domain>.yaml` |
 | Gateway contract | `application/contract/gateway.yaml` |
 | Flyway migrations | `application/flyway/<domain>/` |

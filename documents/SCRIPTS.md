@@ -1,5 +1,24 @@
 # Scripts Reference
 
+| | |
+|---|---|
+| **Type** | Reference |
+| **Audience** | Developers |
+| **Status** | Active |
+| **Last updated** | 2026-06-23 |
+
+## Objective
+
+Document every script in `scripts/` — what it does, how to call it, and its short alias. The primary interface for day-to-day development is `dev-aliases.ps1`; this document explains what each alias does under the hood.
+
+## Use Cases
+
+- Looking up the exact flags for a script (`db-reset -Force`, `build-local.ps1 -SkipSonar`)
+- Finding the alias for a common task without reading the script source
+- Adding a new script — follow the conventions in the "Adding a New Script" section at the bottom
+
+---
+
 All developer scripts live in `scripts/`. The primary interface is `dev-aliases.ps1` — dot-source it once per terminal session.
 
 ```powershell

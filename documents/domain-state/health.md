@@ -1,5 +1,17 @@
 # Health Domain State
 
+## Objective
+
+Give any agent or developer instant context on the health domain — vital readings and doctor visits. Includes schema (including the `visited_doctor → doctor_name NOT NULL` CHECK constraint rationale), API contract, and the v0.3+ backlog.
+
+## Use Cases
+
+- Before working on health backend or frontend — check Implementation Status and Key Files
+- When adding a new vital type — the type list is in the Database Schema section; add to the OpenAPI enum and Java enum only (no Flyway migration needed)
+- After completing health work — update Implementation Status and Open Issues
+
+---
+
 **Last updated:** 2026-06-20
 **Version:** v0.2 complete — UAT-ready
 **Port:** 8083

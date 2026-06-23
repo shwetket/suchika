@@ -1,5 +1,24 @@
 # Wealth & Asset Management Domain
 
+| | |
+|---|---|
+| **Type** | Requirements |
+| **Audience** | Developers, product |
+| **Status** | Active |
+| **Last updated** | 2026-06-23 |
+
+## Objective
+
+Define all functional requirements, epics, and acceptance criteria for the Wealth domain across every version milestone. This is the single source of truth for what the wealth service must do — accounts, transactions, CSV uploads, physical assets, and the CQRS read model.
+
+## Use Cases
+
+- Before implementing any wealth feature — verify its milestone and acceptance criteria here
+- When writing a new epic or use case — append to the correct version section
+- When reviewing a PR for the wealth domain — check that delivered behaviour matches the criteria marked `[DONE]`
+
+---
+
 **Focus:** Financial liquidity, transaction ledgers, physical asset lifecycle, CQRS mathematical modeling, and core data normalization based on YAGNI/KISS principles.
 
 ## v0.1: Prototype (Minimal Features, Happy Path)

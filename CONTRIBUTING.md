@@ -218,6 +218,82 @@ Flyway migrations are in `application/flyway/{domain}/` and run automatically on
 
 ---
 
+## Branch Naming
+
+Every branch must follow `<type>/<description>` — GitHub Actions will **reject the PR** if it doesn't match.
+
+| Part | Rule |
+|---|---|
+| `type` | One of: `feat`, `fix`, `docs`, `refactor`, `chore`, `test`, `ci`, `hotfix`, `perf` |
+| `description` | Lowercase letters, numbers, and hyphens only — no uppercase, no underscores |
+
+**Valid examples:**
+```
+feat/wealth-csv-upload
+fix/health-negative-weight-validation
+docs/update-adr-007
+chore/bump-quarkus-3-17
+ci/add-sonar-quality-gate
+refactor/profile-extract-validator
+```
+
+**Invalid examples (will fail the check):**
+```
+KetanVerma          ← no type prefix
+feature/MyNewThing  ← uppercase letters
+fix/my_feature      ← underscore not allowed
+```
+
+> If you already pushed a branch with the wrong name: create a new branch from it with the correct name (`git checkout -b feat/my-feature`), push the new branch, and open the PR from there.
+
+---
+
+## PR Title
+
+Every PR title must follow [Conventional Commits](https://www.conventionalcommits.org/) format — the `pr-title-lint` workflow rejects non-conforming titles.
+
+**Format:** `<type>(<optional-scope>): <short description>`
+
+| Field | Allowed values |
+|---|---|
+| `type` | `feat`, `fix`, `docs`, `refactor`, `chore`, `test`, `ci`, `hotfix`, `perf` |
+| `scope` (optional) | `profile`, `wealth`, `health`, `household`, `gateway`, `web`, `ci`, `shared` |
+| `description` | Free text, max 72 characters |
+
+**Valid examples:**
+```
+feat(wealth): add CSV upload for bank statements
+fix(health): reject negative weight readings at API boundary
+docs: add ADR-007 for cross-domain event model
+chore(ci): add SonarCloud analysis as required check
+refactor(profile): extract validation into domain service
+ci: add branch name enforcement workflow
+```
+
+**Invalid examples:**
+```
+Add CSV upload          ← no type prefix
+feat: Add CSV Upload    ← uppercase in description (technically passes, but avoid)
+feat(auth): something   ← "auth" is not an allowed scope
+```
+
+---
+
+## PR Description
+
+GitHub auto-loads `.github/pull_request_template.md` when you open a PR. Fill in all sections:
+
+- **What does this PR do?** — one sentence, specific ("Add X to Y")
+- **Why?** — business reason or issue link
+- **Domain(s) affected** — tick the checkboxes
+- **Type of change** — tick one
+- **Test plan** — describe how you verified it works
+- **Architecture checklist** — go through each item; leave none unchecked
+
+Run `/sonar` before requesting review — the quality gate must be green.
+
+---
+
 ## Typical Inner-Loop Workflow
 
 ```powershell

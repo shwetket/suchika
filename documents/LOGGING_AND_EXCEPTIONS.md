@@ -1,5 +1,24 @@
 # Logging and Exception Handling Guide
 
+| | |
+|---|---|
+| **Type** | Guideline |
+| **Audience** | Backend developers |
+| **Status** | Active |
+| **Last updated** | 2026-06-23 |
+
+## Objective
+
+Define how all services must log events and throw exceptions. Both `AppLogger` and the typed exception hierarchy live in `shared/` — every domain service uses them and nothing else.
+
+## Use Cases
+
+- Before writing any logging statement — use the patterns shown here, not raw SLF4J or `System.out`
+- Before throwing an error — pick the right exception type from the table; never throw raw `RuntimeException`
+- When adding a new domain service — wire up `AppLogger` and confirm `ApplicationExceptionMapper` is on the classpath
+
+---
+
 ## Overview
 
 The Suchika project includes a unified logging and exception handling system in the `shared/` module. This ensures consistent error handling and logging across all domains.

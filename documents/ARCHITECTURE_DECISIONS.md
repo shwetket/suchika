@@ -1,7 +1,38 @@
 # Architecture Decisions
 
-> These decisions are final. They define the core structure of this repository.
-> Do not change without team review and a new ADR entry.
+| | |
+|---|---|
+| **Type** | Reference — ADR Log |
+| **Audience** | All developers |
+| **Status** | Active |
+| **Last updated** | 2026-06-23 |
+
+## Objective
+
+Record every significant architectural decision made for this project, along with its rationale and current status. These decisions are final unless superseded by a new ADR — do not change without team review.
+
+## Use Cases
+
+- When questioning why a pattern is used ("why no SQL ENUMs?", "why mock the Rest Client in gateway tests?")
+- Before proposing a change that touches a structural decision
+- During onboarding to understand the design choices
+
+## ADR Index
+
+| ADR | Title | Status |
+|---|---|---|
+| [ADR-001](#adr-001-hexagonal-architecture-ports-and-adapters) | Hexagonal Architecture (Ports and Adapters) | Accepted |
+| [ADR-002](#adr-002-five-separate-quarkus-services-four-domains--bff) | Five Separate Quarkus Services | Accepted |
+| [ADR-003](#adr-003-no-cross-domain-db-joins) | No Cross-Domain DB Joins | Accepted |
+| [ADR-004](#adr-004-single-postgresql-database-schema-per-domain) | Single PostgreSQL Database, Schema-Per-Domain | Accepted |
+| [ADR-005](#adr-005-external-oidcauth2-for-identity-future) | External OIDC/OAuth2 for Identity | Accepted — deferred to v1.0 |
+| [ADR-006](#adr-006-profile-scoped-data-isolation) | Profile-Scoped Data Isolation | Accepted |
+| [ADR-007](#adr-007-application-layer-encryption-for-sensitive-wealth-data-future) | Application-Layer Encryption for Wealth Data | Accepted — deferred to v1.0 |
+| [ADR-008](#adr-008-no-stored-refresh-tokens) | No Stored Refresh Tokens | Accepted |
+| [ADR-009](#adr-009-openapi-contract-driven-frontend) | OpenAPI Contract-Driven Frontend | Accepted |
+| [ADR-010](#adr-010-no-sql-enums--varchar-with-contract-level-validation) | No SQL ENUMs — VARCHAR + Contract Validation | Accepted |
+| [ADR-011](#adr-011-gateway-test-isolation-via-injectmock-restclient) | Gateway Test Isolation via `@InjectMock @RestClient` | Accepted — v0.2 |
+| [ADR-012](#adr-012-household-domain-deferred-to-v03) | Household Domain Deferred to v0.3 | Accepted — 2026-06-19 |
 
 ---
 

@@ -1,7 +1,22 @@
 # Frontend Development Guidelines
 
-> Rules and standards for web developers building the Suchika frontend.
-> Enforced via ESLint, Prettier, and pre-commit hooks.
+| | |
+|---|---|
+| **Type** | Guideline |
+| **Audience** | Frontend developers |
+| **Status** | Active |
+| **Last updated** | 2026-06-23 |
+
+## Objective
+
+Define the rules, patterns, and standards for all frontend work in `web/`. Rules here are enforced by ESLint, Prettier, and pre-commit hooks — a violation blocks the commit or CI build.
+
+## Use Cases
+
+- Before writing a new React component or hook — check structure rules in sections 1–4
+- Before calling an API endpoint — see section 5 (generated client only, no raw `fetch`)
+- Before adding CSS — see section 6 (Tailwind only)
+- Before opening a PR — run through the pre-commit checklist in section 10
 
 ---
 

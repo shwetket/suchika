@@ -1,6 +1,21 @@
 # E2E Testing (Playwright)
 
-> End-to-end tests for the Suchika frontend. Uses Playwright (Chromium, headless by default).
+| | |
+|---|---|
+| **Type** | Reference |
+| **Audience** | Frontend developers |
+| **Status** | Active |
+| **Last updated** | 2026-06-23 |
+
+## Objective
+
+Document the Playwright E2E test suite — what is covered, how to run it, startup order when live data is needed, and the rules for writing new tests. For the coding conventions see [FRONTEND_GUIDELINES.md §9](./FRONTEND_GUIDELINES.md#9-e2e-testing-playwright).
+
+## Use Cases
+
+- Running the E2E suite locally for the first time
+- Debugging a failing E2E test — check the spec inventory to understand what each file covers
+- Writing a new E2E test — follow the locator and isolation rules in the "Writing New Tests" section
 
 ---
 

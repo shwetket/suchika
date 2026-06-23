@@ -1,5 +1,24 @@
 # Household Operations Domain
 
+| | |
+|---|---|
+| **Type** | Requirements |
+| **Audience** | Developers, product |
+| **Status** | Active |
+| **Last updated** | 2026-06-23 |
+
+## Objective
+
+Define all functional requirements, epics, and acceptance criteria for the Household domain across every version milestone. This domain is not yet implemented (v0.3 planned). This document is the source of truth for what must be built — calendar events, inventory, goals, and home automation.
+
+## Use Cases
+
+- Before starting v0.3 Household implementation — read this in full first
+- When scoping new household features — check milestone assignment and constraints
+- When reviewing a PR for the household domain — check that behaviour matches the acceptance criteria
+
+---
+
 **Focus:** Scheduling, human logistics, task execution, supply chain (inventory/groceries), and home infrastructure automation.
 
 **v0.2 status:** Household domain is deferred to v0.3. No Household features are part of the v0.2 UAT scope. Zero Java implementation exists as of June 2026.

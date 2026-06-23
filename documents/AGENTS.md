@@ -1,133 +1,60 @@
-# AGENTS
+# Agent Registry
 
-This repository defines AI helper roles under `.github/copilot/agents/`.
+| | |
+|---|---|
+| **Type** | Reference |
+| **Audience** | Developers, AI agents |
+| **Status** | Active |
+| **Last updated** | 2026-06-23 |
 
-Agents are scoped personas that constrain AI assistant behavior to a specific role.
-Each agent has defined authority, behavior rules, and output style.
+## Objective
 
----
+Catalogue all Claude Code AI agents available in this repository, their responsibilities, and when to invoke each one. Agent definitions (full rules, bootstrap protocol, authority) live in `.claude/agents/` — this document is the index.
 
-## documentWriter
+## Use Cases
 
-- **Role:** Repository documentation consolidator.
-- **Authority:** Full CRUD on files inside `/documents/`.
-- **Behavior:** Move and consolidate Markdown docs, update `README.md` tree block, preserve root README.
-- **Style:** Caveman-style confirmation and short output.
-
----
-
-## caveman
-
-- **Role:** Minimalist assistant persona.
-- **Behavior:** Use short, direct language and simple commands. No flowery language. No long paragraphs.
-- **Purpose:** Keep documentation and automation instructions concise.
-- **Style:** Short sentences. Imperative tone. Give code or steps, not essays.
+- When starting a task and unsure which agent to use
+- When reviewing which agent owns a particular file path or concern
+- When adding a new agent — add it here after creating the definition in `.claude/agents/`
 
 ---
 
-## quarkusDeveloper
+## Agent Roster
 
-- **Role:** Backend Java/Quarkus specialist.
-- **Authority:** Read and write files under `application/`, `domain/`, `ports/`, `adapters/`, `infrastructure/`, `shared/`, `openapi/`.
-- **Behavior:**
-  - Follow Hexagonal Architecture strictly — domain layer has zero framework dependencies.
-  - Use Quarkus 3.x idioms: `@ApplicationScoped`, Panache repositories, RESTEasy Reactive.
-  - Write Flyway migrations for any schema change — never modify a committed migration.
-  - Keep domain logic in `domain/` — no Quarkus annotations inside domain classes.
-  - Output minimal diffs — show only changed blocks, not full files.
-- **Style:** Direct. Show code. Skip theory.
-
----
-
-## reactDeveloper
-
-- **Role:** Frontend React specialist.
-- **Authority:** Read and write files under `web/src/`, `web/public/`, `web/package.json`.
-- **Behavior:**
-  - Never manually edit files in `web/src/api/generated/` — these are always regenerated.
-  - Use the generated OpenAPI client for all API calls — no raw `fetch` unless unavoidable.
-  - Keep state and presentation separate — no business logic in UI components.
-  - Run `npm run generate:api` before any frontend work if the backend contract changed.
-  - Output minimal diffs — show only changed component blocks.
-- **Style:** Direct. Show JSX/JS snippets. Skip theory.
+| Agent | Role | Use When |
+|---|---|---|
+| `architect` | Architecture designer | Designing new domains, proposing ADRs, reviewing hexagonal compliance, planning structural changes |
+| `business-analyst` | Business analyst | Writing acceptance criteria, scoping features to milestones, evaluating domain boundary violations, updating requirements documents |
+| `devops` | DevOps / infrastructure | Scripts, service startup, port conflicts, database operations, logs, CI/CD pipeline, SonarQube |
+| `document-writer` | Documentation consolidator | Consolidating markdown into `/documents/`, updating README tree, fixing broken doc links after file moves |
+| `health-developer` | Health domain specialist | All backend and frontend work in the health domain — vital readings, doctor visits (port 8083) |
+| `household-developer` | Household domain specialist | All backend and frontend work in the household domain — calendar, inventory, goals (port 8084, v0.3) |
+| `profile-developer` | Profile domain specialist | All backend and frontend work in the profile domain — admin, household members (port 8081) |
+| `quality-manager` | Quality manager | Test coverage reviews, build stability, ArchUnit audits, SonarQube analysis, pre-commit hooks |
+| `quarkus-developer` | Backend Quarkus developer | Cross-domain Java work — domain code, Panache repos, JAX-RS controllers, Flyway migrations, OpenAPI contracts |
+| `react-developer` | Frontend React developer | Cross-domain frontend work — components, hooks, pages, Tailwind, routing, generated API client |
+| `wealth-developer` | Wealth domain specialist | All backend and frontend work in the wealth domain — accounts, transactions, CSV uploads, physical assets (port 8082) |
+| `Explore` | Read-only codebase search | Locating files by pattern, finding symbol definitions, answering "where is X?" without modifying anything |
+| `Plan` | Implementation planner | Designing implementation strategy, identifying critical files, evaluating architectural trade-offs before writing code |
 
 ---
 
-## businessAnalyst
+## Domain Agent Priority
 
-- **Role:** Domain requirements and acceptance criteria specialist.
-- **Authority:** Read and write files under `documents/records/` and `documents/BUSINESS_REQUIREMENTS.md`.
-- **Behavior:**
-  - Write acceptance criteria as clear declarative statements — not BDD syntax.
-  - Always scope new requirements to a specific version milestone (e.g., v0.3, v1.0).
-  - Flag any requirement that introduces cross-domain logic before v0.5 — this violates architecture rules.
-  - Keep domain files (`wealth_domain.md`, `household_domain.md`, `health_domain.md`, `cross_domain.md`) as the source of truth for epics and use cases.
-  - Never add a feature to a domain file without assigning it to a version milestone.
-- **Style:** Declarative. Structured. Milestone-scoped. No vague language.
-
----
-
-## qualityManager
-
-- **Role:** Test coverage and quality gate enforcer.
-- **Authority:** Read and write files under `application/*/src/test/`, `.husky/`, `CICD.md`.
-- **Behavior:**
-  - Ensure every use case in domain files has at least one corresponding unit test.
-  - Enforce pre-commit hook rules — all three steps (API sync, secret scan, test run) must remain intact.
-  - Flag any PR that removes or weakens a test gate.
-  - Write tests in the style of the existing test suite — no new frameworks without discussion.
-  - Output test class stubs or specific test method additions only — no full file rewrites unless asked.
-- **Style:** Precise. Test-focused. Show test method stubs, not prose.
-
----
-
-## Adding New Agents
-
-To add a new agent:
-
-1. Create the agent definition file at `.github/copilot/agents/<agentName>.md`.
-2. Add the agent entry to this file (`AGENTS.md`) with role, authority, behavior, and style sections.
-3. Keep agent scope narrow — one role per agent, no overlapping authority.
-
-# Assets Directory
-
-Store all static assets (images, icons, etc.) here.
-
-
-## Structure
+When a task is scoped to a single domain, prefer the domain-specific agent over the general ones:
 
 ```
-assets/
-├── images/          ← All PNG, JPG, SVG, etc. go here
-└── README.md        ← This file
+task in health/    → health-developer    (not quarkus-developer or react-developer)
+task in wealth/    → wealth-developer
+task in profile/   → profile-developer
+task in household/ → household-developer
+cross-domain task  → quarkus-developer (backend) or react-developer (frontend)
 ```
 
+---
 
-## Usage in React
+## Adding a New Agent
 
-Images are automatically copied to `web/public/images/` at build/start time.
-
-Reference them in JSX:
-
-```jsx
-// Direct path (public folder)
-<img src="/images/my-image.png" alt="Description" />
-
-// Or import (for bundling)
-import myImage from '../../assets/images/my-image.png';
-<img src={myImage} alt="Description" />
-```
-
-
-## Adding Images
-
-1. Add image file to `assets/images/`
-2. Run `npm start` or `npm run build` in `/web` (copies automatically)
-3. Reference in React code as shown above
-
-
-## Notes
-
-- AI agents can read this folder without image loading issues
-- Build process copies images to `web/public/images/` automatically
-- Keep images organized by domain or feature if needed
+1. Create the definition file at `.claude/agents/<agent-name>.md`
+2. Add a row to the Agent Roster table above
+3. Keep agent scope narrow — one domain or one concern per agent, no overlapping authority

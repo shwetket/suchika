@@ -3,8 +3,8 @@ import { API_ENDPOINTS } from '../utils/constants';
 
 export function listProfiles(adminId, isActive) {
   const params = new URLSearchParams();
-  if (adminId != null) params.append('admin_id', adminId);
-  if (isActive != null) params.append('is_active', String(isActive));
+  if (adminId !== null && adminId !== undefined) params.append('admin_id', adminId);
+  if (isActive !== null && isActive !== undefined) params.append('is_active', String(isActive));
   const query = params.toString();
   const url = query ? `${API_ENDPOINTS.PROFILES}?${query}` : API_ENDPOINTS.PROFILES;
   return get(url);

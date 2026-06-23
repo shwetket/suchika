@@ -27,3 +27,4 @@ Behavior when invoked:
 Notes:
 - Python helper script at `scripts/documentWriter.py` — run manually with `python scripts/documentWriter.py` from repo root.
 - Do not touch `web/node_modules/` or any build output directories.
+- Never move or modify anything under `.claude/` — agent definitions (`.claude/agents/`) and slash commands (`.claude/commands/`) are excluded from all collection, consolidation, and tree-sync operations. The script enforces this via `IGNORED_DIRS`.
