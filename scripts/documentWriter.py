@@ -8,7 +8,7 @@ import shutil
 from pathlib import Path
 from datetime import datetime, timezone
 
-IGNORED_DIRS = {'.git', 'node_modules', '.gradle', '.idea', 'build', 'out', 'target', '.github'}
+IGNORED_DIRS = {'.git', 'node_modules', '.gradle', '.idea', 'build', 'out', 'target', '.github', '.claude'}
 ROOT_DOCS = {'README.md', 'CODE_OF_CONDUCT.md', 'CONTRIBUTING.md', 'SECURITY.md', 'CLAUDE.md', 'LICENSE'}
 
 

@@ -32,6 +32,7 @@ export async function signIn(credentials) {
     if (error?.status) {
       throw error;
     }
+    console.warn('Falling back to demo auth due to error:', error);
     logError('auth', error);
     return {
       username: credentials.username,
