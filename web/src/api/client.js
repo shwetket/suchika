@@ -20,7 +20,7 @@ async function request(method, path, body, options = {}) {
     const response = await fetch(`${API_BASE_URL}${path}`, {
       method,
       headers: { ...JSON_HEADERS, ...authHeader(), ...options.headers },
-      body: body == null ? undefined : JSON.stringify(body),
+      body: body === null || body === undefined ? undefined : JSON.stringify(body),
       signal: controller.signal,
     });
 
