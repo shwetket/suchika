@@ -119,27 +119,71 @@ In CI, set DB credentials as GitHub Actions Secrets.
 
 ## Branch & PR Governance Workflows
 
-Three additional workflows run on every pull request (not on direct pushes):
+Four additional workflows and two config files run on every pull request (not on direct pushes). **All are required checks — a failing check blocks the PR from merging.**
+
+---
 
 ### `branch-name-check.yml`
 
-Rejects PR source branches that do not match the approved prefixes:
-`feat/`, `fix/`, `chore/`, `docs/`, `refactor/`, `test/`
+Validates the source branch name before any code is reviewed.
+
+**Required pattern:** `<type>/<description>`
+
+| Segment | Rule |
+|---|---|
+| `type` | One of: `feat`, `fix`, `docs`, `refactor`, `chore`, `test`, `ci`, `hotfix`, `perf` |
+| `description` | Lowercase letters, numbers, and hyphens only — no uppercase, no underscores, no slashes |
+
+**Valid examples:**
+```
+feat/wealth-csv-upload
+fix/health-negative-weight-validation
+ci/add-branch-enforcement
+hotfix/profile-null-pointer
+```
+
+**What happens on failure:** the workflow prints the rejected branch name and the required format, then exits 1. You must create a new branch with a conforming name — you cannot rename an existing branch after a PR is open.
+
+---
 
 ### `pr-title-lint.yml`
 
-Enforces Conventional Commits format on the PR title.
-Valid pattern: `<type>(<scope>): <description>` — e.g. `feat(wealth): add CSV upload endpoint`
-Allowed types: `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `ci`, `perf`
+Enforces [Conventional Commits](https://www.conventionalcommits.org/) format on the PR title. Runs again whenever the title is edited.
+
+**Required pattern:** `<type>(<optional-scope>): <description>` (max 72 chars on the description)
+
+| Field | Allowed values |
+|---|---|
+| `type` | `feat`, `fix`, `docs`, `refactor`, `chore`, `test`, `ci`, `hotfix`, `perf` |
+| `scope` (optional) | `profile`, `wealth`, `health`, `household`, `gateway`, `web`, `ci`, `shared` |
+
+**Valid examples:**
+```
+feat(wealth): add CSV upload for bank statements
+fix(health): reject negative weight readings at API boundary
+docs: add ADR-007 for cross-domain event model
+chore(ci): add SonarCloud analysis as required check
+ci: add branch name enforcement workflow
+```
+
+**What happens on failure:** the workflow prints the rejected title and shows the expected format. Fix by editing the PR title directly on GitHub — no new commit needed.
+
+---
 
 ### `pr-labeler.yml`
 
-Auto-labels PRs using `.github/labeler.yml` path-to-label mapping.
-Labels are applied based on which paths changed (e.g. `domain/health` → `health`, `web/src` → `frontend`).
+Auto-labels PRs using the path-to-label mapping in `.github/labeler.yml`. Labels are cosmetic and informational; they do not block merging.
+
+Example mappings:
+- Changes under `application/domain/health/` → `health` label
+- Changes under `web/src/` → `frontend` label
+- Changes under `.github/workflows/` → `ci` label
+
+---
 
 ### `CODEOWNERS`
 
-`.github/CODEOWNERS` defines required reviewers per path. GitHub enforces these reviewers must approve before a PR can merge (when branch protection is active).
+`.github/CODEOWNERS` defines required reviewers per path. When branch protection is active, GitHub enforces that the designated code owner(s) must approve before the PR can be merged. If you are unsure who owns a path, check that file directly.
 
 ---
 
@@ -150,5 +194,6 @@ Labels are applied based on which paths changed (e.g. `domain/health` → `healt
 - All domain services use the same PostgreSQL database (`app_db`) with separate schemas per domain.
 - No cross-domain SQL joins, ever.
 - CI triggers on `main` branch only — `master` trigger was removed.
-- Branch names must follow `feat/`, `fix/`, `chore/`, `docs/`, `refactor/`, or `test/` prefix convention.
-- PR titles must follow Conventional Commits format.
+- Branch names must match `<type>/<description>` — allowed types: `feat`, `fix`, `docs`, `refactor`, `chore`, `test`, `ci`, `hotfix`, `perf`.
+- PR titles must follow Conventional Commits format — same type list, optional scope from the allowed scope list.
+- See [CONTRIBUTING.md](../CONTRIBUTING.md) for the full branch/PR quick-reference with examples.

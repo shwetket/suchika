@@ -292,8 +292,10 @@ Page-load and navigation tests pass without a backend running — only the dev s
 3. Start profile service first — other domains FK into `profile.profile`
 4. Keep Flyway migrations sequential; never edit a committed migration
 5. Run `./gradlew test` before committing
+6. **Branch names** must follow `<type>/<description>` (e.g. `feat/wealth-csv-upload`) — GitHub Actions rejects PRs from non-conforming branches
+7. **PR titles** must follow Conventional Commits (e.g. `feat(wealth): add CSV upload`) — enforced by `pr-title-lint` workflow
 
-See [CONTRIBUTING](./CONTRIBUTING.md) for full setup instructions.
+See [CONTRIBUTING](./CONTRIBUTING.md) for full setup instructions, branch/PR naming rules, and the PR description checklist.
 
 ---
 
@@ -303,3 +305,743 @@ See [CONTRIBUTING](./CONTRIBUTING.md) for full setup instructions.
 - **Architecture rules?** → [ARCHITECTURE_GUIDELINES](./documents/ARCHITECTURE_GUIDELINES.md)
 - **Business rules?** → [BUSINESS_REQUIREMENTS](./documents/BUSINESS_REQUIREMENTS.md)
 - **Security issues?** → [SECURITY](./SECURITY.md)
+
+## 📁 Repository Structure
+```
+suchika/
+├── application/
+│   ├── contract/
+│   │   ├── gateway.yaml
+│   │   ├── health.yaml
+│   │   ├── household.yaml
+│   │   ├── profile.yaml
+│   │   └── wealth.yaml
+│   ├── domain/
+│   │   ├── health/
+│   │   │   ├── adapters/
+│   │   │   │   ├── bin/
+│   │   │   │   │   ├── main/
+│   │   │   │   │   │   └── com/
+│   │   │   │   │   │       └── suchika/
+│   │   │   │   │   │           └── health/
+│   │   │   │   │   │               └── adapters/
+│   │   │   │   │   │                   ├── http/
+│   │   │   │   │   │                   │   └── dto/
+│   │   │   │   │   │                   ├── persistence/
+│   │   │   │   │   │                   └── services/
+│   │   │   │   │   └── test/
+│   │   │   │   │       └── com/
+│   │   │   │   │           └── suchika/
+│   │   │   │   │               └── health/
+│   │   │   │   │                   └── adapters/
+│   │   │   │   │                       ├── persistence/
+│   │   │   │   │                       └── services/
+│   │   │   │   ├── src/
+│   │   │   │   │   ├── main/
+│   │   │   │   │   │   ├── java/
+│   │   │   │   │   │   │   └── com/
+│   │   │   │   │   │   │       └── suchika/
+│   │   │   │   │   │   │           └── health/
+│   │   │   │   │   │   │               └── adapters/
+│   │   │   │   │   │   │                   ├── http/
+│   │   │   │   │   │   │                   │   └── dto/
+│   │   │   │   │   │   │                   ├── persistence/
+│   │   │   │   │   │   │                   └── services/
+│   │   │   │   │   │   └── resources/
+│   │   │   │   │   │       └── application.properties
+│   │   │   │   │   └── test/
+│   │   │   │   │       └── java/
+│   │   │   │   │           └── com/
+│   │   │   │   │               └── suchika/
+│   │   │   │   │                   └── health/
+│   │   │   │   │                       └── adapters/
+│   │   │   │   │                           ├── persistence/
+│   │   │   │   │                           └── services/
+│   │   │   │   └── build.gradle.kts
+│   │   │   ├── bin/
+│   │   │   │   ├── main/
+│   │   │   │   │   └── com/
+│   │   │   │   │       └── suchika/
+│   │   │   │   │           └── health/
+│   │   │   │   └── test/
+│   │   │   │       └── com/
+│   │   │   │           └── suchika/
+│   │   │   │               └── health/
+│   │   │   ├── domain/
+│   │   │   │   ├── bin/
+│   │   │   │   │   ├── main/
+│   │   │   │   │   │   └── com/
+│   │   │   │   │   │       └── suchika/
+│   │   │   │   │   │           └── health/
+│   │   │   │   │   │               └── domain/
+│   │   │   │   │   └── test/
+│   │   │   │   │       └── com/
+│   │   │   │   │           └── suchika/
+│   │   │   │   │               └── health/
+│   │   │   │   │                   └── domain/
+│   │   │   │   ├── src/
+│   │   │   │   │   ├── main/
+│   │   │   │   │   │   ├── java/
+│   │   │   │   │   │   │   └── com/
+│   │   │   │   │   │   │       └── suchika/
+│   │   │   │   │   │   │           └── health/
+│   │   │   │   │   │   │               └── domain/
+│   │   │   │   │   │   └── resources/
+│   │   │   │   │   └── test/
+│   │   │   │   │       └── java/
+│   │   │   │   │           └── com/
+│   │   │   │   │               └── suchika/
+│   │   │   │   │                   └── health/
+│   │   │   │   │                       └── domain/
+│   │   │   │   └── build.gradle.kts
+│   │   │   ├── ports/
+│   │   │   │   ├── bin/
+│   │   │   │   │   ├── main/
+│   │   │   │   │   │   └── com/
+│   │   │   │   │   │       └── suchika/
+│   │   │   │   │   │           └── health/
+│   │   │   │   │   │               └── ports/
+│   │   │   │   │   │                   ├── input/
+│   │   │   │   │   │                   └── output/
+│   │   │   │   │   └── test/
+│   │   │   │   │       └── com/
+│   │   │   │   │           └── suchika/
+│   │   │   │   │               └── health/
+│   │   │   │   │                   └── ports/
+│   │   │   │   ├── src/
+│   │   │   │   │   ├── main/
+│   │   │   │   │   │   ├── java/
+│   │   │   │   │   │   │   └── com/
+│   │   │   │   │   │   │       └── suchika/
+│   │   │   │   │   │   │           └── health/
+│   │   │   │   │   │   │               └── ports/
+│   │   │   │   │   │   │                   ├── input/
+│   │   │   │   │   │   │                   └── output/
+│   │   │   │   │   │   └── resources/
+│   │   │   │   │   └── test/
+│   │   │   │   │       └── java/
+│   │   │   │   │           └── com/
+│   │   │   │   │               └── suchika/
+│   │   │   │   │                   └── health/
+│   │   │   │   │                       └── ports/
+│   │   │   │   └── build.gradle.kts
+│   │   │   └── src/
+│   │   │       ├── main/
+│   │   │       │   ├── java/
+│   │   │       │   │   └── com/
+│   │   │       │   │       └── suchika/
+│   │   │       │   │           └── health/
+│   │   │       │   └── resources/
+│   │   │       └── test/
+│   │   │           └── java/
+│   │   │               └── com/
+│   │   │                   └── suchika/
+│   │   │                       └── health/
+│   │   ├── household/
+│   │   │   ├── adapters/
+│   │   │   │   ├── bin/
+│   │   │   │   │   └── main/
+│   │   │   │   ├── src/
+│   │   │   │   │   └── main/
+│   │   │   │   │       ├── java/
+│   │   │   │   │       └── resources/
+│   │   │   │   │           ├── db/
+│   │   │   │   │           └── application.properties
+│   │   │   │   └── build.gradle.kts
+│   │   │   ├── bin/
+│   │   │   │   └── main/
+│   │   │   ├── domain/
+│   │   │   │   ├── bin/
+│   │   │   │   │   ├── main/
+│   │   │   │   │   └── test/
+│   │   │   │   ├── src/
+│   │   │   │   │   ├── main/
+│   │   │   │   │   │   └── java/
+│   │   │   │   │   └── test/
+│   │   │   │   │       └── java/
+│   │   │   │   └── build.gradle.kts
+│   │   │   ├── ports/
+│   │   │   │   ├── bin/
+│   │   │   │   │   ├── main/
+│   │   │   │   │   └── test/
+│   │   │   │   ├── src/
+│   │   │   │   │   ├── main/
+│   │   │   │   │   │   └── java/
+│   │   │   │   │   └── test/
+│   │   │   │   │       └── java/
+│   │   │   │   └── build.gradle.kts
+│   │   │   ├── src/
+│   │   │   │   └── main/
+│   │   │   │       └── resources/
+│   │   │   │           └── db/
+│   │   │   │               └── migration/
+│   │   │   └── build.gradle.kts
+│   │   ├── profile/
+│   │   │   ├── adapters/
+│   │   │   │   ├── bin/
+│   │   │   │   │   ├── main/
+│   │   │   │   │   │   └── com/
+│   │   │   │   │   │       └── suchika/
+│   │   │   │   │   │           └── profile/
+│   │   │   │   │   │               └── adapters/
+│   │   │   │   │   │                   ├── http/
+│   │   │   │   │   │                   │   └── dto/
+│   │   │   │   │   │                   ├── persistence/
+│   │   │   │   │   │                   └── service/
+│   │   │   │   │   └── test/
+│   │   │   │   │       └── com/
+│   │   │   │   │           └── suchika/
+│   │   │   │   │               └── profile/
+│   │   │   │   │                   └── adapters/
+│   │   │   │   │                       └── service/
+│   │   │   │   ├── src/
+│   │   │   │   │   ├── main/
+│   │   │   │   │   │   ├── java/
+│   │   │   │   │   │   │   └── com/
+│   │   │   │   │   │   │       └── suchika/
+│   │   │   │   │   │   │           └── profile/
+│   │   │   │   │   │   │               └── adapters/
+│   │   │   │   │   │   │                   ├── http/
+│   │   │   │   │   │   │                   │   └── dto/
+│   │   │   │   │   │   │                   ├── persistence/
+│   │   │   │   │   │   │                   └── service/
+│   │   │   │   │   │   └── resources/
+│   │   │   │   │   │       ├── db/
+│   │   │   │   │   │       └── application.properties
+│   │   │   │   │   └── test/
+│   │   │   │   │       └── java/
+│   │   │   │   │           └── com/
+│   │   │   │   │               └── suchika/
+│   │   │   │   │                   └── profile/
+│   │   │   │   │                       └── adapters/
+│   │   │   │   │                           └── service/
+│   │   │   │   └── build.gradle.kts
+│   │   │   ├── bin/
+│   │   │   │   └── main/
+│   │   │   ├── domain/
+│   │   │   │   ├── bin/
+│   │   │   │   │   ├── main/
+│   │   │   │   │   │   └── com/
+│   │   │   │   │   │       └── suchika/
+│   │   │   │   │   │           └── profile/
+│   │   │   │   │   │               └── domain/
+│   │   │   │   │   └── test/
+│   │   │   │   │       └── com/
+│   │   │   │   │           └── suchika/
+│   │   │   │   │               └── profile/
+│   │   │   │   │                   └── domain/
+│   │   │   │   ├── src/
+│   │   │   │   │   ├── main/
+│   │   │   │   │   │   └── java/
+│   │   │   │   │   │       └── com/
+│   │   │   │   │   │           └── suchika/
+│   │   │   │   │   │               └── profile/
+│   │   │   │   │   │                   └── domain/
+│   │   │   │   │   └── test/
+│   │   │   │   │       └── java/
+│   │   │   │   │           └── com/
+│   │   │   │   │               └── suchika/
+│   │   │   │   │                   └── profile/
+│   │   │   │   │                       └── domain/
+│   │   │   │   └── build.gradle.kts
+│   │   │   ├── ports/
+│   │   │   │   ├── bin/
+│   │   │   │   │   ├── main/
+│   │   │   │   │   │   └── com/
+│   │   │   │   │   │       └── suchika/
+│   │   │   │   │   │           └── profile/
+│   │   │   │   │   │               └── ports/
+│   │   │   │   │   │                   ├── input/
+│   │   │   │   │   │                   └── output/
+│   │   │   │   │   └── test/
+│   │   │   │   ├── src/
+│   │   │   │   │   ├── main/
+│   │   │   │   │   │   └── java/
+│   │   │   │   │   │       └── com/
+│   │   │   │   │   │           └── suchika/
+│   │   │   │   │   │               └── profile/
+│   │   │   │   │   │                   └── ports/
+│   │   │   │   │   │                       ├── input/
+│   │   │   │   │   │                       └── output/
+│   │   │   │   │   └── test/
+│   │   │   │   │       └── java/
+│   │   │   │   └── build.gradle.kts
+│   │   │   ├── src/
+│   │   │   │   └── main/
+│   │   │   │       └── resources/
+│   │   │   │           └── db/
+│   │   │   │               └── migration/
+│   │   │   └── build.gradle.kts
+│   │   └── wealth/
+│   │       ├── adapters/
+│   │       │   ├── bin/
+│   │       │   │   ├── main/
+│   │       │   │   │   └── com/
+│   │       │   │   │       └── suchika/
+│   │       │   │   │           ├── finance/
+│   │       │   │   │           │   └── adapters/
+│   │       │   │   │           └── wealth/
+│   │       │   │   │               └── adapters/
+│   │       │   │   │                   ├── http/
+│   │       │   │   │                   │   └── dto/
+│   │       │   │   │                   ├── persistence/
+│   │       │   │   │                   └── services/
+│   │       │   │   └── test/
+│   │       │   │       └── com/
+│   │       │   │           └── suchika/
+│   │       │   │               ├── finance/
+│   │       │   │               │   └── adapters/
+│   │       │   │               └── wealth/
+│   │       │   │                   └── adapters/
+│   │       │   │                       ├── persistence/
+│   │       │   │                       └── services/
+│   │       │   ├── src/
+│   │       │   │   ├── main/
+│   │       │   │   │   ├── java/
+│   │       │   │   │   │   └── com/
+│   │       │   │   │   │       └── suchika/
+│   │       │   │   │   │           ├── finance/
+│   │       │   │   │   │           │   └── adapters/
+│   │       │   │   │   │           └── wealth/
+│   │       │   │   │   │               └── adapters/
+│   │       │   │   │   │                   ├── http/
+│   │       │   │   │   │                   │   └── dto/
+│   │       │   │   │   │                   ├── persistence/
+│   │       │   │   │   │                   └── services/
+│   │       │   │   │   └── resources/
+│   │       │   │   │       ├── db/
+│   │       │   │   │       │   └── migration/
+│   │       │   │   │       └── application.properties
+│   │       │   │   └── test/
+│   │       │   │       └── java/
+│   │       │   │           └── com/
+│   │       │   │               └── suchika/
+│   │       │   │                   ├── finance/
+│   │       │   │                   │   └── adapters/
+│   │       │   │                   └── wealth/
+│   │       │   │                       └── adapters/
+│   │       │   │                           ├── persistence/
+│   │       │   │                           └── services/
+│   │       │   └── build.gradle.kts
+│   │       ├── bin/
+│   │       │   ├── main/
+│   │       │   │   └── com/
+│   │       │   │       └── suchika/
+│   │       │   │           └── finance/
+│   │       │   └── test/
+│   │       │       └── com/
+│   │       │           └── suchika/
+│   │       │               └── finance/
+│   │       ├── domain/
+│   │       │   ├── bin/
+│   │       │   │   ├── main/
+│   │       │   │   │   └── com/
+│   │       │   │   │       └── suchika/
+│   │       │   │   │           ├── finance/
+│   │       │   │   │           │   └── domain/
+│   │       │   │   │           └── wealth/
+│   │       │   │   │               └── domain/
+│   │       │   │   └── test/
+│   │       │   │       └── com/
+│   │       │   │           └── suchika/
+│   │       │   │               ├── finance/
+│   │       │   │               │   └── domain/
+│   │       │   │               └── wealth/
+│   │       │   │                   └── domain/
+│   │       │   ├── src/
+│   │       │   │   ├── main/
+│   │       │   │   │   ├── java/
+│   │       │   │   │   │   └── com/
+│   │       │   │   │   │       └── suchika/
+│   │       │   │   │   │           ├── finance/
+│   │       │   │   │   │           │   └── domain/
+│   │       │   │   │   │           └── wealth/
+│   │       │   │   │   │               └── domain/
+│   │       │   │   │   └── resources/
+│   │       │   │   └── test/
+│   │       │   │       └── java/
+│   │       │   │           └── com/
+│   │       │   │               └── suchika/
+│   │       │   │                   ├── finance/
+│   │       │   │                   │   └── domain/
+│   │       │   │                   └── wealth/
+│   │       │   │                       └── domain/
+│   │       │   └── build.gradle.kts
+│   │       ├── ports/
+│   │       │   ├── bin/
+│   │       │   │   ├── main/
+│   │       │   │   │   └── com/
+│   │       │   │   │       └── suchika/
+│   │       │   │   │           ├── finance/
+│   │       │   │   │           │   └── ports/
+│   │       │   │   │           └── wealth/
+│   │       │   │   │               └── ports/
+│   │       │   │   │                   ├── input/
+│   │       │   │   │                   └── output/
+│   │       │   │   └── test/
+│   │       │   │       └── com/
+│   │       │   │           └── suchika/
+│   │       │   │               └── finance/
+│   │       │   │                   └── ports/
+│   │       │   ├── src/
+│   │       │   │   ├── main/
+│   │       │   │   │   ├── java/
+│   │       │   │   │   │   └── com/
+│   │       │   │   │   │       └── suchika/
+│   │       │   │   │   │           ├── finance/
+│   │       │   │   │   │           │   └── ports/
+│   │       │   │   │   │           └── wealth/
+│   │       │   │   │   │               └── ports/
+│   │       │   │   │   │                   ├── input/
+│   │       │   │   │   │                   └── output/
+│   │       │   │   │   └── resources/
+│   │       │   │   └── test/
+│   │       │   │       └── java/
+│   │       │   │           └── com/
+│   │       │   │               └── suchika/
+│   │       │   │                   └── finance/
+│   │       │   │                       └── ports/
+│   │       │   └── build.gradle.kts
+│   │       └── src/
+│   │           ├── main/
+│   │           │   ├── java/
+│   │           │   │   └── com/
+│   │           │   │       └── suchika/
+│   │           │   │           └── finance/
+│   │           │   └── resources/
+│   │           └── test/
+│   │               └── java/
+│   │                   └── com/
+│   │                       └── suchika/
+│   │                           └── finance/
+│   ├── finance/
+│   ├── flyway/
+│   │   ├── health/
+│   │   │   ├── V1__init_health.sql
+│   │   │   └── V2__remove_enum_constraints.sql
+│   │   ├── household/
+│   │   │   ├── V1__init_household.sql
+│   │   │   ├── V2__goals.sql
+│   │   │   └── V3__remove_enum_constraints.sql
+│   │   ├── profile/
+│   │   │   ├── V1__init_profile.sql
+│   │   │   └── V2__add_admin_table.sql
+│   │   ├── projections/
+│   │   │   └── V1__init_projections.sql
+│   │   ├── test-seed/
+│   │   │   ├── health/
+│   │   │   │   └── R__seed_health_test_data.sql
+│   │   │   ├── profile/
+│   │   │   │   └── R__seed_profile_test_data.sql
+│   │   │   └── wealth/
+│   │   │       └── R__seed_wealth_test_data.sql
+│   │   ├── wealth/
+│   │   │   ├── V1__init_ledger.sql
+│   │   │   ├── V2__physical_assets.sql
+│   │   │   ├── V3__upload_status.sql
+│   │   │   ├── V4__enrich_account.sql
+│   │   │   └── V5__remove_enum_constraints.sql
+│   │   └── 00_bootstrap.sql
+│   └── web-gateway/
+│       ├── bin/
+│       │   ├── main/
+│       │   │   └── com/
+│       │   │       └── suchika/
+│       │   │           └── gateway/
+│       │   │               ├── health/
+│       │   │               ├── profile/
+│       │   │               └── wealth/
+│       │   └── test/
+│       │       └── com/
+│       │           └── suchika/
+│       │               └── gateway/
+│       │                   ├── health/
+│       │                   ├── profile/
+│       │                   └── wealth/
+│       ├── src/
+│       │   ├── main/
+│       │   │   ├── java/
+│       │   │   │   └── com/
+│       │   │   │       └── suchika/
+│       │   │   │           └── gateway/
+│       │   │   │               ├── health/
+│       │   │   │               ├── profile/
+│       │   │   │               └── wealth/
+│       │   │   └── resources/
+│       │   │       ├── application.properties
+│       │   │       ├── gateway.yaml
+│       │   │       ├── health.yaml
+│       │   │       ├── household.yaml
+│       │   │       ├── profile.yaml
+│       │   │       ├── shared.yaml
+│       │   │       └── wealth.yaml
+│       │   └── test/
+│       │       └── java/
+│       │           └── com/
+│       │               └── suchika/
+│       │                   └── gateway/
+│       │                       ├── health/
+│       │                       ├── profile/
+│       │                       └── wealth/
+│       └── build.gradle.kts
+├── assets/
+│   └── images/
+│       ├── darkmode.png
+│       ├── darkmode.psd
+│       ├── github-logo.png
+│       ├── hackerrank_logo.png
+│       ├── lightmode.png
+│       ├── linkedin-logo.png
+│       ├── logo.svg
+│       ├── logo192.png
+│       ├── logo512.png
+│       ├── map.png
+│       └── WhatsApp-logo.png
+├── documents/
+│   ├── domain-state/
+│   │   ├── health.md
+│   │   ├── household.md
+│   │   ├── profile.md
+│   │   └── wealth.md
+│   ├── Task/
+│   ├── ToBeDeleted/
+│   ├── AGENTS.md
+│   ├── API.md
+│   ├── ARCHITECTURE.md
+│   ├── ARCHITECTURE_DECISIONS.md
+│   ├── ARCHITECTURE_GUIDELINES.md
+│   ├── ARCHITECTURE_PROPOSALS.md
+│   ├── BUSINESS_REQUIREMENTS.md
+│   ├── CICD.md
+│   ├── CONTEXT_PRIMER.md
+│   ├── E2E_TESTING.md
+│   ├── feature_request.md
+│   ├── FRONTEND_GUIDELINES.md
+│   ├── GETTING_STARTED.md
+│   ├── LOGGING_AND_EXCEPTIONS.md
+│   ├── QA_API_TEST_RESULTS.md
+│   ├── REQUIREMENTS_cross_domain.md
+│   ├── REQUIREMENTS_health_domain.md
+│   ├── REQUIREMENTS_household_domain.md
+│   ├── REQUIREMENTS_wealth_domain.md
+│   ├── ROADMAP.md
+│   ├── SCRIPTS.md
+│   ├── V02_DEVELOPMENT_PLAN.md
+│   └── web_e2e_README.md
+├── gradle/
+│   └── wrapper/
+│       ├── gradle-wrapper.jar
+│       └── gradle-wrapper.properties
+├── infrastructure/
+│   ├── local/
+│   ├── resources/
+│   └── build.gradle.kts
+├── scripts/
+│   ├── build-local.ps1
+│   ├── build-local.sh
+│   ├── build-service.ps1
+│   ├── check-migrations-location.sh
+│   ├── check-prerequisites.ps1
+│   ├── check-prerequisites.sh
+│   ├── clean-all.ps1
+│   ├── clean-builds.ps1
+│   ├── db-reset.ps1
+│   ├── db-shell.ps1
+│   ├── db-start.ps1
+│   ├── dev-aliases.ps1
+│   ├── dev-aliases.sh
+│   ├── dev-service.ps1
+│   ├── documentWriter.py
+│   ├── generate-api.ps1
+│   ├── health-check.ps1
+│   ├── health-check.sh
+│   ├── lnav.ps1
+│   ├── logs.ps1
+│   ├── setup-dev.ps1
+│   ├── sonar-scan.ps1
+│   ├── sonar-start.ps1
+│   ├── stop-all.ps1
+│   └── test-service.ps1
+├── shared/
+│   ├── bin/
+│   │   ├── main/
+│   │   │   └── com/
+│   │   │       └── suchika/
+│   │   │           └── shared/
+│   │   │               ├── dto/
+│   │   │               ├── exception/
+│   │   │               ├── logging/
+│   │   │               └── mapper/
+│   │   └── test/
+│   │       └── com/
+│   │           └── suchika/
+│   │               └── architecture/
+│   ├── src/
+│   │   ├── main/
+│   │   │   ├── java/
+│   │   │   │   └── com/
+│   │   │   │       └── suchika/
+│   │   │   │           └── shared/
+│   │   │   │               ├── dto/
+│   │   │   │               ├── exception/
+│   │   │   │               ├── logging/
+│   │   │   │               └── mapper/
+│   │   │   └── resources/
+│   │   │       └── META-INF/
+│   │   │           └── beans.xml
+│   │   └── test/
+│   │       └── java/
+│   │           └── com/
+│   │               └── suchika/
+│   │                   └── architecture/
+│   └── build.gradle.kts
+├── web/
+│   ├── coverage/
+│   │   ├── lcov-report/
+│   │   │   ├── src/
+│   │   │   │   ├── api/
+│   │   │   │   │   ├── admins.js.html
+│   │   │   │   │   ├── auth.js.html
+│   │   │   │   │   ├── client.js.html
+│   │   │   │   │   ├── generated.ts.html
+│   │   │   │   │   ├── health.js.html
+│   │   │   │   │   ├── index.html
+│   │   │   │   │   ├── profiles.js.html
+│   │   │   │   │   └── wealth.js.html
+│   │   │   │   ├── components/
+│   │   │   │   │   ├── shared/
+│   │   │   │   │   │   ├── ComingSoon.jsx.html
+│   │   │   │   │   │   └── index.html
+│   │   │   │   │   ├── index.html
+│   │   │   │   │   ├── Navigation.js.html
+│   │   │   │   │   └── ProtectedRoute.js.html
+│   │   │   │   ├── context/
+│   │   │   │   │   ├── AuthContext.js.html
+│   │   │   │   │   └── index.html
+│   │   │   │   ├── hooks/
+│   │   │   │   │   ├── index.html
+│   │   │   │   │   └── useAuth.js.html
+│   │   │   │   ├── pages/
+│   │   │   │   │   ├── Admin/
+│   │   │   │   │   │   ├── AdminReports.js.html
+│   │   │   │   │   │   ├── AdminSettings.js.html
+│   │   │   │   │   │   ├── AdminUsers.js.html
+│   │   │   │   │   │   └── index.html
+│   │   │   │   │   ├── Health/
+│   │   │   │   │   │   ├── DoctorVisits.js.html
+│   │   │   │   │   │   ├── index.html
+│   │   │   │   │   │   ├── index.js.html
+│   │   │   │   │   │   ├── Profile.js.html
+│   │   │   │   │   │   └── Vitals.js.html
+│   │   │   │   │   ├── Household/
+│   │   │   │   │   │   ├── Calendar.js.html
+│   │   │   │   │   │   ├── index.html
+│   │   │   │   │   │   ├── index.js.html
+│   │   │   │   │   │   ├── Inventory.js.html
+│   │   │   │   │   │   └── Profiles.js.html
+│   │   │   │   │   ├── Public/
+│   │   │   │   │   │   ├── About.js.html
+│   │   │   │   │   │   ├── Home.js.html
+│   │   │   │   │   │   ├── index.html
+│   │   │   │   │   │   ├── SignIn.js.html
+│   │   │   │   │   │   └── SignUp.js.html
+│   │   │   │   │   ├── User/
+│   │   │   │   │   │   ├── Dashboard.js.html
+│   │   │   │   │   │   ├── Health.js.html
+│   │   │   │   │   │   ├── index.html
+│   │   │   │   │   │   └── Transactions.js.html
+│   │   │   │   │   └── Wealth/
+│   │   │   │   │       ├── Accounts.js.html
+│   │   │   │   │       ├── index.html
+│   │   │   │   │       ├── index.js.html
+│   │   │   │   │       ├── Reports.js.html
+│   │   │   │   │       └── Transactions.js.html
+│   │   │   │   ├── types/
+│   │   │   │   │   ├── auth.ts.html
+│   │   │   │   │   ├── health.ts.html
+│   │   │   │   │   ├── household.ts.html
+│   │   │   │   │   ├── index.html
+│   │   │   │   │   ├── index.ts.html
+│   │   │   │   │   └── wealth.ts.html
+│   │   │   │   ├── utils/
+│   │   │   │   │   ├── constants.js.html
+│   │   │   │   │   ├── errorHandler.js.html
+│   │   │   │   │   ├── formatters.js.html
+│   │   │   │   │   ├── index.html
+│   │   │   │   │   ├── index.js.html
+│   │   │   │   │   ├── logger.js.html
+│   │   │   │   │   └── validators.js.html
+│   │   │   │   ├── App.js.html
+│   │   │   │   ├── index.html
+│   │   │   │   ├── index.js.html
+│   │   │   │   ├── reportWebVitals.js.html
+│   │   │   │   └── test-utils.js.html
+│   │   │   ├── base.css
+│   │   │   ├── favicon.png
+│   │   │   ├── index.html
+│   │   │   ├── prettify.css
+│   │   │   └── sort-arrow-sprite.png
+│   │   ├── coverage-summary.json
+│   │   └── lcov.info
+│   ├── e2e/
+│   ├── public/
+│   │   ├── favicon.ico
+│   │   ├── index.html
+│   │   ├── manifest.json
+│   │   └── robots.txt
+│   ├── src/
+│   │   ├── api/
+│   │   │   ├── generated.d.ts
+│   │   │   └── generated.ts
+│   │   ├── components/
+│   │   │   └── shared/
+│   │   │       └── ComingSoon.jsx
+│   │   ├── context/
+│   │   ├── hooks/
+│   │   ├── pages/
+│   │   │   ├── Admin/
+│   │   │   ├── Health/
+│   │   │   ├── Household/
+│   │   │   ├── Public/
+│   │   │   ├── User/
+│   │   │   └── Wealth/
+│   │   ├── types/
+│   │   │   ├── auth.ts
+│   │   │   ├── health.ts
+│   │   │   ├── household.ts
+│   │   │   ├── index.ts
+│   │   │   └── wealth.ts
+│   │   ├── utils/
+│   │   └── index.css
+│   ├── test-results/
+│   ├── coverage-out.txt
+│   ├── jsconfig.json
+│   ├── package-lock.json
+│   └── package.json
+├── build.gradle.kts
+├── CLAUDE.md
+├── CODE_OF_CONDUCT.md
+├── CONTRIBUTING.md
+├── gradle.properties
+├── gradlew
+├── gradlew.bat
+├── hs_err_pid1272.log
+├── hs_err_pid16380.log
+├── hs_err_pid2516.log
+├── hs_err_pid26172.log
+├── hs_err_pid26720.log
+├── hs_err_pid7628.log
+├── LICENSE
+├── package-lock.json
+├── README.md
+├── replay_pid1272.log
+├── replay_pid16380.log
+├── replay_pid2516.log
+├── replay_pid26172.log
+├── replay_pid26720.log
+├── replay_pid7628.log
+├── SECURITY.md
+├── settings.gradle.kts
+├── sonar-project.properties
+└── tree_output.txt
+```
