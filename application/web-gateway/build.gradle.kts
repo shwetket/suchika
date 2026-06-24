@@ -16,12 +16,19 @@ dependencies {
     // REST client (calls downstream domain services)
     implementation("io.quarkus:quarkus-rest-client-jackson")
 
+    // JPA + PostgreSQL — used exclusively by ProjectionCalculationEngine
+    // to write/read the projections.dashboard_snapshot CQRS read model.
+    implementation("io.quarkus:quarkus-hibernate-orm")
+    implementation("io.quarkus:quarkus-jdbc-postgresql")
+    implementation("io.quarkus:quarkus-flyway")
+
     // Shared utilities (AppLogger, exceptions)
     implementation(project(":shared"))
 
     // Domain ports for aggregation (BFF pattern)
     implementation(project(":application:domain:wealth:ports"))
     implementation(project(":application:domain:health:ports"))
+    implementation(project(":application:domain:household:ports"))
 
     // Tests
     testImplementation("io.quarkus:quarkus-junit5")
@@ -33,11 +40,3 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter-api:$junitVersion")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:$junitVersion")
 }
-
-// ARCHITECTURAL GUARDRAIL VERIFICATION:
-// ✅ NO PostgreSQL driver
-// ✅ NO MongoDB driver
-// ✅ NO Hibernate ORM
-// ✅ NO Panache dependencies
-// ✅ NO Flyway database migration
-// ✅ PURE BFF: REST aggregation only

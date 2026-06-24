@@ -34,10 +34,14 @@ export const API_ENDPOINTS = {
   TRANSACTIONS: '/v1/transactions',
   PHYSICAL_ASSETS: '/v1/physical-assets',
 
-  // Household domain
-  EVENTS: '/v1/events',
-  INVENTORY: '/v1/inventory',
-  GOALS: '/v1/goals',
+  // Household domain (via gateway)
+  CALENDAR_EVENTS: '/v1/household/calendar-events',
+  INVENTORY_ITEMS: '/v1/household/inventory-items',
+  HOUSEHOLD_GOALS: '/v1/household/goals',
+
+  // Projections (via gateway)
+  PROJECTIONS_REFRESH: '/v1/projections/refresh',
+  PROJECTIONS_DASHBOARD: '/v1/projections/dashboard',
 
   // Health domain
   VITALS: '/v1/vitals',
@@ -64,6 +68,7 @@ export const ROUTE_PATHS = {
   HOUSEHOLD_PROFILES: '/household/profiles',
   HOUSEHOLD_CALENDAR: '/household/calendar',
   HOUSEHOLD_INVENTORY: '/household/inventory',
+  HOUSEHOLD_GOALS: '/household/goals',
 
   HEALTH_VITALS: '/health/vitals',
   HEALTH_DOCTORS: '/health/doctors',

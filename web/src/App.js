@@ -22,6 +22,7 @@ import {
   Profiles as HouseholdProfiles,
   Calendar as HouseholdCalendar,
   Inventory as HouseholdInventory,
+  Goals as HouseholdGoals,
 } from './pages/Household';
 import {
   Vitals as HealthVitals,
@@ -130,6 +131,14 @@ function App() {
             element={
               <ProtectedRoute requiredRole="user">
                 <HouseholdInventory />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/household/goals"
+            element={
+              <ProtectedRoute requiredRole="user">
+                <HouseholdGoals />
               </ProtectedRoute>
             }
           />
