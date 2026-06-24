@@ -13,6 +13,7 @@ allprojects {
 
 subprojects {
     apply(plugin = "java")
+    apply(plugin = "jacoco")
     java {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -27,5 +28,19 @@ subprojects {
 
     tasks.withType<Test> {
         useJUnitPlatform()
+        finalizedBy(tasks.named("jacocoTestReport"))
+    }
+
+    tasks.withType<org.gradle.testing.jacoco.tasks.JacocoReport> {
+        // Merge standard unit-test exec with quarkus-jacoco exec (@QuarkusTest coverage)
+        executionData.setFrom(
+            fileTree(layout.buildDirectory) {
+                include("**/jacoco/test.exec", "**/jacoco-quarkus.exec")
+            }
+        )
+        reports {
+            xml.required.set(true)
+            html.required.set(false)
+        }
     }
 }
