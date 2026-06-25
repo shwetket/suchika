@@ -374,7 +374,7 @@ Each milestone requires the previous to be stable before starting.
 |---|---|---|
 | v0.1 | Upload 100+ transactions from 3+ CSVs without data loss | DONE |
 | v0.2 | Profile + Wealth + Health UAT-ready; statement upload lifecycle (PENDING/SUCCESS/FAILED) verified; all data member-scoped | DONE |
-| v0.3 | Household domain live; SonarQube zero blockers; dashboard shows live data | PLANNED |
+| v0.3 | Household domain live; SonarQube zero blockers; dashboard shows live data | DONE |
 | v0.4 | Zero silent data drops on malformed input | PLANNED |
 | v0.5 | Cross-domain vacation planner works end-to-end | PLANNED |
 | v1.0 | Auth + encryption pass local security review | PLANNED |
