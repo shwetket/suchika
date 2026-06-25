@@ -133,4 +133,88 @@ describe('Dashboard', () => {
       expect(screen.getByText(/no dashboard data yet/i)).toBeInTheDocument();
     });
   });
+
+  it('shows active goals count when GOAL_PROGRESS snapshot is present', async () => {
+    const snapshotsWithGoals = [
+      {
+        profile_id: 'p1',
+        snapshot_key: 'WEALTH_NET_WORTH',
+        payload: JSON.stringify({ net_worth: 300000 }),
+        calculated_at: '2026-06-24T10:00:00Z',
+      },
+      {
+        profile_id: 'p1',
+        snapshot_key: 'WEALTH_GOAL_PROGRESS',
+        payload: JSON.stringify({ active_count: 5 }),
+        calculated_at: '2026-06-24T10:00:00Z',
+      },
+    ];
+    mockUseAuth.mockReturnValue({ user: MOCK_USER });
+    getDashboard.mockResolvedValue({ snapshots: snapshotsWithGoals });
+
+    renderDashboard();
+
+    await waitFor(() => {
+      expect(screen.getByText(/active goals/i)).toBeInTheDocument();
+      expect(screen.getByText('5')).toBeInTheDocument();
+    });
+  });
+
+  it('loads dashboard snapshots on mount from getDashboard', async () => {
+    mockUseAuth.mockReturnValue({ user: MOCK_USER });
+    getDashboard.mockResolvedValue({ snapshots: MOCK_SNAPSHOTS });
+
+    renderDashboard();
+
+    await waitFor(() => {
+      expect(getDashboard).toHaveBeenCalledWith('p1');
+      expect(screen.getByText(/net worth/i)).toBeInTheDocument();
+    });
+  });
+
+  it('handles getDashboard returning no snapshots key', async () => {
+    mockUseAuth.mockReturnValue({ user: MOCK_USER });
+    getDashboard.mockResolvedValue({});
+
+    renderDashboard();
+
+    await waitFor(() => {
+      expect(screen.getByText(/no dashboard data yet/i)).toBeInTheDocument();
+    });
+  });
+
+  it('shows fallback error text when refresh fails without error message', async () => {
+    mockUseAuth.mockReturnValue({ user: MOCK_USER });
+    getDashboard.mockResolvedValue({ snapshots: [] });
+    refreshProjections.mockRejectedValue(new Error());
+
+    renderDashboard();
+    await waitFor(() => screen.getByRole('button', { name: /refresh live data/i }));
+
+    fireEvent.click(screen.getByRole('button', { name: /refresh live data/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Refresh failed')).toBeInTheDocument();
+    });
+  });
+
+  it('ignores second Refresh click while first refresh is in progress', async () => {
+    mockUseAuth.mockReturnValue({ user: MOCK_USER });
+    getDashboard.mockResolvedValue({ snapshots: [] });
+    let resolveRefresh;
+    refreshProjections.mockImplementation(
+      () => new Promise((resolve) => { resolveRefresh = resolve; })
+    );
+
+    renderDashboard();
+    await waitFor(() => screen.getByRole('button', { name: /refresh live data/i }));
+
+    fireEvent.click(screen.getByRole('button', { name: /refresh live data/i }));
+    await waitFor(() => screen.getByText(/refreshing/i));
+
+    fireEvent.click(screen.getByRole('button', { name: /refreshing/i }));
+    expect(refreshProjections).toHaveBeenCalledTimes(1);
+
+    resolveRefresh({ snapshots: [] });
+  });
 });

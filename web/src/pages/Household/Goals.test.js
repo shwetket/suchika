@@ -504,4 +504,165 @@ describe('Goals page', () => {
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
     expect(screen.getByText(/loading goals/i)).toBeInTheDocument();
   });
+
+  it('renders goal with null progress_percent using 0 as fallback', async () => {
+    const goalNullPercent = [{
+      id: 'gx',
+      profile_id: 'p1',
+      goal_name: 'Null Percent Goal',
+      status: 'ACTIVE',
+      target_amount: 50000,
+      current_amount: 0,
+      monthly_saving: null,
+      target_date: null,
+      progress_percent: null,
+      days_to_completion: null,
+      notes: null,
+    }];
+    listGoals.mockResolvedValue({ goals: goalNullPercent });
+    render(<Goals />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+
+    await waitFor(() => {
+      expect(screen.getByText('Null Percent Goal')).toBeInTheDocument();
+      expect(screen.getByText('0% complete')).toBeInTheDocument();
+    });
+  });
+
+  it('renders goal with unknown status using fallback colour', async () => {
+    const goalUnknownStatus = [{
+      id: 'gy',
+      profile_id: 'p1',
+      goal_name: 'Custom Status Goal',
+      status: 'CUSTOM_STATUS',
+      target_amount: 20000,
+      current_amount: 5000,
+      monthly_saving: null,
+      target_date: null,
+      progress_percent: 25,
+      days_to_completion: null,
+      notes: null,
+    }];
+    listGoals.mockResolvedValue({ goals: goalUnknownStatus });
+    render(<Goals />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+
+    await waitFor(() => {
+      expect(screen.getByText('Custom Status Goal')).toBeInTheDocument();
+      expect(screen.getByText('CUSTOM_STATUS')).toBeInTheDocument();
+    });
+  });
+
+  it('uses empty array when listProfiles returns no profiles key', async () => {
+    listProfiles.mockResolvedValue({});
+    render(<Goals />);
+    await waitFor(() => {
+      expect(screen.queryByText('Alice')).not.toBeInTheDocument();
+    });
+  });
+
+  it('uses empty array when listGoals returns no goals key', async () => {
+    listGoals.mockResolvedValue({});
+    render(<Goals />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/no goals yet/i)).toBeInTheDocument();
+    });
+  });
+
+  it('shows fallback error message when listGoals fails without message', async () => {
+    listGoals.mockRejectedValue(new Error());
+    render(<Goals />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+
+    await waitFor(() => {
+      expect(screen.getByText('Failed to load goals')).toBeInTheDocument();
+    });
+  });
+
+  it('shows fallback error message when createGoal fails without message', async () => {
+    createGoal.mockRejectedValue(new Error());
+    render(<Goals />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+    await waitFor(() => screen.getByText('+ Add Goal'));
+    fireEvent.click(screen.getByText('+ Add Goal'));
+
+    fireEvent.change(screen.getByPlaceholderText('e.g. Emergency Fund'), {
+      target: { name: 'goal_name', value: 'Test' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('e.g. 100000'), {
+      target: { name: 'target_amount', value: '10000' },
+    });
+
+    const submitBtn = screen.getAllByRole('button', { name: /add goal/i }).find((b) => b.type === 'submit');
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('Failed to create goal')).toBeInTheDocument();
+    });
+  });
+
+  it('opens edit modal for goal with null monthly_saving', async () => {
+    listGoals.mockResolvedValue({ goals: MOCK_GOALS });
+    render(<Goals />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+    await waitFor(() => screen.getAllByText('Edit'));
+
+    fireEvent.click(screen.getAllByText('Edit')[1]);
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: /edit goal/i })).toBeInTheDocument();
+    });
+  });
+
+  it('shows fallback error message when updateGoal fails without message', async () => {
+    const { updateGoal } = require('../../api/household');
+    listGoals.mockResolvedValue({ goals: MOCK_GOALS });
+    updateGoal.mockRejectedValue(new Error());
+    render(<Goals />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+    await waitFor(() => screen.getAllByText('Edit'));
+
+    fireEvent.click(screen.getAllByText('Edit')[0]);
+    await waitFor(() => screen.getByRole('heading', { name: /edit goal/i }));
+
+    const submitBtn = screen.getByRole('button', { name: /save changes/i });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('Failed to update goal')).toBeInTheDocument();
+    });
+  });
+
+  it('shows fallback error message when deleteGoal fails without message', async () => {
+    listGoals.mockResolvedValue({ goals: MOCK_GOALS });
+    deleteGoal.mockRejectedValue(new Error());
+    render(<Goals />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+    await waitFor(() => screen.getAllByText('Delete'));
+
+    fireEvent.click(screen.getAllByText('Delete')[0]);
+    fireEvent.click(screen.getByText('Confirm?'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Failed to delete goal')).toBeInTheDocument();
+    });
+  });
 });
