@@ -90,7 +90,7 @@ Each domain is a Gradle sub-project with three layers: `domain/` (pure Java, zer
 - [documents/domain-state/profile.md](domain-state/profile.md) — schema, files, open issues
 - [documents/domain-state/wealth.md](domain-state/wealth.md) — schema, ADRs, backlog
 - [documents/domain-state/health.md](domain-state/health.md) — schema, backlog
-- [documents/domain-state/household.md](domain-state/household.md) — planned schema, nothing built yet
+- [documents/domain-state/household.md](domain-state/household.md) — calendar events, inventory, goals; projection engine in gateway; v0.3 complete
 
 ---
 
