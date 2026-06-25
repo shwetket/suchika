@@ -161,4 +161,271 @@ describe('Calendar page', () => {
       expect(screen.getByText('Server error')).toBeInTheDocument();
     });
   });
+
+  it('shows empty state message when no events exist for profile', async () => {
+    listCalendarEvents.mockResolvedValue({ calendar_events: [] });
+    render(<Calendar />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/no events yet/i)).toBeInTheDocument();
+    });
+  });
+
+  it('shows error when delete API call fails', async () => {
+    listCalendarEvents.mockResolvedValue({ calendar_events: MOCK_EVENTS });
+    deleteCalendarEvent.mockRejectedValue(new Error('Delete failed'));
+    render(<Calendar />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+    await waitFor(() => screen.getAllByText('Delete'));
+
+    fireEvent.click(screen.getAllByText('Delete')[0]);
+    fireEvent.click(screen.getByText('Confirm?'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Delete failed')).toBeInTheDocument();
+    });
+  });
+
+  it('cancels delete confirmation when Cancel is clicked', async () => {
+    listCalendarEvents.mockResolvedValue({ calendar_events: MOCK_EVENTS });
+    render(<Calendar />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+    await waitFor(() => screen.getAllByText('Delete'));
+
+    fireEvent.click(screen.getAllByText('Delete')[0]);
+    expect(screen.getByText('Confirm?')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Cancel'));
+    expect(screen.queryByText('Confirm?')).not.toBeInTheDocument();
+  });
+
+  it('shows event type filter dropdown after profile selection', async () => {
+    listCalendarEvents.mockResolvedValue({ calendar_events: MOCK_EVENTS });
+    render(<Calendar />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: 'p1' } });
+
+    await waitFor(() => {
+      expect(screen.getByText('All Types')).toBeInTheDocument();
+    });
+  });
+
+  it('filters events when type filter is changed', async () => {
+    listCalendarEvents.mockResolvedValue({ calendar_events: MOCK_EVENTS });
+    render(<Calendar />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: 'p1' } });
+    await waitFor(() => screen.getByText('All Types'));
+
+    const selects = screen.getAllByRole('combobox');
+    const typeFilter = selects.find((s) => s.textContent.includes('All Types'));
+    fireEvent.change(typeFilter, { target: { value: 'FAMILY' } });
+
+    await waitFor(() => {
+      expect(listCalendarEvents).toHaveBeenCalledWith('p1', 'FAMILY');
+    });
+  });
+
+  it('shows validation error when event type is missing on add', async () => {
+    render(<Calendar />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+    await waitFor(() => screen.getByText('+ Add Event'));
+    fireEvent.click(screen.getByText('+ Add Event'));
+
+    fireEvent.change(screen.getByPlaceholderText('Event title'), {
+      target: { name: 'title', value: 'My Event' },
+    });
+
+    const submitBtn = screen
+      .getAllByRole('button', { name: /add event/i })
+      .find((b) => b.type === 'submit');
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('Event type is required')).toBeInTheDocument();
+    });
+  });
+
+  it('shows validation error when title is empty on add', async () => {
+    render(<Calendar />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+    await waitFor(() => screen.getByText('+ Add Event'));
+    fireEvent.click(screen.getByText('+ Add Event'));
+
+    const submitBtn = screen
+      .getAllByRole('button', { name: /add event/i })
+      .find((b) => b.type === 'submit');
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('Title is required')).toBeInTheDocument();
+    });
+  });
+
+  it('shows error when create API call fails', async () => {
+    listCalendarEvents.mockResolvedValue({ calendar_events: [] });
+    createCalendarEvent.mockRejectedValue(new Error('Create failed'));
+    render(<Calendar />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+    await waitFor(() => screen.getByText('+ Add Event'));
+    fireEvent.click(screen.getByText('+ Add Event'));
+
+    fireEvent.change(screen.getByPlaceholderText('Event title'), {
+      target: { name: 'title', value: 'New Event' },
+    });
+
+    const selects = screen.getAllByRole('combobox');
+    const typeSelect = selects.find((s) => s.getAttribute('name') === 'event_type');
+    fireEvent.change(typeSelect, { target: { value: 'PERSONAL' } });
+
+    const submitBtn = screen
+      .getAllByRole('button', { name: /add event/i })
+      .find((b) => b.type === 'submit');
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('Create failed')).toBeInTheDocument();
+    });
+  });
+
+  it('opens edit modal when Edit button is clicked', async () => {
+    listCalendarEvents.mockResolvedValue({ calendar_events: MOCK_EVENTS });
+    render(<Calendar />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+    await waitFor(() => screen.getAllByText('Edit'));
+
+    fireEvent.click(screen.getAllByText('Edit')[0]);
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: /edit event/i })).toBeInTheDocument();
+    });
+  });
+
+  it('submits edit form and reloads events', async () => {
+    const { updateCalendarEvent } = require('../../api/household');
+    listCalendarEvents.mockResolvedValue({ calendar_events: MOCK_EVENTS });
+    updateCalendarEvent.mockResolvedValue({});
+    render(<Calendar />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+    await waitFor(() => screen.getAllByText('Edit'));
+
+    fireEvent.click(screen.getAllByText('Edit')[0]);
+    await waitFor(() => screen.getByRole('heading', { name: /edit event/i }));
+
+    const submitBtn = screen.getByRole('button', { name: /save changes/i });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(updateCalendarEvent).toHaveBeenCalledWith(
+        'e1',
+        expect.objectContaining({ title: 'Family Dinner' })
+      );
+    });
+  });
+
+  it('shows error when edit API call fails', async () => {
+    const { updateCalendarEvent } = require('../../api/household');
+    listCalendarEvents.mockResolvedValue({ calendar_events: MOCK_EVENTS });
+    updateCalendarEvent.mockRejectedValue(new Error('Update failed'));
+    render(<Calendar />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+    await waitFor(() => screen.getAllByText('Edit'));
+
+    fireEvent.click(screen.getAllByText('Edit')[0]);
+    await waitFor(() => screen.getByRole('heading', { name: /edit event/i }));
+
+    const submitBtn = screen.getByRole('button', { name: /save changes/i });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('Update failed')).toBeInTheDocument();
+    });
+  });
+
+  it('shows validation error when title is empty on edit', async () => {
+    listCalendarEvents.mockResolvedValue({ calendar_events: MOCK_EVENTS });
+    render(<Calendar />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+    await waitFor(() => screen.getAllByText('Edit'));
+
+    fireEvent.click(screen.getAllByText('Edit')[0]);
+    await waitFor(() => screen.getByRole('heading', { name: /edit event/i }));
+
+    const titleInput = screen.getAllByPlaceholderText('Event title')[0];
+    fireEvent.change(titleInput, { target: { name: 'title', value: '' } });
+
+    const submitBtn = screen.getByRole('button', { name: /save changes/i });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('Title is required')).toBeInTheDocument();
+    });
+  });
+
+  it('shows date range when event has both start and end dates', async () => {
+    listCalendarEvents.mockResolvedValue({ calendar_events: MOCK_EVENTS });
+    render(<Calendar />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+
+    await waitFor(() => {
+      expect(screen.getByText('Doctor Appointment')).toBeInTheDocument();
+    });
+    expect(screen.getByText(/→/)).toBeInTheDocument();
+  });
+
+  it('resets conflictWarning when profile is changed', async () => {
+    listCalendarEvents.mockResolvedValue({ calendar_events: [] });
+    createCalendarEvent.mockResolvedValue({
+      id: 'e3',
+      conflicting_events: [{ id: 'e1', title: 'Family Dinner' }],
+    });
+    render(<Calendar />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+    await waitFor(() => screen.getByText('+ Add Event'));
+
+    fireEvent.click(screen.getByText('+ Add Event'));
+    fireEvent.change(screen.getByPlaceholderText('Event title'), {
+      target: { name: 'title', value: 'New Event' },
+    });
+    const selects = screen.getAllByRole('combobox');
+    const typeSelect = selects.find((s) => s.getAttribute('name') === 'event_type');
+    fireEvent.change(typeSelect, { target: { value: 'PERSONAL' } });
+
+    const submitBtn = screen
+      .getAllByRole('button', { name: /add event/i })
+      .find((b) => b.type === 'submit');
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => screen.getByText(/event created with conflicts/i));
+
+    fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: '' } });
+    expect(screen.queryByText(/event created with conflicts/i)).not.toBeInTheDocument();
+  });
 });

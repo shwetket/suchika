@@ -61,14 +61,14 @@
       "src/pages/User/Health.js",
       "src/pages/User/Transactions.js",
       "src/pages/Admin/",
-      "src/pages/Household/Calendar.js",
-      "src/pages/Household/Inventory.js",
+
       "src/pages/Public/SignUp.js",
       "src/pages/Public/About.js",
       "src/pages/Health/Profile.js",
       "src/components/shared/",
       "src/types/",
       "src/api/generated.ts",
+      "src/api/household.js",
       "src/utils/index.js"
     ]
   },

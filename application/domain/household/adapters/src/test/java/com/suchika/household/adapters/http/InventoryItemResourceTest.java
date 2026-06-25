@@ -1,0 +1,189 @@
+package com.suchika.household.adapters.http;
+
+import com.suchika.household.domain.InventoryItem;
+import com.suchika.household.domain.ItemUnit;
+import com.suchika.household.domain.SourcePlatform;
+import com.suchika.household.ports.input.InventoryItemUseCase;
+import com.suchika.shared.exception.NotFoundException;
+import io.quarkus.test.InjectMock;
+import io.quarkus.test.junit.QuarkusTest;
+import io.restassured.http.ContentType;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.Month;
+import java.util.List;
+import java.util.UUID;
+
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.Matchers.hasSize;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+
+@QuarkusTest
+class InventoryItemResourceTest {
+
+    @InjectMock
+    InventoryItemUseCase inventoryItemUseCase;
+
+    private static final UUID PROFILE_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
+    private static final UUID ITEM_ID    = UUID.fromString("00000000-0000-0000-0000-000000000003");
+
+    private InventoryItem sampleItem;
+
+    @BeforeEach
+    void setUp() {
+        sampleItem = InventoryItem.builder()
+                .id(ITEM_ID)
+                .profileId(PROFILE_ID)
+                .itemName("Basmati Rice")
+                .quantity(new BigDecimal("5.0"))
+                .unit(ItemUnit.KG)
+                .sourcePlatform(SourcePlatform.BLINKIT)
+                .purchaseDate(LocalDate.of(2026, Month.JUNE, 1))
+                .category("Grains")
+                .createdAt(Instant.EPOCH)
+                .build();
+    }
+
+    @Test
+    void listInventoryItems_returns200WithItems() {
+        Mockito.when(inventoryItemUseCase.list(eq(PROFILE_ID), isNull(), isNull()))
+                .thenReturn(List.of(sampleItem));
+
+        given()
+                .queryParam("profile_id", PROFILE_ID)
+                .when().get("/v1/inventory-items")
+                .then()
+                .statusCode(200)
+                .body("inventory_items", hasSize(1))
+                .body("inventory_items[0].id", is(ITEM_ID.toString()))
+                .body("inventory_items[0].item_name", is("Basmati Rice"))
+                .body("inventory_items[0].unit", is("KG"))
+                .body("total_size", is(1));
+    }
+
+    @Test
+    void listInventoryItems_emptyResult_returns200WithEmptyList() {
+        Mockito.when(inventoryItemUseCase.list(eq(PROFILE_ID), isNull(), isNull()))
+                .thenReturn(List.of());
+
+        given()
+                .queryParam("profile_id", PROFILE_ID)
+                .when().get("/v1/inventory-items")
+                .then()
+                .statusCode(200)
+                .body("inventory_items", hasSize(0))
+                .body("total_size", is(0));
+    }
+
+    @Test
+    void listInventoryItems_missingProfileId_returns400() {
+        given()
+                .when().get("/v1/inventory-items")
+                .then()
+                .statusCode(400);
+    }
+
+    @Test
+    void createInventoryItem_validRequest_returns201() {
+        Mockito.when(inventoryItemUseCase.create(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(sampleItem);
+
+        String body = "{"
+                + "\"profile_id\":\"" + PROFILE_ID + "\","
+                + "\"item_name\":\"Basmati Rice\","
+                + "\"quantity\":5.0,"
+                + "\"unit\":\"KG\","
+                + "\"source_platform\":\"BLINKIT\","
+                + "\"purchase_date\":\"2026-06-01\","
+                + "\"category\":\"Grains\""
+                + "}";
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(body)
+                .when().post("/v1/inventory-items")
+                .then()
+                .statusCode(201)
+                .body("id", is(ITEM_ID.toString()))
+                .body("item_name", is("Basmati Rice"))
+                .body("source_platform", is("BLINKIT"));
+    }
+
+    @Test
+    void createInventoryItem_missingItemName_returns400() {
+        String body = "{"
+                + "\"profile_id\":\"" + PROFILE_ID + "\","
+                + "\"quantity\":5.0,"
+                + "\"unit\":\"KG\","
+                + "\"source_platform\":\"BLINKIT\","
+                + "\"purchase_date\":\"2026-06-01\""
+                + "}";
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(body)
+                .when().post("/v1/inventory-items")
+                .then()
+                .statusCode(400);
+    }
+
+    @Test
+    void createInventoryItem_missingProfileId_returns400() {
+        String body = "{"
+                + "\"item_name\":\"Basmati Rice\","
+                + "\"quantity\":5.0,"
+                + "\"unit\":\"KG\","
+                + "\"source_platform\":\"BLINKIT\","
+                + "\"purchase_date\":\"2026-06-01\""
+                + "}";
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(body)
+                .when().post("/v1/inventory-items")
+                .then()
+                .statusCode(400);
+    }
+
+    @Test
+    void getInventoryItem_exists_returns200() {
+        Mockito.when(inventoryItemUseCase.get(ITEM_ID))
+                .thenReturn(sampleItem);
+
+        given()
+                .when().get("/v1/inventory-items/" + ITEM_ID)
+                .then()
+                .statusCode(200)
+                .body("id", is(ITEM_ID.toString()))
+                .body("item_name", is("Basmati Rice"));
+    }
+
+    @Test
+    void getInventoryItem_notFound_returns404() {
+        Mockito.when(inventoryItemUseCase.get(ITEM_ID))
+                .thenThrow(new NotFoundException("inventory item not found"));
+
+        given()
+                .when().get("/v1/inventory-items/" + ITEM_ID)
+                .then()
+                .statusCode(404);
+    }
+
+    @Test
+    void deleteInventoryItem_returns204() {
+        Mockito.doNothing().when(inventoryItemUseCase).delete(ITEM_ID);
+
+        given()
+                .when().delete("/v1/inventory-items/" + ITEM_ID)
+                .then()
+                .statusCode(204);
+    }
+}
