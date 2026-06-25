@@ -6,6 +6,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.Month;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 
@@ -26,6 +29,7 @@ class ProjectionResourceTest {
     DashboardSnapshotRepository snapshotRepository;
 
     private static final UUID PROFILE_ID = UUID.fromString("00000000-0000-0000-0000-000000000002");
+    private static final Instant TEST_INSTANT = LocalDate.of(2026, Month.JUNE, 25).atStartOfDay().toInstant(ZoneOffset.UTC);
 
     @BeforeEach
     void setUp() {
@@ -34,12 +38,12 @@ class ProjectionResourceTest {
                         PROFILE_ID,
                         SnapshotKey.WEALTH_NET_WORTH,
                         "{\"net_worth\":100000.0,\"account_count\":2}",
-                        Instant.now()),
+                        TEST_INSTANT),
                 new DashboardSnapshotDto(
                         PROFILE_ID,
                         SnapshotKey.HEALTH_VITALS_SUMMARY,
                         "{\"vitals\":[]}",
-                        Instant.now()));
+                        TEST_INSTANT));
 
         when(engine.refreshAll(PROFILE_ID)).thenReturn(new DashboardResponse(snapshots));
         when(snapshotRepository.findByProfileId(PROFILE_ID)).thenReturn(snapshots);

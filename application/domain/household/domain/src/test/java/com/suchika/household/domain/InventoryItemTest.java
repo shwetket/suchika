@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -13,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class InventoryItemTest {
 
     private static final UUID PROFILE_ID = UUID.randomUUID();
-    private static final LocalDate PURCHASE_DATE = LocalDate.of(2026, 6, 24);
+    private static final LocalDate PURCHASE_DATE = LocalDate.of(2026, Month.JUNE, 24);
 
     @Test
     void create_happyPath_returnsItemWithAllFields() {
@@ -44,49 +45,48 @@ class InventoryItemTest {
     @Test
     void create_zeroQuantity_throwsIllegalArgumentException() {
         assertThrows(IllegalArgumentException.class, () ->
-                InventoryItem.create(PROFILE_ID, "Milk", BigDecimal.ZERO,
-                        ItemUnit.L, SourcePlatform.MANUAL, PURCHASE_DATE, null));
+                InventoryItem.create(PROFILE_ID, "Milk", BigDecimal.ZERO, ItemUnit.L, SourcePlatform.MANUAL, PURCHASE_DATE, null));
     }
 
     @Test
     void create_negativeQuantity_throwsIllegalArgumentException() {
+        BigDecimal negativeOne = new BigDecimal("-1");
         assertThrows(IllegalArgumentException.class, () ->
-                InventoryItem.create(PROFILE_ID, "Milk", new BigDecimal("-1"),
-                        ItemUnit.L, SourcePlatform.MANUAL, PURCHASE_DATE, null));
+                InventoryItem.create(PROFILE_ID, "Milk", negativeOne, ItemUnit.L, SourcePlatform.MANUAL, PURCHASE_DATE, null));
     }
 
     @Test
     void create_blankItemName_throwsIllegalArgumentException() {
+        BigDecimal one = new BigDecimal("1");
         assertThrows(IllegalArgumentException.class, () ->
-                InventoryItem.create(PROFILE_ID, "  ", new BigDecimal("1"),
-                        ItemUnit.KG, SourcePlatform.MANUAL, PURCHASE_DATE, null));
+                InventoryItem.create(PROFILE_ID, "  ", one, ItemUnit.KG, SourcePlatform.MANUAL, PURCHASE_DATE, null));
     }
 
     @Test
     void create_nullItemName_throwsIllegalArgumentException() {
+        BigDecimal one = new BigDecimal("1");
         assertThrows(IllegalArgumentException.class, () ->
-                InventoryItem.create(PROFILE_ID, null, new BigDecimal("1"),
-                        ItemUnit.KG, SourcePlatform.MANUAL, PURCHASE_DATE, null));
+                InventoryItem.create(PROFILE_ID, null, one, ItemUnit.KG, SourcePlatform.MANUAL, PURCHASE_DATE, null));
     }
 
     @Test
     void create_nullUnit_throwsIllegalArgumentException() {
+        BigDecimal one = new BigDecimal("1");
         assertThrows(IllegalArgumentException.class, () ->
-                InventoryItem.create(PROFILE_ID, "Item", new BigDecimal("1"),
-                        null, SourcePlatform.MANUAL, PURCHASE_DATE, null));
+                InventoryItem.create(PROFILE_ID, "Item", one, null, SourcePlatform.MANUAL, PURCHASE_DATE, null));
     }
 
     @Test
     void create_nullSourcePlatform_throwsIllegalArgumentException() {
+        BigDecimal one = new BigDecimal("1");
         assertThrows(IllegalArgumentException.class, () ->
-                InventoryItem.create(PROFILE_ID, "Item", new BigDecimal("1"),
-                        ItemUnit.KG, null, PURCHASE_DATE, null));
+                InventoryItem.create(PROFILE_ID, "Item", one, ItemUnit.KG, null, PURCHASE_DATE, null));
     }
 
     @Test
     void create_nullPurchaseDate_throwsIllegalArgumentException() {
+        BigDecimal one = new BigDecimal("1");
         assertThrows(IllegalArgumentException.class, () ->
-                InventoryItem.create(PROFILE_ID, "Item", new BigDecimal("1"),
-                        ItemUnit.KG, SourcePlatform.MANUAL, null, null));
+                InventoryItem.create(PROFILE_ID, "Item", one, ItemUnit.KG, SourcePlatform.MANUAL, null, null));
     }
 }

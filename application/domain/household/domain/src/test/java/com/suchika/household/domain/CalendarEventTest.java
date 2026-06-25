@@ -3,6 +3,7 @@ package com.suchika.household.domain;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -13,9 +14,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class CalendarEventTest {
 
     private static final UUID PROFILE_ID = UUID.randomUUID();
-    private static final LocalDate TODAY = LocalDate.of(2026, 6, 24);
-    private static final LocalDate TOMORROW = LocalDate.of(2026, 6, 25);
-    private static final LocalDate YESTERDAY = LocalDate.of(2026, 6, 23);
+    private static final LocalDate TODAY = LocalDate.of(2026, Month.JUNE, 24);
+    private static final LocalDate TOMORROW = LocalDate.of(2026, Month.JUNE, 25);
+    private static final LocalDate YESTERDAY = LocalDate.of(2026, Month.JUNE, 23);
 
     @Test
     void create_happyPath_returnsEventWithAllFields() {

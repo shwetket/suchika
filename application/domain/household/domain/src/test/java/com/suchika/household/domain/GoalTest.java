@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -19,7 +20,7 @@ class GoalTest {
     void create_happyPath_returnsGoalWithDefaults() {
         Goal goal = Goal.create(PROFILE_ID, "Emergency Fund",
                 new BigDecimal("500000"), new BigDecimal("10000"),
-                LocalDate.of(2027, 1, 1), "For emergencies");
+                LocalDate.of(2027, Month.JANUARY, 1), "For emergencies");
 
         assertNotNull(goal);
         assertEquals(PROFILE_ID, goal.getProfileId());
@@ -31,30 +32,29 @@ class GoalTest {
 
     @Test
     void create_blankGoalName_throwsIllegalArgumentException() {
+        BigDecimal amount100k = new BigDecimal("100000");
         assertThrows(IllegalArgumentException.class, () ->
-                Goal.create(PROFILE_ID, "  ", new BigDecimal("100000"),
-                        null, null, null));
+                Goal.create(PROFILE_ID, "  ", amount100k, null, null, null));
     }
 
     @Test
     void create_nullGoalName_throwsIllegalArgumentException() {
+        BigDecimal amount100k = new BigDecimal("100000");
         assertThrows(IllegalArgumentException.class, () ->
-                Goal.create(PROFILE_ID, null, new BigDecimal("100000"),
-                        null, null, null));
+                Goal.create(PROFILE_ID, null, amount100k, null, null, null));
     }
 
     @Test
     void create_zeroTargetAmount_throwsIllegalArgumentException() {
         assertThrows(IllegalArgumentException.class, () ->
-                Goal.create(PROFILE_ID, "Goal", BigDecimal.ZERO,
-                        null, null, null));
+                Goal.create(PROFILE_ID, "Goal", BigDecimal.ZERO, null, null, null));
     }
 
     @Test
     void create_negativeTargetAmount_throwsIllegalArgumentException() {
+        BigDecimal negative1000 = new BigDecimal("-1000");
         assertThrows(IllegalArgumentException.class, () ->
-                Goal.create(PROFILE_ID, "Goal", new BigDecimal("-1000"),
-                        null, null, null));
+                Goal.create(PROFILE_ID, "Goal", negative1000, null, null, null));
     }
 
     @Test

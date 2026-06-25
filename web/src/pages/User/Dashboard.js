@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { getDashboard, refreshProjections } from '../../api/household';
@@ -137,7 +138,19 @@ function SnapshotSummary({ snapshots }) {
   );
 }
 
-SnapshotSummary.propTypes = {};
+SnapshotSummary.propTypes = {
+  snapshots: PropTypes.arrayOf(
+    PropTypes.shape({
+      snapshot_key: PropTypes.string,
+      payload: PropTypes.string,
+      calculated_at: PropTypes.string,
+    })
+  ),
+};
+
+SnapshotSummary.defaultProps = {
+  snapshots: [],
+};
 
 export const Dashboard = () => {
   const { user } = useAuth();

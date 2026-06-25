@@ -10,7 +10,6 @@ import jakarta.transaction.Transactional;
 
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 /**
  * Repository for projections.dashboard_snapshot.
@@ -72,6 +71,6 @@ public class DashboardSnapshotRepository {
                         e.getSnapshotKey(),
                         e.getPayload(),
                         e.getCalculatedAt()))
-                .collect(Collectors.toList());
+                .toList();
     }
 }

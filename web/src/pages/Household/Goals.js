@@ -100,16 +100,12 @@ function ProgressBar({ percent }) {
   const capped = Math.min(percent ?? 0, 100);
   const colour = progressBarColour(capped);
   return (
-    <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
-      <div
-        className={`${colour} h-2 rounded-full transition-all`}
-        style={{ width: `${capped}%` }}
-        role="progressbar"
-        aria-valuenow={capped}
-        aria-valuemin={0}
-        aria-valuemax={100}
-      />
-    </div>
+    <progress
+      value={capped}
+      max={100}
+      className={`w-full h-2 rounded-full mt-1 ${colour} [&::-webkit-progress-bar]:rounded-full [&::-webkit-progress-bar]:bg-gray-200 [&::-webkit-progress-value]:rounded-full [&::-webkit-progress-value]:transition-all`}
+      aria-label={`${Math.round(capped)}% complete`}
+    />
   );
 }
 

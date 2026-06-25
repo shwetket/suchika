@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class InventoryItemServiceTest {
 
-    private static final LocalDate PURCHASE_DATE = LocalDate.of(2026, 6, 1);
+    private static final LocalDate PURCHASE_DATE = LocalDate.of(2026, Month.JUNE, 1);
 
     private StubInventoryItemRepository repository;
     private InventoryItemService service;

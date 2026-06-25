@@ -13,6 +13,7 @@ import jakarta.inject.Inject;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.UUID;
 
 /**
@@ -149,8 +150,8 @@ public class ProjectionCalculationEngine {
         if (vitalsArray.isArray()) {
             for (JsonNode vital : vitalsArray) {
                 String vitalType = vital.path(VITAL_TYPE_KEY).asText("");
-                if (!vitalType.isEmpty() && !latestByType.containsKey(vitalType)) {
-                    latestByType.put(vitalType, vital);
+                if (!vitalType.isEmpty()) {
+                    latestByType.computeIfAbsent(vitalType, k -> vital);
                 }
             }
         }
@@ -174,8 +175,9 @@ public class ProjectionCalculationEngine {
     // ── HOUSEHOLD_EVENT_SUMMARY ───────────────────────────────────────────────
 
     void computeEventSummary(UUID profileId) {
-        String today = LocalDate.now().toString();
-        String thirtyDaysAhead = LocalDate.now().plusDays(30).toString();
+        LocalDate nowIst = LocalDate.now(ZoneId.of("Asia/Kolkata"));
+        String today = nowIst.toString();
+        String thirtyDaysAhead = nowIst.plusDays(30).toString();
 
         JsonNode eventsResponse = householdServiceClient.listCalendarEvents(
                 profileId, null, today, thirtyDaysAhead);

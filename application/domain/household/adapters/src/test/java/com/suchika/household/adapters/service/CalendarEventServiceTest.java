@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -23,10 +24,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CalendarEventServiceTest {
 
-    private static final LocalDate JAN_10 = LocalDate.of(2026, 1, 10);
-    private static final LocalDate JAN_15 = LocalDate.of(2026, 1, 15);
-    private static final LocalDate JAN_20 = LocalDate.of(2026, 1, 20);
-    private static final LocalDate JAN_25 = LocalDate.of(2026, 1, 25);
+    private static final LocalDate JAN_10 = LocalDate.of(2026, Month.JANUARY, 10);
+    private static final LocalDate JAN_15 = LocalDate.of(2026, Month.JANUARY, 15);
+    private static final LocalDate JAN_20 = LocalDate.of(2026, Month.JANUARY, 20);
+    private static final LocalDate JAN_25 = LocalDate.of(2026, Month.JANUARY, 25);
 
     private StubCalendarEventRepository repository;
     private CalendarEventService service;

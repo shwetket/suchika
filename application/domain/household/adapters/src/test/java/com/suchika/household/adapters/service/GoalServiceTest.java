@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,7 +36,7 @@ class GoalServiceTest {
     void create_happyPath_returnsGoalWithId() {
         UUID profileId = UUID.randomUUID();
         Goal goal = service.create(profileId, "Emergency Fund", new BigDecimal("500000"),
-                new BigDecimal("10000"), LocalDate.of(2027, 1, 1), "Critical savings");
+                new BigDecimal("10000"), LocalDate.of(2027, Month.JANUARY, 1), "Critical savings");
 
         assertNotNull(goal.getId());
         assertEquals(profileId, goal.getProfileId());
@@ -48,7 +49,7 @@ class GoalServiceTest {
     void list_filterByStatus_returnsOnlyMatchingGoals() {
         UUID profileId = UUID.randomUUID();
         service.create(profileId, "Active Goal", new BigDecimal("100000"), null, null, null);
-        Goal paused = service.update(
+        service.update(
                 service.create(profileId, "Paused Goal", new BigDecimal("50000"), null, null, null).getId(),
                 null, null, null, null, GoalStatus.PAUSED, null);
 
