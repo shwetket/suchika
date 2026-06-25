@@ -203,7 +203,10 @@ describe('Dashboard', () => {
     getDashboard.mockResolvedValue({ snapshots: [] });
     let resolveRefresh;
     refreshProjections.mockImplementation(
-      () => new Promise((resolve) => { resolveRefresh = resolve; })
+      () =>
+        new Promise((resolve) => {
+          resolveRefresh = resolve;
+        })
     );
 
     renderDashboard();

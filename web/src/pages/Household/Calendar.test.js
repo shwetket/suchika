@@ -399,16 +399,18 @@ describe('Calendar page', () => {
   });
 
   it('renders event with unknown event_type using fallback colour', async () => {
-    const unknownTypeEvent = [{
-      id: 'ex',
-      profile_id: 'p1',
-      title: 'Mystery Event',
-      event_type: 'UNKNOWN_TYPE',
-      start_date: '2026-07-10',
-      end_date: null,
-      location: null,
-      notes: null,
-    }];
+    const unknownTypeEvent = [
+      {
+        id: 'ex',
+        profile_id: 'p1',
+        title: 'Mystery Event',
+        event_type: 'UNKNOWN_TYPE',
+        start_date: '2026-07-10',
+        end_date: null,
+        location: null,
+        notes: null,
+      },
+    ];
     listCalendarEvents.mockResolvedValue({ calendar_events: unknownTypeEvent });
     render(<Calendar />);
     await waitFor(() => screen.getByText('Alice'));
@@ -482,7 +484,9 @@ describe('Calendar page', () => {
     const dateInput = screen.getByDisplayValue(/\d{4}-\d{2}-\d{2}/);
     fireEvent.change(dateInput, { target: { name: 'start_date', value: '' } });
 
-    const submitBtn = screen.getAllByRole('button', { name: /add event/i }).find((b) => b.type === 'submit');
+    const submitBtn = screen
+      .getAllByRole('button', { name: /add event/i })
+      .find((b) => b.type === 'submit');
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
@@ -507,7 +511,9 @@ describe('Calendar page', () => {
     const typeSelect = selects.find((s) => s.getAttribute('name') === 'event_type');
     fireEvent.change(typeSelect, { target: { value: 'PERSONAL' } });
 
-    const submitBtn = screen.getAllByRole('button', { name: /add event/i }).find((b) => b.type === 'submit');
+    const submitBtn = screen
+      .getAllByRole('button', { name: /add event/i })
+      .find((b) => b.type === 'submit');
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
@@ -536,7 +542,9 @@ describe('Calendar page', () => {
     const typeSelect = selects.find((s) => s.getAttribute('name') === 'event_type');
     fireEvent.change(typeSelect, { target: { value: 'WORK' } });
 
-    const submitBtn = screen.getAllByRole('button', { name: /add event/i }).find((b) => b.type === 'submit');
+    const submitBtn = screen
+      .getAllByRole('button', { name: /add event/i })
+      .find((b) => b.type === 'submit');
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
@@ -560,7 +568,9 @@ describe('Calendar page', () => {
     const typeSelect = selects.find((s) => s.getAttribute('name') === 'event_type');
     fireEvent.change(typeSelect, { target: { value: 'WORK' } });
 
-    const submitBtn = screen.getAllByRole('button', { name: /add event/i }).find((b) => b.type === 'submit');
+    const submitBtn = screen
+      .getAllByRole('button', { name: /add event/i })
+      .find((b) => b.type === 'submit');
     fireEvent.click(submitBtn);
 
     await waitFor(() => {

@@ -174,7 +174,9 @@ describe('Inventory page', () => {
     await waitFor(() => screen.getByText('+ Add Item'));
     fireEvent.click(screen.getByText('+ Add Item'));
 
-    const submitBtn = screen.getAllByRole('button', { name: /add item/i }).find((b) => b.type === 'submit');
+    const submitBtn = screen
+      .getAllByRole('button', { name: /add item/i })
+      .find((b) => b.type === 'submit');
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
@@ -198,7 +200,9 @@ describe('Inventory page', () => {
       target: { name: 'quantity', value: '0' },
     });
 
-    const submitBtn = screen.getAllByRole('button', { name: /add item/i }).find((b) => b.type === 'submit');
+    const submitBtn = screen
+      .getAllByRole('button', { name: /add item/i })
+      .find((b) => b.type === 'submit');
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
@@ -222,7 +226,9 @@ describe('Inventory page', () => {
       target: { name: 'quantity', value: '3' },
     });
 
-    const submitBtn = screen.getAllByRole('button', { name: /add item/i }).find((b) => b.type === 'submit');
+    const submitBtn = screen
+      .getAllByRole('button', { name: /add item/i })
+      .find((b) => b.type === 'submit');
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
@@ -249,7 +255,9 @@ describe('Inventory page', () => {
     const unitSelect = selects.find((s) => s.getAttribute('name') === 'unit');
     fireEvent.change(unitSelect, { target: { value: 'UNITS' } });
 
-    const submitBtn = screen.getAllByRole('button', { name: /add item/i }).find((b) => b.type === 'submit');
+    const submitBtn = screen
+      .getAllByRole('button', { name: /add item/i })
+      .find((b) => b.type === 'submit');
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
@@ -281,7 +289,9 @@ describe('Inventory page', () => {
     const dateInput = screen.getByDisplayValue(/\d{4}-\d{2}-\d{2}/);
     fireEvent.change(dateInput, { target: { name: 'purchase_date', value: '' } });
 
-    const submitBtn = screen.getAllByRole('button', { name: /add item/i }).find((b) => b.type === 'submit');
+    const submitBtn = screen
+      .getAllByRole('button', { name: /add item/i })
+      .find((b) => b.type === 'submit');
     fireEvent.click(submitBtn);
 
     await waitFor(() => {

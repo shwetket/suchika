@@ -506,19 +506,21 @@ describe('Goals page', () => {
   });
 
   it('renders goal with null progress_percent using 0 as fallback', async () => {
-    const goalNullPercent = [{
-      id: 'gx',
-      profile_id: 'p1',
-      goal_name: 'Null Percent Goal',
-      status: 'ACTIVE',
-      target_amount: 50000,
-      current_amount: 0,
-      monthly_saving: null,
-      target_date: null,
-      progress_percent: null,
-      days_to_completion: null,
-      notes: null,
-    }];
+    const goalNullPercent = [
+      {
+        id: 'gx',
+        profile_id: 'p1',
+        goal_name: 'Null Percent Goal',
+        status: 'ACTIVE',
+        target_amount: 50000,
+        current_amount: 0,
+        monthly_saving: null,
+        target_date: null,
+        progress_percent: null,
+        days_to_completion: null,
+        notes: null,
+      },
+    ];
     listGoals.mockResolvedValue({ goals: goalNullPercent });
     render(<Goals />);
     await waitFor(() => screen.getByText('Alice'));
@@ -532,19 +534,21 @@ describe('Goals page', () => {
   });
 
   it('renders goal with unknown status using fallback colour', async () => {
-    const goalUnknownStatus = [{
-      id: 'gy',
-      profile_id: 'p1',
-      goal_name: 'Custom Status Goal',
-      status: 'CUSTOM_STATUS',
-      target_amount: 20000,
-      current_amount: 5000,
-      monthly_saving: null,
-      target_date: null,
-      progress_percent: 25,
-      days_to_completion: null,
-      notes: null,
-    }];
+    const goalUnknownStatus = [
+      {
+        id: 'gy',
+        profile_id: 'p1',
+        goal_name: 'Custom Status Goal',
+        status: 'CUSTOM_STATUS',
+        target_amount: 20000,
+        current_amount: 5000,
+        monthly_saving: null,
+        target_date: null,
+        progress_percent: 25,
+        days_to_completion: null,
+        notes: null,
+      },
+    ];
     listGoals.mockResolvedValue({ goals: goalUnknownStatus });
     render(<Goals />);
     await waitFor(() => screen.getByText('Alice'));
@@ -605,7 +609,9 @@ describe('Goals page', () => {
       target: { name: 'target_amount', value: '10000' },
     });
 
-    const submitBtn = screen.getAllByRole('button', { name: /add goal/i }).find((b) => b.type === 'submit');
+    const submitBtn = screen
+      .getAllByRole('button', { name: /add goal/i })
+      .find((b) => b.type === 'submit');
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
