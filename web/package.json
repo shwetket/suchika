@@ -21,7 +21,7 @@
     "test": "react-scripts test",
     "test:ci": "react-scripts test --watchAll=false --runInBand",
     "test:coverage": "react-scripts test --watchAll=false --runInBand --coverage --coverageReporters=lcov --coverageReporters=text-summary",
-    "generate:api": "openapi-typescript ../application/web-gateway/src/main/resources/profile.yaml --output src/api/generated.ts",
+    "generate:api": "openapi-typescript ../application/contract/gateway.yaml --output src/api/generated.ts",
     "lint": "eslint src/ --ext .js,.jsx,.ts,.tsx",
     "lint:fix": "eslint src/ --ext .js,.jsx,.ts,.tsx --fix",
     "format": "prettier --write src/ public/",
@@ -61,14 +61,14 @@
       "src/pages/User/Health.js",
       "src/pages/User/Transactions.js",
       "src/pages/Admin/",
-      "src/pages/Household/Calendar.js",
-      "src/pages/Household/Inventory.js",
+
       "src/pages/Public/SignUp.js",
       "src/pages/Public/About.js",
       "src/pages/Health/Profile.js",
       "src/components/shared/",
       "src/types/",
       "src/api/generated.ts",
+      "src/api/household.js",
       "src/utils/index.js"
     ]
   },

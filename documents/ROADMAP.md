@@ -69,32 +69,39 @@ Show what has been shipped and what is planned at each milestone, with the featu
 
 ---
 
-## v0.3 — Enhanced Local App
+## v0.3 — Enhanced Local App [COMPLETE — PR OPEN]
 
 **Focus:** Household domain, code quality gate, and dashboard live data. Completes the full three-domain local app.
 
 ### Features
 
-- [ ] **Household — Calendar Events**
+- [x] **Household — Calendar Events**
   - Create calendar events with start date, end date, and assigned `profile_id`
-  - Group sub-events under a master event (holidays, guest visits)
-  - Conflict detection: flag overlapping master events for the same profile
+  - Conflict detection: flag overlapping events for the same profile (warning, not block)
+  - CRUD fully implemented (port 8084)
 
-- [ ] **Household — Inventory Items**
-  - Ingest grocery order history from external exports (Flipkart, Instamart, Country Delight)
-  - Consolidate into a unified raw inventory ledger
+- [x] **Household — Inventory Items**
+  - Manual entry into a unified raw inventory ledger (v0.3 scope)
+  - Source platform tracking (INSTAMART, FLIPKART_GROCERY, COUNTRY_DELIGHT, etc.)
+  - CSV import deferred to v0.4
 
-- [ ] **Household — Task Tracking**
+- [ ] **Household — Task Tracking** — deferred to v0.4
   - Assign tasks to specific child profiles with hard deadlines linked to calendar
 
-- [ ] **Household — Frontend**
-  - React pages for Calendar Events and Inventory
+- [x] **Household — Goals**
+  - Financial savings goal CRUD with progress tracking
+  - `current_amount` computed from wealth transactions by gateway projection engine
 
-- [ ] **Dashboard — Live Data**
-  - Wire dashboard aggregation to live domain data via web-gateway projections
+- [x] **Household — Frontend**
+  - React pages: Calendar Events (with conflict warning), Inventory, Goals (with progress bar)
 
-- [ ] **SonarQube Clean Pass**
-  - Zero blocker and critical issues across all modules
+- [x] **Dashboard — Live Data**
+  - `ProjectionCalculationEngine` in web-gateway: on-demand refresh computes net worth, goal progress, vitals summary, upcoming events
+  - `POST /v1/projections/refresh/{profileId}` + `GET /v1/projections/dashboard/{profileId}`
+  - Dashboard "Refresh Live Data" button with non-blocking spinner
+
+- [x] **SonarQube Clean Pass**
+  - 0 BLOCKER, 0 CRITICAL issues; 285 Jest tests passing
 
 ---
 

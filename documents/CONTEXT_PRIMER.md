@@ -5,7 +5,7 @@
 | **Type** | Reference |
 | **Audience** | AI agents, new developers |
 | **Status** | Active |
-| **Last updated** | 2026-06-23 |
+| **Last updated** | 2026-06-24 |
 
 ## Objective
 
@@ -31,18 +31,24 @@ Hexagonal Architecture (Ports & Adapters). Single PostgreSQL database (`app_db`)
 
 ---
 
-## Current Version: v0.2 — UAT-Ready
+## Current Version: v0.3 — In Review (PR open)
 
 | Domain | Backend | Frontend | Status |
 |---|---|---|---|
 | Profile | ✅ | ✅ | Complete |
 | Wealth | ✅ | ✅ | Complete |
 | Health | ✅ | ✅ | Complete |
-| Household | ⬜ | stub | v0.3 planned |
+| Household | ✅ | ✅ | Complete — v0.3 |
 
-**Next milestone: v0.3** — Household domain + live dashboard data + SonarQube clean pass.
+**Next milestone: v0.4** — Error handling (unhappy path, malformed CSV, quarantine protocol).
 
-Quality gates (v0.2): 260 Jest tests passing, 80%+ line coverage, 0 SonarQube open issues.
+Quality gates (v0.3): 285 Jest tests passing, 0 SonarQube BLOCKER/CRITICAL issues, all Gradle tests green, ArchUnit clean.
+
+**v0.3 key additions:**
+- Household domain live: CalendarEvent, InventoryItem, Goal CRUD at port 8084
+- ProjectionCalculationEngine in web-gateway: computes net worth, goal progress, vitals summary, event counts on demand
+- Dashboard "Refresh Live Data" button wired to `POST /v1/projections/refresh/{profileId}`
+- ADR-013 added: Projection Calculation Engine pattern
 
 ---
 

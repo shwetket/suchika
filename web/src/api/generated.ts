@@ -5,63 +5,121 @@
 
 
 export interface paths {
-  "/v1/admins": {
+  "/v1/accounts": {
     /**
-     * List all admins
-     * @description Returns all admins. In v0.1 always returns exactly one. In v1.1+ each authenticated user is an independent admin. Not paginated — admin count is always tiny. Follows AIP-132.
+     * List all accounts
+     * @description Returns accounts optionally filtered by account_type, is_active, and profile_id. Follows AIP-132.
      */
-    get: operations["listAdmins"];
+    get: operations["listAccounts"];
     /**
-     * Create an admin
-     * @description Creates a new household admin. After creating an admin, create a profile with relation_to_admin = SELF to represent the admin's own member record. Follows AIP-133.
+     * Create an account
+     * @description Creates a new financial account scoped to a profile. Follows AIP-133.
      */
-    post: operations["createAdmin"];
+    post: operations["createAccount"];
   };
-  "/v1/admins/{admin_id}": {
+  "/v1/accounts/{accountId}": {
     /**
-     * Get an admin
+     * Get an account
      * @description Follows AIP-131.
      */
-    get: operations["getAdmin"];
+    get: operations["getAccount"];
     /**
-     * Deactivate an admin
-     * @description Soft-deletes an admin (is_active = false). An admin with active profiles cannot be deactivated. Follows AIP-135.
+     * Deactivate an account
+     * @description Soft-deletes an account (is_active = false). Accounts with transactions cannot be deactivated. Follows AIP-135.
      */
-    delete: operations["deactivateAdmin"];
+    delete: operations["deactivateAccount"];
     /**
-     * Update an admin
-     * @description Partially updates an admin. Only provided fields are updated. Follows AIP-134.
+     * Update an account
+     * @description Partially updates an account. Only provided fields are updated. account_type and institution_name are immutable after creation. Follows AIP-134.
      */
-    patch: operations["updateAdmin"];
+    patch: operations["updateAccount"];
   };
-  "/v1/profiles": {
+  "/v1/accounts/{accountId}/transactions": {
     /**
-     * List profiles
-     * @description Returns all household member profiles. Filter by admin_id to scope to one admin's household. Not paginated — always a small list. Follows AIP-132.
+     * List transactions for an account
+     * @description Returns transactions for the given account, optionally filtered by date range and transaction type. Follows AIP-132.
      */
-    get: operations["listProfiles"];
-    /**
-     * Create a profile
-     * @description Creates a new household member profile. Requires admin_id. The SELF profile (admin's own member record) must be created first with relation_to_admin = SELF. Follows AIP-133.
-     */
-    post: operations["createProfile"];
+    get: operations["listTransactions"];
   };
-  "/v1/profiles/{profile_id}": {
+  "/v1/accounts/{accountId}/transactions/{txnId}": {
     /**
-     * Get a profile
+     * Get a transaction
      * @description Follows AIP-131.
      */
-    get: operations["getProfile"];
+    get: operations["getTransaction"];
+  };
+  "/v1/accounts/{accountId}/uploads": {
     /**
-     * Deactivate a profile
-     * @description Soft-deletes a profile (is_active = false). The SELF profile of an active admin cannot be deactivated. Follows AIP-135.
+     * List uploads for an account
+     * @description Follows AIP-132.
      */
-    delete: operations["deactivateProfile"];
+    get: operations["listUploads"];
     /**
-     * Update a profile
-     * @description Partially updates a profile. Only provided fields are updated. Immutable after creation: full_name, dob, relation_to_admin, admin_id. Follows AIP-134.
+     * Upload a CSV bank statement
+     * @description Parses and imports a CSV bank statement for the given account. Returns a statement upload record with status. Follows AIP-133.
      */
-    patch: operations["updateProfile"];
+    post: operations["uploadStatement"];
+  };
+  "/v1/accounts/{accountId}/uploads/{uploadId}": {
+    /**
+     * Rollback a statement upload
+     * @description Deletes all transactions imported by this upload and removes the upload record. Follows AIP-135.
+     */
+    delete: operations["rollbackUpload"];
+  };
+  "/v1/household/calendar-events": {
+    /** List calendar events for a profile */
+    get: operations["listCalendarEvents"];
+    /** Create a calendar event */
+    post: operations["createCalendarEvent"];
+  };
+  "/v1/household/calendar-events/{id}": {
+    /** Get a calendar event */
+    get: operations["getCalendarEvent"];
+    /** Delete a calendar event */
+    delete: operations["deleteCalendarEvent"];
+    /** Update a calendar event */
+    patch: operations["updateCalendarEvent"];
+  };
+  "/v1/household/inventory-items": {
+    /** List inventory items for a profile */
+    get: operations["listInventoryItems"];
+    /** Add an inventory item */
+    post: operations["createInventoryItem"];
+  };
+  "/v1/household/inventory-items/{id}": {
+    /** Get an inventory item */
+    get: operations["getInventoryItem"];
+    /** Delete an inventory item */
+    delete: operations["deleteInventoryItem"];
+  };
+  "/v1/household/goals": {
+    /** List financial goals for a profile */
+    get: operations["listGoals"];
+    /** Create a financial goal */
+    post: operations["createGoal"];
+  };
+  "/v1/household/goals/{id}": {
+    /** Get a goal */
+    get: operations["getGoal"];
+    /** Delete a goal */
+    delete: operations["deleteGoal"];
+    /** Update a goal */
+    patch: operations["updateGoal"];
+  };
+  "/v1/projections/refresh/{profileId}": {
+    /**
+     * Trigger full projection refresh for a profile
+     * @description Calls each domain service, computes cross-domain metrics, and writes results to projections.dashboard_snapshot via UPSERT. Synchronous — returns 200 once all snapshots are written.
+     */
+    post: operations["refreshProjections"];
+  };
+  "/v1/projections/dashboard/{profileId}": {
+    /**
+     * Read pre-computed dashboard snapshots for a profile
+     * @description Reads from projections.dashboard_snapshot — instant response with no re-computation. Returns an empty snapshots list if no refresh has run.
+     */
+    get: operations["getDashboard"];
   };
 }
 
@@ -69,128 +127,158 @@ export type webhooks = Record<string, never>;
 
 export interface components {
   schemas: {
-    /**
-     * @description Relationship of this household member to the admin. PARENT_IN_LAW is distinct from PARENT because in Indian households in-laws have separate insurance, dependency, and inheritance profiles.
-     *
-     * @enum {string}
-     */
-    RelationToAdmin: "SELF" | "SPOUSE" | "CHILD" | "PARENT" | "PARENT_IN_LAW" | "SIBLING" | "GRANDPARENT" | "GRANDCHILD" | "OTHER";
-    /** @enum {string} */
-    Gender: "MALE" | "FEMALE" | "OTHER" | "PREFER_NOT_TO_SAY";
-    /**
-     * @description ABO + Rh blood group
-     * @enum {string}
-     */
-    BloodType: "A+" | "A-" | "B+" | "B-" | "AB+" | "AB-" | "O+" | "O-";
-    /** @description Household admin — the future authentication anchor */
-    AdminResponse: {
-      /**
-       * @description Resource name. Format: admins/{admin_id}
-       * @example admins/f0e1d2c3-b4a5-6789-0fed-cba987654321
-       */
-      name: string;
+    DashboardSnapshotDto: {
       /** Format: uuid */
-      admin_id: string;
-      /** @example Ketan */
-      display_name: string;
-      /**
-       * Format: email
-       * @description Future v1.0 login credential. Nullable until Security milestone.
-       */
-      email_address?: string | null;
-      is_active: boolean;
+      profile_id?: string;
+      /** @description e.g. WEALTH_NET_WORTH, HEALTH_VITALS_SUMMARY */
+      snapshot_key?: string;
+      /** @description Raw JSON string — shape depends on snapshot_key */
+      payload?: string;
       /** Format: date-time */
-      created_at: string;
+      calculated_at?: string;
     };
-    CreateAdminRequest: {
-      /** @example Ketan */
-      display_name: string;
+    DashboardResponse: {
+      snapshots?: components["schemas"]["DashboardSnapshotDto"][];
+    };
+    /** @enum {string} */
+    AccountType: "SAVINGS" | "CURRENT" | "CREDIT_CARD" | "HOME_LOAN" | "PERSONAL_LOAN" | "CAR_LOAN" | "MUTUAL_FUND" | "NPS" | "PPF" | "FD";
+    /** @enum {string} */
+    TransactionType: "CREDIT" | "DEBIT";
+    /** @enum {string} */
+    UploadStatus: "PENDING" | "COMPLETED" | "FAILED";
+    AccountResponse: {
+      /** Format: uuid */
+      account_id?: string;
+      account_name?: string;
+      account_type?: components["schemas"]["AccountType"];
+      institution_name?: string;
+      /** Format: double */
+      opening_balance?: number;
+      /** Format: double */
+      credit_limit?: number | null;
+      /** Format: double */
+      interest_rate?: number | null;
+      /** Format: double */
+      emi_amount?: number | null;
+      is_active?: boolean;
+      /** Format: date-time */
+      created_at?: string;
+    };
+    CreateAccountRequest: {
+      account_name: string;
+      account_type: components["schemas"]["AccountType"];
+      institution_name: string;
       /**
-       * Format: email
-       * @description Optional — required at v1.0 Security milestone for login.
+       * Format: double
+       * @default 0
        */
-      email_address?: string | null;
+      opening_balance?: number;
+      /** Format: double */
+      credit_limit?: number | null;
+      /** Format: double */
+      interest_rate?: number | null;
+      /** Format: double */
+      emi_amount?: number | null;
     };
     /** @description All fields optional. Only provided fields are updated. */
-    UpdateAdminRequest: {
-      display_name?: string;
-      /** Format: email */
-      email_address?: string | null;
+    UpdateAccountRequest: {
+      account_name?: string;
+      /** Format: double */
+      opening_balance?: number;
+      /** Format: double */
+      credit_limit?: number | null;
+      /** Format: double */
+      interest_rate?: number | null;
+      /** Format: double */
+      emi_amount?: number | null;
       is_active?: boolean;
     };
-    ListAdminsResponse: {
-      admins: components["schemas"]["AdminResponse"][];
-      total_size: number;
+    ListAccountsResponse: {
+      accounts?: components["schemas"]["AccountResponse"][];
+      next_page_token?: string | null;
+      total_size?: number;
     };
-    /** @description A household member identity record */
-    ProfileResponse: {
-      /**
-       * @description Resource name. Format: profiles/{profile_id}
-       * @example profiles/a1b2c3d4-e5f6-7890-abcd-ef1234567890
-       */
-      name: string;
+    TransactionResponse: {
       /** Format: uuid */
-      profile_id: string;
-      /**
-       * Format: uuid
-       * @description Admin whose household this member belongs to.
-       */
-      admin_id: string;
-      /** @example Ketan Verma */
-      full_name: string;
-      /**
-       * Format: date
-       * @example 1988-03-15
-       */
-      dob: string;
-      relation_to_admin: components["schemas"]["RelationToAdmin"];
-      /**
-       * Format: email
-       * @example ketan@example.com
-       */
-      email_address?: string | null;
-      gender?: components["schemas"]["Gender"] | null;
-      blood_type?: components["schemas"]["BloodType"] | null;
-      is_active: boolean;
+      id?: string;
+      /** Format: uuid */
+      account_id?: string;
+      /** Format: uuid */
+      upload_id?: string | null;
+      /** Format: date */
+      txn_date?: string;
+      /** Format: double */
+      amount?: number;
+      txn_type?: components["schemas"]["TransactionType"];
+      description?: string | null;
       /** Format: date-time */
-      created_at: string;
+      created_at?: string;
     };
-    CreateProfileRequest: {
-      /**
-       * Format: uuid
-       * @description Admin whose household this member belongs to.
-       */
-      admin_id: string;
-      /** @example Ketan Verma */
-      full_name: string;
-      /**
-       * Format: date
-       * @example 1988-03-15
-       */
-      dob: string;
-      relation_to_admin: components["schemas"]["RelationToAdmin"];
-      /** Format: email */
-      email_address?: string | null;
-      gender?: components["schemas"]["Gender"] | null;
-      blood_type?: components["schemas"]["BloodType"] | null;
+    ListTransactionsResponse: {
+      transactions?: components["schemas"]["TransactionResponse"][];
     };
-    /** @description Mutable fields only. full_name, dob, relation_to_admin, admin_id are immutable after creation and will be rejected if included. */
-    UpdateProfileRequest: {
-      /** Format: email */
-      email_address?: string | null;
-      gender?: components["schemas"]["Gender"] | null;
-      blood_type?: components["schemas"]["BloodType"] | null;
-      is_active?: boolean;
+    UploadStatementRequest: {
+      file_name: string;
+      csv_content: string;
     };
-    ListProfilesResponse: {
-      profiles: components["schemas"]["ProfileResponse"][];
-      total_size: number;
+    StatementUploadResponse: {
+      /** Format: uuid */
+      upload_id?: string;
+      /** Format: uuid */
+      account_id?: string;
+      file_name?: string;
+      /** Format: date-time */
+      upload_date?: string;
+      status?: components["schemas"]["UploadStatus"];
+    };
+    ListUploadsResponse: {
+      uploads?: components["schemas"]["StatementUploadResponse"][];
+    };
+    Error: {
+      code: number;
+      status: string;
+      message: string;
+      details?: {
+          field?: string;
+          issue?: string;
+        }[];
     };
   };
-  responses: never;
+  responses: {
+    /** @description Request validation failed */
+    BadRequest: {
+      content: {
+        "application/json": components["schemas"]["Error"];
+      };
+    };
+    /** @description Resource not found */
+    NotFound: {
+      content: {
+        "application/json": components["schemas"]["Error"];
+      };
+    };
+    /** @description Resource already exists or has conflicting state */
+    Conflict: {
+      content: {
+        "application/json": components["schemas"]["Error"];
+      };
+    };
+    /** @description Unexpected server error */
+    InternalError: {
+      content: {
+        "application/json": components["schemas"]["Error"];
+      };
+    };
+  };
   parameters: {
-    /** @description Unique identifier of the admin */
-    AdminId: string;
+    /** @description Unique identifier of the household resource */
+    HouseholdId: string;
+    /** @description Unique identifier of the account */
+    AccountId: string;
+    /** @description Unique identifier of the transaction */
+    TxnId: string;
+    /** @description Unique identifier of the statement upload */
+    UploadId: string;
   };
   requestBodies: never;
   headers: never;
@@ -199,321 +287,547 @@ export interface components {
 
 export type $defs = Record<string, never>;
 
-export interface external {
-  "shared.yaml": {
-    paths: Record<string, never>;
-    webhooks: Record<string, never>;
-    components: {
-      schemas: {
-        /**
-         * @description ISO 4217 currency code. Currently INR only.
-         * @default INR
-         * @enum {string}
-         */
-        Currency: "INR";
-        /** @description Standard error response body. Follows AIP-193 and Google error model. All 4xx and 5xx responses use this schema. */
-        Error: {
-          /**
-           * @description HTTP status code mirrored in the body for client convenience.
-           * @example 404
-           */
-          code: number;
-          /**
-           * @description Machine-readable error status string. Maps to gRPC status codes. Values: INVALID_ARGUMENT (400), NOT_FOUND (404), ALREADY_EXISTS (409), INTERNAL (500).
-           *
-           * @example NOT_FOUND
-           * @enum {string}
-           */
-          status: "INVALID_ARGUMENT" | "NOT_FOUND" | "ALREADY_EXISTS" | "FAILED_PRECONDITION" | "INTERNAL";
-          /**
-           * @description Human-readable summary of the error. Suitable for display.
-           * @example Profile not found
-           */
-          message: string;
-          /** @description Field-level validation issues. Present on INVALID_ARGUMENT (400) errors. Empty or absent for all other error types. */
-          details?: external["shared.yaml"]["components"]["schemas"]["ValidationIssue"][];
-        };
-        /** @description A single field-level validation failure within an error response. */
-        ValidationIssue: {
-          /**
-           * @description Dot-notation path to the invalid field within the request body. Examples: "full_name", "account.credit_limit", "items[0].quantity".
-           *
-           * @example full_name
-           */
-          field: string;
-          /**
-           * @description Human-readable description of the constraint that was violated.
-           * @example must not be blank
-           */
-          issue: string;
-        };
-      };
-      responses: {
-        /** @description 400 — Request body or query parameters failed validation. The 'details' array lists every field that violated a constraint. */
-        BadRequest: {
-          content: {
-            "application/json": external["shared.yaml"]["components"]["schemas"]["Error"];
-          };
-        };
-        /** @description 404 — The requested resource does not exist. */
-        NotFound: {
-          content: {
-            "application/json": external["shared.yaml"]["components"]["schemas"]["Error"];
-          };
-        };
-        /** @description 409 — The request conflicts with existing state. Examples: duplicate unique value, deactivating a resource with active children. */
-        Conflict: {
-          content: {
-            "application/json": external["shared.yaml"]["components"]["schemas"]["Error"];
-          };
-        };
-        /** @description 409 — A precondition for this operation was not met. Examples: uploading to a deactivated account, deleting an admin with active members. */
-        FailedPrecondition: {
-          content: {
-            "application/json": external["shared.yaml"]["components"]["schemas"]["Error"];
-          };
-        };
-        /** @description 500 — An unexpected server-side error occurred. The client should retry with exponential backoff. */
-        InternalError: {
-          content: {
-            "application/json": external["shared.yaml"]["components"]["schemas"]["Error"];
-          };
-        };
-      };
-      parameters: {
-        /** @description Maximum number of items to return per page. Follows AIP-158 (Pagination). Default 20, maximum 100. */
-        PageSize?: number;
-        /** @description Opaque token from the previous response's next_page_token field. Omit for the first page. */
-        PageToken?: string;
-        /** @description Unique identifier of the household member profile. */
-        ProfileIdParam: string;
-      };
-      requestBodies: never;
-      headers: never;
-      pathItems: never;
-    };
-    $defs: Record<string, never>;
-  };
-}
+export type external = Record<string, never>;
 
 export interface operations {
 
   /**
-   * List all admins
-   * @description Returns all admins. In v0.1 always returns exactly one. In v1.1+ each authenticated user is an independent admin. Not paginated — admin count is always tiny. Follows AIP-132.
+   * List all accounts
+   * @description Returns accounts optionally filtered by account_type, is_active, and profile_id. Follows AIP-132.
    */
-  listAdmins: {
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "application/json": components["schemas"]["ListAdminsResponse"];
-        };
-      };
-      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
-    };
-  };
-  /**
-   * Create an admin
-   * @description Creates a new household admin. After creating an admin, create a profile with relation_to_admin = SELF to represent the admin's own member record. Follows AIP-133.
-   */
-  createAdmin: {
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["CreateAdminRequest"];
-      };
-    };
-    responses: {
-      /** @description Admin created */
-      201: {
-        content: {
-          "application/json": components["schemas"]["AdminResponse"];
-        };
-      };
-      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
-      409: external["shared.yaml"]["components"]["responses"]["Conflict"];
-      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
-    };
-  };
-  /**
-   * Get an admin
-   * @description Follows AIP-131.
-   */
-  getAdmin: {
-    parameters: {
-      path: {
-        admin_id: components["parameters"]["AdminId"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "application/json": components["schemas"]["AdminResponse"];
-        };
-      };
-      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
-      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
-    };
-  };
-  /**
-   * Deactivate an admin
-   * @description Soft-deletes an admin (is_active = false). An admin with active profiles cannot be deactivated. Follows AIP-135.
-   */
-  deactivateAdmin: {
-    parameters: {
-      path: {
-        admin_id: components["parameters"]["AdminId"];
-      };
-    };
-    responses: {
-      /** @description Admin deactivated */
-      204: {
-        content: never;
-      };
-      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
-      409: external["shared.yaml"]["components"]["responses"]["FailedPrecondition"];
-      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
-    };
-  };
-  /**
-   * Update an admin
-   * @description Partially updates an admin. Only provided fields are updated. Follows AIP-134.
-   */
-  updateAdmin: {
-    parameters: {
-      path: {
-        admin_id: components["parameters"]["AdminId"];
-      };
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["UpdateAdminRequest"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "application/json": components["schemas"]["AdminResponse"];
-        };
-      };
-      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
-      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
-      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
-    };
-  };
-  /**
-   * List profiles
-   * @description Returns all household member profiles. Filter by admin_id to scope to one admin's household. Not paginated — always a small list. Follows AIP-132.
-   */
-  listProfiles: {
+  listAccounts: {
     parameters: {
       query?: {
-        /** @description Scope to one admin's household members. */
-        admin_id?: string;
+        account_type?: components["schemas"]["AccountType"];
         is_active?: boolean;
+        profile_id?: string;
       };
     };
     responses: {
       /** @description OK */
       200: {
         content: {
-          "application/json": components["schemas"]["ListProfilesResponse"];
+          "application/json": components["schemas"]["ListAccountsResponse"];
         };
       };
-      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+      400: components["responses"]["BadRequest"];
+      500: components["responses"]["InternalError"];
     };
   };
   /**
-   * Create a profile
-   * @description Creates a new household member profile. Requires admin_id. The SELF profile (admin's own member record) must be created first with relation_to_admin = SELF. Follows AIP-133.
+   * Create an account
+   * @description Creates a new financial account scoped to a profile. Follows AIP-133.
    */
-  createProfile: {
+  createAccount: {
+    parameters: {
+      query?: {
+        profile_id?: string;
+      };
+    };
     requestBody: {
       content: {
-        "application/json": components["schemas"]["CreateProfileRequest"];
+        "application/json": components["schemas"]["CreateAccountRequest"];
       };
     };
     responses: {
-      /** @description Profile created */
+      /** @description Account created */
       201: {
         content: {
-          "application/json": components["schemas"]["ProfileResponse"];
+          "application/json": components["schemas"]["AccountResponse"];
         };
       };
-      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
-      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
-      409: external["shared.yaml"]["components"]["responses"]["Conflict"];
-      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+      400: components["responses"]["BadRequest"];
+      500: components["responses"]["InternalError"];
     };
   };
   /**
-   * Get a profile
+   * Get an account
    * @description Follows AIP-131.
    */
-  getProfile: {
+  getAccount: {
     parameters: {
       path: {
-        profile_id: external["shared.yaml"]["components"]["parameters"]["ProfileIdParam"];
+        accountId: components["parameters"]["AccountId"];
       };
     };
     responses: {
       /** @description OK */
       200: {
         content: {
-          "application/json": components["schemas"]["ProfileResponse"];
+          "application/json": components["schemas"]["AccountResponse"];
         };
       };
-      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
-      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+      404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
     };
   };
   /**
-   * Deactivate a profile
-   * @description Soft-deletes a profile (is_active = false). The SELF profile of an active admin cannot be deactivated. Follows AIP-135.
+   * Deactivate an account
+   * @description Soft-deletes an account (is_active = false). Accounts with transactions cannot be deactivated. Follows AIP-135.
    */
-  deactivateProfile: {
+  deactivateAccount: {
     parameters: {
       path: {
-        profile_id: external["shared.yaml"]["components"]["parameters"]["ProfileIdParam"];
+        accountId: components["parameters"]["AccountId"];
       };
     };
     responses: {
-      /** @description Profile deactivated */
+      /** @description Account deactivated */
       204: {
         content: never;
       };
-      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
-      409: external["shared.yaml"]["components"]["responses"]["FailedPrecondition"];
-      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      500: components["responses"]["InternalError"];
     };
   };
   /**
-   * Update a profile
-   * @description Partially updates a profile. Only provided fields are updated. Immutable after creation: full_name, dob, relation_to_admin, admin_id. Follows AIP-134.
+   * Update an account
+   * @description Partially updates an account. Only provided fields are updated. account_type and institution_name are immutable after creation. Follows AIP-134.
    */
-  updateProfile: {
+  updateAccount: {
     parameters: {
       path: {
-        profile_id: external["shared.yaml"]["components"]["parameters"]["ProfileIdParam"];
+        accountId: components["parameters"]["AccountId"];
       };
     };
     requestBody: {
       content: {
-        "application/json": components["schemas"]["UpdateProfileRequest"];
+        "application/json": components["schemas"]["UpdateAccountRequest"];
       };
     };
     responses: {
       /** @description OK */
       200: {
         content: {
-          "application/json": components["schemas"]["ProfileResponse"];
+          "application/json": components["schemas"]["AccountResponse"];
         };
       };
-      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
-      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
-      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+      400: components["responses"]["BadRequest"];
+      404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  /**
+   * List transactions for an account
+   * @description Returns transactions for the given account, optionally filtered by date range and transaction type. Follows AIP-132.
+   */
+  listTransactions: {
+    parameters: {
+      query?: {
+        /** @description Start date filter (inclusive), format YYYY-MM-DD. */
+        from?: string;
+        /** @description End date filter (inclusive), format YYYY-MM-DD. */
+        to?: string;
+        txn_type?: components["schemas"]["TransactionType"];
+      };
+      path: {
+        accountId: components["parameters"]["AccountId"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ListTransactionsResponse"];
+        };
+      };
+      404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  /**
+   * Get a transaction
+   * @description Follows AIP-131.
+   */
+  getTransaction: {
+    parameters: {
+      path: {
+        accountId: components["parameters"]["AccountId"];
+        txnId: components["parameters"]["TxnId"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TransactionResponse"];
+        };
+      };
+      404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  /**
+   * List uploads for an account
+   * @description Follows AIP-132.
+   */
+  listUploads: {
+    parameters: {
+      path: {
+        accountId: components["parameters"]["AccountId"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ListUploadsResponse"];
+        };
+      };
+      404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  /**
+   * Upload a CSV bank statement
+   * @description Parses and imports a CSV bank statement for the given account. Returns a statement upload record with status. Follows AIP-133.
+   */
+  uploadStatement: {
+    parameters: {
+      path: {
+        accountId: components["parameters"]["AccountId"];
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UploadStatementRequest"];
+      };
+    };
+    responses: {
+      /** @description Statement uploaded */
+      201: {
+        content: {
+          "application/json": components["schemas"]["StatementUploadResponse"];
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  /**
+   * Rollback a statement upload
+   * @description Deletes all transactions imported by this upload and removes the upload record. Follows AIP-135.
+   */
+  rollbackUpload: {
+    parameters: {
+      path: {
+        accountId: components["parameters"]["AccountId"];
+        uploadId: components["parameters"]["UploadId"];
+      };
+    };
+    responses: {
+      /** @description Upload rolled back */
+      204: {
+        content: never;
+      };
+      404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  /** List calendar events for a profile */
+  listCalendarEvents: {
+    parameters: {
+      query: {
+        profile_id: string;
+        event_type?: string;
+        from_date?: string;
+        to_date?: string;
+      };
+    };
+    responses: {
+      /** @description Events returned */
+      200: {
+        content: {
+          "application/json": Record<string, never>;
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  /** Create a calendar event */
+  createCalendarEvent: {
+    requestBody: {
+      content: {
+        "application/json": Record<string, never>;
+      };
+    };
+    responses: {
+      /** @description Event created */
+      201: {
+        content: {
+          "application/json": Record<string, never>;
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  /** Get a calendar event */
+  getCalendarEvent: {
+    parameters: {
+      path: {
+        id: components["parameters"]["HouseholdId"];
+      };
+    };
+    responses: {
+      /** @description Event found */
+      200: {
+        content: {
+          "application/json": Record<string, never>;
+        };
+      };
+      404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  /** Delete a calendar event */
+  deleteCalendarEvent: {
+    parameters: {
+      path: {
+        id: components["parameters"]["HouseholdId"];
+      };
+    };
+    responses: {
+      /** @description Event deleted */
+      204: {
+        content: never;
+      };
+      404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  /** Update a calendar event */
+  updateCalendarEvent: {
+    parameters: {
+      path: {
+        id: components["parameters"]["HouseholdId"];
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": Record<string, never>;
+      };
+    };
+    responses: {
+      /** @description Event updated */
+      200: {
+        content: {
+          "application/json": Record<string, never>;
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  /** List inventory items for a profile */
+  listInventoryItems: {
+    parameters: {
+      query: {
+        profile_id: string;
+        source_platform?: string;
+        category?: string;
+      };
+    };
+    responses: {
+      /** @description Items returned */
+      200: {
+        content: {
+          "application/json": Record<string, never>;
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  /** Add an inventory item */
+  createInventoryItem: {
+    requestBody: {
+      content: {
+        "application/json": Record<string, never>;
+      };
+    };
+    responses: {
+      /** @description Item added */
+      201: {
+        content: {
+          "application/json": Record<string, never>;
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  /** Get an inventory item */
+  getInventoryItem: {
+    parameters: {
+      path: {
+        id: components["parameters"]["HouseholdId"];
+      };
+    };
+    responses: {
+      /** @description Item found */
+      200: {
+        content: {
+          "application/json": Record<string, never>;
+        };
+      };
+      404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  /** Delete an inventory item */
+  deleteInventoryItem: {
+    parameters: {
+      path: {
+        id: components["parameters"]["HouseholdId"];
+      };
+    };
+    responses: {
+      /** @description Item deleted */
+      204: {
+        content: never;
+      };
+      404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  /** List financial goals for a profile */
+  listGoals: {
+    parameters: {
+      query: {
+        profile_id: string;
+        status?: string;
+      };
+    };
+    responses: {
+      /** @description Goals returned */
+      200: {
+        content: {
+          "application/json": Record<string, never>;
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  /** Create a financial goal */
+  createGoal: {
+    requestBody: {
+      content: {
+        "application/json": Record<string, never>;
+      };
+    };
+    responses: {
+      /** @description Goal created */
+      201: {
+        content: {
+          "application/json": Record<string, never>;
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  /** Get a goal */
+  getGoal: {
+    parameters: {
+      path: {
+        id: components["parameters"]["HouseholdId"];
+      };
+    };
+    responses: {
+      /** @description Goal found */
+      200: {
+        content: {
+          "application/json": Record<string, never>;
+        };
+      };
+      404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  /** Delete a goal */
+  deleteGoal: {
+    parameters: {
+      path: {
+        id: components["parameters"]["HouseholdId"];
+      };
+    };
+    responses: {
+      /** @description Goal deleted */
+      204: {
+        content: never;
+      };
+      404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  /** Update a goal */
+  updateGoal: {
+    parameters: {
+      path: {
+        id: components["parameters"]["HouseholdId"];
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": Record<string, never>;
+      };
+    };
+    responses: {
+      /** @description Goal updated */
+      200: {
+        content: {
+          "application/json": Record<string, never>;
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  /**
+   * Trigger full projection refresh for a profile
+   * @description Calls each domain service, computes cross-domain metrics, and writes results to projections.dashboard_snapshot via UPSERT. Synchronous — returns 200 once all snapshots are written.
+   */
+  refreshProjections: {
+    parameters: {
+      path: {
+        profileId: string;
+      };
+    };
+    responses: {
+      /** @description Projections refreshed */
+      200: {
+        content: {
+          "application/json": components["schemas"]["DashboardResponse"];
+        };
+      };
+      500: components["responses"]["InternalError"];
+    };
+  };
+  /**
+   * Read pre-computed dashboard snapshots for a profile
+   * @description Reads from projections.dashboard_snapshot — instant response with no re-computation. Returns an empty snapshots list if no refresh has run.
+   */
+  getDashboard: {
+    parameters: {
+      path: {
+        profileId: string;
+      };
+    };
+    responses: {
+      /** @description Dashboard snapshots returned */
+      200: {
+        content: {
+          "application/json": components["schemas"]["DashboardResponse"];
+        };
+      };
+      500: components["responses"]["InternalError"];
     };
   };
 }

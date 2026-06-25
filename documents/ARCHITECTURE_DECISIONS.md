@@ -33,6 +33,7 @@ Record every significant architectural decision made for this project, along wit
 | [ADR-010](#adr-010-no-sql-enums--varchar-with-contract-level-validation) | No SQL ENUMs — VARCHAR + Contract Validation | Accepted |
 | [ADR-011](#adr-011-gateway-test-isolation-via-injectmock-restclient) | Gateway Test Isolation via `@InjectMock @RestClient` | Accepted — v0.2 |
 | [ADR-012](#adr-012-household-domain-deferred-to-v03) | Household Domain Deferred to v0.3 | Accepted — 2026-06-19 |
+| [ADR-013](#adr-013-projection-calculation-engine-in-web-gateway) | Projection Calculation Engine in web-gateway | Accepted — 2026-06-24 |
 
 ---
 
@@ -214,3 +215,28 @@ class ProfileGatewayResourceTest {
 - Frontend: `Calendar.js`, `Inventory.js`, `Goals.js` pages + Jest tests
 
 **Rationale:** Household has zero backend files — building it before UAT would delay the pilot window significantly. Profile + Wealth + Health cover all high-priority user actions for the v0.2 pilot. Household feedback can be collected separately in v0.3.
+
+---
+
+## ADR-013: Projection Calculation Engine in web-gateway
+
+**Status:** Accepted — decided 2026-06-24
+
+**Decision:** All cross-domain metric computations (net worth, goal progress, vitals summary, event counts) are owned by a single `ProjectionCalculationEngine` service class inside `web-gateway`. Results are persisted to `projections.dashboard_snapshot` via UPSERT. The dashboard read endpoint queries only the snapshot table — no computation at read time.
+
+**Snapshot keys:**
+
+| Key | Formula | Source |
+|---|---|---|
+| `WEALTH_NET_WORTH` | Sum of balances across all active accounts | WealthServiceClient |
+| `WEALTH_GOAL_PROGRESS` | Per-goal: target, current (derived from wealth txns), % | WealthServiceClient + HouseholdServiceClient |
+| `HEALTH_VITALS_SUMMARY` | Latest reading per vital type | HealthServiceClient |
+| `HOUSEHOLD_EVENT_SUMMARY` | Upcoming events count (next 30 days) | HouseholdServiceClient |
+
+**Trigger:** On-demand via `POST /v1/projections/refresh/{profileId}`. The endpoint is synchronous — it returns 200 when all snapshots are written. The frontend shows a non-blocking progress indicator; the user can navigate away while the refresh runs.
+
+**Extension pattern:** Adding a new metric = one new method in `ProjectionCalculationEngine` + one new snapshot key constant. No other changes needed.
+
+**Goal `current_amount` write-back:** After computing goal progress from wealth transactions, the engine calls `PUT /v1/goals/{id}/current-amount` on the household service to persist the computed value. This is an internal-only endpoint — not exposed through the gateway contract for direct client use.
+
+**Rationale:** Separates the compute path from the read path. Dashboard reads are instant (single DB `SELECT`). Math is isolated and independently testable. New formulas require no changes to the dashboard endpoint. Follows the CQRS projection pattern already established by `projections.dashboard_snapshot`.
