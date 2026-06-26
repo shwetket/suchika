@@ -10,6 +10,14 @@ cd "$ROOT"
 
 echo "==> Setting up Suchika development environment..."
 
+# ── PostgreSQL client (psql, pg_isready) ──────────────────────────────────────
+# The base Java devcontainer image does not include psql. Install it so that
+# database connectivity checks and the bootstrap step below work correctly.
+if ! command -v psql >/dev/null 2>&1; then
+  echo "==> Installing postgresql-client..."
+  sudo apt-get update -qq && sudo apt-get install -y postgresql-client
+fi
+
 # ── .env ─────────────────────────────────────────────────────────────────────
 if [ ! -f application/finance/.env ]; then
   cp infrastructure/local/.env.template application/finance/.env
@@ -29,14 +37,34 @@ timeout 60 bash -c 'until pg_isready -h db -U postgres >/dev/null 2>&1; do sleep
 
 # ── Bootstrap database ────────────────────────────────────────────────────────
 echo "==> Bootstrapping database..."
-PGPASSWORD=local_dev_only psql -h db -U postgres -c "CREATE DATABASE app_db;" 2>/dev/null \
+PGPASSWORD="${DB_PASSWORD:-local_dev_only}" psql -h db -U postgres -c "CREATE DATABASE app_db;" 2>/dev/null \
   && echo "  Created app_db" \
   || echo "  app_db already exists — skipping"
 
-PGPASSWORD=local_dev_only psql -h db -U postgres -d app_db \
+PGPASSWORD="${DB_PASSWORD:-local_dev_only}" psql -h db -U postgres -d app_db \
   -f "$ROOT/application/flyway/00_bootstrap.sql" 2>/dev/null \
   && echo "  Bootstrap SQL applied" \
   || echo "  Bootstrap already applied — skipping"
+
+# ── Profile schema migrations ─────────────────────────────────────────────────
+# All other domains FK into profile.profile, so profile Flyway migrations must
+# be applied before running tests for health, wealth, or household. The domain
+# services normally run these on startup, but they may not be started yet.
+echo "==> Applying profile schema migrations..."
+PGPASSWORD="${DB_PASSWORD:-local_dev_only}" psql -h db -U app_user -d app_db \
+  -f "$ROOT/application/flyway/profile/V1__init_profile.sql" 2>/dev/null \
+  && echo "  V1__init_profile applied" || echo "  V1__init_profile already applied — skipping"
+PGPASSWORD="${DB_PASSWORD:-local_dev_only}" psql -h db -U app_user -d app_db \
+  -f "$ROOT/application/flyway/profile/V2__add_admin_table.sql" 2>/dev/null \
+  && echo "  V2__add_admin_table applied" || echo "  V2__add_admin_table already applied — skipping"
+
+# ── Profile test seed ─────────────────────────────────────────────────────────
+# Insert the canonical test admin/profile rows so QuarkusTest suites for health,
+# wealth, and household can resolve profile_id FK constraints immediately.
+echo "==> Applying profile test seed..."
+PGPASSWORD="${DB_PASSWORD:-local_dev_only}" psql -h db -U app_user -d app_db \
+  -f "$ROOT/application/flyway/test-seed/profile/R__seed_profile_test_data.sql" 2>/dev/null \
+  && echo "  Profile test seed applied" || echo "  Could not apply profile test seed — skipping"
 
 # ── Shell aliases: load on every terminal open ───────────────────────────────
 if ! grep -q "dev-aliases.sh" ~/.bashrc 2>/dev/null; then
