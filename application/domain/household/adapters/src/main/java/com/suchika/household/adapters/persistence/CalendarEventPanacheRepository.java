@@ -51,7 +51,7 @@ public class CalendarEventPanacheRepository implements CalendarEventRepository {
     public List<CalendarEvent> findConflicts(UUID profileId, LocalDate startDate, LocalDate endDate) {
         LocalDate effectiveEnd = endDate != null ? endDate : startDate;
         return dao.find(
-                "profileId = ?1 AND NOT (end_date < ?2 OR start_date > ?3)",
+                "profileId = ?1 AND NOT (COALESCE(endDate, startDate) < ?2 OR startDate > ?3)",
                 profileId, startDate, effectiveEnd
         ).stream().map(CalendarEventEntity::toDomain).toList();
     }
