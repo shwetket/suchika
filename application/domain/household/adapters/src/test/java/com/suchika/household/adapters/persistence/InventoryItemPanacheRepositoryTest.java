@@ -9,6 +9,7 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.QuarkusTestProfile;
 import io.quarkus.test.junit.TestProfile;
 import jakarta.inject.Inject;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -56,6 +57,9 @@ class InventoryItemPanacheRepositoryTest {
 
     @Inject
     InventoryItemRepository repository;
+
+    @Inject
+    EntityManager em;
 
     // --- save + findById ---
 
@@ -253,8 +257,10 @@ class InventoryItemPanacheRepositoryTest {
                 .purchaseDate(LocalDate.of(2026, Month.AUGUST, 1))
                 .build();
 
-        assertThrows(Exception.class, () -> repository.save(invalid),
-                "Expected constraint violation for quantity = 0");
+        assertThrows(Exception.class, () -> {
+            repository.save(invalid);
+            em.flush();
+        }, "Expected constraint violation for quantity = 0");
     }
 
     // ---- helper ----

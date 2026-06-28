@@ -8,6 +8,7 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.QuarkusTestProfile;
 import io.quarkus.test.junit.TestProfile;
 import jakarta.inject.Inject;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
@@ -54,6 +55,9 @@ class CalendarEventPanacheRepositoryTest {
 
     @Inject
     CalendarEventRepository repository;
+
+    @Inject
+    EntityManager em;
 
     // --- save + findById ---
 
@@ -275,8 +279,10 @@ class CalendarEventPanacheRepositoryTest {
                 .endDate(LocalDate.of(2026, Month.AUGUST, 10))
                 .build();
 
-        assertThrows(Exception.class, () -> repository.save(invalid),
-                "Expected constraint violation for end_date < start_date");
+        assertThrows(Exception.class, () -> {
+            repository.save(invalid);
+            em.flush();
+        }, "Expected constraint violation for end_date < start_date");
     }
 
     // ---- helper ----
