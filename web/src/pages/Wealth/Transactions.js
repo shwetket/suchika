@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { listProfiles } from '../../api/profiles';
 import {
+  getUploadErrors,
   listAccounts,
   listTransactions,
   listUploads,
@@ -43,6 +44,103 @@ function TxnTypeBadge({ type }) {
   return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${cls}`}>{type}</span>;
 }
 TxnTypeBadge.propTypes = { type: PropTypes.string.isRequired };
+
+function SkippedDuplicatesPanel({ skippedDuplicates }) {
+  if (!skippedDuplicates || skippedDuplicates.length === 0) return null;
+  return (
+    <div className="bg-yellow-50 border border-yellow-300 text-yellow-800 rounded-lg p-4">
+      <p className="font-semibold mb-2">
+        {skippedDuplicates.length} row{skippedDuplicates.length !== 1 ? 's' : ''} skipped
+        (cross-file duplicates)
+      </p>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-yellow-300 text-left">
+              <th className="py-1 pr-4 font-semibold">Date</th>
+              <th className="py-1 pr-4 font-semibold">Amount</th>
+              <th className="py-1 font-semibold">Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            {skippedDuplicates.map((row, idx) => (
+              <tr key={idx} className="border-b border-yellow-200 last:border-0">
+                <td className="py-1 pr-4">{row.txnDate}</td>
+                <td className="py-1 pr-4">
+                  {'₹'}
+                  {Number(row.amount).toLocaleString('en-IN')}
+                </td>
+                <td className="py-1">{row.description}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+SkippedDuplicatesPanel.propTypes = {
+  skippedDuplicates: PropTypes.arrayOf(
+    PropTypes.shape({
+      txnDate: PropTypes.string,
+      amount: PropTypes.number,
+      description: PropTypes.string,
+    })
+  ),
+};
+SkippedDuplicatesPanel.defaultProps = { skippedDuplicates: null };
+
+function UploadErrorPanel({ uploadErrors, errorsFetchFailed }) {
+  if (errorsFetchFailed) {
+    return (
+      <div className="bg-red-50 border border-red-300 text-red-800 rounded-lg p-4">
+        <p className="font-semibold">Upload failed</p>
+        <p className="mt-1 text-sm">Upload failed — please check your file and try again.</p>
+      </div>
+    );
+  }
+  if (!uploadErrors) return null;
+  if (uploadErrors.length === 0) {
+    return (
+      <div className="bg-red-50 border border-red-300 text-red-800 rounded-lg p-4">
+        <p className="font-semibold">Upload failed</p>
+        <p className="mt-1 text-sm">Upload failed — please check your file and try again.</p>
+      </div>
+    );
+  }
+  const first = uploadErrors[0];
+  return (
+    <div className="bg-red-50 border border-red-300 text-red-800 rounded-lg p-4 space-y-2">
+      <p className="font-semibold">Upload failed</p>
+      {first.missingColumns && first.missingColumns.length > 0 && (
+        <div>
+          <p className="text-sm font-medium">Missing required columns detected:</p>
+          <ul className="list-disc list-inside text-sm ml-2 mt-1">
+            {first.missingColumns.map((col) => (
+              <li key={col}>{col}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {first.errorDetail && <p className="text-sm">Full detail: {first.errorDetail}</p>}
+      <p className="text-sm mt-2">
+        Please re-export your bank statement and ensure the file contains the required columns.
+      </p>
+    </div>
+  );
+}
+UploadErrorPanel.propTypes = {
+  uploadErrors: PropTypes.arrayOf(
+    PropTypes.shape({
+      errorType: PropTypes.string,
+      missingColumns: PropTypes.arrayOf(PropTypes.string),
+      errorDetail: PropTypes.string,
+      createdAt: PropTypes.string,
+    })
+  ),
+  errorsFetchFailed: PropTypes.bool,
+};
+UploadErrorPanel.defaultProps = { uploadErrors: null, errorsFetchFailed: false };
 
 function TransactionRow({ txn }) {
   return (
@@ -175,6 +273,9 @@ function UploadTab({ accountId }) {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [skippedDuplicates, setSkippedDuplicates] = useState(null);
+  const [uploadErrors, setUploadErrors] = useState(null);
+  const [errorsFetchFailed, setErrorsFetchFailed] = useState(false);
   const [uploads, setUploads] = useState([]);
   const [loadingUploads, setLoadingUploads] = useState(false);
   const [rollbackTarget, setRollbackTarget] = useState(null);
@@ -211,11 +312,27 @@ function UploadTab({ accountId }) {
       setUploading(true);
       setUploadError(null);
       setUploadSuccess(false);
+      setSkippedDuplicates(null);
+      setUploadErrors(null);
+      setErrorsFetchFailed(false);
       try {
-        await uploadStatement(accountId, fileName.trim(), csvContent.trim());
+        const result = await uploadStatement(accountId, fileName.trim(), csvContent.trim());
         setFileName('');
         setCsvContent('');
-        setUploadSuccess(true);
+        if (result && result.status === 'FAILED') {
+          setUploadError('Upload failed');
+          try {
+            const errors = await getUploadErrors(accountId, result.upload_id);
+            setUploadErrors(errors ?? []);
+          } catch {
+            setErrorsFetchFailed(true);
+          }
+        } else {
+          setUploadSuccess(true);
+          if (result && result.skippedDuplicates) {
+            setSkippedDuplicates(result.skippedDuplicates);
+          }
+        }
         await loadUploads();
       } catch (err) {
         setUploadError(err.message || 'Upload failed');
@@ -318,6 +435,8 @@ function UploadTab({ accountId }) {
         {uploadSuccess && (
           <p className="text-green-600 text-sm">Statement uploaded successfully.</p>
         )}
+        <SkippedDuplicatesPanel skippedDuplicates={skippedDuplicates} />
+        <UploadErrorPanel uploadErrors={uploadErrors} errorsFetchFailed={errorsFetchFailed} />
         <button
           type="submit"
           disabled={uploading}

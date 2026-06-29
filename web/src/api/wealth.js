@@ -43,3 +43,6 @@ export const listUploads = (accountId) => get(`${API_ENDPOINTS.ACCOUNTS}/${accou
 
 export const rollbackUpload = (accountId, uploadId) =>
   del(`${API_ENDPOINTS.ACCOUNTS}/${accountId}/uploads/${uploadId}`);
+
+export const getUploadErrors = (accountId, uploadId) =>
+  get(`${API_ENDPOINTS.ACCOUNTS}/${accountId}/uploads/${uploadId}/errors`);

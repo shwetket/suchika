@@ -60,6 +60,10 @@ export interface paths {
      */
     post: operations["uploadStatement"];
   };
+  "/v1/accounts/{accountId}/uploads/{uploadId}/errors": {
+    /** Get structured parse errors for a failed upload */
+    get: operations["getUploadErrors"];
+  };
   "/v1/accounts/{accountId}/uploads/{uploadId}": {
     /**
      * Rollback a statement upload
@@ -221,6 +225,13 @@ export interface components {
       file_name: string;
       csv_content: string;
     };
+    SkippedTransactionDto: {
+      /** Format: date */
+      txn_date?: string;
+      /** Format: double */
+      amount?: number;
+      description?: string;
+    };
     StatementUploadResponse: {
       /** Format: uuid */
       upload_id?: string;
@@ -230,6 +241,16 @@ export interface components {
       /** Format: date-time */
       upload_date?: string;
       status?: components["schemas"]["UploadStatus"];
+      inserted_count?: number;
+      skipped_duplicates?: components["schemas"]["SkippedTransactionDto"][];
+    };
+    UploadErrorLogResponse: {
+      /** @enum {string} */
+      error_type?: "MISSING_DATE_COLUMN" | "MISSING_AMOUNT_COLUMN" | "MISSING_REQUIRED_COLUMN" | "PARSE_ERROR" | "VALIDATION_ERROR";
+      missing_columns?: string[] | null;
+      error_detail?: string;
+      /** Format: date-time */
+      created_at?: string;
     };
     ListUploadsResponse: {
       uploads?: components["schemas"]["StatementUploadResponse"][];
@@ -502,6 +523,25 @@ export interface operations {
         };
       };
       400: components["responses"]["BadRequest"];
+      404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  /** Get structured parse errors for a failed upload */
+  getUploadErrors: {
+    parameters: {
+      path: {
+        accountId: components["parameters"]["AccountId"];
+        uploadId: components["parameters"]["UploadId"];
+      };
+    };
+    responses: {
+      /** @description Error entries for the upload */
+      200: {
+        content: {
+          "application/json": components["schemas"]["UploadErrorLogResponse"][];
+        };
+      };
       404: components["responses"]["NotFound"];
       500: components["responses"]["InternalError"];
     };

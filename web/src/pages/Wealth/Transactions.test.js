@@ -12,6 +12,7 @@ jest.mock('../../api/wealth', () => ({
   listUploads: jest.fn(),
   uploadStatement: jest.fn(),
   rollbackUpload: jest.fn(),
+  getUploadErrors: jest.fn(),
 }));
 
 const { listProfiles } = require('../../api/profiles');
@@ -20,6 +21,7 @@ const {
   listTransactions,
   listUploads,
   uploadStatement,
+  getUploadErrors,
 } = require('../../api/wealth');
 
 const MOCK_PROFILES = [{ profile_id: 'p1', full_name: 'Alice', is_active: true }];
@@ -40,6 +42,7 @@ beforeEach(() => {
   listAccounts.mockResolvedValue({ accounts: MOCK_ACCOUNTS });
   listTransactions.mockResolvedValue({ transactions: [] });
   listUploads.mockResolvedValue({ uploads: [] });
+  getUploadErrors.mockResolvedValue([]);
 });
 
 async function selectAccount() {
@@ -163,6 +166,87 @@ describe('WealthTransactions page', () => {
     await selectAccount();
     await waitFor(() => {
       expect(screen.getByText('Salary')).toBeInTheDocument();
+    });
+  });
+
+  async function uploadFileAndSubmit(csvText, csvFileName) {
+    await openUploadTab();
+    const fileInput = document.querySelector('input[type="file"]');
+    const file = new File([csvText], csvFileName, { type: 'text/csv' });
+    Object.defineProperty(file, 'text', {
+      value: jest.fn().mockResolvedValue(csvText),
+    });
+    fireEvent.change(fileInput, { target: { files: [file] } });
+    await waitFor(() => screen.getByText(csvFileName));
+    const submitBtn = screen
+      .getAllByRole('button', { name: /Upload Statement/i })
+      .find((b) => b.type === 'submit');
+    fireEvent.click(submitBtn);
+  }
+
+  it('upload_withSkippedDuplicates_showsWarningPanel', async () => {
+    uploadStatement.mockResolvedValue({
+      upload_id: 'u1',
+      status: 'COMPLETED',
+      skippedDuplicates: [
+        { txnDate: '2026-06-20', amount: 25000, description: 'BONUS CREDIT' },
+        { txnDate: '2026-06-15', amount: 1500, description: 'AMAZON PAY' },
+      ],
+    });
+    render(<WealthTransactions />);
+    await uploadFileAndSubmit('date,amount\n2026-06-20,25000', 'june.csv');
+    await waitFor(() => {
+      expect(screen.getByText(/2 rows skipped/i)).toBeInTheDocument();
+      expect(screen.getByText('BONUS CREDIT')).toBeInTheDocument();
+    });
+  });
+
+  it('upload_withNoSkippedDuplicates_hidesWarningPanel', async () => {
+    uploadStatement.mockResolvedValue({
+      upload_id: 'u2',
+      status: 'COMPLETED',
+      skippedDuplicates: [],
+    });
+    render(<WealthTransactions />);
+    await uploadFileAndSubmit('date,amount\n2026-06-20,25000', 'june.csv');
+    await waitFor(() => {
+      expect(screen.getByText(/Statement uploaded successfully/i)).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/rows skipped/i)).not.toBeInTheDocument();
+  });
+
+  it('upload_onFailure_fetchesAndShowsErrorDetails', async () => {
+    uploadStatement.mockResolvedValue({
+      upload_id: 'u3',
+      status: 'FAILED',
+    });
+    getUploadErrors.mockResolvedValue([
+      {
+        errorType: 'MISSING_COLUMNS',
+        missingColumns: ['date'],
+        errorDetail: 'Could not identify a date column.',
+        createdAt: '2026-06-29T10:00:00Z',
+      },
+    ]);
+    render(<WealthTransactions />);
+    await uploadFileAndSubmit('Description,Amount\nSomething,100', 'bad.csv');
+    await waitFor(() => {
+      expect(screen.getByText(/Missing required columns detected/i)).toBeInTheDocument();
+    });
+    expect(screen.getByText('date')).toBeInTheDocument();
+    expect(screen.getByText(/Could not identify a date column/i)).toBeInTheDocument();
+  });
+
+  it('upload_onFailure_emptyErrors_showsGenericMessage', async () => {
+    uploadStatement.mockResolvedValue({
+      upload_id: 'u4',
+      status: 'FAILED',
+    });
+    getUploadErrors.mockResolvedValue([]);
+    render(<WealthTransactions />);
+    await uploadFileAndSubmit('Description,Amount\nSomething,100', 'bad.csv');
+    await waitFor(() => {
+      expect(screen.getByText(/please check your file and try again/i)).toBeInTheDocument();
     });
   });
 });

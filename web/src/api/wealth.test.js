@@ -2,6 +2,7 @@ import {
   createAccount,
   deactivateAccount,
   getAccount,
+  getUploadErrors,
   listAccounts,
   listTransactions,
   listUploads,
@@ -123,5 +124,13 @@ describe('rollbackUpload', () => {
     del.mockResolvedValue(null);
     rollbackUpload('acc-123', 'upload-456');
     expect(del).toHaveBeenCalledWith('/v1/accounts/acc-123/uploads/upload-456');
+  });
+});
+
+describe('getUploadErrors', () => {
+  it('calls get with correct errors path including uploadId', () => {
+    get.mockResolvedValue([]);
+    getUploadErrors('acc-123', 'upload-456');
+    expect(get).toHaveBeenCalledWith('/v1/accounts/acc-123/uploads/upload-456/errors');
   });
 });
