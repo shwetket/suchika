@@ -5,11 +5,14 @@ import com.suchika.shared.logging.AppLogger;
 import com.suchika.wealth.adapters.services.StatementCsvParser.ParsedRow;
 import com.suchika.wealth.domain.StatementUpload;
 import com.suchika.wealth.domain.Transaction;
+import com.suchika.wealth.domain.UploadErrorLog;
 import com.suchika.wealth.domain.UploadStatus;
 import com.suchika.wealth.ports.input.StatementUploadUseCase;
+import com.suchika.wealth.ports.input.UploadResult;
 import com.suchika.wealth.ports.output.AccountRepository;
 import com.suchika.wealth.ports.output.StatementUploadRepository;
 import com.suchika.wealth.ports.output.TransactionRepository;
+import com.suchika.wealth.ports.output.UploadErrorLogRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 
@@ -24,20 +27,23 @@ public class StatementUploadService implements StatementUploadUseCase {
     private final TransactionRepository txnRepo;
     private final AccountRepository accountRepo;
     private final StatementCsvParser csvParser;
+    private final UploadErrorLogRepository errorLogRepo;
 
     public StatementUploadService(StatementUploadRepository uploadRepo,
                                    TransactionRepository txnRepo,
                                    AccountRepository accountRepo,
-                                   StatementCsvParser csvParser) {
+                                   StatementCsvParser csvParser,
+                                   UploadErrorLogRepository errorLogRepo) {
         this.uploadRepo = uploadRepo;
         this.txnRepo = txnRepo;
         this.accountRepo = accountRepo;
         this.csvParser = csvParser;
+        this.errorLogRepo = errorLogRepo;
     }
 
     @Override
     @Transactional
-    public StatementUpload uploadStatement(UUID accountId, String fileName, String csvContent) {
+    public UploadResult uploadStatement(UUID accountId, String fileName, String csvContent) {
         accountRepo.findById(accountId)
                 .orElseThrow(() -> new NotFoundException("Account not found: " + accountId));
 
@@ -47,36 +53,46 @@ public class StatementUploadService implements StatementUploadUseCase {
                 .status(UploadStatus.PENDING)
                 .build();
         upload = uploadRepo.save(upload);
-        UUID uploadId = upload.getId();
+        final UUID uploadId = upload.getId();
 
         try {
             List<ParsedRow> rows = csvParser.parse(csvContent);
             List<ParsedRow> dedupedRows = deduplicateSameFile(rows);
 
-            int skipped = 0;
+            int insertedCount = 0;
+            List<UploadResult.SkippedRow> skipped = new ArrayList<>();
+            // Tracks dedup keys inserted in THIS batch to avoid double-checking same-file variants.
+            Set<String> insertedThisBatch = new LinkedHashSet<>();
+
             for (ParsedRow row : dedupedRows) {
-                if (txnRepo.existsByUniqueKey(accountId, row.date(), row.amount(), row.txnType(), row.description())) {
-                    skipped++;
-                    continue;
+                String dedupKey = row.date() + "|" + row.amount().toPlainString() + "|" + row.txnType();
+                if (txnRepo.existsByDeduplicationKey(accountId, row.date(), row.amount(), row.txnType())
+                        && !insertedThisBatch.contains(dedupKey)) {
+                    skipped.add(new UploadResult.SkippedRow(row.date(), row.amount(), row.description()));
+                } else {
+                    txnRepo.save(Transaction.builder()
+                            .accountId(accountId).uploadId(uploadId)
+                            .txnDate(row.date()).amount(row.amount())
+                            .txnType(row.txnType()).description(row.description())
+                            .build());
+                    insertedThisBatch.add(dedupKey);
+                    insertedCount++;
                 }
-                Transaction txn = Transaction.builder()
-                        .accountId(accountId)
-                        .uploadId(uploadId)
-                        .txnDate(row.date())
-                        .amount(row.amount())
-                        .txnType(row.txnType())
-                        .description(row.description())
-                        .build();
-                txnRepo.save(txn);
             }
 
-            if (skipped > 0) {
-                AppLogger.info("Skipped %d duplicate transactions for upload %s (cross-file dedup)", skipped, uploadId);
+            if (!skipped.isEmpty()) {
+                AppLogger.info("Skipped %d duplicate transactions for upload %s (cross-file dedup)", skipped.size(), uploadId);
             }
-            AppLogger.info("Upload %s complete: %d rows saved, %d skipped", uploadId, dedupedRows.size() - skipped, skipped);
+            AppLogger.info("Upload %s complete: %d rows saved, %d skipped", uploadId, insertedCount, skipped.size());
 
-            return uploadRepo.updateStatus(uploadId, UploadStatus.SUCCESS);
+            StatementUpload completed = uploadRepo.updateStatus(uploadId, UploadStatus.SUCCESS);
+            return new UploadResult(completed, insertedCount, skipped);
 
+        } catch (CsvParseException e) {
+            errorLogRepo.save(uploadId, e.getErrorType(), e.getMissingColumns(), e.getMessage());
+            uploadRepo.updateStatus(uploadId, UploadStatus.FAILED);
+            AppLogger.warn("CSV parse failed for upload %s: %s", uploadId, e.getMessage());
+            throw e;
         } catch (Exception e) {
             uploadRepo.updateStatus(uploadId, UploadStatus.FAILED);
             throw e;
@@ -101,6 +117,11 @@ public class StatementUploadService implements StatementUploadUseCase {
     @Override
     public List<StatementUpload> listUploads(UUID accountId) {
         return uploadRepo.findByAccountId(accountId);
+    }
+
+    @Override
+    public List<UploadErrorLog> getUploadErrors(UUID uploadId) {
+        return errorLogRepo.findByUploadId(uploadId);
     }
 
     /**

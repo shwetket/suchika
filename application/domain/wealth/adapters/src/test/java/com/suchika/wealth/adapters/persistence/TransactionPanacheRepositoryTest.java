@@ -127,7 +127,7 @@ class TransactionPanacheRepositoryTest {
     }
 
     @Test
-    void existsByUniqueKey_true_whenMatchFound() {
+    void existsByDeduplicationKey_true_whenMatchFound() {
         UUID accountId = saveAccount();
         UUID uploadId = saveUpload(accountId);
         LocalDate txnDate = LocalDate.of(2026, Month.JUNE, 10);
@@ -135,11 +135,11 @@ class TransactionPanacheRepositoryTest {
 
         repository.save(transaction(accountId, uploadId, txnDate, amount, TxnType.DEBIT, "Grocery store"));
 
-        assertTrue(repository.existsByUniqueKey(accountId, txnDate, amount, TxnType.DEBIT, "Grocery store"));
+        assertTrue(repository.existsByDeduplicationKey(accountId, txnDate, amount, TxnType.DEBIT));
     }
 
     @Test
-    void existsByUniqueKey_false_whenDescriptionDiffers() {
+    void existsByDeduplicationKey_false_whenTxnTypeDiffers() {
         UUID accountId = saveAccount();
         UUID uploadId = saveUpload(accountId);
         LocalDate txnDate = LocalDate.of(2026, Month.JUNE, 10);
@@ -147,7 +147,7 @@ class TransactionPanacheRepositoryTest {
 
         repository.save(transaction(accountId, uploadId, txnDate, amount, TxnType.DEBIT, "Grocery store"));
 
-        assertFalse(repository.existsByUniqueKey(accountId, txnDate, amount, TxnType.DEBIT, "Different description"));
+        assertFalse(repository.existsByDeduplicationKey(accountId, txnDate, amount, TxnType.CREDIT));
     }
 
     // ---- Helpers ----

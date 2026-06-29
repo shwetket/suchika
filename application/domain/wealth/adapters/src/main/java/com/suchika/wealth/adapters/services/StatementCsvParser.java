@@ -5,6 +5,7 @@ import com.suchika.wealth.domain.TxnType;
 import jakarta.enterprise.context.ApplicationScoped;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -108,17 +109,13 @@ public class StatementCsvParser {
         Integer amountCol = findColumn(headers, AMOUNT_HEADERS);
 
         if (dateCol == null) {
-            throw new BadRequestException("CSV missing date column. Searched for: " + DATE_HEADERS
-                    + ". Found headers: " + Arrays.toString(headers));
+            throw CsvParseException.missingDateColumn(headers);
         }
         if (descriptionCol == null) {
-            throw new BadRequestException("CSV missing description column. Searched for: " + DESCRIPTION_HEADERS
-                    + ". Found headers: " + Arrays.toString(headers));
+            throw CsvParseException.missingRequiredColumn("description", headers);
         }
         if (debitCol == null && creditCol == null && amountCol == null) {
-            throw new BadRequestException("CSV missing amount column. Searched for debit: " + DEBIT_HEADERS
-                    + ", credit: " + CREDIT_HEADERS + ", amount: " + AMOUNT_HEADERS
-                    + ". Found headers: " + Arrays.toString(headers));
+            throw CsvParseException.missingAmountColumn(headers);
         }
 
         return new ColumnMap(dateCol, descriptionCol, debitCol, creditCol, amountCol);
@@ -205,7 +202,7 @@ public class StatementCsvParser {
                 .replace(" ", "");
         if (cleaned.isEmpty()) return null;
         try {
-            return new BigDecimal(cleaned);
+            return new BigDecimal(cleaned).setScale(2, RoundingMode.HALF_UP);
         } catch (NumberFormatException e) {
             return null;
         }

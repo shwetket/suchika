@@ -12,6 +12,7 @@ import java.time.Month;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class StatementCsvParserTest {
 
@@ -151,12 +152,52 @@ class StatementCsvParserTest {
     @Test
     void parse_missingDateColumn_throwsBadRequest() {
         String csv = "Description,Amount\n01 June 2026,500.00";
-        assertThrows(BadRequestException.class, () -> parser.parse(csv));
+        assertThrows(CsvParseException.class, () -> parser.parse(csv));
     }
 
     @Test
     void parse_missingAmountColumn_throwsBadRequest() {
         String csv = "Date,Description\n01/06/2026,No Amount Row";
-        assertThrows(BadRequestException.class, () -> parser.parse(csv));
+        assertThrows(CsvParseException.class, () -> parser.parse(csv));
+    }
+
+    // ---- CsvParseException typed errors ----
+
+    @Test
+    void detectColumns_missingDateColumn_throwsCsvParseException() {
+        String csv = "Description,Amount\n01 June 2026,500.00";
+
+        CsvParseException ex = assertThrows(CsvParseException.class, () -> parser.parse(csv));
+
+        assertEquals("MISSING_DATE_COLUMN", ex.getErrorType());
+        assertTrue(ex.getMissingColumns().contains("date"));
+    }
+
+    @Test
+    void detectColumns_missingAmountColumn_throwsCsvParseException() {
+        String csv = "Date,Description\n01/06/2026,No Amount Row";
+
+        CsvParseException ex = assertThrows(CsvParseException.class, () -> parser.parse(csv));
+
+        assertEquals("MISSING_AMOUNT_COLUMN", ex.getErrorType());
+        assertFalse(ex.getMissingColumns().isEmpty());
+    }
+
+    // ---- Amount scale normalisation ----
+
+    @Test
+    void parseAmount_variousFormats_normalisedToScale2() {
+        String[] amountVariants = {"500", "500.0", "500.000", "500.00"};
+        BigDecimal expected = new BigDecimal("500.00");
+
+        for (String variant : amountVariants) {
+            String csv = "Date,Description,Amount\n01/06/2026,Test," + variant;
+            List<ParsedRow> rows = parser.parse(csv);
+            assertEquals(1, rows.size(), "Expected one row for amount: " + variant);
+            assertEquals(0, expected.compareTo(rows.get(0).amount()),
+                    "Amount scale not normalised for: " + variant);
+            assertEquals(2, rows.get(0).amount().scale(),
+                    "Scale should be 2 for: " + variant);
+        }
     }
 }

@@ -135,7 +135,7 @@ class TransactionServiceTest {
         }
 
         @Override
-        public boolean existsByUniqueKey(UUID accountId, LocalDate txnDate, BigDecimal amount, TxnType txnType, String description) {
+        public boolean existsByDeduplicationKey(UUID accountId, LocalDate txnDate, BigDecimal amount, TxnType txnType) {
             return false;
         }
     }

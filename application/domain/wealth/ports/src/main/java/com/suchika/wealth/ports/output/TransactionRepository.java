@@ -17,5 +17,5 @@ public interface TransactionRepository {
 
     List<Transaction> findByAccountId(UUID accountId, LocalDate from, LocalDate to, TxnType txnType);
 
-    boolean existsByUniqueKey(UUID accountId, LocalDate txnDate, BigDecimal amount, TxnType txnType, String description);
+    boolean existsByDeduplicationKey(UUID accountId, LocalDate txnDate, BigDecimal amount, TxnType txnType);
 }
