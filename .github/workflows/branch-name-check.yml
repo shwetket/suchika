@@ -13,22 +13,14 @@ jobs:
       - name: Validate branch naming convention
         run: |
           BRANCH="${{ github.head_ref }}"
-          # Allowed: <type>/<kebab-case-description>
-          # Types: feat, fix, docs, refactor, chore, test, ci, hotfix, perf
-          PATTERN="^(feat|fix|docs|refactor|chore|test|ci|hotfix|perf)/[a-z0-9]([a-z0-9-]*[a-z0-9])?$"
+          PATTERN="^[a-zA-Z][a-zA-Z0-9_-]{3,}$"
           if [[ ! "$BRANCH" =~ $PATTERN ]]; then
             echo "::error::Branch '$BRANCH' does not match the required naming convention."
             echo ""
-            echo "Required format:  <type>/<description>"
-            echo "  type        — one of: feat, fix, docs, refactor, chore, test, ci, hotfix, perf"
-            echo "  description — lowercase letters, numbers, and hyphens only (no underscores)"
+            echo "Required format:  starts with a letter, then letters/digits/hyphens/underscores, min 4 chars total"
             echo ""
-            echo "Valid examples:"
-            echo "  feat/wealth-csv-upload"
-            echo "  fix/health-negative-weight-validation"
-            echo "  docs/update-adr-007"
-            echo "  chore/bump-quarkus-3-17"
-            echo "  refactor/profile-service-extract-validator"
+            echo "Valid examples:   feat-wealth-upload, fix-health-bp, my-feature-123"
+            echo "Invalid examples: 123-branch (starts with digit), ab (too short), feat branch (spaces)"
             exit 1
           fi
           echo "Branch name '$BRANCH' is valid."
