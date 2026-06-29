@@ -3,8 +3,10 @@ package com.suchika.wealth.adapters.http;
 import com.suchika.shared.exception.BadRequestException;
 import com.suchika.wealth.adapters.http.dto.ListUploadsResponse;
 import com.suchika.wealth.adapters.http.dto.StatementUploadResponse;
+import com.suchika.wealth.adapters.http.dto.UploadErrorLogResponse;
 import com.suchika.wealth.adapters.http.dto.UploadStatementRequest;
 import com.suchika.wealth.ports.input.StatementUploadUseCase;
+import com.suchika.wealth.ports.input.UploadResult;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -34,9 +36,8 @@ public class StatementUploadResource {
         if (request.csvContent == null || request.csvContent.isBlank()) {
             throw new BadRequestException("csv_content is required");
         }
-        StatementUploadResponse response = StatementUploadResponse.from(
-                useCase.uploadStatement(accountId, request.fileName, request.csvContent));
-        return Response.status(201).entity(response).build();
+        UploadResult result = useCase.uploadStatement(accountId, request.fileName, request.csvContent);
+        return Response.status(201).entity(StatementUploadResponse.from(result)).build();
     }
 
     @GET
@@ -53,5 +54,15 @@ public class StatementUploadResource {
             @PathParam("upload_id") UUID uploadId) {
         useCase.rollbackUpload(uploadId);
         return Response.noContent().build();
+    }
+
+    @GET
+    @Path("/{upload_id}/errors")
+    public Response getUploadErrors(
+            @PathParam("account_id") UUID accountId,
+            @PathParam("upload_id") UUID uploadId) {
+        List<UploadErrorLogResponse> errors = useCase.getUploadErrors(uploadId)
+                .stream().map(UploadErrorLogResponse::from).toList();
+        return Response.ok(errors).build();
     }
 }

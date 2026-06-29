@@ -16,6 +16,8 @@ servers:
 tags:
   - name: Accounts
     description: Bank accounts, credit cards, loans and investments
+  - name: Uploads
+    description: CSV statement uploads and error inspection
 
 paths:
 
@@ -79,6 +81,90 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '409':
           $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/accounts/{account_id}/uploads:
+
+    post:
+      tags: [Uploads]
+      operationId: uploadStatement
+      summary: Upload a CSV bank statement
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadStatementRequest'
+      responses:
+        '201':
+          description: Upload processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatementUploadResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    get:
+      tags: [Uploads]
+      operationId: listUploads
+      summary: List uploads for an account
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      responses:
+        '200':
+          description: Uploads listed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListUploadsResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/accounts/{account_id}/uploads/{upload_id}:
+
+    delete:
+      tags: [Uploads]
+      operationId: rollbackUpload
+      summary: Roll back an upload and its transactions
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/UploadId'
+      responses:
+        '204':
+          description: Upload rolled back
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/accounts/{account_id}/uploads/{upload_id}/errors:
+
+    get:
+      tags: [Uploads]
+      operationId: getUploadErrors
+      summary: Get structured parse errors for a failed upload
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/UploadId'
+      responses:
+        '200':
+          description: Error entries for the upload
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UploadErrorLogResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -170,6 +256,15 @@ components:
         format: uuid
         example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 
+    UploadId:
+      name: upload_id
+      in: path
+      required: true
+      description: Unique identifier of the statement upload
+      schema:
+        type: string
+        format: uuid
+
     PageSize:
       name: page_size
       in: query
@@ -194,6 +289,85 @@ components:
         type: string
 
   schemas:
+
+    UploadStatementRequest:
+      type: object
+      required:
+        - file_name
+        - csv_content
+      properties:
+        file_name:
+          type: string
+          example: "june-2026.csv"
+        csv_content:
+          type: string
+          description: Raw CSV file content as a string
+
+    SkippedTransactionDto:
+      type: object
+      properties:
+        txn_date:
+          type: string
+          format: date
+        amount:
+          type: number
+          format: double
+        description:
+          type: string
+
+    StatementUploadResponse:
+      type: object
+      properties:
+        upload_id:
+          type: string
+          format: uuid
+        account_id:
+          type: string
+          format: uuid
+        file_name:
+          type: string
+        upload_date:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [PENDING, SUCCESS, FAILED]
+        inserted_count:
+          type: integer
+        skipped_duplicates:
+          type: array
+          items:
+            $ref: '#/components/schemas/SkippedTransactionDto'
+
+    ListUploadsResponse:
+      type: object
+      properties:
+        uploads:
+          type: array
+          items:
+            $ref: '#/components/schemas/StatementUploadResponse'
+
+    UploadErrorLogResponse:
+      type: object
+      properties:
+        error_type:
+          type: string
+          enum:
+            - MISSING_DATE_COLUMN
+            - MISSING_AMOUNT_COLUMN
+            - MISSING_REQUIRED_COLUMN
+            - PARSE_ERROR
+            - VALIDATION_ERROR
+        missing_columns:
+          type: array
+          items:
+            type: string
+          nullable: true
+        error_detail:
+          type: string
+        created_at:
+          type: string
+          format: date-time
 
     AccountType:
       type: string

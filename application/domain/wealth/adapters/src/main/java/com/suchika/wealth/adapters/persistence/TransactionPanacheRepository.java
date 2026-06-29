@@ -62,8 +62,8 @@ public class TransactionPanacheRepository implements TransactionRepository {
     }
 
     @Override
-    public boolean existsByUniqueKey(UUID accountId, LocalDate txnDate, BigDecimal amount, TxnType txnType, String description) {
-        return dao.count("accountId = ?1 and txnDate = ?2 and amount = ?3 and txnType = ?4 and description = ?5",
-                accountId, txnDate, amount, txnType.name(), description) > 0;
+    public boolean existsByDeduplicationKey(UUID accountId, LocalDate txnDate, BigDecimal amount, TxnType txnType) {
+        return dao.count("accountId = ?1 and txnDate = ?2 and amount = ?3 and txnType = ?4",
+                accountId, txnDate, amount, txnType.name()) > 0;
     }
 }
