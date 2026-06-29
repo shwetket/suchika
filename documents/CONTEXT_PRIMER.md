@@ -5,7 +5,7 @@
 | **Type** | Reference |
 | **Audience** | AI agents, new developers |
 | **Status** | Active |
-| **Last updated** | 2026-06-24 |
+| **Last updated** | 2026-06-29 |
 
 ## Objective
 
@@ -31,24 +31,26 @@ Hexagonal Architecture (Ports & Adapters). Single PostgreSQL database (`app_db`)
 
 ---
 
-## Current Version: v0.3 — In Review (PR open)
+## Current Version: v0.4 — Complete
 
 | Domain | Backend | Frontend | Status |
 |---|---|---|---|
 | Profile | ✅ | ✅ | Complete |
-| Wealth | ✅ | ✅ | Complete |
+| Wealth | ✅ | ✅ | Complete — v0.4 |
 | Health | ✅ | ✅ | Complete |
 | Household | ✅ | ✅ | Complete — v0.3 |
 
-**Next milestone: v0.4** — Error handling (unhappy path, malformed CSV, quarantine protocol).
+**Next milestone: v0.5** — TBD (see ROADMAP.md).
 
-Quality gates (v0.3): 285 Jest tests passing, 0 SonarQube BLOCKER/CRITICAL issues, all Gradle tests green, ArchUnit clean.
+Quality gates (v0.4): all Gradle tests green, ArchUnit clean, 0 SonarQube BLOCKER/CRITICAL issues.
 
-**v0.3 key additions:**
-- Household domain live: CalendarEvent, InventoryItem, Goal CRUD at port 8084
-- ProjectionCalculationEngine in web-gateway: computes net worth, goal progress, vitals summary, event counts on demand
-- Dashboard "Refresh Live Data" button wired to `POST /v1/projections/refresh/{profileId}`
-- ADR-013 added: Projection Calculation Engine pattern
+**v0.4 key additions:**
+- Wealth CSV upload: structured error logging to `wealth.upload_error_log` on malformed CSV
+- Dedup key fix: 4-field key `(account_id, txn_date, amount, txn_type)` — description excluded
+- `UploadResult` return type: wraps upload entity with `insertedCount` + `List<SkippedRow>`
+- New endpoint: `GET /accounts/{accountId}/uploads/{uploadId}/errors` returns `List<UploadErrorLogResponse>`
+- Frontend upload error panel and skipped duplicates UI panel
+- Gateway contract (`application/contract/gateway.yaml`) updated for new upload response shape
 
 ---
 
@@ -108,14 +110,14 @@ Update `documents/domain-state/<domain>.md` — mark done items, add new open is
 
 ## Branch & PR Governance
 
-Six governance files added to `.github/` in v0.2 post-release:
+Six governance files in `.github/` (added v0.2, updated v0.4):
 
 | File | Purpose |
 |---|---|
-| `.github/CODEOWNERS` | Defines required reviewers per path — code owners must approve before merge |
+| `.github/CODEOWNERS` | `* @ketan` — all files owned by ketan; comment lines removed in v0.4 |
 | `.github/pull_request_template.md` | Standard PR description template auto-loaded on PR creation |
 | `.github/labeler.yml` | Path-to-label mapping used by the pr-labeler workflow |
-| `.github/workflows/branch-name-check.yml` | Rejects branches that don't match `feat/`, `fix/`, `chore/`, `docs/`, `refactor/`, `test/` prefixes |
+| `.github/workflows/branch-name-check.yml` | Branch must match `^[a-zA-Z][a-zA-Z0-9_-]{3,}$` — starts with letter, min 4 chars, letters/digits/hyphens/underscores only. No type-prefix required (changed in v0.4). |
 | `.github/workflows/pr-title-lint.yml` | Enforces Conventional Commits format on PR titles (e.g. `feat(wealth): add CSV upload`) |
 | `.github/workflows/pr-labeler.yml` | Auto-labels PRs based on changed file paths (domain, frontend, infra, docs, etc.) |
 
