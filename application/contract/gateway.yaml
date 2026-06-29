@@ -299,6 +299,29 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /v1/accounts/{accountId}/uploads/{uploadId}/errors:
+
+    get:
+      tags: [StatementUploads]
+      operationId: getUploadErrors
+      summary: Get structured parse errors for a failed upload
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/UploadId'
+      responses:
+        '200':
+          description: Error entries for the upload
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UploadErrorLogResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /v1/accounts/{accountId}/uploads/{uploadId}:
 
     delete:
@@ -987,6 +1010,18 @@ components:
         csv_content:
           type: string
 
+    SkippedTransactionDto:
+      type: object
+      properties:
+        txn_date:
+          type: string
+          format: date
+        amount:
+          type: number
+          format: double
+        description:
+          type: string
+
     StatementUploadResponse:
       type: object
       properties:
@@ -1004,6 +1039,34 @@ components:
           format: date-time
         status:
           $ref: '#/components/schemas/UploadStatus'
+        inserted_count:
+          type: integer
+        skipped_duplicates:
+          type: array
+          items:
+            $ref: '#/components/schemas/SkippedTransactionDto'
+
+    UploadErrorLogResponse:
+      type: object
+      properties:
+        error_type:
+          type: string
+          enum:
+            - MISSING_DATE_COLUMN
+            - MISSING_AMOUNT_COLUMN
+            - MISSING_REQUIRED_COLUMN
+            - PARSE_ERROR
+            - VALIDATION_ERROR
+        missing_columns:
+          type: array
+          items:
+            type: string
+          nullable: true
+        error_detail:
+          type: string
+        created_at:
+          type: string
+          format: date-time
 
     ListUploadsResponse:
       type: object

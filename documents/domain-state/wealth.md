@@ -13,7 +13,7 @@ Give any agent or developer instant context on the wealth domain — accounts, t
 ---
 
 **Last updated:** 2026-06-29
-**Version:** v0.4 Phase 1+2 complete
+**Version:** v0.4 Phase 1+2+3 complete
 **Port:** 8082
 
 ---
@@ -97,7 +97,7 @@ Base path: `/api/v1/wealth`
 
 ## Open Issues / Backlog
 
-- Wire `projections.dashboard_snapshot` to live wealth data (v0.3)
-- Add transaction pagination (v0.3)
-- Frontend: display `skipped_duplicates` and `error log` in the upload UI (v0.4 Phase 3)
-- Duplicate resolution UI for `is_duplicate=TRUE` rows (v0.4)
+- ✅ Frontend: display `skipped_duplicates` panel and `error log` panel in upload UI (v0.4 Phase 3)
+- Duplicate resolution UI for `is_duplicate=TRUE` rows (future)
+- Wire `projections.dashboard_snapshot` to live wealth data (future)
+- Add transaction pagination (future)
