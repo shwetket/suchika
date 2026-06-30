@@ -121,7 +121,7 @@ class TransactionServiceTest {
         }
 
         @Override
-        public List<Transaction> findByAccountId(UUID accountId, LocalDate from, LocalDate to, TxnType txnType) {
+        public List<Transaction> findByAccountId(UUID accountId, UUID profileId, LocalDate from, LocalDate to, TxnType txnType) {
             this.lastAccountId = accountId;
             this.lastFrom = from;
             this.lastTo = to;
@@ -135,8 +135,16 @@ class TransactionServiceTest {
         }
 
         @Override
-        public boolean existsByDeduplicationKey(UUID accountId, LocalDate txnDate, BigDecimal amount, TxnType txnType) {
+        public boolean existsByDeduplicationKey(UUID accountId, UUID profileId, LocalDate txnDate, BigDecimal amount, TxnType txnType) {
             return false;
+        }
+
+        @Override
+        public BigDecimal sumAmountByTxnType(UUID accountId, UUID profileId, TxnType txnType) {
+            return store.stream()
+                    .filter(t -> accountId.equals(t.getAccountId()) && txnType == t.getTxnType())
+                    .map(Transaction::getAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
         }
     }
 }

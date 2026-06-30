@@ -263,17 +263,25 @@ class StatementUploadServiceTest {
         }
 
         @Override
-        public List<Transaction> findByAccountId(UUID accountId, LocalDate from, LocalDate to, TxnType txnType) {
+        public List<Transaction> findByAccountId(UUID accountId, UUID profileId, LocalDate from, LocalDate to, TxnType txnType) {
             return saved.stream().filter(t -> accountId.equals(t.getAccountId())).toList();
         }
 
         @Override
-        public boolean existsByDeduplicationKey(UUID accountId, LocalDate txnDate, BigDecimal amount, TxnType txnType) {
+        public boolean existsByDeduplicationKey(UUID accountId, UUID profileId, LocalDate txnDate, BigDecimal amount, TxnType txnType) {
             return saved.stream().anyMatch(t ->
                     accountId.equals(t.getAccountId())
                     && txnDate.equals(t.getTxnDate())
                     && amount.compareTo(t.getAmount()) == 0
                     && txnType == t.getTxnType());
+        }
+
+        @Override
+        public BigDecimal sumAmountByTxnType(UUID accountId, UUID profileId, TxnType txnType) {
+            return saved.stream()
+                    .filter(t -> accountId.equals(t.getAccountId()) && txnType == t.getTxnType())
+                    .map(Transaction::getAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
         }
     }
 

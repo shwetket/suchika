@@ -2,6 +2,8 @@ package com.suchika.wealth.domain;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 public class Account {
@@ -18,6 +20,7 @@ public class Account {
     private BigDecimal emiAmount;
     private boolean active;
     private Instant createdAt;
+    private Map<String, String> metadata;
 
     public Account() {}
 
@@ -34,6 +37,7 @@ public class Account {
         this.emiAmount = builder.emiAmount;
         this.active = builder.active;
         this.createdAt = builder.createdAt;
+        this.metadata = builder.metadata;
     }
 
     public static Builder builder() { return new Builder(); }
@@ -51,6 +55,7 @@ public class Account {
         private BigDecimal emiAmount;
         private boolean active = true;
         private Instant createdAt;
+        private Map<String, String> metadata = new HashMap<>();
 
         public Builder id(UUID id) { this.id = id; return this; }
         public Builder profileId(UUID profileId) { this.profileId = profileId; return this; }
@@ -64,6 +69,7 @@ public class Account {
         public Builder emiAmount(BigDecimal emiAmount) { this.emiAmount = emiAmount; return this; }
         public Builder active(boolean active) { this.active = active; return this; }
         public Builder createdAt(Instant createdAt) { this.createdAt = createdAt; return this; }
+        public Builder metadata(Map<String, String> metadata) { this.metadata = metadata; return this; }
         public Account build() { return new Account(this); }
     }
 
@@ -79,6 +85,7 @@ public class Account {
     public BigDecimal getEmiAmount() { return emiAmount; }
     public boolean isActive() { return active; }
     public Instant getCreatedAt() { return createdAt; }
+    public Map<String, String> getMetadata() { return metadata; }
 
     public void setAccountName(String accountName) { this.accountName = accountName; }
     public void setOpeningBalance(BigDecimal openingBalance) { this.openingBalance = openingBalance; }
@@ -86,4 +93,5 @@ public class Account {
     public void setInterestRate(BigDecimal interestRate) { this.interestRate = interestRate; }
     public void setEmiAmount(BigDecimal emiAmount) { this.emiAmount = emiAmount; }
     public void setActive(boolean active) { this.active = active; }
+    public void setMetadata(Map<String, String> metadata) { this.metadata = metadata; }
 }

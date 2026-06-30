@@ -31,6 +31,12 @@ public interface WealthServiceClient {
     @Path("/accounts/{accountId}")
     JsonNode getAccount(@PathParam("accountId") UUID accountId);
 
+    @GET
+    @Path("/accounts/{accountId}/balance")
+    JsonNode getAccountBalance(
+            @PathParam("accountId") UUID accountId,
+            @QueryParam("profile_id") String profileId);
+
     @PATCH
     @Path("/accounts/{accountId}")
     JsonNode updateAccount(@PathParam("accountId") UUID accountId, JsonNode body);

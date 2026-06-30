@@ -1,8 +1,10 @@
 package com.suchika.wealth.adapters.http;
 
+import com.suchika.wealth.adapters.http.dto.AccountBalanceResponse;
 import com.suchika.wealth.adapters.http.dto.AccountResponse;
 import com.suchika.wealth.adapters.http.dto.CreateAccountRequest;
 import com.suchika.wealth.adapters.http.dto.ListAccountsResponse;
+import com.suchika.wealth.adapters.http.dto.UpdateAccountClassificationRequest;
 import com.suchika.wealth.adapters.http.dto.UpdateAccountRequest;
 import com.suchika.wealth.domain.AccountType;
 import com.suchika.wealth.ports.input.AccountUseCase;
@@ -70,6 +72,24 @@ public class AccountResource {
     public Response deactivateAccount(@PathParam("account_id") UUID accountId) {
         useCase.deactivateAccount(accountId);
         return Response.noContent().build();
+    }
+
+    @GET
+    @Path("/{account_id}/balance")
+    public AccountBalanceResponse getAccountBalance(
+            @PathParam("account_id") UUID accountId,
+            @QueryParam("profile_id") UUID profileId) {
+        return AccountBalanceResponse.from(useCase.getAccountBalance(accountId, profileId));
+    }
+
+    @PATCH
+    @Path("/{account_id}/classification")
+    public AccountResponse updateAccountClassification(
+            @PathParam("account_id") UUID accountId,
+            UpdateAccountClassificationRequest request) {
+        if (request == null) throw new BadRequestException("Request body is required");
+        return AccountResponse.from(useCase.updateAccountClassification(
+                accountId, request.category, request.liquidityTier, request.purposeTag));
     }
 
     private AccountType parseAccountType(String value) {

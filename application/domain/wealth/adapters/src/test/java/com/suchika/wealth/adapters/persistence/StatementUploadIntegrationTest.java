@@ -58,7 +58,7 @@ class StatementUploadIntegrationTest {
         assertEquals(SEEDED_ACCOUNT_ID, result.getUpload().getAccountId());
         assertEquals(3, result.getInsertedCount());
 
-        List<Transaction> txns = transactionRepository.findByAccountId(SEEDED_ACCOUNT_ID, null, null, null);
+        List<Transaction> txns = transactionRepository.findByAccountId(SEEDED_ACCOUNT_ID, null, null, null, null);
         assertEquals(3, txns.size());
 
         assertTrue(txns.stream().anyMatch(t -> t.getTxnType() == TxnType.CREDIT
@@ -71,7 +71,7 @@ class StatementUploadIntegrationTest {
     void uploadStatement_transactionsLinkedToUpload() {
         UploadResult result = uploadUseCase.uploadStatement(SEEDED_ACCOUNT_ID, "link-test.csv", HDFC_SAVINGS_CSV);
 
-        List<Transaction> txns = transactionRepository.findByAccountId(SEEDED_ACCOUNT_ID, null, null, null);
+        List<Transaction> txns = transactionRepository.findByAccountId(SEEDED_ACCOUNT_ID, null, null, null, null);
         assertTrue(txns.stream().allMatch(t -> result.getUpload().getId().equals(t.getUploadId())));
     }
 
@@ -84,7 +84,7 @@ class StatementUploadIntegrationTest {
 
         uploadUseCase.uploadStatement(SEEDED_ACCOUNT_ID, "dups.csv", csvWithDuplicates);
 
-        List<Transaction> txns = transactionRepository.findByAccountId(SEEDED_ACCOUNT_ID,
+        List<Transaction> txns = transactionRepository.findByAccountId(SEEDED_ACCOUNT_ID, null,
                 LocalDate.of(2026, Month.JUNE, 5), LocalDate.of(2026, Month.JUNE, 5), TxnType.DEBIT);
         assertEquals(2, txns.size());
 
@@ -100,14 +100,14 @@ class StatementUploadIntegrationTest {
                 + "10/06/2026,UNIQUE SALARY,60000.00";
 
         uploadUseCase.uploadStatement(SEEDED_ACCOUNT_ID, "first.csv", singleRowCsv);
-        List<Transaction> afterFirst = transactionRepository.findByAccountId(SEEDED_ACCOUNT_ID,
+        List<Transaction> afterFirst = transactionRepository.findByAccountId(SEEDED_ACCOUNT_ID, null,
                 LocalDate.of(2026, Month.JUNE, 10), LocalDate.of(2026, Month.JUNE, 10), null);
         assertEquals(1, afterFirst.size());
 
         UploadResult second = uploadUseCase.uploadStatement(SEEDED_ACCOUNT_ID, "second.csv", singleRowCsv);
         assertEquals(UploadStatus.SUCCESS, second.getUpload().getStatus());
 
-        List<Transaction> afterSecond = transactionRepository.findByAccountId(SEEDED_ACCOUNT_ID,
+        List<Transaction> afterSecond = transactionRepository.findByAccountId(SEEDED_ACCOUNT_ID, null,
                 LocalDate.of(2026, Month.JUNE, 10), LocalDate.of(2026, Month.JUNE, 10), null);
         assertEquals(1, afterSecond.size());
     }
@@ -117,14 +117,14 @@ class StatementUploadIntegrationTest {
         UploadResult result = uploadUseCase.uploadStatement(SEEDED_ACCOUNT_ID, "to-rollback.csv", HDFC_SAVINGS_CSV);
         UUID uploadId = result.getUpload().getId();
 
-        List<Transaction> before = transactionRepository.findByAccountId(SEEDED_ACCOUNT_ID, null, null, null);
+        List<Transaction> before = transactionRepository.findByAccountId(SEEDED_ACCOUNT_ID, null, null, null, null);
         assertFalse(before.isEmpty(), "Expected transactions before rollback");
 
         uploadUseCase.rollbackUpload(uploadId);
         em.flush();
         em.clear();
 
-        List<Transaction> after = transactionRepository.findByAccountId(SEEDED_ACCOUNT_ID, null, null, null);
+        List<Transaction> after = transactionRepository.findByAccountId(SEEDED_ACCOUNT_ID, null, null, null, null);
         assertTrue(after.stream().noneMatch(t -> uploadId.equals(t.getUploadId())),
                 "All transactions for the rolled-back upload should be removed");
     }
@@ -144,7 +144,7 @@ class StatementUploadIntegrationTest {
     void filterByDateRange_returnsOnlyMatchingRows() {
         uploadUseCase.uploadStatement(SEEDED_ACCOUNT_ID, "range-test.csv", HDFC_SAVINGS_CSV);
 
-        List<Transaction> juneOnly = transactionRepository.findByAccountId(SEEDED_ACCOUNT_ID,
+        List<Transaction> juneOnly = transactionRepository.findByAccountId(SEEDED_ACCOUNT_ID, null,
                 LocalDate.of(2026, Month.JUNE, 1), LocalDate.of(2026, Month.JUNE, 30), null);
         assertFalse(juneOnly.isEmpty());
         assertTrue(juneOnly.stream().allMatch(t ->
@@ -156,11 +156,11 @@ class StatementUploadIntegrationTest {
     void filterByTxnType_returnsOnlyMatching() {
         uploadUseCase.uploadStatement(SEEDED_ACCOUNT_ID, "type-filter.csv", HDFC_SAVINGS_CSV);
 
-        List<Transaction> creditsOnly = transactionRepository.findByAccountId(SEEDED_ACCOUNT_ID,
+        List<Transaction> creditsOnly = transactionRepository.findByAccountId(SEEDED_ACCOUNT_ID, null,
                 null, null, TxnType.CREDIT);
         assertTrue(creditsOnly.stream().allMatch(t -> t.getTxnType() == TxnType.CREDIT));
 
-        List<Transaction> debitsOnly = transactionRepository.findByAccountId(SEEDED_ACCOUNT_ID,
+        List<Transaction> debitsOnly = transactionRepository.findByAccountId(SEEDED_ACCOUNT_ID, null,
                 null, null, TxnType.DEBIT);
         assertTrue(debitsOnly.stream().allMatch(t -> t.getTxnType() == TxnType.DEBIT));
     }

@@ -6,9 +6,12 @@ import com.suchika.shared.exception.NotFoundException;
 import com.suchika.shared.logging.AppLogger;
 import com.suchika.wealth.domain.Account;
 import com.suchika.wealth.domain.AccountType;
+import com.suchika.wealth.domain.TxnType;
+import com.suchika.wealth.ports.input.AccountBalance;
 import com.suchika.wealth.ports.input.AccountUseCase;
 import com.suchika.wealth.ports.input.CreateAccountCommand;
 import com.suchika.wealth.ports.output.AccountRepository;
+import com.suchika.wealth.ports.output.TransactionRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 
@@ -22,9 +25,11 @@ public class AccountService implements AccountUseCase {
     private static final String ACCOUNT_NOT_FOUND = "Account not found: ";
 
     private final AccountRepository repository;
+    private final TransactionRepository transactionRepository;
 
-    public AccountService(AccountRepository repository) {
+    public AccountService(AccountRepository repository, TransactionRepository transactionRepository) {
         this.repository = repository;
+        this.transactionRepository = transactionRepository;
     }
 
     @Override
@@ -108,5 +113,35 @@ public class AccountService implements AccountUseCase {
         if (repository.hasTransactions(accountId)) {
             throw new ConflictException("Cannot deactivate account with existing transactions");
         }
+    }
+
+    @Override
+    public AccountBalance getAccountBalance(UUID accountId, UUID profileId) {
+        Account account = repository.findById(accountId)
+                .orElseThrow(() -> new NotFoundException(ACCOUNT_NOT_FOUND + accountId));
+
+        BigDecimal opening = account.getOpeningBalance() != null ? account.getOpeningBalance() : BigDecimal.ZERO;
+        BigDecimal totalCredits = transactionRepository.sumAmountByTxnType(accountId, profileId, TxnType.CREDIT);
+        BigDecimal totalDebits = transactionRepository.sumAmountByTxnType(accountId, profileId, TxnType.DEBIT);
+        BigDecimal current = opening.add(totalCredits).subtract(totalDebits);
+
+        return new AccountBalance(accountId, opening, totalCredits, totalDebits, current);
+    }
+
+    @Override
+    @Transactional
+    public Account updateAccountClassification(UUID id, String category, String liquidityTier, String purposeTag) {
+        Account account = repository.findById(id)
+                .orElseThrow(() -> new NotFoundException(ACCOUNT_NOT_FOUND + id));
+
+        java.util.Map<String, String> metadata = new java.util.HashMap<>(account.getMetadata());
+        if (category != null) metadata.put("category", category);
+        if (liquidityTier != null) metadata.put("liquidity_tier", liquidityTier);
+        if (purposeTag != null) metadata.put("purpose_tag", purposeTag);
+        account.setMetadata(metadata);
+
+        Account saved = repository.save(account);
+        AppLogger.info("Account classification updated: %s", id);
+        return saved;
     }
 }
