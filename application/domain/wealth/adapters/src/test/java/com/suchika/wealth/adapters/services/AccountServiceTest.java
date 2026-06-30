@@ -61,23 +61,20 @@ class AccountServiceTest {
 
     @Test
     void createAccount_blankName_throwsBadRequest() {
-        assertThrows(BadRequestException.class,
-                () -> service.createAccount(null,
-                        cmd("  ", AccountType.SAVINGS, "HDFC Bank", null, null, null, null)));
+        CreateAccountCommand command = cmd("  ", AccountType.SAVINGS, "HDFC Bank", null, null, null, null);
+        assertThrows(BadRequestException.class, () -> service.createAccount(null, command));
     }
 
     @Test
     void createAccount_nullType_throwsBadRequest() {
-        assertThrows(BadRequestException.class,
-                () -> service.createAccount(null,
-                        cmd("HDFC Savings", null, "HDFC Bank", null, null, null, null)));
+        CreateAccountCommand command = cmd("HDFC Savings", null, "HDFC Bank", null, null, null, null);
+        assertThrows(BadRequestException.class, () -> service.createAccount(null, command));
     }
 
     @Test
     void createAccount_blankInstitution_throwsBadRequest() {
-        assertThrows(BadRequestException.class,
-                () -> service.createAccount(null,
-                        cmd("HDFC Savings", AccountType.SAVINGS, " ", null, null, null, null)));
+        CreateAccountCommand command = cmd("HDFC Savings", AccountType.SAVINGS, " ", null, null, null, null);
+        assertThrows(BadRequestException.class, () -> service.createAccount(null, command));
     }
 
     @Test
@@ -92,7 +89,8 @@ class AccountServiceTest {
 
     @Test
     void getAccount_notFound_throwsNotFoundException() {
-        assertThrows(NotFoundException.class, () -> service.getAccount(UUID.randomUUID()));
+        UUID randomId = UUID.randomUUID();
+        assertThrows(NotFoundException.class, () -> service.getAccount(randomId));
     }
 
     @Test
@@ -119,9 +117,10 @@ class AccountServiceTest {
     void updateAccount_blankName_throwsBadRequest() {
         Account account = service.createAccount(null,
                 cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
+        UUID accountId = account.getId();
 
         assertThrows(BadRequestException.class,
-                () -> service.updateAccount(account.getId(), "  ", null, null, null, null, null));
+                () -> service.updateAccount(accountId, "  ", null, null, null, null, null));
     }
 
     @Test
@@ -138,10 +137,11 @@ class AccountServiceTest {
     void updateAccount_deactivateWithTransactions_throwsConflict() {
         Account account = service.createAccount(null,
                 cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
-        repo.markHasTransactions(account.getId());
+        UUID accountId = account.getId();
+        repo.markHasTransactions(accountId);
 
         assertThrows(ConflictException.class,
-                () -> service.updateAccount(account.getId(), null, null, null, null, null, false));
+                () -> service.updateAccount(accountId, null, null, null, null, null, false));
     }
 
     @Test
@@ -158,14 +158,16 @@ class AccountServiceTest {
     void deactivateAccount_withTransactions_throwsConflict() {
         Account account = service.createAccount(null,
                 cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
-        repo.markHasTransactions(account.getId());
+        UUID accountId = account.getId();
+        repo.markHasTransactions(accountId);
 
-        assertThrows(ConflictException.class, () -> service.deactivateAccount(account.getId()));
+        assertThrows(ConflictException.class, () -> service.deactivateAccount(accountId));
     }
 
     @Test
     void deactivateAccount_notFound_throwsNotFoundException() {
-        assertThrows(NotFoundException.class, () -> service.deactivateAccount(UUID.randomUUID()));
+        UUID randomId = UUID.randomUUID();
+        assertThrows(NotFoundException.class, () -> service.deactivateAccount(randomId));
     }
 
     // ---- Bug 2 fix: getAccountBalance = opening_balance + SUM(CREDIT) - SUM(DEBIT) ----
@@ -198,7 +200,8 @@ class AccountServiceTest {
 
     @Test
     void getAccountBalance_notFound_throwsNotFoundException() {
-        assertThrows(NotFoundException.class, () -> service.getAccountBalance(UUID.randomUUID(), null));
+        UUID randomId = UUID.randomUUID();
+        assertThrows(NotFoundException.class, () -> service.getAccountBalance(randomId, null));
     }
 
     // ---- Epic 8 Phase 1: account classification metadata write path ----
@@ -242,8 +245,9 @@ class AccountServiceTest {
 
     @Test
     void updateAccountClassification_notFound_throwsNotFoundException() {
+        UUID randomId = UUID.randomUUID();
         assertThrows(NotFoundException.class,
-                () -> service.updateAccountClassification(UUID.randomUUID(), "INVESTMENT", null, null, null));
+                () -> service.updateAccountClassification(randomId, "INVESTMENT", null, null, null));
     }
 
     @Test

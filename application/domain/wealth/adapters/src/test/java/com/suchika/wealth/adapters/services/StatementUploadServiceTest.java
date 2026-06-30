@@ -89,8 +89,9 @@ class StatementUploadServiceTest {
 
     @Test
     void upload_accountNotFound_throwsNotFound() {
+        UUID randomId = UUID.randomUUID();
         assertThrows(NotFoundException.class,
-                () -> service.uploadStatement(UUID.randomUUID(), "test.csv",
+                () -> service.uploadStatement(randomId, "test.csv",
                         "Date,Description,Amount\n01/06/2026,test,100"));
     }
 
@@ -106,7 +107,8 @@ class StatementUploadServiceTest {
 
     @Test
     void rollback_notFound_throwsNotFound() {
-        assertThrows(NotFoundException.class, () -> service.rollbackUpload(UUID.randomUUID()));
+        UUID randomId = UUID.randomUUID();
+        assertThrows(NotFoundException.class, () -> service.rollbackUpload(randomId));
     }
 
     @Test
@@ -121,7 +123,8 @@ class StatementUploadServiceTest {
 
     @Test
     void getUpload_notFound_throwsNotFound() {
-        assertThrows(NotFoundException.class, () -> service.getUpload(UUID.randomUUID()));
+        UUID randomId = UUID.randomUUID();
+        assertThrows(NotFoundException.class, () -> service.getUpload(randomId));
     }
 
     // ---- Phase 1: CsvParseException → error log + FAILED status ----

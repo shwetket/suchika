@@ -86,7 +86,8 @@ class TransactionServiceTest {
 
     @Test
     void getById_notFound_throwsNotFoundException() {
-        assertThrows(NotFoundException.class, () -> service.getById(UUID.randomUUID()));
+        UUID randomId = UUID.randomUUID();
+        assertThrows(NotFoundException.class, () -> service.getById(randomId));
     }
 
     // ---- Epic 8 Phase 2: manual expense category tagging (Use Case 8.3, Q24) ----
@@ -126,8 +127,9 @@ class TransactionServiceTest {
 
     @Test
     void updateCategory_notFound_throwsNotFoundException() {
+        UUID randomId = UUID.randomUUID();
         assertThrows(NotFoundException.class,
-                () -> service.updateCategory(UUID.randomUUID(), ExpenseCategory.DISCRETIONARY));
+                () -> service.updateCategory(randomId, ExpenseCategory.DISCRETIONARY));
     }
 
     @Test
@@ -162,8 +164,9 @@ class TransactionServiceTest {
 
     @Test
     void bulkUpdateCategory_unknownId_throwsNotFoundException() {
+        List<UUID> ids = List.of(UUID.randomUUID());
         assertThrows(NotFoundException.class,
-                () -> service.bulkUpdateCategory(List.of(UUID.randomUUID()), ExpenseCategory.DISCRETIONARY));
+                () -> service.bulkUpdateCategory(ids, ExpenseCategory.DISCRETIONARY));
     }
 
     // ---- Fake repository ----

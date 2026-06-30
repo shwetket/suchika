@@ -29,6 +29,7 @@ public class ProjectionCalculationEngine {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final String VITAL_TYPE_KEY = "vital_type";
+    private static final String ACCOUNTS_FIELD = "accounts";
 
     private final WealthServiceClient wealthServiceClient;
     private final HealthServiceClient healthServiceClient;
@@ -72,7 +73,7 @@ public class ProjectionCalculationEngine {
         double netWorth = 0.0;
         int accountCount = 0;
 
-        JsonNode accountsArray = accounts.path("accounts");
+        JsonNode accountsArray = accounts.path(ACCOUNTS_FIELD);
         if (accountsArray.isArray()) {
             for (JsonNode account : accountsArray) {
                 netWorth += currentBalanceFor(account, profileId);
@@ -142,7 +143,7 @@ public class ProjectionCalculationEngine {
     private double computeTotalBalance(UUID profileId) {
         JsonNode accounts = wealthServiceClient.listAccounts(null, true, profileId.toString());
         double total = 0.0;
-        JsonNode accountsArray = accounts.path("accounts");
+        JsonNode accountsArray = accounts.path(ACCOUNTS_FIELD);
         if (accountsArray.isArray()) {
             for (JsonNode account : accountsArray) {
                 total += currentBalanceFor(account, profileId);
@@ -233,7 +234,7 @@ public class ProjectionCalculationEngine {
      */
     void computeCategoryValidation(UUID profileId) {
         JsonNode accounts = wealthServiceClient.listAccounts(null, true, profileId.toString());
-        JsonNode accountsArray = accounts.path("accounts");
+        JsonNode accountsArray = accounts.path(ACCOUNTS_FIELD);
 
         int totalAccounts = 0;
         int categorizedCount = 0;
