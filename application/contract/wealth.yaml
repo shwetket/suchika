@@ -18,6 +18,8 @@ tags:
     description: Bank accounts, credit cards, loans and investments
   - name: Uploads
     description: CSV statement uploads and error inspection
+  - name: Transactions
+    description: Ledger transactions and expense categorization
 
 paths:
 
@@ -44,6 +46,12 @@ paths:
           required: false
           schema:
             type: boolean
+        - name: profile_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
           description: Successfully listed accounts
@@ -64,6 +72,13 @@ paths:
         Creates a new account.
         Follows AIP-133 (Standard Create).
         The name field must be unique per institution.
+      parameters:
+        - name: profile_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
       requestBody:
         required: true
         content:
@@ -231,6 +246,69 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /v1/accounts/{account_id}/transactions/{txn_id}/category:
+
+    patch:
+      tags: [Transactions]
+      operationId: updateTransactionCategory
+      summary: Set the expense category on a single transaction
+      description: >
+        Epic 8 Phase 2 manual categorization (Use Case 8.3, Q24). Merges category
+        into the transaction's existing metadata map.
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/TxnId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTransactionCategoryRequest'
+      responses:
+        '200':
+          description: Transaction category updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/accounts/{account_id}/transactions/category:
+
+    patch:
+      tags: [Transactions]
+      operationId: bulkUpdateTransactionCategory
+      summary: Set the expense category on a caller-selected list of transactions
+      description: >
+        Epic 8 Phase 2 bulk-tag-by-selection (Use Case 8.3, Q24 resolution — not a
+        rules engine). Tags every transaction_id in the request with the same category.
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkUpdateTransactionCategoryRequest'
+      responses:
+        '200':
+          description: Transactions updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListTransactionsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /v1/accounts/{account_id}:
 
     get:
@@ -324,6 +402,15 @@ components:
       in: path
       required: true
       description: Unique identifier of the statement upload
+      schema:
+        type: string
+        format: uuid
+
+    TxnId:
+      name: txn_id
+      in: path
+      required: true
+      description: Unique identifier of the transaction
       schema:
         type: string
         format: uuid
@@ -512,9 +599,10 @@ components:
         metadata:
           type: object
           description: >
-            Epic 8 classification metadata (category, liquidity_tier, purpose_tag).
-            category is reserved and not populated until Phase 2 — absent/empty for
-            every account until then. See ADR-016.
+            Epic 8 classification metadata (category, liquidity_tier, purpose_tag,
+            joint_owners). joint_owners is a comma-joined list of co-owner profile_id
+            strings (ADR-016 Decision 2) — attribution/display only, never a query
+            predicate. See ADR-016.
           additionalProperties:
             type: string
           readOnly: true
@@ -621,6 +709,91 @@ components:
         purpose_tag:
           type: string
           nullable: true
+        joint_owners:
+          type: array
+          nullable: true
+          description: >
+            Co-owner profile_id strings (ADR-016 Decision 2). Stored comma-joined
+            in metadata.joint_owners — attribution only, never a query predicate.
+          items:
+            type: string
+            format: uuid
+
+    ExpenseCategory:
+      type: string
+      enum:
+        - HOUSEHOLD_CORE
+        - CHILD_RELATED
+        - MAINTENANCE
+        - DISCRETIONARY
+        - UNCATEGORIZED
+      description: Epic 8 Phase 2 hardcoded expense category enum (manual tagging only).
+
+    Transaction:
+      type: object
+      description: A single ledger transaction.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        account_id:
+          type: string
+          format: uuid
+        upload_id:
+          type: string
+          format: uuid
+        txn_date:
+          type: string
+          format: date
+        amount:
+          type: number
+          format: double
+        txn_type:
+          type: string
+          enum: [CREDIT, DEBIT]
+        description:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        metadata:
+          type: object
+          description: Epic 8 Phase 2 classification metadata (category).
+          additionalProperties:
+            type: string
+          readOnly: true
+
+    ListTransactionsResponse:
+      type: object
+      properties:
+        transactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Transaction'
+
+    UpdateTransactionCategoryRequest:
+      type: object
+      required:
+        - category
+      properties:
+        category:
+          $ref: '#/components/schemas/ExpenseCategory'
+
+    BulkUpdateTransactionCategoryRequest:
+      type: object
+      required:
+        - transaction_ids
+        - category
+      properties:
+        transaction_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        category:
+          $ref: '#/components/schemas/ExpenseCategory'
 
     ListAccountsResponse:
       type: object

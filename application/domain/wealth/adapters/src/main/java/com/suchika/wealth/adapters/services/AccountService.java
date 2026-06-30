@@ -130,7 +130,8 @@ public class AccountService implements AccountUseCase {
 
     @Override
     @Transactional
-    public Account updateAccountClassification(UUID id, String category, String liquidityTier, String purposeTag) {
+    public Account updateAccountClassification(UUID id, String category, String liquidityTier, String purposeTag,
+                                                 List<String> jointOwners) {
         Account account = repository.findById(id)
                 .orElseThrow(() -> new NotFoundException(ACCOUNT_NOT_FOUND + id));
 
@@ -138,6 +139,7 @@ public class AccountService implements AccountUseCase {
         if (category != null) metadata.put("category", category);
         if (liquidityTier != null) metadata.put("liquidity_tier", liquidityTier);
         if (purposeTag != null) metadata.put("purpose_tag", purposeTag);
+        if (jointOwners != null) metadata.put("joint_owners", String.join(",", jointOwners));
         account.setMetadata(metadata);
 
         Account saved = repository.save(account);

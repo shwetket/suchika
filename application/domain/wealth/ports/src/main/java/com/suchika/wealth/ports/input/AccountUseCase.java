@@ -28,14 +28,19 @@ public interface AccountUseCase {
     AccountBalance getAccountBalance(UUID accountId, UUID profileId);
 
     /**
-     * Sets Epic 8 classification metadata (category, liquidity_tier, purpose_tag) on an
-     * account. Thin wrapper that merges the given keys into the existing metadata map —
-     * mirrors the transaction.metadata write pattern; does not replace the whole map.
-     * Only the three reserved keys this phase cares about are accepted here; joint_owners
-     * is out of Phase 1 scope (ADR-016, Phase 2).
+     * Sets Epic 8 classification metadata (category, liquidity_tier, purpose_tag,
+     * joint_owners) on an account. Thin wrapper that merges the given keys into the
+     * existing metadata map — mirrors the transaction.metadata write pattern; does not
+     * replace the whole map.
      *
      * <p>category is reserved but NOT consumed by any computation until Phase 2 — storing
      * it now is intentional so no second migration/contract change is needed later.
+     *
+     * <p>jointOwners (ADR-016 Decision 2, Phase 2) is a list of co-owner profile_id
+     * strings, stored comma-joined under metadata.joint_owners — attribution/display
+     * only, never a query predicate. profile_id remains the single column every query
+     * filters on (ADR-006 unchanged).
      */
-    Account updateAccountClassification(UUID id, String category, String liquidityTier, String purposeTag);
+    Account updateAccountClassification(UUID id, String category, String liquidityTier, String purposeTag,
+                                         List<String> jointOwners);
 }

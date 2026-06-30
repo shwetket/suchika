@@ -41,6 +41,10 @@ public interface WealthServiceClient {
     @Path("/accounts/{accountId}")
     JsonNode updateAccount(@PathParam("accountId") UUID accountId, JsonNode body);
 
+    @PATCH
+    @Path("/accounts/{accountId}/classification")
+    JsonNode updateAccountClassification(@PathParam("accountId") UUID accountId, JsonNode body);
+
     @DELETE
     @Path("/accounts/{accountId}")
     void deactivateAccount(@PathParam("accountId") UUID accountId);
@@ -59,6 +63,17 @@ public interface WealthServiceClient {
             @PathParam("accountId") UUID accountId,
             @PathParam("txnId") UUID txnId);
 
+    @PATCH
+    @Path("/accounts/{accountId}/transactions/{txnId}/category")
+    JsonNode updateTransactionCategory(
+            @PathParam("accountId") UUID accountId,
+            @PathParam("txnId") UUID txnId,
+            JsonNode body);
+
+    @PATCH
+    @Path("/accounts/{accountId}/transactions/category")
+    JsonNode bulkUpdateTransactionCategory(@PathParam("accountId") UUID accountId, JsonNode body);
+
     @POST
     @Path("/accounts/{accountId}/uploads")
     Response uploadStatement(@PathParam("accountId") UUID accountId, JsonNode body);
@@ -70,6 +85,12 @@ public interface WealthServiceClient {
     @DELETE
     @Path("/accounts/{accountId}/uploads/{uploadId}")
     void rollbackUpload(
+            @PathParam("accountId") UUID accountId,
+            @PathParam("uploadId") UUID uploadId);
+
+    @GET
+    @Path("/accounts/{accountId}/uploads/{uploadId}/errors")
+    JsonNode getUploadErrors(
             @PathParam("accountId") UUID accountId,
             @PathParam("uploadId") UUID uploadId);
 }

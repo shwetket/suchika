@@ -57,6 +57,20 @@ public class WealthGatewayResource {
         return wealthServiceClient.updateAccount(accountId, body);
     }
 
+    @GET
+    @Path("/accounts/{accountId}/balance")
+    public JsonNode getAccountBalance(
+            @PathParam("accountId") UUID accountId,
+            @QueryParam("profile_id") String profileId) {
+        return wealthServiceClient.getAccountBalance(accountId, profileId);
+    }
+
+    @PATCH
+    @Path("/accounts/{accountId}/classification")
+    public JsonNode updateAccountClassification(@PathParam("accountId") UUID accountId, JsonNode body) {
+        return wealthServiceClient.updateAccountClassification(accountId, body);
+    }
+
     @DELETE
     @Path("/accounts/{accountId}")
     public Response deactivateAccount(@PathParam("accountId") UUID accountId) {
@@ -80,6 +94,21 @@ public class WealthGatewayResource {
             @PathParam("accountId") UUID accountId,
             @PathParam("txnId") UUID txnId) {
         return wealthServiceClient.getTransaction(accountId, txnId);
+    }
+
+    @PATCH
+    @Path("/accounts/{accountId}/transactions/{txnId}/category")
+    public JsonNode updateTransactionCategory(
+            @PathParam("accountId") UUID accountId,
+            @PathParam("txnId") UUID txnId,
+            JsonNode body) {
+        return wealthServiceClient.updateTransactionCategory(accountId, txnId, body);
+    }
+
+    @PATCH
+    @Path("/accounts/{accountId}/transactions/category")
+    public JsonNode bulkUpdateTransactionCategory(@PathParam("accountId") UUID accountId, JsonNode body) {
+        return wealthServiceClient.bulkUpdateTransactionCategory(accountId, body);
     }
 
     @POST
@@ -107,5 +136,13 @@ public class WealthGatewayResource {
             @PathParam("uploadId") UUID uploadId) {
         wealthServiceClient.rollbackUpload(accountId, uploadId);
         return Response.noContent().build();
+    }
+
+    @GET
+    @Path("/accounts/{accountId}/uploads/{uploadId}/errors")
+    public JsonNode getUploadErrors(
+            @PathParam("accountId") UUID accountId,
+            @PathParam("uploadId") UUID uploadId) {
+        return wealthServiceClient.getUploadErrors(accountId, uploadId);
     }
 }

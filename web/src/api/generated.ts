@@ -34,6 +34,20 @@ export interface paths {
      */
     patch: operations["updateAccount"];
   };
+  "/v1/accounts/{accountId}/balance": {
+    /**
+     * Get the computed current balance for an account
+     * @description opening_balance + SUM(CREDIT) - SUM(DEBIT) over the account's full transaction ledger (Epic 8 Phase 1, Bug 2 fix).
+     */
+    get: operations["getAccountBalance"];
+  };
+  "/v1/accounts/{accountId}/classification": {
+    /**
+     * Set Epic 8 classification metadata on an account
+     * @description Merges category, liquidity_tier, purpose_tag, and joint_owners (ADR-016 Decision 2) into the account's existing metadata map. All fields optional.
+     */
+    patch: operations["updateAccountClassification"];
+  };
   "/v1/accounts/{accountId}/transactions": {
     /**
      * List transactions for an account
@@ -47,6 +61,20 @@ export interface paths {
      * @description Follows AIP-131.
      */
     get: operations["getTransaction"];
+  };
+  "/v1/accounts/{accountId}/transactions/{txnId}/category": {
+    /**
+     * Set the expense category on a single transaction
+     * @description Epic 8 Phase 2 manual categorization (Use Case 8.3, Q24).
+     */
+    patch: operations["updateTransactionCategory"];
+  };
+  "/v1/accounts/{accountId}/transactions/category": {
+    /**
+     * Set the expense category on a caller-selected list of transactions
+     * @description Epic 8 Phase 2 bulk-tag-by-selection (Use Case 8.3, Q24 resolution — not a rules engine). Tags every transaction_id in the request with the same category.
+     */
+    patch: operations["bulkUpdateTransactionCategory"];
   };
   "/v1/accounts/{accountId}/uploads": {
     /**
@@ -167,6 +195,30 @@ export interface components {
       is_active?: boolean;
       /** Format: date-time */
       created_at?: string;
+      /** @description Epic 8 classification metadata (category, liquidity_tier, purpose_tag, joint_owners). joint_owners is a comma-joined list of co-owner profile_id strings (ADR-016 Decision 2) — attribution/display only. */
+      metadata?: {
+        [key: string]: string;
+      };
+    };
+    AccountBalanceResponse: {
+      /** Format: uuid */
+      account_id?: string;
+      /** Format: double */
+      opening_balance?: number;
+      /** Format: double */
+      total_credits?: number;
+      /** Format: double */
+      total_debits?: number;
+      /** Format: double */
+      current_balance?: number;
+    };
+    /** @description All fields optional. Only provided keys are merged into metadata. */
+    UpdateAccountClassificationRequest: {
+      category?: string;
+      liquidity_tier?: string;
+      purpose_tag?: string;
+      /** @description Co-owner profile_id strings (ADR-016 Decision 2). */
+      joint_owners?: string[] | null;
     };
     CreateAccountRequest: {
       account_name: string;
@@ -217,9 +269,25 @@ export interface components {
       description?: string | null;
       /** Format: date-time */
       created_at?: string;
+      /** @description Epic 8 Phase 2 classification metadata (category). */
+      metadata?: {
+        [key: string]: string;
+      };
     };
     ListTransactionsResponse: {
       transactions?: components["schemas"]["TransactionResponse"][];
+    };
+    /**
+     * @description Epic 8 Phase 2 hardcoded expense category enum (manual tagging only).
+     * @enum {string}
+     */
+    ExpenseCategory: "HOUSEHOLD_CORE" | "CHILD_RELATED" | "MAINTENANCE" | "DISCRETIONARY" | "UNCATEGORIZED";
+    UpdateTransactionCategoryRequest: {
+      category: components["schemas"]["ExpenseCategory"];
+    };
+    BulkUpdateTransactionCategoryRequest: {
+      transaction_ids: string[];
+      category: components["schemas"]["ExpenseCategory"];
     };
     UploadStatementRequest: {
       file_name: string;
@@ -430,6 +498,57 @@ export interface operations {
     };
   };
   /**
+   * Get the computed current balance for an account
+   * @description opening_balance + SUM(CREDIT) - SUM(DEBIT) over the account's full transaction ledger (Epic 8 Phase 1, Bug 2 fix).
+   */
+  getAccountBalance: {
+    parameters: {
+      query?: {
+        profile_id?: string;
+      };
+      path: {
+        accountId: components["parameters"]["AccountId"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["AccountBalanceResponse"];
+        };
+      };
+      404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  /**
+   * Set Epic 8 classification metadata on an account
+   * @description Merges category, liquidity_tier, purpose_tag, and joint_owners (ADR-016 Decision 2) into the account's existing metadata map. All fields optional.
+   */
+  updateAccountClassification: {
+    parameters: {
+      path: {
+        accountId: components["parameters"]["AccountId"];
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateAccountClassificationRequest"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["AccountResponse"];
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  /**
    * List transactions for an account
    * @description Returns transactions for the given account, optionally filtered by date range and transaction type. Follows AIP-132.
    */
@@ -475,6 +594,61 @@ export interface operations {
           "application/json": components["schemas"]["TransactionResponse"];
         };
       };
+      404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  /**
+   * Set the expense category on a single transaction
+   * @description Epic 8 Phase 2 manual categorization (Use Case 8.3, Q24).
+   */
+  updateTransactionCategory: {
+    parameters: {
+      path: {
+        accountId: components["parameters"]["AccountId"];
+        txnId: components["parameters"]["TxnId"];
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateTransactionCategoryRequest"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TransactionResponse"];
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  /**
+   * Set the expense category on a caller-selected list of transactions
+   * @description Epic 8 Phase 2 bulk-tag-by-selection (Use Case 8.3, Q24 resolution — not a rules engine). Tags every transaction_id in the request with the same category.
+   */
+  bulkUpdateTransactionCategory: {
+    parameters: {
+      path: {
+        accountId: components["parameters"]["AccountId"];
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["BulkUpdateTransactionCategoryRequest"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ListTransactionsResponse"];
+        };
+      };
+      400: components["responses"]["BadRequest"];
       404: components["responses"]["NotFound"];
       500: components["responses"]["InternalError"];
     };

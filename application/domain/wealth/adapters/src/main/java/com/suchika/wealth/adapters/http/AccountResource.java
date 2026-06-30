@@ -89,7 +89,7 @@ public class AccountResource {
             UpdateAccountClassificationRequest request) {
         if (request == null) throw new BadRequestException("Request body is required");
         return AccountResponse.from(useCase.updateAccountClassification(
-                accountId, request.category, request.liquidityTier, request.purposeTag));
+                accountId, request.category, request.liquidityTier, request.purposeTag, request.jointOwners));
     }
 
     private AccountType parseAccountType(String value) {

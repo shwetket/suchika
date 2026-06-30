@@ -209,7 +209,7 @@ class AccountServiceTest {
                 cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
 
         Account updated = service.updateAccountClassification(
-                account.getId(), "EMERGENCY_FUND", "LIQUID", "SAFETY_NET");
+                account.getId(), "EMERGENCY_FUND", "LIQUID", "SAFETY_NET", null);
 
         assertEquals("EMERGENCY_FUND", updated.getMetadata().get("category"));
         assertEquals("LIQUID", updated.getMetadata().get("liquidity_tier"));
@@ -221,7 +221,7 @@ class AccountServiceTest {
         Account account = service.createAccount(null,
                 cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
 
-        Account updated = service.updateAccountClassification(account.getId(), "INVESTMENT", null, null);
+        Account updated = service.updateAccountClassification(account.getId(), "INVESTMENT", null, null, null);
 
         assertEquals("INVESTMENT", updated.getMetadata().get("category"));
         assertNull(updated.getMetadata().get("liquidity_tier"));
@@ -233,8 +233,8 @@ class AccountServiceTest {
         Account account = service.createAccount(null,
                 cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
 
-        service.updateAccountClassification(account.getId(), "INVESTMENT", null, null);
-        Account updated = service.updateAccountClassification(account.getId(), null, "LIQUID", null);
+        service.updateAccountClassification(account.getId(), "INVESTMENT", null, null, null);
+        Account updated = service.updateAccountClassification(account.getId(), null, "LIQUID", null, null);
 
         assertEquals("INVESTMENT", updated.getMetadata().get("category"));
         assertEquals("LIQUID", updated.getMetadata().get("liquidity_tier"));
@@ -243,7 +243,20 @@ class AccountServiceTest {
     @Test
     void updateAccountClassification_notFound_throwsNotFoundException() {
         assertThrows(NotFoundException.class,
-                () -> service.updateAccountClassification(UUID.randomUUID(), "INVESTMENT", null, null));
+                () -> service.updateAccountClassification(UUID.randomUUID(), "INVESTMENT", null, null, null));
+    }
+
+    @Test
+    void updateAccountClassification_jointOwners_storedCommaJoined() {
+        Account account = service.createAccount(null,
+                cmd("Kotak Joint", AccountType.SAVINGS, "Kotak Bank", null, null, null, null));
+        String ownerA = UUID.randomUUID().toString();
+        String ownerB = UUID.randomUUID().toString();
+
+        Account updated = service.updateAccountClassification(
+                account.getId(), null, null, null, java.util.List.of(ownerA, ownerB));
+
+        assertEquals(ownerA + "," + ownerB, updated.getMetadata().get("joint_owners"));
     }
 
     // ---- Fake repository ----
