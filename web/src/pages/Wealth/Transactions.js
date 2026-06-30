@@ -50,7 +50,7 @@ function SkippedDuplicatesPanel({ skippedDuplicates }) {
   return (
     <div className="bg-yellow-50 border border-yellow-300 text-yellow-800 rounded-lg p-4">
       <p className="font-semibold mb-2">
-        {skippedDuplicates.length} row{skippedDuplicates.length !== 1 ? 's' : ''} skipped
+        {skippedDuplicates.length} row{skippedDuplicates.length === 1 ? '' : 's'} skipped
         (cross-file duplicates)
       </p>
       <div className="overflow-x-auto">
@@ -63,8 +63,8 @@ function SkippedDuplicatesPanel({ skippedDuplicates }) {
             </tr>
           </thead>
           <tbody>
-            {skippedDuplicates.map((row, idx) => (
-              <tr key={idx} className="border-b border-yellow-200 last:border-0">
+            {skippedDuplicates.map((row) => (
+              <tr key={`${row.txnDate}-${row.amount}-${row.description}`} className="border-b border-yellow-200 last:border-0">
                 <td className="py-1 pr-4">{row.txnDate}</td>
                 <td className="py-1 pr-4">
                   {'₹'}
@@ -319,7 +319,7 @@ function UploadTab({ accountId }) {
         const result = await uploadStatement(accountId, fileName.trim(), csvContent.trim());
         setFileName('');
         setCsvContent('');
-        if (result && result.status === 'FAILED') {
+        if (result?.status === 'FAILED') {
           setUploadError('Upload failed');
           try {
             const errors = await getUploadErrors(accountId, result.upload_id);
@@ -329,7 +329,7 @@ function UploadTab({ accountId }) {
           }
         } else {
           setUploadSuccess(true);
-          if (result && result.skippedDuplicates) {
+          if (result?.skippedDuplicates) {
             setSkippedDuplicates(result.skippedDuplicates);
           }
         }
