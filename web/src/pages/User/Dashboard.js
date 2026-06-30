@@ -29,6 +29,7 @@ const DOMAIN_CARDS = [
 
 const SNAPSHOT_KEYS = {
   NET_WORTH: 'WEALTH_NET_WORTH',
+  NET_WORTH_FAMILY: 'WEALTH_NET_WORTH_FAMILY',
   EVENT_SUMMARY: 'HOUSEHOLD_EVENT_SUMMARY',
   GOAL_PROGRESS: 'WEALTH_GOAL_PROGRESS',
 };
@@ -76,6 +77,38 @@ function Spinner() {
   );
 }
 
+function MemberBreakdown({ members }) {
+  if (!members || members.length === 0) return null;
+  return (
+    <div className="mt-3 border border-indigo-100 rounded-lg divide-y divide-indigo-50">
+      {members.map((m) => (
+        <div key={m.profile_id} className="flex items-center justify-between px-4 py-2">
+          <div>
+            <p className="text-sm font-medium text-gray-800">{m.full_name}</p>
+            {m.relation_to_admin && (
+              <p className="text-xs text-gray-400">{m.relation_to_admin}</p>
+            )}
+          </div>
+          <p className="text-sm font-semibold text-gray-700">{formatCurrency(m.net_worth)}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+MemberBreakdown.propTypes = {
+  members: PropTypes.arrayOf(
+    PropTypes.shape({
+      profile_id: PropTypes.string,
+      full_name: PropTypes.string,
+      relation_to_admin: PropTypes.string,
+      net_worth: PropTypes.number,
+    })
+  ),
+};
+
+MemberBreakdown.defaultProps = { members: [] };
+
 function SnapshotSummary({ snapshots }) {
   if (!snapshots || snapshots.length === 0) {
     return (
@@ -89,17 +122,30 @@ function SnapshotSummary({ snapshots }) {
   });
 
   const netWorthSnap = byKey[SNAPSHOT_KEYS.NET_WORTH];
+  const familyNetWorthSnap = byKey[SNAPSHOT_KEYS.NET_WORTH_FAMILY];
   const eventSnap = byKey[SNAPSHOT_KEYS.EVENT_SUMMARY];
   const goalSnap = byKey[SNAPSHOT_KEYS.GOAL_PROGRESS];
 
   const netWorthPayload = netWorthSnap ? safeParseJson(netWorthSnap.payload) : null;
+  const familyNetWorthPayload = familyNetWorthSnap
+    ? safeParseJson(familyNetWorthSnap.payload)
+    : null;
   const eventPayload = eventSnap ? safeParseJson(eventSnap.payload) : null;
   const goalPayload = goalSnap ? safeParseJson(goalSnap.payload) : null;
 
   const lastRefreshed =
-    netWorthSnap?.calculated_at || eventSnap?.calculated_at || goalSnap?.calculated_at;
+    familyNetWorthSnap?.calculated_at ||
+    netWorthSnap?.calculated_at ||
+    eventSnap?.calculated_at ||
+    goalSnap?.calculated_at;
 
-  const netWorth = netWorthPayload?.net_worth ?? netWorthPayload?.value ?? null;
+  // Family rollup (ADR-017) is the dashboard's primary net worth figure; fall back
+  // to the per-profile snapshot only if the family snapshot hasn't been computed yet.
+  const isFamilyView = familyNetWorthPayload !== null;
+  const netWorth = isFamilyView
+    ? familyNetWorthPayload?.family_net_worth ?? null
+    : netWorthPayload?.net_worth ?? netWorthPayload?.value ?? null;
+  const members = familyNetWorthPayload?.members ?? [];
   const upcomingEvents = eventPayload?.upcoming_count ?? eventPayload?.count ?? null;
   const activeGoals = goalPayload?.active_count ?? goalPayload?.count ?? null;
 
@@ -108,7 +154,9 @@ function SnapshotSummary({ snapshots }) {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {netWorth !== null && (
           <div className="bg-indigo-50 rounded-lg p-4">
-            <p className="text-xs text-indigo-500 font-medium uppercase tracking-wide">Net Worth</p>
+            <p className="text-xs text-indigo-500 font-medium uppercase tracking-wide">
+              {isFamilyView ? 'Family Net Worth' : 'Net Worth'}
+            </p>
             <p className="text-xl font-bold text-indigo-900 mt-1">{formatCurrency(netWorth)}</p>
           </div>
         )}
@@ -129,6 +177,7 @@ function SnapshotSummary({ snapshots }) {
           </div>
         )}
       </div>
+      {isFamilyView && <MemberBreakdown members={members} />}
       {lastRefreshed && (
         <p className="text-xs text-gray-400 mt-3">
           Last refreshed: {formatTimestamp(lastRefreshed)}
