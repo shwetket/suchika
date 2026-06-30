@@ -85,9 +85,7 @@ function MemberBreakdown({ members }) {
         <div key={m.profile_id} className="flex items-center justify-between px-4 py-2">
           <div>
             <p className="text-sm font-medium text-gray-800">{m.full_name}</p>
-            {m.relation_to_admin && (
-              <p className="text-xs text-gray-400">{m.relation_to_admin}</p>
-            )}
+            {m.relation_to_admin && <p className="text-xs text-gray-400">{m.relation_to_admin}</p>}
           </div>
           <p className="text-sm font-semibold text-gray-700">{formatCurrency(m.net_worth)}</p>
         </div>
@@ -143,8 +141,8 @@ function SnapshotSummary({ snapshots }) {
   // to the per-profile snapshot only if the family snapshot hasn't been computed yet.
   const isFamilyView = familyNetWorthPayload !== null;
   const netWorth = isFamilyView
-    ? familyNetWorthPayload?.family_net_worth ?? null
-    : netWorthPayload?.net_worth ?? netWorthPayload?.value ?? null;
+    ? (familyNetWorthPayload?.family_net_worth ?? null)
+    : (netWorthPayload?.net_worth ?? netWorthPayload?.value ?? null);
   const members = familyNetWorthPayload?.members ?? [];
   const upcomingEvents = eventPayload?.upcoming_count ?? eventPayload?.count ?? null;
   const activeGoals = goalPayload?.active_count ?? goalPayload?.count ?? null;

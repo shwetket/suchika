@@ -64,7 +64,10 @@ function SkippedDuplicatesPanel({ skippedDuplicates }) {
           </thead>
           <tbody>
             {skippedDuplicates.map((row) => (
-              <tr key={`${row.txnDate}-${row.amount}-${row.description}`} className="border-b border-yellow-200 last:border-0">
+              <tr
+                key={`${row.txnDate}-${row.amount}-${row.description}`}
+                className="border-b border-yellow-200 last:border-0"
+              >
                 <td className="py-1 pr-4">{row.txnDate}</td>
                 <td className="py-1 pr-4">
                   {'₹'}

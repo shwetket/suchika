@@ -1,8 +1,5 @@
 {
-  "extends": [
-    "react-app",
-    "prettier"
-  ],
+  "extends": ["react-app", "prettier"],
   "globals": {
     "globalThis": "readonly"
   },
@@ -11,16 +8,10 @@
     "no-console": [
       "warn",
       {
-        "allow": [
-          "warn",
-          "error"
-        ]
+        "allow": ["warn", "error"]
       }
     ],
-    "eqeqeq": [
-      "warn",
-      "always"
-    ],
+    "eqeqeq": ["warn", "always"],
     "no-var": "error",
     "prefer-const": "warn",
     "react/prop-types": "off",

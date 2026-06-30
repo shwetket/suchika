@@ -1,11 +1,11 @@
-# Open Questions
+                                                                                                                                                                                                                                                                        # Open Questions
 
 | | |
 |---|---|
 | **Type** | Decision Log |
 | **Audience** | Product owner (Ketan) |
 | **Status** | Active |
-| **Last updated** | 2026-06-30 (Q25 resolved) |
+| **Last updated** | 2026-06-30 (Q1-Q13 resolved) |
 
 ## Purpose
 
@@ -17,25 +17,41 @@ Single shared log for all open questions raised during reviews. Answer each ques
 
 ## Architect Review Questions — 2026-06-29
 
-**Q1.** Should `profile_id` be stored inside domain entities (e.g., `CalendarEvent.profileId`) or kept only in the adapter layer?
+**Q1.** ~~Should `profile_id` be stored inside domain entities...~~ **RESOLVED — 2026-06-30 (product owner).**
+*Resolution:* Option A — keep `profileId` as a plain `UUID` field in domain entities. Pragmatic trade-off, document in an ADR; ArchUnit rules stay as-is.
+
+*Original question, preserved for context:*
+Should `profile_id` be stored inside domain entities (e.g., `CalendarEvent.profileId`) or kept only in the adapter layer?
 *Context:* ADR-006 says the `profile_id` filter belongs in the adapter layer only — domain entities must not store or reason about it. But the current `CalendarEvent` domain entity holds a `profileId` field, set in `CalendarEventService.create()` by passing `profileId` into the domain factory method `CalendarEvent.create(profileId, ...)`. This is repeated in household domain entities. The same pattern may apply to other domains. Removing `profileId` from domain entities would require the adapter to re-inject it at every persistence call, which is the architecturally correct form but adds boilerplate. Keeping it in domain entities is pragmatically simpler and is already working.
 *Options:*
 A) Keep `profileId` in domain entities as a plain `UUID` field — accept it as a pragmatic trade-off and document this decision in an ADR. ArchUnit rules stay as-is.
 B) Remove `profileId` from domain entities; pass it as an explicit parameter to every persistence adapter method. Tighten the ADR-006 wording to reflect this. Update ArchUnit to flag UUID fields named `profileId` in domain packages.
 
-**Q2.** Should the net worth calculation use `opening_balance` only, or derive the running balance from transaction history?
+**Q2.** ~~Should the net worth calculation use `opening_balance` only, or derive the running balance...~~ **RESOLVED — already implemented (Epic 8 Phase 1, Bug 2 fix).**
+*Resolution:* Option A — `ProjectionCalculationEngine.computeNetWorth()` now calls `WealthServiceClient.getAccountBalance()` (the dedicated `GET /v1/accounts/{accountId}/balance` endpoint) instead of reading `opening_balance` directly off the account payload.
+
+*Original question, preserved for context:*
+Should the net worth calculation use `opening_balance` only, or derive the running balance from transaction history?
 *Context:* `ProjectionCalculationEngine.computeNetWorth()` currently sums the `opening_balance` column from the `wealth.account` record. This is the static balance at account creation time. Credit and debit transactions after account creation are not reflected. This means the dashboard net worth figure drifts further from reality as transaction history grows. The correct formula is `opening_balance + sum(CREDIT transactions) - sum(DEBIT transactions)` per account. However, calling this adds a second REST call per account (or a dedicated endpoint), increasing gateway projection latency. The vacation planner in v0.5 will use the net worth figure for budget validation, so accuracy matters.
 *Options:*
 A) Fix now (v0.5 backlog): add `GET /v1/accounts/{accountId}/balance` endpoint on wealth service returning the computed running balance; call it from the engine during net worth computation.
 B) Accept the current `opening_balance` approximation for now; add a note in the dashboard UI that the figure is "as of account setup date." Revisit before v1.0 with a dedicated balance ledger view.
 
-**Q3.** Should the `/errors` endpoint on the wealth service be proxied through the web gateway, or is direct domain service access acceptable for this specific endpoint?
+**Q3.** ~~Should the `/errors` endpoint on the wealth service be proxied through the web gateway...~~ **RESOLVED — already implemented (Epic 8 Phase 2).**
+*Resolution:* Option A — `getUploadErrors` is now proxied via `WealthServiceClient`/`WealthGatewayResource` and documented in `application/contract/gateway.yaml`. The gateway-bypass invariant is restored; no policy exception needed.
+
+*Original question, preserved for context:*
+Should the `/errors` endpoint on the wealth service be proxied through the web gateway, or is direct domain service access acceptable for this specific endpoint?
 *Context:* ADR-002 and the CONTEXT_PRIMER both state "frontend talks only to gateway (8080)" — domain services (8081–8084) are internal. The `GET /accounts/{accountId}/uploads/{uploadId}/errors` endpoint was added to the wealth service in v0.4 but was not added to `WealthServiceClient` or `WealthGatewayResource`. The frontend currently calls the wealth service directly at port 8082 to retrieve error logs. This is the only known gateway bypass in the codebase.
 *Options:*
 A) Add the `/errors` proxy to `WealthServiceClient`, `WealthGatewayResource`, and `application/contract/gateway.yaml`. Regenerate the API client. This is the correct fix and restores the invariant.
 B) Designate certain diagnostic/admin endpoints as "internal direct access permitted" — formalize this as a policy exception in the architecture docs. Risk: opens a precedent for bypassing the gateway.
 
-**Q4.** Is the synchronous `ProjectionCalculationEngine.refreshAll()` acceptable for v1.0, or does it need async isolation before auth is added?
+**Q4.** ~~Is the synchronous `ProjectionCalculationEngine.refreshAll()` acceptable...~~ **RESOLVED — 2026-06-30 (product owner).**
+*Resolution:* Option A — add per-step try-catch isolation in `refreshAll()` so a failure in one compute step does not block the others. Stay synchronous overall. v0.5 target. Implement alongside the same per-step isolation principle already agreed for Q16 (Bug 3, Phase 4).
+
+*Original question, preserved for context:*
+Is the synchronous `ProjectionCalculationEngine.refreshAll()` acceptable for v1.0, or does it need async isolation before auth is added?
 *Context:* `refreshAll()` runs all four compute steps synchronously in sequence. If the household service call times out (e.g., the service is stopped), the entire dashboard refresh fails with an unhandled exception — no partial snapshot is written. The method is also currently called from `ProjectionResource` as a synchronous HTTP request-response, meaning the frontend blocks until all four steps complete. For v0.5 (vacation planner) and v1.0 (auth, multiple users), this becomes a reliability concern: a single domain service slowdown blocks every user's dashboard.
 *Options:*
 A) Add per-step try-catch isolation in `refreshAll()` so a failure in one compute step does not block the others. Keep synchronous overall. Simple fix, v0.5 target.
@@ -46,28 +62,43 @@ C) Keep synchronous for now; add a timeout per step and a global refresh timeout
 
 ## Business Analyst Review Questions — 2026-06-29
 
-**Q5.** Should the Physical Assets feature be treated as a v0.5 delivery gap (build the frontend now) or formally deferred to a named milestone?
+**Q5.** ~~Should the Physical Assets feature be treated as a v0.5 delivery gap or deferred...~~ **RESOLVED — 2026-06-30 (product owner).**
+*Resolution:* Option B — scope the Physical Assets frontend as a small v0.4.1 patch release, delivered before v0.5 work begins. The v0.5 Action Center can then rely on it for vehicle compliance deadlines as originally planned.
+
+*Original question, preserved for context:*
+Should the Physical Assets feature be treated as a v0.5 delivery gap (build the frontend now) or formally deferred to a named milestone?
 *Context:* The `wealth.physical_asset` table and the backend API (`POST /physical-assets`, `GET /physical-assets`, etc.) are implemented and in production. No frontend page exists. The user has no way to view or manage physical assets through the UI. The v0.3 requirements (REQUIREMENTS_wealth_domain.md, Epic 7) specify vehicle asset compliance tracking including PUC, insurance, and road tax deadlines. The v0.5 Consolidated Action Center plan explicitly references "vehicle compliance deadlines" as a data source — which means the Action Center cannot be built without physical assets data being accessible in the UI first.
 *Options:*
 A) Treat as a v0.5 delivery gap — build the Physical Assets frontend page in v0.5 before starting the Action Center. Update ROADMAP.md to reflect this explicitly.
 B) Formally scope the Physical Assets frontend as v0.4.1 (a small patch release) and deliver it before v0.5 work begins.
 C) Remove vehicle compliance deadlines from the v0.5 Action Center scope entirely — defer the full Physical Assets lifecycle (including compliance deadlines) to v0.6.
 
-**Q6.** Should the inventory item lifecycle (consumed / in-stock state) be added in v0.5, or is the current append/delete ledger sufficient for the near term?
+**Q6.** ~~Should the inventory item lifecycle (consumed / in-stock state) be added...~~ **RESOLVED — 2026-06-30 (product owner, custom).**
+*Resolution:* Closest to Option A but with different semantics than originally framed. Add an `is_consumed` flag, but it does **not** mean "the grocery item was used up" — it means "this record has been successfully used in a calculation." All inventory data stays permanently available (no deletion, no expiry) so the application can track year-over-year progress from the start of usage. Scope the flag + this semantics in v0.5.
+
+*Original question, preserved for context:*
+Should the inventory item lifecycle (consumed / in-stock state) be added in v0.5, or is the current append/delete ledger sufficient for the near term?
 *Context:* REQUIREMENTS_household_domain.md v0.3 Epic 4 states: "The system must support marking items as consumed or restocking them." The current inventory implementation is a flat ledger — items are created and deleted but have no lifecycle state. A user cannot distinguish between items that are in stock and items that have been used. The requirements were written for v0.3 but were not delivered. The Quarantine Protocol for grocery CSVs (v0.4 requirement, also not delivered) depends on the inventory import flow, which itself has not been built. The lifecycle state question must be answered before the inventory import and quarantine features are scoped.
 *Options:*
 A) Add a minimal `is_consumed BOOLEAN DEFAULT FALSE` column and a toggle button in v0.5. No quarantine protocol needed until CSV import exists.
 B) Skip lifecycle state entirely for now — treat inventory as a reference ledger only (not a live stock tracker). Remove "consumed/restock" from active requirements and move it to v1.3 (Export/Import) when batch management is planned.
 C) Scope the full inventory lifecycle (add, consume, restock, expiry date) as part of the v0.5 Household enhancements alongside the inventory CSV import.
 
-**Q7.** Should manual transaction entry (adding a single transaction without a CSV upload) be added to the Wealth domain, and if so, in which milestone?
+**Q7.** ~~Should manual transaction entry be added to the Wealth domain...~~ **RESOLVED — 2026-06-30 (product owner).**
+*Resolution:* Option C — add `POST /v1/accounts/{accountId}/transactions` + a form in the Transactions page now, tagged with a distinct `source = MANUAL` flag in transaction metadata so manually-entered rows stay distinguishable from CSV-sourced data for future AI analysis.
+
+*Original question, preserved for context:*
+Should manual transaction entry (adding a single transaction without a CSV upload) be added to the Wealth domain, and if so, in which milestone?
 *Context:* The current wealth domain only accepts transactions via CSV upload. There is no UI form or API endpoint for manually entering a single transaction (e.g., a cash purchase, an ATM withdrawal, a peer-to-peer transfer). For a household user who makes frequent cash or informal transactions, the CSV-only path creates a data gap: those transactions are either omitted from the ledger or require constructing a synthetic CSV file. The REQUIREMENTS_wealth_domain.md does not explicitly include or exclude manual transaction entry — it focuses on CSV-based ingestion. Adding a manual entry form would require a new `POST /transactions` endpoint on the wealth service and a form in the Transactions UI.
 *Options:*
 A) Add manual transaction entry as a v0.5 feature — `POST /v1/accounts/{accountId}/transactions` endpoint (single transaction body) plus a form in the Transactions page. No upload required.
 B) Defer to v1.3 (Export/Import) when the full data management framework is planned — keep the wealth ledger as an upload-only source of truth to preserve data traceability.
 C) Allow manual entry but tag it with a distinct `source = MANUAL` flag in the `statement_upload` or transaction metadata, so it remains distinguishable from CSV-sourced data for future AI analysis.
 
-**Q8.** The REQUIREMENTS_wealth_domain.md v0.4 section ("The Mahesh Summation Rule," EMI arbitrage, operating budget cap) was not delivered. Should these advanced financial engine features be rescheduled into a named future milestone, or are they still active requirements for an upcoming release?
+**Q8.** ~~Should the original Epic 8 advanced financial engine features be rescheduled...~~ **SUPERSEDED by Q13** (expanded scope) — see Q13 resolution below; same milestone decision applies to both.
+
+*Original question, preserved for context:*
+The REQUIREMENTS_wealth_domain.md v0.4 section ("The Mahesh Summation Rule," EMI arbitrage, operating budget cap) was not delivered. Should these advanced financial engine features be rescheduled into a named future milestone, or are they still active requirements for an upcoming release?
 *Context:* The wealth domain requirements at v0.4 describe a sophisticated CQRS calculation engine: dynamic header summation, offset account arbitrage tracking, EMI reallocation triggers, and monthly budget cap alerts. None of these were delivered in v0.4 — the version instead focused on error handling (malformed CSV rejection, structured error logging, dedup key fix). The gap exists because the implementation team reframed v0.4 as an error-handling milestone while the requirements document retained the original "Advanced Business Logic" definition. These features require deeper financial modelling and likely depend on the net worth calculation fix (Q2) before they can be meaningfully computed.
 *Options:*
 A) Move the advanced financial engine features (Use Cases 8.1–8.3) into v0.6 as a dedicated "Financial Intelligence" sub-milestone. Update REQUIREMENTS_wealth_domain.md to reflect the corrected milestone.
@@ -78,28 +109,44 @@ C) Treat the original v0.4 requirements as superseded by the implemented error-h
 
 ## QA Review Questions — 2026-06-29
 
-**Q9.** What is the minimum acceptable Java test coverage percentage (line and branch) before coverage enforcement is added to the build gate?
+**Q9.** ~~What is the minimum acceptable Java test coverage percentage...~~ **RESOLVED — 2026-06-30 (product owner).**
+*Resolution:* Option A — a single project-wide line coverage floor of 70%, enforced in CI (not pre-commit). Profile and health domain layers are currently below this; fix them as v0.6 testing work before enabling the gate.
+
+*Original question, preserved for context:*
+What is the minimum acceptable Java test coverage percentage (line and branch) before coverage enforcement is added to the build gate?
 *Context:* Java JaCoCo reports are generated on every `./gradlew test` run but no coverage threshold is configured — a build with 0% coverage passes. The v0.6 milestone includes "Pre-commit test gate via Gradle" but does not specify a numeric floor. Wealth domain adapter tests are the most complete; profile domain has near-zero domain-layer coverage. Setting a single project-wide floor may either be unachievable (profile domain would fail immediately) or too low to be meaningful. A per-module floor is more precise but requires individual configuration in each `build.gradle.kts`.
 *Options:*
 A) Set a project-wide line coverage floor of 70% enforced in CI (not pre-commit). Accept that profile and health domain layers are below threshold and fix them as part of v0.6 testing work before enabling the gate.
 B) Set per-module floors calibrated to current coverage: wealth adapters at 80%, household adapters at 80%, health adapters at 70%, profile adapters at 60%, domain layers at 50%. Raise floors as coverage improves over v0.6 and v1.0.
 C) Defer the coverage gate entirely to v1.0 — focus v0.6 on writing the missing tests first, then set a floor once coverage is measured across all modules.
 
-**Q10.** Should Playwright E2E tests be required to pass before a PR is merged, or should they remain advisory-only (run manually before releases)?
+**Q10.** ~~Should Playwright E2E tests be required to pass before a PR is merged...~~ **RESOLVED — 2026-06-30 (product owner).**
+*Resolution:* Option A — add E2E tests to CI as a required check using a lightweight stub backend (MSW or WireMock). Cover at minimum: upload success, upload error panel display, and dashboard refresh. Keep real domain service startup out of CI.
+
+*Original question, preserved for context:*
+Should Playwright E2E tests be required to pass before a PR is merged, or should they remain advisory-only (run manually before releases)?
 *Context:* 17 Playwright E2E tests exist across 5 spec files but they require a live dev server at `http://localhost:3000` and are not run in any CI step. The E2E suite has no coverage for CSV upload flow, the upload error panel, skipped-duplicates panel, household domain pages, or dashboard refresh — areas that are most likely to break silently when the frontend and backend contracts drift. Running E2E in CI requires either a Docker-compose setup with all four domain services or a stub server. SonarQube is already excluded from Codespaces for resource reasons; adding a full E2E run would further pressure the free-tier environment.
 *Options:*
 A) Add E2E tests to CI as a required check using a lightweight stub backend (MSW or WireMock). Cover at minimum: upload success, upload error panel display, and dashboard refresh. Keep domain service startup out of CI.
 B) Keep E2E as a manual pre-release gate only. Document the required run steps in CICD.md. Accept the risk that contract drift is caught only at release time.
 C) Add E2E to CI using Docker Compose with all services. Exclude from Codespaces, run only on GitHub Actions on PR-to-main. Adds ~5 minutes to CI time.
 
-**Q11.** Should contract tests (OpenAPI schema validation of live service responses) be added as a formal quality gate before v1.0, and which tool/approach is preferred?
+**Q11.** ~~Should contract tests be added as a formal quality gate before v1.0...~~ **RESOLVED — 2026-06-30 (product owner).**
+*Resolution:* Option A — add OpenAPI schema validation using Atlassian Swagger Request Validator in integration tests; each `@QuarkusTest` in the adapter layer validates response bodies against the domain contract YAML. Target the v0.6 testing milestone.
+
+*Original question, preserved for context:*
+Should contract tests (OpenAPI schema validation of live service responses) be added as a formal quality gate before v1.0, and which tool/approach is preferred?
 *Context:* No contract tests exist. The four domain OpenAPI contracts in `application/contract/` and the gateway contract are the source of truth for both the frontend generated client and the `WealthServiceClient`/`HealthServiceClient`/etc. MicroProfile Rest Client interfaces. There is currently no automated check that a live service response matches its OpenAPI schema. The risk: a domain service developer changes a response shape (adds a required field, renames a field), the contract file is not updated, and the gateway silently passes bad data to the frontend. This has already happened informally (the `opening_balance` field name is used directly in `ProjectionCalculationEngine` without any schema validation).
 *Options:*
 A) Add OpenAPI schema validation using Atlassian Swagger Request Validator in integration tests — each `@QuarkusTest` in the adapter layer validates response bodies against the domain contract YAML. Add as part of v0.6 testing milestone.
 B) Use Pact (consumer-driven contract testing): the gateway defines consumer contracts against each domain client, verified when domain tests run. Higher setup cost but provides bidirectional enforcement. Target v1.0.
 C) Treat the generated `web/src/api/generated.ts` as the contract test proxy — if `npm run generate:api` fails or produces type errors, the contract has drifted. This is already partly enforced via the TypeScript compiler. Accept this as sufficient for now.
 
-**Q12.** The `TransactionPanacheRepository` does not filter by `profile_id` directly — it relies on the caller having verified account ownership. Should this implicit chain be documented as a deliberate ADR trade-off, or should an explicit secondary filter be added to the repository queries?
+**Q12.** ~~Should the `TransactionPanacheRepository` implicit ownership chain be documented as a trade-off, or fixed with an explicit filter...~~ **RESOLVED — 2026-06-30 (product owner).**
+*Resolution:* Option A — add `profile_id` as a secondary filter to `findByAccountId()` and `existsByDeduplicationKey()` in `TransactionPanacheRepository`. Update the `TransactionRepository` output port interface to accept `profileId` as a parameter. Document in an ADR-006 addendum.
+
+*Original question, preserved for context:*
+The `TransactionPanacheRepository` does not filter by `profile_id` directly — it relies on the caller having verified account ownership. Should this implicit chain be documented as a deliberate ADR trade-off, or should an explicit secondary filter be added to the repository queries?
 *Context:* `findByAccountId()` and `existsByDeduplicationKey()` query only on `accountId`. The upstream caller (`StatementUploadService`) calls `accountRepo.findById(accountId)` first, which does check the account exists, but does not verify `account.profileId == requestingProfileId` — that check is in `AccountPanacheRepository.findById()` which is scope-neutral. The implied chain is: "if account X belongs to the wrong profile, the account lookup would still succeed because findById does not filter by profile_id either." A direct `profile_id AND accountId` filter in the transaction queries is the safest fix but adds a parameter to the `TransactionRepository` output port interface, which is a domain-layer change.
 *Options:*
 A) Add `profile_id` as a secondary filter to `findByAccountId()` and `existsByDeduplicationKey()` in `TransactionPanacheRepository`. Update the `TransactionRepository` output port interface to accept `profileId` as a parameter. Document in ADR-006-addendum.
@@ -112,7 +159,11 @@ C) Accept the current implicit chain as a pragmatic trade-off for now. Add a com
 
 *Context for all questions below: these arise from expanding `REQUIREMENTS_wealth_domain.md` Epic 8 (the Mathematical Engine & Zero Leakage) into six concrete use cases, scoped from the product owner's existing manual markdown-and-Python financial tracking workflow. They are more specific successors to Q8, which already flagged that Epic 8 was undelivered and needed a milestone decision. Do not start implementation against Epic 8 until these are answered.*
 
-**Q13.** Should the expanded Epic 8 (Use Cases 8.1–8.6) be assigned to v0.6, folded into a new v0.4.2 patch milestone, or kept as unscheduled backlog?
+**Q13.** ~~Should the expanded Epic 8 (Use Cases 8.1–8.6) be assigned to v0.6...~~ **RESOLVED — 2026-06-30 (product owner). Also resolves Q8.**
+*Resolution:* Option A — assign to v0.6, sequenced after the v0.5 net-worth-formula fix (Q2 — already delivered, so the gate condition is met). Extend the v0.6 milestone focus to include "Financial Intelligence Engine" alongside the existing testing-foundation re-scope (Q9, Q10, Q11).
+
+*Original question, preserved for context:*
+Should the expanded Epic 8 (Use Cases 8.1–8.6) be assigned to v0.6, folded into a new v0.4.2 patch milestone, or kept as unscheduled backlog?
 *Context:* Q8 already asked whether the original three-use-case Epic 8 should move to v0.6, be partially scoped into v0.5, or be archived. That question is now superseded by a much larger scope — six use cases instead of three, including a five-type goals engine and an automated validation gate. The BA review appended to `ROADMAP.md` on 2026-06-30 recommends v0.6 (after the v0.5 net-worth-formula fix lands, since the engine's accuracy depends on it) but explicitly defers the final call to the product owner.
 *Options:*
 A) Assign to v0.6, sequenced after the v0.5 net-worth-formula fix (Q2) is delivered. Rename or extend the v0.6 milestone focus to include "Financial Intelligence Engine" alongside the existing testing-foundation re-scope.
