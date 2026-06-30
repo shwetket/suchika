@@ -142,6 +142,7 @@ CI workflow (`.github/workflows/ci.yml`) triggers on `main` branch only — dead
 | Gateway contract | `application/contract/gateway.yaml` |
 | Flyway migrations | `application/flyway/<domain>/` |
 | Canonical code pattern | Copy from profile domain (it was the first) |
+| Epic 8 implementation plan | `documents/EPIC8_IMPLEMENTATION_PLAN.md` |
 
 ## Agent Roster
 

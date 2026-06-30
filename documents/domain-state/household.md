@@ -38,7 +38,7 @@ Document the design and implementation status for the household domain (v0.3).
 | G1: HouseholdServiceClient | ✅ | `com.suchika.gateway.household.HouseholdServiceClient` — all 14 endpoints |
 | G2: HouseholdGatewayResource | ✅ | `com.suchika.gateway.household.HouseholdGatewayResource` — `/v1/household/...` proxy |
 | G2: gateway.yaml updated | ✅ | Household paths + projection endpoints added to `application/contract/gateway.yaml` |
-| G3: ProjectionCalculationEngine | ✅ | `com.suchika.gateway.projection.ProjectionCalculationEngine` — 4 snapshot keys |
+| G3: ProjectionCalculationEngine | ✅ | `com.suchika.gateway.projection.ProjectionCalculationEngine` — 4 snapshot keys (per-profile: `HOUSEHOLD_EVENT_SUMMARY` stays per-profile under ADR-017 — events are per-person, never rolled up) |
 | G3: DashboardSnapshotRepository | ✅ | `com.suchika.gateway.projection.DashboardSnapshotRepository` — UPSERT + read |
 | G3: DashboardSnapshotEntity | ✅ | `com.suchika.gateway.adapters.projection.DashboardSnapshotEntity` — composite PK |
 | G3: ProjectionResource | ✅ | `com.suchika.gateway.projection.ProjectionResource` — POST refresh + GET dashboard |

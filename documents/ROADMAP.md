@@ -5,7 +5,7 @@
 | **Type** | Reference |
 | **Audience** | All developers, product |
 | **Status** | Active |
-| **Last updated** | 2026-06-23 |
+| **Last updated** | 2026-06-30 |
 
 ## Objective
 
@@ -105,22 +105,34 @@ Show what has been shipped and what is planned at each milestone, with the featu
 
 ---
 
-## v0.4 — Error Handling (Unhappy Path)
+## v0.4 — Error Handling (Unhappy Path) [COMPLETE]
 
 **Focus:** System resilience for malformed and edge-case data.
 
-### Features
+### Features Delivered
 
-- [ ] **Malformed CSV Rejection**
+- [x] **Malformed CSV Rejection**
   - Reject entire file if date or amount columns are missing
-  - Log missing fields clearly for user review
+  - `wealth.upload_error_log` table stores structured error records (`error_type`, `missing_columns`, `error_detail`)
+  - `GET /v1/accounts/{accountId}/uploads/{uploadId}/errors` returns the error log
+  - Frontend upload error panel displays parse failure reasons
 
-- [ ] **Quarantine Protocol (Grocery Data)**
+- [x] **Dedup Key Fix (4-field)**
+  - Cross-file dedup key: `(account_id, txn_date, amount, txn_type)` — description excluded
+  - Same-file identical rows receive a sequence suffix so they are stored as distinct events
+  - `UploadResult` return type wraps upload entity with `insertedCount` + `List<SkippedRow>`
+  - Frontend skipped duplicates UI panel shows what was rejected and why
+
+- [x] **Gateway Contract Update**
+  - `application/contract/gateway.yaml` updated for new upload response shape
+  - `web/src/api/generated.ts` regenerated
+
+- [ ] **Quarantine Protocol (Grocery Data)** — deferred to v0.5
   - Quarantine malformed rows instead of rejecting entire file
   - Log quarantined items for manual correction
 
-- [ ] **Duplicate Resolution UI**
-  - View flagged duplicates (`is_duplicate=TRUE`)
+- [ ] **Duplicate Resolution UI** — deferred to v0.5
+  - View flagged duplicates
   - Accept (keep both) or Reject (delete marked copy)
   - Batch accept/reject actions
 
@@ -375,7 +387,7 @@ Each milestone requires the previous to be stable before starting.
 | v0.1 | Upload 100+ transactions from 3+ CSVs without data loss | DONE |
 | v0.2 | Profile + Wealth + Health UAT-ready; statement upload lifecycle (PENDING/SUCCESS/FAILED) verified; all data member-scoped | DONE |
 | v0.3 | Household domain live; SonarQube zero blockers; dashboard shows live data | DONE |
-| v0.4 | Zero silent data drops on malformed input | PLANNED |
+| v0.4 | Zero silent data drops on malformed input | DONE |
 | v0.5 | Cross-domain vacation planner works end-to-end | PLANNED |
 | v1.0 | Auth + encryption pass local security review | PLANNED |
 | v1.3 | Full data export/import round-trip verified | PLANNED |
@@ -390,3 +402,440 @@ Each milestone requires the previous to be stable before starting.
 - **Roadmap updates:** This file + project announcements
 - **Breaking changes:** Changelog + notification to active users
 - **Security issues:** GitHub Issues with `security` label
+
+---
+
+## Architect Review — 2026-06-29
+
+### Best Practices Applied
+
+- Hexagonal Architecture strictly followed across all four domains — domain layer has zero framework dependencies in every service; ArchUnit proves this at build time
+- ArchUnit rules are comprehensive: 8 rule groups covering domain purity, layer isolation, cross-domain isolation, JPA placement, shared module isolation, logging, and gateway test coverage
+- `shared/` is a true leaf module — no domain imports, provides AppLogger and the typed exception hierarchy to all layers
+- All exception handling is typed: `CsvParseException`, `NotFoundException`, `ConflictException` etc. — no bare `throws Exception` in public interfaces
+- No SQL ENUMs anywhere in the codebase — VARCHAR + OpenAPI validation throughout (ADR-010 consistently followed, with V5 migration cleaning up any early-version CHECK constraints)
+- Flyway migration discipline maintained — no committed migrations edited; every schema change is a new versioned file
+- IST timezone enforced at two levels (DB `ALTER DATABASE` + Hibernate property) in every service
+- Gateway test isolation via `@InjectMock @RestClient` (ADR-011) — gateway tests do not require live domain services
+- `StatementCsvParser.parseCsvLine()` uses a while-loop to avoid Sonar S127 (for-loop counter mutation) — SonarQube compliance considered at implementation time
+- Repeatable seed migrations (`R__seed_*_test_data.sql`) provide deterministic test data for adapter integration tests without polluting production migrations
+- `UploadResult` record type correctly placed in `ports/input/` — it is a ports-layer contract object, not a domain entity, not an adapter DTO
+- `CsvParseException` extends `ApplicationException` — parse errors are surfaced as typed, HTTP-mappable exceptions without leaking stack traces
+
+### Architectural Debt / Improvement Recommendations
+
+1. **[HIGH — v0.5]** Gateway `/errors` endpoint gap: `WealthServiceClient` and `WealthGatewayResource` do not expose `GET /accounts/{accountId}/uploads/{uploadId}/errors`. The frontend currently bypasses the gateway to reach the wealth service directly — a violation of the "frontend talks only to gateway" invariant (ADR-002 / ADR-009). Add the proxy endpoint to the gateway client and resource, update `gateway.yaml`, and regenerate the API client.
+
+2. **[HIGH — v0.5]** Net worth calculation uses `opening_balance` field, not running balance from transactions. `ProjectionCalculationEngine.computeNetWorth()` and `computeTotalBalance()` sum the static `opening_balance` column from the account record. This does not reflect credit/debit activity after account creation. The correct calculation is `opening_balance + sum(CREDIT transactions) - sum(DEBIT transactions)` per account. Fix before v0.5 cross-domain vacation planner uses the net worth figure for budget validation.
+
+3. **[HIGH — v0.5]** `TransactionPanacheRepository` does not directly filter by `profile_id` in `findByAccountId()` or `existsByDeduplicationKey()`. This relies on the caller having verified account ownership (account belongs to the right profile). The implied chain is correct in current code, but it is not enforced by ArchUnit and is invisible to future developers. Add an explicit `profile_id` join or secondary filter, or document this as a deliberate performance trade-off in an ADR.
+
+4. **[MEDIUM — v0.5]** `ARCHITECTURE.md` was used as an agent definition + skill definition dump rather than a real architecture document. This has been corrected in this review (v0.4 architecture now written there), but the `.claude/` or `.github/` directory should be the canonical home for agent definitions going forward. Agent YAML front-matter should not live in the root documents/ folder.
+
+5. **[MEDIUM — v0.5]** V3 migration created `chk_error_type` CHECK constraint on `upload_error_log.error_type`, then V5 dropped it. The corrective migration is fine per the "add a new file" rule, but the root cause is that the initial V3 author added a CHECK constraint to an enum discriminator column — violating ADR-010. Agent prompts should explicitly call out the `upload_error_log.error_type` column as an example of a discriminator to reinforce the rule.
+
+6. **[MEDIUM — v0.5]** `CalendarEvent` domain entity holds `profileId` as a field (passed into `CalendarEvent.create(profileId, ...)`). This means the domain layer is aware of the tenant isolation key, which ADR-006 says belongs only in the adapter layer. The current ArchUnit rules do not catch this because `profileId` is a plain `UUID` — it looks like a business field. Audit all four domain entities for `profileId` field storage. If it must stay for convenience, document the deliberate trade-off.
+
+7. **[MEDIUM — v0.6]** No ArchUnit rule verifies that `profile_id` filtering exists in adapter persistence queries. This is convention-enforced only. A future developer could add a query without the filter and no build gate would catch it. Consider adding a ArchUnit custom rule that flags `PanacheRepositoryBase` subclasses that have `find()` calls without `profile_id` in the predicate string. Low urgency — current code is clean — but worth investing before v1.0 auth is added.
+
+8. **[MEDIUM — v0.6]** API versioning strategy is unresolved (PROP-004). All endpoints are under `/v1/`. Before v1.0 launch, the team must decide on URL versioning vs. deprecation-first. This becomes critical when auth is added in v1.0 (token format changes are breaking changes). Resolve PROP-004 as part of v0.6 or early v1.0 planning.
+
+9. **[LOW — v0.6]** `v0.6 — Testing Foundation` milestone items (unit tests, integration tests, contract tests) are already substantially done in v0.2–v0.4 for the implemented domains. The milestone as written reads as if this is all future work. The actual gap is: contract tests (OpenAPI schema validation against running service) and full branch coverage on wealth domain use case services. Re-scope v0.6 accordingly.
+
+10. **[LOW — v1.0]** `ProjectionCalculationEngine.refreshAll()` is synchronous — all four compute steps run in a single transaction. If one step's REST call to a domain service is slow or times out, the entire refresh fails. Before v1.0, add per-step error isolation (each compute step in try-catch; partial refresh is acceptable) and consider async refresh via a background job or reactive pipeline.
+
+### Recommended Additions to Upcoming Milestones
+
+- **Add to v0.5:** Fix gateway `/errors` endpoint proxy (gap #1 above) — required for gateway invariant compliance
+- **Add to v0.5:** Fix net worth calculation to use transaction history, not opening_balance (gap #2 above) — the vacation planner budget check will use this figure
+- **Add to v0.5:** Resolve PROP-005 (frontend state management) before building the Unified Dashboard — it is a cross-domain view that will need shared state
+- **Add to v0.6:** Re-scope testing milestone to reflect what is already done; focus remaining work on contract tests and wealth service use case branch coverage
+- **Add to v0.6:** Add ADR for profile_id-in-domain trade-off (gap #6 above) — document decision clearly so future agents don't flip it silently
+- **Add to v1.0:** Resolve PROP-004 (API versioning) — required before any breaking change from auth integration; URL versioning is the low-risk default
+- **Add to v1.0:** Add per-step error isolation in `ProjectionCalculationEngine.refreshAll()` (gap #10 above) — synchronous all-or-nothing refresh is too fragile for production
+- **Add to v1.0:** Resolve ADR-007 (application-layer encryption for wealth data) — must be decided and implemented before auth is added
+
+---
+
+## Business Analyst Review — 2026-06-29
+
+### Delivered vs Requirements (v0.2–v0.4)
+
+| Feature | Milestone | Status | Gaps |
+|---|---|---|---|
+| Profile CRUD (admin + members, 6 relation types, soft deactivate) | v0.2 | Delivered | No pagination on member list (deferred); no avatar/photo |
+| Wealth — Account CRUD (7 types, active/inactive filter) | v0.2 | Delivered | Balance shown is opening balance only — does not reflect transaction history |
+| Wealth — Transaction list with date range + type filter | v0.2 | Delivered | No pagination; no sort control; no "clear filters" button |
+| Wealth — Statement Upload (PENDING/SUCCESS/FAILED lifecycle, rollback) | v0.2 | Delivered | None within scope |
+| Wealth — Deduplication (cross-file 4-field key, same-file sequence suffix) | v0.2 | Delivered | Dedup key corrected in v0.4 (description removed) |
+| Health — Vital Readings (10 types, log/list/filter/delete) | v0.2 | Delivered | No edit on a logged reading (delete-and-re-log only); no trend chart |
+| Health — Doctor Visits (full CRUD, conditional doctor_name constraint) | v0.2 | Delivered | No date-range filter on visit list |
+| Household — Calendar Events (CRUD, conflict warning, 8 event types) | v0.3 | Delivered | Conflict warning shown but creation is not blocked — user may not notice the warning |
+| Household — Inventory (manual CRUD, platform/category filter, 5+ platforms) | v0.3 | Delivered | No edit on an inventory item (delete-and-re-add only); no item lifecycle (consumed/restock) |
+| Household — Goals (CRUD, progress bar, status badge, projection engine) | v0.3 | Delivered | `current_amount` only updated via dashboard refresh, not automatically on transaction import |
+| Dashboard — Live Data (4 snapshot keys, refresh button, spinner) | v0.3 | Delivered | Net worth figure based on opening balance only — does not sum transaction history (architectural debt, logged as Q2) |
+| SonarQube Clean Pass | v0.3 | Delivered | 0 BLOCKER/CRITICAL, 285 tests passing |
+| Wealth — Malformed CSV rejection + structured error log | v0.4 | Delivered | `/errors` endpoint not proxied through gateway — frontend calls wealth service directly (architectural violation, logged as Q3) |
+| Wealth — Dedup key fix (4-field, description excluded) | v0.4 | Delivered | None |
+| Frontend — Upload error panel + skipped duplicates UI | v0.4 | Delivered | Error panel shows "Upload failed — check your file" as fallback when error fetch fails; gives no actionable detail in that scenario |
+| Gateway contract updated for new upload response shape | v0.4 | Delivered | None |
+| Wealth — Physical Assets CRUD | v0.2 | Delivered | No frontend page for physical assets — assets are backend-only; user cannot view or manage assets through the UI |
+| Wealth CQRS Read Model ("Mahesh Summation Rule", EMI arbitrage, reallocation triggers) | v0.4 per REQUIREMENTS | Not Delivered | These use cases from REQUIREMENTS_wealth_domain.md v0.4 section were not built; the dashboard engine computes only opening-balance net worth and basic goal/event summaries |
+| Household — Task Tracking | v0.3 (deferred from) | Not Delivered | Deferred; no schema exists |
+| Household — Item lifecycle (consumed/restock) | v0.3 | Not Delivered | Inventory is an append/delete ledger; no consumed or restock state |
+| Household — Home Automation Mapping | v0.3 | Not Delivered | Not started; no schema |
+| Health — Vital trend charts / BMI auto-calculation | v0.3 per domain-state | Not Delivered | Deferred; Reports page shows "Coming Soon" placeholder |
+| Duplicate Resolution UI (accept/reject flagged duplicates) | v0.4 | Not Delivered | Deferred to v0.5; only read-only skipped-duplicates panel was built |
+| Quarantine Protocol (row-level quarantine for malformed grocery data) | v0.4 | Not Delivered | Deferred to v0.5 |
+
+---
+
+### User-Facing Gaps (UX / Missing Flows)
+
+1. **No physical asset UI.** The `wealth.physical_asset` table exists and the API is implemented, but there is no frontend page. A user who owns a vehicle or property has no way to view, add, or manage physical assets from the browser. This is the most significant invisible feature — delivered in the backend, invisible in the UI.
+
+2. **Account balance shows opening balance, not live balance.** The Accounts page displays "Balance: ₹X" where X is the `opening_balance` set at account creation. After months of transactions, this figure is wrong. A user who has uploaded 12 months of statements still sees the same static number they entered on day one. The Reports page confirms this by summing `opening_balance` and labelling it "Sum of opening balances." This is immediately misleading for any financial review.
+
+3. **No edit on a vital reading.** When a user logs an incorrect vital (wrong value, wrong date), the only correction path is delete and re-enter. There is no edit modal for vitals. The doctor visits page does support edit — this inconsistency is noticeable across the health section.
+
+4. **No edit on an inventory item.** Same pattern as vitals: inventory items can be added and deleted but not edited. A user who enters the wrong quantity must delete and re-add.
+
+5. **No item lifecycle for inventory.** The requirements specify "marking items as consumed or restocking them." The current inventory is a flat ledger with no consumed/in-stock state. A user cannot tell whether an item has been used or still needs to be purchased.
+
+6. **Goal current_amount only updates on manual dashboard refresh.** After uploading a bank statement with new transactions, a user expects their goal progress to reflect the new wealth. It does not — `current_amount` is only updated when the user manually clicks "Refresh Live Data" on the dashboard. There is no in-page feedback on the Goals page itself explaining this, so the stale progress bar is silently wrong.
+
+7. **Transaction list has no pagination and no sort control.** A user with 500+ transactions from 12 months of uploads sees all rows at once with no way to sort by amount or narrow to a specific month without using the date filter. The date filter clears when switching accounts, which adds friction.
+
+8. **The calendar conflict warning is easy to miss.** Conflict detection is implemented correctly but the UI only shows a banner at the bottom of the create-event response. A user who quickly creates an event may not notice they have created a scheduling conflict.
+
+9. **No navigation from the Wealth Reports page to individual transactions.** The Reports page shows a "Total Accounts" count and a net balance card, but the account names are not links. A user cannot drill from a report summary into the transaction list for a specific account. The experience dead-ends at the summary.
+
+10. **Dashboard net worth figure is unlabelled as approximate.** The dashboard displays net worth from opening balances with no caveat. A user with a loan account that has been partially repaid via EMIs over the year will see the wrong net worth figure with no indication it is stale or approximate.
+
+11. **No transaction creation from the UI.** Users can only add transactions via CSV upload. There is no manual "Add Transaction" form. A user who wants to log a single cash purchase (e.g., petrol, a medical bill) has no path to do so without creating a synthetic CSV.
+
+12. **Profile list has no pagination.** For a household with 6+ members the full list is shown without pagination. Minor for the current single-user context, but noted in the profile domain-state backlog.
+
+---
+
+### Quick-Win Recommendations (add to v0.5 or a new v0.4.1 patch)
+
+The following items are low-scope, high-impact for the active user. They do not require cross-domain logic and do not violate milestone rules.
+
+1. **Build the Physical Assets frontend page** — the backend and API contract are fully delivered. This is a pure frontend task: a page at `/wealth/assets` with list, add, edit, and delete. Estimated effort: one frontend sprint. Rationale: a delivered backend feature that is invisible to the user is wasted work.
+
+2. **Add edit to Vital Readings** — the health API already supports `GET /vitals/{id}`. Adding an edit modal to the vitals page removes the delete-and-re-log friction and makes the health domain consistent with the doctor visits page. Backend change: add `PUT /vitals/{id}` if not already present; otherwise frontend-only.
+
+3. **Add edit to Inventory Items** — same pattern. The household API supports `GET /inventory-items/{id}`. Add an edit modal to the inventory page.
+
+4. **Label the "Net Balance" on Reports page as "opening balances only"** — a one-line copy change: add a tooltip or static note "Based on account opening balances — does not include transaction history." This is a one-line frontend fix that prevents the user from trusting an incorrect figure. No backend work required.
+
+5. **Add a "Add Transaction" manual entry form** — the transaction API already accepts individual POSTed records (or add a simple endpoint). A form with date, amount, type, and description lets the user log cash or informal transactions without generating a CSV. This directly addresses the most common real-world data gap for a household financial app.
+
+6. **Fix the `/errors` gateway proxy** — this is already flagged as HIGH priority by the Architect (Q3). The frontend currently calls the wealth service at port 8082 directly, violating the gateway invariant. Adding the proxy to `WealthServiceClient` and `WealthGatewayResource` and updating `gateway.yaml` restores the invariant. Estimate: one backend task.
+
+---
+
+### Recommended Updates to Upcoming Milestones
+
+**Add to v0.5:**
+
+- Physical Assets frontend page (`/wealth/assets`) — backend is done; this is a frontend-only delivery gap
+- Vital Readings edit endpoint and edit UI — completes the health CRUD symmetry
+- Inventory Items edit UI — completes the household CRUD symmetry
+- Inventory item lifecycle state (consumed / in-stock) — minimum: add a `is_consumed BOOLEAN` column and toggle in the UI; this was a stated v0.3 requirement that was not delivered
+- Manual transaction entry form — high-value for daily use; removes the CSV-only constraint for individual entries
+- Fix `/errors` gateway proxy (carry-over from Architect recommendation)
+- Fix net worth calculation to use transaction history (carry-over from Architect recommendation)
+- Add copy/tooltip on Reports page and Dashboard labelling the balance figures as "opening balances only" — interim UX fix until the calculation is corrected
+- Add `PUT /vitals/{id}` endpoint to health service if not already present
+
+**Add to v0.6:**
+
+- Transaction list pagination — becomes necessary once statement history grows beyond a few months
+- Date-range filter on doctor visit list — the visit list currently has no date filter; for a multi-year user this becomes unmanageable
+- Goal progress auto-refresh cue — add a UI note on the Goals page: "Progress updates when you refresh the dashboard" so the user understands the manual refresh dependency
+- Vital trend charts — listed in health domain-state as v0.3 backlog; now more than one version behind; should be prioritised before v1.0
+
+**Defer from v0.5 to v0.6:**
+
+- Duplicate Resolution UI (accept/reject flagged duplicates) — already deferred from v0.4; given that the Quarantine Protocol for grocery data is also deferred, neither input source (bank statements nor grocery exports) has enough user volume to make this urgent before v0.6
+- Quarantine Protocol (grocery CSV row-level quarantine) — the inventory CSV import itself has not been built yet; quarantine logic for a feature that doesn't exist yet should not block v0.5
+
+**Clarify scope of v0.5 Consolidated Action Center:**
+
+- The v0.5 plan says "Upcoming calendar events, vehicle compliance deadlines, biometric streak gaps." Vehicle compliance deadlines belong to the Physical Assets feature (vehicle PUC/insurance expiry). Ensure the Physical Assets frontend page is complete before v0.5 scope is confirmed, or remove vehicle compliance deadlines from the v0.5 Action Center scope.
+
+---
+
+## QA Review — 2026-06-29
+
+### Test Coverage Summary
+
+| Domain | Unit Tests (domain layer) | Adapter / Service Tests | Key Gaps |
+|---|---|---|---|
+| profile | 1 test class — `BloodTypeTest` (enum only) | `AdminServiceTest`, `ProfileServiceTest` (service-layer, stub repos) | No `Profile` entity factory tests; no `Admin` entity tests; no HTTP resource tests (`AdminResource`, `ProfileResource`); no Testcontainers persistence tests |
+| wealth | `TransactionTest` (builder), `StatementUploadTest` (builder/status) | `AccountServiceTest`, `StatementUploadServiceTest` (full v0.4 coverage inc. error log + dedup), `TransactionServiceTest`, `StatementCsvParserTest`, `AccountPanacheRepositoryTest`, `TransactionPanacheRepositoryTest`, `StatementUploadIntegrationTest`, `UploadErrorLogPanacheRepositoryTest`, `StatementUploadResourceTest` | No `Account` domain entity unit tests; no `AccountResource` HTTP adapter test; `TransactionResource` HTTP adapter not tested |
+| health | None — no domain-layer test class exists | `DoctorVisitServiceTest`, `VitalReadingServiceTest`, `VitalReadingPanacheRepositoryTest` | No `VitalReading` or `DoctorVisit` entity factory tests; no `VitalReadingResource` HTTP adapter test; no `DoctorVisitResource` HTTP adapter test |
+| household | `CalendarEventTest`, `GoalTest`, `InventoryItemTest` (domain factory + validation) | `CalendarEventServiceTest`, `GoalServiceTest`, `InventoryItemServiceTest`, `CalendarEventPanacheRepositoryTest`, `GoalPanacheRepositoryTest`, `InventoryItemPanacheRepositoryTest`, `CalendarEventResourceTest`, `GoalResourceTest`, `InventoryItemResourceTest` | Most complete domain; no edit path tests for inventory or calendar (no PUT endpoint exists) |
+| web-gateway | N/A | `ProjectionCalculationEngineTest` (unit, all 4 compute paths + edge cases), `ProjectionResourceTest`, `WealthGatewayResourceTest`, `ProfileGatewayResourceTest`, `HealthGatewayResourceTest`, `HouseholdGatewayResourceTest` | No test for `GET /accounts/{id}/uploads/{id}/errors` proxy — this endpoint does not exist in gateway; `refreshAll` has no test for downstream service failure (exception propagation untested) |
+| shared / arch | `DomainRulesTest` — 8 ArchUnit rule groups | — | No ArchUnit rule enforcing `profile_id` presence in adapter queries; no ArchUnit rule verifying every use-case interface has at least one test class |
+| frontend (Jest) | 25 test suites, 355 tests | — | No test suite for upload error panel rendering (covered only via inline mock in `Transactions.test.js`); no test for `Physical Assets` (no page exists); no test for `Vitals` edit flow (no edit path exists); JS branch coverage 74.55% — below any sensible gate |
+| E2E (Playwright) | 17 tests across 5 spec files | — | No E2E coverage for CSV upload flow, error panel, skipped-duplicates panel, household (calendar/inventory/goals), health vitals, doctor visits, dashboard refresh |
+
+### Confirmed Bugs
+
+1. **Gateway `/errors` bypass** — `web/src/api/wealth.js` line 47–48: `getUploadErrors` calls `GET /v1/accounts/{accountId}/uploads/{uploadId}/errors` via the shared `client.js` wrapper which uses `API_BASE_URL` (port 8080, gateway). However `WealthGatewayResource.java` and `WealthServiceClient.java` do not declare this endpoint — the gateway returns 404 and the frontend silently falls back to `errorsFetchFailed = true`. The call never reaches the wealth service through the gateway; it fails at the gateway routing layer. Severity: HIGH. Impact: upload error details are never visible to the user when a CSV parse fails; the UI shows "Upload failed — check your file" with no structured error detail.
+
+2. **Net worth formula uses static opening_balance** — `ProjectionCalculationEngine.java` lines 72–74 (`computeNetWorth`) and lines 128–131 (`computeTotalBalance`): both methods sum `account.path("opening_balance")` across active accounts. No transaction history is consulted. The goal progress calculation at line 100 also uses `totalBalance` derived from opening balances only. Correct formula: `opening_balance + SUM(CREDIT transactions) - SUM(DEBIT transactions)` per account, requiring a new `/balance` endpoint on the wealth service. Severity: HIGH. Impact: dashboard net worth and goal progress figures drift from reality as transaction volume grows; vacation planner budget check in v0.5 will use the wrong figure.
+
+3. **`TransactionPanacheRepository` — no profile_id filter** — `TransactionPanacheRepository.java` lines 40–62 (`findByAccountId`) and lines 65–68 (`existsByDeduplicationKey`): both queries filter only on `accountId`, not on `profile_id`. The security relies on the caller (StatementUploadService) having verified that the account belongs to the correct profile. This implied chain is not enforced at the repository layer and is invisible to future developers. Severity: MEDIUM. Impact: if a caller passes an accountId without profile verification, transactions from other profiles are visible; the dedup check could incorrectly match across profiles.
+
+4. **`refreshAll` is not exception-isolated per step** — `ProjectionCalculationEngine.java` lines 54–59: four compute calls execute sequentially with no try-catch around individual steps. If `computeVitalsSummary` throws (e.g., health service is down), `computeEventSummary` never runs and the partial snapshot is not written. The Architect's comment at line 50 says "Each compute step is independent; a failure in one does not block the others" — this is incorrect; the implementation does not match the Javadoc. Severity: MEDIUM. Impact: any domain service outage causes a total dashboard refresh failure with no partial result.
+
+5. **No `PUT /vitals/{id}` endpoint** — `VitalReadingResource.java` has `@GET`, `@POST`, `@GET /{id}`, and `@DELETE /{id}` only (lines 27–58). No `@PUT` or `@PATCH` method exists. Users cannot edit a logged vital reading — delete and re-enter is the only correction path. Severity: LOW (UX gap, confirmed). Impact: inconsistent with doctor visits which support full CRUD.
+
+6. **No `PUT /inventory-items/{id}` endpoint** — `InventoryItemResource.java` has `@GET`, `@POST`, `@GET /{id}`, and `@DELETE /{id}` only (lines 35–76). No edit path. Users cannot update quantity, category, or platform on an existing inventory item. Severity: LOW (UX gap, confirmed). Impact: delete-and-re-add is the only correction path.
+
+7. **No Physical Assets frontend page** — `web/src/utils/constants.js` line 35 defines `PHYSICAL_ASSETS: '/v1/physical-assets'` and `ROUTE_PATHS` has no `/wealth/assets` entry. No React page or component for physical assets exists anywhere under `web/src/`. The backend (`wealth.physical_asset` table + API) is implemented. Severity: MEDIUM. Impact: the entire physical assets feature is invisible to the user; v0.5 Action Center vehicle compliance deadlines cannot be built without this page.
+
+### Missing Test Cases (Priority Order)
+
+1. **`WealthGatewayResourceTest` — `GET /accounts/{id}/uploads/{id}/errors` proxy** | `application/web-gateway/src/test/` | Blocks gateway fix verification; without this test, adding the proxy endpoint has no coverage gate.
+
+2. **`ProjectionCalculationEngineTest` — downstream service failure isolation** | `application/web-gateway/src/test/` | Verifies that a `RuntimeException` in `computeVitalsSummary` does not prevent `computeEventSummary` from running. Currently the Javadoc claims isolation but the code and tests do not enforce it.
+
+3. **`AccountResource` HTTP adapter unit test** | `application/domain/wealth/adapters/src/test/` | `AccountResource.java` has no test class. The ArchUnit `gateway_resources_must_have_corresponding_test` rule covers gateway resources only — domain HTTP resources are unguarded.
+
+4. **`TransactionResource` HTTP adapter unit test** | `application/domain/wealth/adapters/src/test/` | Same gap as above; `TransactionResource.java` has no test class.
+
+5. **`VitalReadingResource` and `DoctorVisitResource` HTTP adapter unit tests** | `application/domain/health/adapters/src/test/` | Health HTTP layer is entirely untested at the unit level; only service and one persistence test exist.
+
+6. **`Profile` domain entity factory tests** | `application/domain/profile/domain/src/test/` | Only `BloodTypeTest` exists. `Profile.java` and `Admin.java` have no unit tests covering creation, field validation, or edge cases.
+
+7. **`VitalReading` domain entity unit test** | `application/domain/health/domain/src/test/` | No test class exists for the health domain layer at all.
+
+8. **`Account` domain entity unit test** | `application/domain/wealth/domain/src/test/` | `Account.java` has no unit test; only `Transaction` and `StatementUpload` builders are covered.
+
+9. **Frontend — upload error panel render test** | `web/src/pages/Wealth/` | The `UploadErrorPanel` component renders structured error rows, but its rendering under `errorsFetchFailed = true` is not tested in isolation as a component test. It is only covered as a side-effect in the upload flow tests.
+
+10. **Frontend — branch coverage below 74.55%** | `web/src/` | No coverage gate is enforced on branches. The Reports page, Dashboard projection display, and goal progress bar have low branch coverage; failures in those paths are not caught by the current test suite.
+
+### Fix Plan (by milestone)
+
+**v0.5 fixes (must complete before vacation planner is built):**
+
+- Add `GET /accounts/{accountId}/uploads/{uploadId}/errors` to `WealthServiceClient` interface and `WealthGatewayResource`, update `application/contract/gateway.yaml`, regenerate `web/src/api/generated.ts`. Add corresponding test to `WealthGatewayResourceTest`.
+- Fix `ProjectionCalculationEngine.computeNetWorth()` and `computeTotalBalance()` to use transaction history. Add `GET /v1/accounts/{accountId}/balance` endpoint on wealth service. Update `ProjectionCalculationEngineTest` to assert transaction-history-based net worth.
+- Wrap each compute step in `refreshAll()` in its own try-catch so partial snapshots are written on individual step failure. Update `ProjectionCalculationEngineTest` to assert partial-refresh behavior.
+- Build Physical Assets frontend page at `/wealth/assets`. No backend work required.
+- Add `PUT /vitals/{id}` endpoint to `VitalReadingResource` and edit modal to the Vitals frontend page.
+- Add `PUT /inventory-items/{id}` endpoint to `InventoryItemResource` and edit modal to the Inventory frontend page.
+
+**v0.6 fixes (testing foundation, re-scoped):**
+
+- Add ArchUnit rule: every class in `..ports.input..` that is an interface must have at least one test class in the same domain's test classpath that references it.
+- Add `AccountResource` and `TransactionResource` HTTP adapter unit tests (stub use case pattern as in `StatementUploadResourceTest`).
+- Add `VitalReadingResource` and `DoctorVisitResource` HTTP adapter unit tests.
+- Add `Profile` domain entity unit tests covering field validation and creation factory.
+- Add `VitalReading` domain entity unit test.
+- Add explicit `profile_id` secondary filter to `TransactionPanacheRepository.findByAccountId()` and `existsByDeduplicationKey()`, or document the implied chain as an ADR trade-off with a test that verifies the account ownership check happens before these are called.
+- Enforce Jest branch coverage gate at 80% minimum in `package.json` Jest config.
+
+**v1.0 fixes:**
+
+- Add ArchUnit rule flagging `PanacheRepositoryBase` subclasses whose `find()` calls do not include `profile_id` in the predicate. Low-urgency now (current code is clean) but required before multi-user auth in v1.0.
+- Contract tests: validate all four domain OpenAPI contracts (`application/contract/*.yaml`) against live service responses using a schema validation library (e.g., Atlassian Swagger Request Validator). Add to CI pipeline as a post-deploy check.
+- Add ADR for `profile_id`-in-domain trade-off (Architect gap #6 — `CalendarEvent` and household entities hold `profileId` as a domain field despite ADR-006).
+
+---
+
+## Consolidated Next Steps — Architect Decision — 2026-06-29
+
+### Immediate Fixes (before v0.5 work begins)
+
+These are correctness failures or invariant violations in the current codebase. Do them first — they are small and block other work.
+
+**1. Gateway `/errors` proxy — wealth-developer**
+- File: `application/web-gateway/src/main/java/.../WealthServiceClient.java`
+- File: `application/web-gateway/src/main/java/.../WealthGatewayResource.java`
+- File: `application/contract/gateway.yaml`
+- Add one method to `WealthServiceClient`: `@GET @Path("/v1/accounts/{accountId}/uploads/{uploadId}/errors") List<UploadErrorResponse> getUploadErrors(...)`.
+- Add one proxy method to `WealthGatewayResource` delegating to the client.
+- Add the path to `gateway.yaml` under the wealth tag.
+- Run `cd web && npm run generate:api` after the contract update.
+- Add a test case to `WealthGatewayResourceTest` for the new proxy method using `@InjectMock @RestClient`.
+- This is the only known gateway bypass in the codebase. ADR-002 requires it to be fixed before any v0.5 work starts.
+
+**2. Net worth formula — wealth-developer + quarkus-developer (gateway)**
+- File: `application/web-gateway/src/main/java/.../ProjectionCalculationEngine.java` lines 72–74 (`computeNetWorth`) and lines 128–131 (`computeTotalBalance`)
+- File: `application/web-gateway/src/test/java/.../ProjectionCalculationEngineTest.java` (test validates wrong formula — must be updated)
+- Add `GET /v1/accounts/{accountId}/balance` endpoint on the wealth service returning `opening_balance + SUM(CREDIT) - SUM(DEBIT)`.
+- Update `WealthServiceClient` to call this endpoint.
+- Update `computeNetWorth()` and `computeTotalBalance()` to use the balance endpoint response.
+- Update `ProjectionCalculationEngineTest` to assert against the transaction-history-based result.
+- The vacation planner budget check in v0.5 uses this figure. Wrong formula = wrong budget validation.
+
+**3. `refreshAll()` per-step exception isolation — quarkus-developer (gateway)**
+- File: `application/web-gateway/src/main/java/.../ProjectionCalculationEngine.java` lines 54–59
+- Wrap each of the four `compute*()` calls in its own try-catch block. Log the exception via `AppLogger` and continue to the next step. A partial snapshot written is better than no snapshot at all.
+- The Javadoc at line 50 already documents this intent — the code just does not implement it.
+- Update `ProjectionCalculationEngineTest` to verify that a `RuntimeException` in `computeVitalsSummary` does not prevent `computeEventSummary` from executing.
+
+**4. `TransactionPanacheRepository` ownership assertion — wealth-developer**
+- File: `application/domain/wealth/adapters/src/main/java/.../TransactionPanacheRepository.java` lines 40–62 (`findByAccountId`) and lines 65–68 (`existsByDeduplicationKey`)
+- Decision (pending Q12 answer — see blocking questions below): add an explicit `account.profile_id = ?` join condition to both queries, OR add an ownership assertion in `StatementUploadService` before the repository call.
+- If the join approach is chosen: update the `TransactionRepository` output port interface to accept `profileId` and write an ADR-006 addendum.
+- If the assertion approach is chosen: add the check in `StatementUploadService` with a comment marking it as load-bearing.
+- Do not leave this as a silent implicit chain — document the decision wherever the code ends up.
+
+---
+
+### v0.5 Scope (revised based on review findings)
+
+The existing v0.5 plan (Vacation Planner, Consolidated Action Center) remains, with additions from the three reviews. The immediate fixes above must land before any v0.5 feature work.
+
+**Carry-in from reviews (gaps not in original v0.5 plan):**
+
+- Physical Assets frontend page at `/wealth/assets` — backend is complete. Pure frontend task. react-developer. Required before the Action Center can show vehicle compliance deadlines. Blocks Q5.
+- `PUT /vitals/{id}` endpoint on health service — `VitalReadingResource.java` has no `@PUT` method. health-developer. Small: one use case method, one adapter handler, update `health.yaml`, update frontend vitals page edit modal.
+- `PUT /inventory-items/{id}` endpoint on household service — `InventoryItemResource.java` has no `@PUT` method. household-developer. Same pattern as vitals edit.
+- Edit modal on Vitals frontend page — react-developer, after health-developer adds the endpoint.
+- Edit modal on Inventory Items frontend page — react-developer, after household-developer adds the endpoint.
+- Add copy to Reports page and Dashboard: label balance figures as "Based on account opening balances" as an interim UX fix until the net worth formula fix lands. One-line frontend change. react-developer. Do this immediately; do not wait for the formula fix.
+
+**Original v0.5 features (unchanged):**
+
+- Vacation Planner: budget validation against liquid savings, asset compliance warning (PUC/insurance expiry before trip date). Requires Physical Assets frontend to be complete first. gateway quarkus-developer + react-developer.
+- Consolidated Action Center: upcoming events, vehicle compliance deadlines, biometric streak gaps. Requires Physical Assets frontend.
+
+**Resolve before v0.5 feature work starts:**
+- PROP-005 (frontend state management) — cross-domain Action Center needs shared state.
+
+---
+
+### v0.6 Scope (revised)
+
+The original v0.6 milestone ("Testing Foundation") is partially already done for the implemented domains. Re-scope it to cover the real remaining gaps.
+
+**Testing work (re-scoped from original v0.6):**
+
+- `AccountResource` HTTP adapter unit test — wealth-developer. Pattern: copy `StatementUploadResourceTest`, stub use cases.
+- `TransactionResource` HTTP adapter unit test — wealth-developer.
+- `VitalReadingResource` and `DoctorVisitResource` HTTP adapter unit tests — health-developer.
+- `Profile` domain entity unit tests (`Profile.java`, `Admin.java`) — profile-developer.
+- `VitalReading` domain entity unit test — health-developer.
+- ArchUnit rule: every interface in `..ports.input..` must have at least one test class referencing it — quality-manager.
+- Jest branch coverage gate at 80% minimum in `web/package.json` Jest config — react-developer.
+- ADR for `profile_id`-in-domain trade-off (Architect gap #6) — architect.
+
+**UX items deferred from v0.5:**
+
+- Transaction list pagination — react-developer + wealth-developer. Add `page` and `size` query params to `GET /transactions`.
+- Date-range filter on doctor visit list — health-developer + react-developer.
+- Goal progress auto-refresh cue — add a note on the Goals page explaining manual refresh dependency. react-developer. One-line copy change.
+
+**Duplicate Resolution UI and Quarantine Protocol stay deferred here:**
+
+- Duplicate Resolution UI (accept/reject flagged duplicates) — deferred to v0.6 from v0.4. Keep here.
+- Quarantine Protocol (grocery CSV row-level quarantine) — the inventory CSV import itself does not exist yet. Quarantine logic for a non-existent import path should not block v0.5. Keep in v0.6 after inventory CSV import is built.
+
+**Resolve before v0.6 starts:**
+- PROP-004 (API versioning strategy) — must be answered before v1.0 auth integration; do it at v0.6 planning.
+- Q9 (Java coverage floor per module) — must be answered to configure the build gate.
+
+---
+
+### What Stays Deferred (v1.0+)
+
+- **Async `refreshAll()`** — the per-step try-catch (immediate fix #3) buys enough resilience for v0.5 and v0.6. A full async reactive pipeline is a v1.0 concern when multiple users are hitting the dashboard simultaneously.
+- **ArchUnit `profile_id` query rule** — current code is clean. Add this before v1.0 auth when the risk of a new developer bypassing the filter becomes real.
+- **Contract tests (OpenAPI schema validation)** — add in v1.0 alongside auth integration; the risk surface grows when token-scoped data isolation is added.
+- **Vital trend charts / BMI auto-calculation** — health domain backlog. Deferred past v0.5.
+- **Inventory item lifecycle (consumed/restock)** — pending Q6 decision. If the product owner picks option A or C, pull into v0.5 or v0.6; otherwise defer to v1.3.
+- **Manual transaction entry form** — pending Q7 decision. If approved, pull into v0.5 (small: one endpoint + one form). If deferred, moves to v1.3.
+- **Advanced financial engine ("Mahesh Summation Rule", EMI arbitrage, reallocation triggers)** — not delivered in v0.4. Pending Q8 decision for milestone assignment.
+- **Task Tracking (household)** — no schema exists. v0.5 or later per product owner priority.
+- **Home Automation Mapping** — not started. No schema. v1.0+.
+- **E2E CI gate** — pending Q10 decision. Keeping Playwright as a manual pre-release gate for now is acceptable until Q10 is answered.
+
+---
+
+### Open Questions Blocking v0.5 Planning
+
+The following questions from `documents/OpenQuestions.md` must be answered by the product owner before v0.5 scope is locked. Do not assign these to developer agents — they are product decisions.
+
+- **Q1** — `profile_id` in domain entities: keep or remove? Affects whether wealth-developer adds a `profileId` parameter to the `TransactionRepository` output port (fix #4 above) or uses the assertion approach instead.
+- **Q2** — Net worth calculation: fix now or label as approximate? Already decided by this review as "fix now" (immediate fix #2 above) — but confirm the product owner agrees before the wealth balance endpoint is built.
+- **Q3** — `/errors` gateway proxy: already decided as "fix now" (immediate fix #1 above) — confirm.
+- **Q4** — `refreshAll()` async: confirm that per-step try-catch (option A) is acceptable for v0.5, with async deferred to v1.0.
+- **Q5** — Physical Assets frontend: confirm treatment as v0.5 delivery gap. If C (defer entirely), remove vehicle compliance deadlines from the v0.5 Action Center scope.
+- **Q6** — Inventory lifecycle state: answer before inventory edit UI is built in v0.5. If option A, household-developer adds the `is_consumed` column via a new Flyway migration before the edit endpoint.
+- **Q7** — Manual transaction entry: if approved for v0.5, wealth-developer adds `POST /v1/accounts/{accountId}/transactions` (single transaction body, `source = MANUAL`).
+- **Q8** — Advanced financial engine milestone: must be assigned to a named milestone or archived before v0.5 requirements are finalised.
+- **Q10** — Playwright E2E as CI gate: blocks whether react-developer needs to set up a stub backend for CI in v0.5 or v0.6.
+- **Q12** — `TransactionPanacheRepository` fix approach: the join vs. assertion decision affects whether the `TransactionRepository` output port interface changes (domain-layer impact) or the fix stays in the adapter service layer.
+
+Q9 and Q11 do not block v0.5 — they block v0.6 gate configuration and v1.0 contract testing respectively.
+
+---
+
+### Developer Assignments (recommended)
+
+| Workstream | Owner | When |
+|---|---|---|
+| Gateway `/errors` proxy (fix #1) | wealth-developer | Before any v0.5 feature work |
+| Net worth formula fix — wealth balance endpoint (fix #2, backend) | wealth-developer | Before any v0.5 feature work |
+| Net worth formula fix — gateway engine + test (fix #2, gateway) | quarkus-developer (gateway) | After wealth balance endpoint is merged |
+| `refreshAll()` per-step try-catch (fix #3) | quarkus-developer (gateway) | Before any v0.5 feature work |
+| `TransactionPanacheRepository` profile ownership (fix #4) | wealth-developer | After Q1/Q12 are answered |
+| Physical Assets frontend page `/wealth/assets` | react-developer | v0.5, after Q5 confirmed |
+| `PUT /vitals/{id}` endpoint | health-developer | v0.5 |
+| Vitals edit modal (frontend) | react-developer | v0.5, after health endpoint merged |
+| `PUT /inventory-items/{id}` endpoint | household-developer | v0.5 |
+| Inventory Items edit modal (frontend) | react-developer | v0.5, after household endpoint merged |
+| "Opening balances only" label on Reports + Dashboard | react-developer | Immediate — no backend dependency |
+| Vacation Planner (cross-domain) | quarkus-developer (gateway) + react-developer | v0.5, after immediate fixes are merged |
+| Consolidated Action Center | quarkus-developer (gateway) + react-developer | v0.5, after Physical Assets page complete |
+| PROP-005 state management decision | architect | Before Consolidated Action Center starts |
+| v0.6 adapter unit tests (wealth HTTP layer) | wealth-developer | v0.6 |
+| v0.6 adapter unit tests (health HTTP layer) | health-developer | v0.6 |
+| v0.6 domain entity unit tests (profile) | profile-developer | v0.6 |
+| v0.6 domain entity unit tests (health) | health-developer | v0.6 |
+| ArchUnit port interface coverage rule | quality-manager | v0.6 |
+| Jest branch coverage gate | react-developer | v0.6 |
+| PROP-004 API versioning ADR | architect | v0.6 planning session |
+| ADR for `profile_id`-in-domain trade-off | architect | v0.6 |
+| Duplicate Resolution UI | wealth-developer + react-developer | v0.6 |
+| Transaction list pagination | wealth-developer + react-developer | v0.6 |
+| Doctor visit date-range filter | health-developer + react-developer | v0.6 |
+
+---
+
+## Business Analyst Review — Automated Wealth Intelligence Engine — 2026-06-30
+
+### Scope Summary
+
+The product owner currently maintains his family's complete financial picture (assets, liabilities, goals, validation rules) in a manually edited markdown file, parsed by standalone Python scripts into JSON outputs and a validation report. He wants this same intelligence — net worth and asset categorization, liquidity tiering, loan amortization and arbitrage tracking, five formula-driven financial goals, and a zero-leakage validation rule engine — built natively into the wealth domain's CQRS read model, driven by uploaded bank/investment/loan statements rather than manual markdown editing. Manual entry is retained only for true one-time or rarely-changing policy facts (loan principal/start date/tenure, expected-return assumptions, goal target thresholds) — everything else (net worth, category subtotals, EMI splits, outstanding balances, goal progress) must be derived from `transaction` and `physical_asset` records on every dashboard refresh.
+
+### Relationship to Existing Epic 8
+
+This is not a new idea — it is the corrected, fully specified version of Epic 8 ("The Mathematical Engine & Zero Leakage"), which has existed in `REQUIREMENTS_wealth_domain.md` since before v0.4 planning but was never implemented. v0.4 was executed as a CSV error-handling sprint instead, leaving Epic 8's three original use cases (8.1 Mahesh Summation Rule, 8.2 EMI Arbitrage, 8.3 Dynamic Triggers) as undelivered requirements. This gap was already flagged by the BA review on 2026-06-29 (table row: "Wealth CQRS Read Model... Not Delivered") and by `OpenQuestions.md` Q8. `REQUIREMENTS_wealth_domain.md` Epic 8 has now been expanded in place with six concrete use cases (8.1–8.6), replacing the three short originals, scoped entirely within the wealth domain's existing data (`account`, `transaction`, `physical_asset`, `metadata JSONB`) to remain compliant with the "no cross-domain features before v0.5" rule.
+
+### Recommended Milestone Placement
+
+This is a large feature set — six use cases covering categorization, liquidity tiering, loan amortization, arbitrage monitoring, a five-type goals engine, and an automated validation gate. It should not be folded into the existing v0.5 scope as currently defined (Vacation Planner, Consolidated Action Center), which is already a cross-domain milestone with its own immediate-fix backlog (gateway `/errors` proxy, net worth formula fix, `refreshAll()` isolation — see Architect Review above). Recommendation:
+
+- Treat this as a dedicated sub-milestone — **v0.4.2 "Financial Intelligence Engine"** or a renamed **v0.6** focus (the current v0.6 "Testing Foundation" is already being re-scoped per the Architect/QA reviews above, since most of its original test-coverage items are substantially done). Placing the engine at v0.6 sequences it after the v0.5 net-worth-formula fix (Q2/immediate fix #2), which this engine depends on directly — the engine cannot compute accurate liquidity, debt-to-asset, or goal-progress figures while net worth is still calculated from `opening_balance` alone.
+- Do not attempt to deliver this inside v0.5 alongside the Vacation Planner and Action Center. Both v0.5 features are cross-domain aggregation views; this engine is deep single-domain computation. Mixing them risks both slipping.
+- This recommendation is for product owner confirmation, not a unilateral schedule decision — see `OpenQuestions.md` Q14 (new) for the explicit milestone question.
+
+### Data Model Implications (flag only, do not design)
+
+The following are implications for the architect and developer agents to evaluate — no schema is proposed here:
+
+- **Goal model fork:** the household domain's `goal` table (simple savings-target-with-progress-bar) cannot represent the five formula-driven goal types (Debt Crossover, 30-70 Target, Freedom Runway, Insurance Free, Year One). A new goal representation is needed inside the wealth domain's CQRS projection layer — distinct from `household.goal`. Whether `household.goal` and this new wealth goals engine coexist as two goal systems, or whether `household.goal` is eventually superseded, is a product decision, not assumed here.
+- **Loan metadata completeness:** `wealth.account.metadata JSONB` needs to reliably carry original principal, start date, tenure, and interest rate for every loan account before EMI-split derivation (Use Case 8.2) can run. This is already directionally planned per `ARCHITECTURE_DECISIONS.md`/wealth-developer's current schema notes, but no account currently has this populated.
+- **Account/asset classification fields:** asset category (real estate, financial investment, precious metal, vehicle, cash/bank) and liquidity tier (0–3mo, 3–12mo, 1–5yr, 5+yr) and purpose tag (emergency fund, retirement, growth, income, education, long-term reserve) need to exist per account/asset — likely as `metadata JSONB` entries rather than new typed columns, consistent with the existing enum-discriminator policy (no SQL ENUMs; OpenAPI + Java enum validation).
+- **Income figure absence:** no domain in this codebase currently models household income. The 30-70 Target and Year One goal formulas need an income/expense figure that is not derivable from wealth transactions alone (it could be approximated from recurring CREDIT transactions, but that is fragile and was explicitly called a manual policy choice by the product owner's brief). This is a genuine gap — flagged to `OpenQuestions.md` Q17.
+- **Validation result storage:** the zero-leakage validation report (PASS/WARNING/CRITICAL FAILURE per check) needs to be persisted as part of (or alongside) the `projections.dashboard_snapshot` CQRS output so the frontend can render it — this is new payload shape, not a new table necessarily, but flagged for the architect's schema review.

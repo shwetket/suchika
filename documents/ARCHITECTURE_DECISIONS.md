@@ -5,7 +5,7 @@
 | **Type** | Reference — ADR Log |
 | **Audience** | All developers |
 | **Status** | Active |
-| **Last updated** | 2026-06-23 |
+| **Last updated** | 2026-06-30 (ADR-017 added) |
 
 ## Objective
 
@@ -34,6 +34,10 @@ Record every significant architectural decision made for this project, along wit
 | [ADR-011](#adr-011-gateway-test-isolation-via-injectmock-restclient) | Gateway Test Isolation via `@InjectMock @RestClient` | Accepted — v0.2 |
 | [ADR-012](#adr-012-household-domain-deferred-to-v03) | Household Domain Deferred to v0.3 | Accepted — 2026-06-19 |
 | [ADR-013](#adr-013-projection-calculation-engine-in-web-gateway) | Projection Calculation Engine in web-gateway | Accepted — 2026-06-24 |
+| [ADR-014](#adr-014-typed-parse-exception-extending-applicationexception) | Typed Parse Exception Extending ApplicationException | Accepted — 2026-06-29 |
+| [ADR-015](#adr-015-uploadresult-as-a-ports-layer-return-type) | UploadResult as a Ports-Layer Return Type | Accepted — 2026-06-29 |
+| [ADR-016](#adr-016-joint-account-ownership-via-designated-profile_id--metadata-attribution) | Joint Account Ownership via Designated `profile_id` + Metadata Attribution | Accepted — 2026-06-30 |
+| [ADR-017](#adr-017-household-level-dashboard-aggregation) | Household-Level Dashboard Aggregation | Accepted — 2026-06-30 |
 
 ---
 
@@ -240,3 +244,133 @@ class ProfileGatewayResourceTest {
 **Goal `current_amount` write-back:** After computing goal progress from wealth transactions, the engine calls `PUT /v1/goals/{id}/current-amount` on the household service to persist the computed value. This is an internal-only endpoint — not exposed through the gateway contract for direct client use.
 
 **Rationale:** Separates the compute path from the read path. Dashboard reads are instant (single DB `SELECT`). Math is isolated and independently testable. New formulas require no changes to the dashboard endpoint. Follows the CQRS projection pattern already established by `projections.dashboard_snapshot`.
+
+---
+
+## ADR-014: Typed Parse Exception Extending ApplicationException
+
+**Status:** Accepted — decided 2026-06-29
+
+**Decision:** Domain-adjacent parsing errors (e.g., `CsvParseException` in the wealth adapters layer) extend `ApplicationException` from `shared/exception/` rather than any checked Java exception or bare `RuntimeException`. They carry structured fields (`errorType`, `missingColumns`) so that the error logger and HTTP mapper can handle them without string parsing.
+
+**Implementation:**
+- `CsvParseException` in `com.suchika.wealth.adapters.services` extends `ApplicationException`
+- Factory methods (`missingDateColumn`, `missingAmountColumn`, `missingRequiredColumn`) produce typed instances with a fixed HTTP status (400) and error code (`BAD_REQUEST`)
+- `StatementUploadService` catches `CsvParseException` explicitly before the generic `Exception` catch, persists structured fields to `upload_error_log`, then rethrows the exception so `ApplicationExceptionMapper` converts it to an HTTP 400 response
+
+**Rationale:** Keeps error structure consistent with the rest of the `shared/` exception hierarchy. The adapter service can differentiate parse failures from system failures without inspecting message strings. The error log gets machine-readable `error_type` values, not free-text.
+
+---
+
+## ADR-015: UploadResult as a Ports-Layer Return Type
+
+**Status:** Accepted — decided 2026-06-29
+
+**Decision:** `UploadResult` lives in `com.suchika.wealth.ports.input` — the ports layer. It is not a domain entity and is not an adapter DTO. It is a structured return type for the `StatementUploadUseCase.uploadStatement()` port method, wrapping the persisted `StatementUpload` entity with per-row outcome metadata that does not belong on the domain entity itself.
+
+**Structure:**
+```java
+// ports/input/UploadResult.java
+public class UploadResult {
+    StatementUpload upload;      // persisted domain entity
+    int insertedCount;
+    List<SkippedRow> skippedDuplicates;
+
+    public record SkippedRow(LocalDate txnDate, BigDecimal amount, String description) {}
+}
+```
+
+**Rationale:** `insertedCount` and `SkippedRow` are outcome metadata for the upload operation — they have no independent lifecycle and are not stored as domain state. Attaching them to `StatementUpload` would pollute the domain entity with operation-scoped data. Putting them in the adapter DTO layer would force the adapter to compute these values, breaking the single-responsibility of the service. The ports layer is the correct home: it defines the use case contract, and this result type is part of that contract.
+
+---
+
+## ADR-016: Joint Account Ownership via Designated `profile_id` + Metadata Attribution
+
+**Status:** Accepted — decided 2026-06-30
+
+**Decision:** A jointly-owned financial account (e.g., a Kotak Mahindra household expense account owned by two household members) is stored as a single `wealth.account` row with exactly one `profile_id` of record (the household admin's designated financial profile). The other co-owner(s) are recorded in `account.metadata.joint_owners: [profile_id, ...]` for display/attribution purposes only. This array is never used as a query predicate.
+
+**Context:** `wealth.account` and ADR-006 assume one `profile_id` owns each account. A genuinely joint account breaks this assumption. Three options were considered: (1) single designated owner + metadata attribution array, (2) a many-to-many `account_owner` join table, (3) a new household-level ownership tier above `profile_id`.
+
+**Rejected alternatives:**
+- **Many-to-many `account_owner` table:** enables true multi-profile querying, but every wealth repository method, the `TransactionRepository` port interface, and the `projections.dashboard_snapshot` per-`(profile_id, snapshot_key)` model would need to change to support multi-owner queries. Also risks double-counting the same account's balance into two profiles' net worth simultaneously, which directly violates Epic 8's "zero leakage — counted exactly once" rule (`REQUIREMENTS_wealth_domain.md` Use Case 8.1).
+- **Household-level ownership tier:** no `household` ownership concept exists today at the wealth or profile domain level. Introducing one is a much larger structural change to solve a problem affecting one account. Deferred until a real multi-tenant household need exists (YAGNI).
+
+**Rationale:** Option 1 requires zero changes to `domain/`, `ports/`, the `TransactionRepository` interface, or the projection engine's snapshot key shape — `profile_id` stays a single scalar everywhere it already is. This keeps `profile_id` filtering adapter-only (ADR-006) and avoids any cross-domain or cross-profile query pattern. It follows the existing precedent set by `wealth.physical_asset.profile_id`, which is already nullable with the documented convention "NULL = owned by the admin profile" — same shape of problem (one row, ambiguous singular ownership), same style of resolution (pick a canonical owner, carry nuance in metadata).
+
+**Schema impact:** Requires `wealth.account.metadata JSONB` (does not exist as of v0.4 — only `transaction` and `physical_asset` have a `metadata` column today). Added via Flyway `V6__account_metadata.sql` as part of Epic 8 Phase 1 — see `documents/EPIC8_IMPLEMENTATION_PLAN.md`.
+
+**Open product question:** whether joint-account transactions should count toward both owners' *individual* net worth figures or only the designated owner's/household total — this is a financial-modeling policy choice, not a schema question. Tracked as `OpenQuestions.md` Q21.
+
+**Update — 2026-06-30:** Q21 resolved. Superseded by ADR-017 — the dashboard's primary view is a household rollup, so individual-vs-joint attribution is now moot at the net-worth level; the Kotak account simply contributes to the one family total like every other account.
+
+---
+
+## ADR-017: Household-Level Dashboard Aggregation
+
+**Status:** Accepted — decided 2026-06-30
+
+**Decision:** All Epic 8 dashboard outputs (net worth, category subtotals, goals, EMI/loan tracking, validation results) are computed and stored as a **household-level rollup**, not per-individual-profile figures. The rollup aggregates across every `profile.profile` row sharing the admin's `admin_id`, and is the dashboard's default/primary view. Per-member sub-breakdowns (e.g., "Gayan's SIP portfolio: ₹6,000") are preserved as nested structure inside the rollup's JSON payload — never computed or stored as a separate snapshot row, and never gated behind separate authentication. Only the admin (Ketan) logs in; individual member profiles are data-attribution targets within his one session, not independent dashboard users.
+
+**Context:** `ProjectionCalculationEngine` (ADR-013) currently computes one snapshot per `profile_id` per metric, keyed `(profile_id, snapshot_key)` in `projections.dashboard_snapshot`. The product owner clarified (resolving Q21) that he manages all family finances as head of household — his own `Financial_Data.md` is titled "Family Financial Data — Combined," with one net worth and one goal set, not per-person figures. He also clarified a second time (refining Q25): he is the *only* person who ever logs into the app; Shweta/Gayan/Vamika never have independent sessions. He wants both the family total (headline) and the ability to drill into any one member's data, from his single session — not two separate access levels.
+
+**Does this violate ADR-006?** No — confirmed explicitly, not assumed:
+
+ADR-006 says: "Every DB query across all domains must be scoped to the active `profile_id`. Adapters inject this filter — never the domain or ports layer." This rule governs the **domain adapter layer's SQL query pattern** inside each of the four domain services (profile/wealth/health/household) — it is about how `WHERE profile_id = ?` gets attached to a Panache query.
+
+`ProjectionCalculationEngine` lives in `web-gateway`, which:
+- Has no database of its own and issues zero SQL against any domain schema (ADR-002, ADR-013).
+- Talks to each domain exclusively over REST, one `profile_id` per call — exactly the access pattern ADR-006 already permits and assumes (`WealthServiceClient.listAccounts(..., profileId)`, `ProfileServiceClient.listProfiles(adminId, isActive)`, etc.).
+
+Looping the engine's existing per-profile compute calls across every member profile under one `admin_id` is **N sequential single-profile-scoped REST calls**, each individually ADR-006-compliant on the domain side. The aggregation (summing the N results into one family total) happens in gateway application memory, after each domain call has already returned ADR-006-filtered data. No query anywhere — gateway or domain — is ever scoped to more than one `profile_id` at a time. This is also not a cross-domain SQL join (ADR-003) for the same reason: nothing joins across schemas; the gateway composes REST responses.
+
+**Conclusion: no amendment to ADR-006 needed.** The rollup is a gateway-layer composition concern, a layer ADR-006 does not govern. This is consistent with ADR-013's own framing: the engine "has read access to all domain schemas" via REST, never SQL.
+
+**Mechanism — how the rollup is computed:**
+
+1. Resolve household membership: `ProfileServiceClient.listProfiles(adminId, isActive=true)` — already exists today, no new gateway client code needed. Returns every `profile.profile` row where `admin_id` matches (the FK already established by `V2__add_admin_table.sql`).
+2. For each member profile_id returned, call the existing per-profile compute path exactly as today (e.g., `wealthServiceClient.listAccounts(..., profileId)`).
+3. Sum/aggregate the per-member results into one family total; retain each member's individual result as a nested entry.
+4. UPSERT one row into `projections.dashboard_snapshot`, keyed by **the admin's own SELF profile_id** (the `profile.profile` row where `relation_to_admin = 'SELF'` and `admin_id` = the logged-in admin — this is already "Ketan's profile_id," the same identifier every existing single-profile snapshot uses today) and a new family-scoped `snapshot_key`.
+
+**Why key by the admin's SELF profile_id, not `admin.id`:** `dashboard_snapshot.profile_id` is already typed/used as a `profile.profile.id` reference everywhere in the existing schema and code (`DashboardSnapshotRepository`, `ProjectionResource`). Introducing `admin.id` as a second identifier space into the same column would require a new column or a type-widening migration for zero benefit — the admin's SELF profile_id already uniquely and stably identifies "this household" today (`uq_admin_self_profile` guarantees exactly one SELF per admin). Reuse it.
+
+**New snapshot keys** (additive — old keys are not deleted, see coexistence below):
+
+| Key | Computed from |
+|---|---|
+| `WEALTH_NET_WORTH_FAMILY` | Sum of `computeNetWorth()`-equivalent across all members under admin_id |
+| `WEALTH_GOAL_PROGRESS_FAMILY` | Family-level goal set (5 formula-driven goals, Epic 8 Phase 4) — goals are household-scoped by definition, no per-member variant exists |
+| `WEALTH_VALIDATION_REPORT_FAMILY` | Phase 4 validation engine, run once across the combined ledger |
+| `WEALTH_EMI_TRACKING_FAMILY` | Phase 3 loan/EMI aggregation across all member-owned loan accounts |
+
+`HEALTH_VITALS_SUMMARY` and `HOUSEHOLD_EVENT_SUMMARY` are explicitly **not** rolled up under this ADR — vitals and calendar events are inherently per-person (Gayan's vitals are never summed with Vamika's), so they keep their existing per-profile semantics. This ADR is scoped to Epic 8's wealth outputs only, per the product owner's stated framing ("Family Financial Data — Combined").
+
+**Payload shape — family total with nested per-member breakdown** (matches the product owner's reference `assets_06062026.json` shape — per-person figures nested under the family total, not flattened away):
+
+```json
+{
+  "family_total": 4250000.00,
+  "account_count": 9,
+  "members": [
+    { "profile_id": "<ketan-uuid>",  "name": "Ketan",  "subtotal": 1800000.00, "account_count": 4 },
+    { "profile_id": "<shweta-uuid>", "name": "Shweta", "subtotal": 1200000.00, "account_count": 2 },
+    { "profile_id": "<gayan-uuid>",  "name": "Gayan",  "subtotal": 6000.00,    "account_count": 1 },
+    { "profile_id": "<vamika-uuid>", "name": "Vamika", "subtotal": 1244000.00, "account_count": 2 }
+  ]
+}
+```
+
+The joint Kotak account (ADR-016: designated `profile_id` = Shweta, `metadata.joint_owners` = [Ketan]) is counted exactly once, inside Shweta's member entry and once inside `family_total` — never double-counted across two member entries. This satisfies Epic 8's "zero leakage — counted exactly once" rule without needing the joint-owners array as a query predicate; it's a display-only attribution concern resolved entirely client-side if ever needed (e.g., "also show on Ketan's card, attributed").
+
+**Individual member drill-down — no separate compute path:** The frontend's "show me just Shweta's accounts" view is a **client-side filter over the already-computed family payload's `members[]` array** — not a separate REST call, not a separate snapshot row, not a separate auth-gated session. Ketan is the only person who ever authenticates; per-member views are a navigation/filter concern inside his one session, never an access-control boundary. This means Epic 8 does not need to build or maintain N separate per-profile snapshot computations once the family rollup exists — the family payload structurally already contains everything a per-member view needs.
+
+**Coexistence with existing per-profile snapshot keys:** The original `WEALTH_NET_WORTH` (singular, per-`profile_id`) key and compute method are **not removed**. They remain mechanically callable (nothing prevents `computeNetWorth(profileId)` for any profile_id), but are no longer the dashboard's primary read path — the gateway's dashboard endpoint serves `..._FAMILY` keys by default once Epic 8 ships. This is a additive, non-breaking introduction of new keys alongside old ones, consistent with ADR-013's "extension pattern: adding a new metric = one new method + one new snapshot key constant, no other changes needed."
+
+**Rejected alternative — flatten to a single combined number with no member structure:** Rejected because the product owner's reference file explicitly nests per-person breakdowns under the family total; flattening would lose data the UI needs for the drill-down requirement and would make a future "also show individually" ask a backward-incompatible schema change instead of a frontend-only filter.
+
+**Rejected alternative — new `household` table/schema as the rollup's identity:** Rejected for the same YAGNI reason ADR-016 already gave for rejecting a household ownership tier — `profile.admin` already models "which profiles belong to this rollup" via the existing `admin_id` FK, with zero new schema. Introducing a new household concept duplicates an FK relationship that already exists.
+
+**Impact on Epic 8 phases:** See `documents/EPIC8_IMPLEMENTATION_PLAN.md` (revised 2026-06-30) — the family-rollup aggregation step is added to Phase 1 as a thin wrapper around the per-account balance fix already in progress; it does not replace or invalidate that work. Phases 3-4 (EMI tracking, goals, validation) reuse the same aggregation mechanism (`listProfiles(admin_id)` + loop + sum-with-nested-breakdown) rather than needing a redesign.
+
+**Schema impact:** None. No new table, no new column, no new migration. `projections.dashboard_snapshot` keeps its existing `(profile_id, snapshot_key)` primary key shape — only new `snapshot_key` string constants are added in `SnapshotKey.java`.
