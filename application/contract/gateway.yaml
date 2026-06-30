@@ -176,6 +176,66 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /v1/accounts/{accountId}/balance:
+
+    get:
+      tags: [Accounts]
+      operationId: getAccountBalance
+      summary: Get the computed current balance for an account
+      description: >
+        opening_balance + SUM(CREDIT) - SUM(DEBIT) over the account's full
+        transaction ledger (Epic 8 Phase 1, Bug 2 fix).
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - name: profile_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountBalanceResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/accounts/{accountId}/classification:
+
+    patch:
+      tags: [Accounts]
+      operationId: updateAccountClassification
+      summary: Set Epic 8 classification metadata on an account
+      description: >
+        Merges category, liquidity_tier, purpose_tag, and joint_owners (ADR-016
+        Decision 2) into the account's existing metadata map. All fields optional.
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAccountClassificationRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   # ============================================================
   # TRANSACTIONS
   # ============================================================
@@ -239,6 +299,68 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TransactionResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/accounts/{accountId}/transactions/{txnId}/category:
+
+    patch:
+      tags: [Transactions]
+      operationId: updateTransactionCategory
+      summary: Set the expense category on a single transaction
+      description: >
+        Epic 8 Phase 2 manual categorization (Use Case 8.3, Q24).
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/TxnId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTransactionCategoryRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/accounts/{accountId}/transactions/category:
+
+    patch:
+      tags: [Transactions]
+      operationId: bulkUpdateTransactionCategory
+      summary: Set the expense category on a caller-selected list of transactions
+      description: >
+        Epic 8 Phase 2 bulk-tag-by-selection (Use Case 8.3, Q24 resolution — not a
+        rules engine). Tags every transaction_id in the request with the same category.
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkUpdateTransactionCategoryRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListTransactionsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
@@ -878,6 +1000,52 @@ components:
           type: string
           format: date-time
           readOnly: true
+        metadata:
+          type: object
+          description: >
+            Epic 8 classification metadata (category, liquidity_tier, purpose_tag,
+            joint_owners). joint_owners is a comma-joined list of co-owner profile_id
+            strings (ADR-016 Decision 2) — attribution/display only.
+          additionalProperties:
+            type: string
+          readOnly: true
+
+    AccountBalanceResponse:
+      type: object
+      properties:
+        account_id:
+          type: string
+          format: uuid
+        opening_balance:
+          type: number
+          format: double
+        total_credits:
+          type: number
+          format: double
+        total_debits:
+          type: number
+          format: double
+        current_balance:
+          type: number
+          format: double
+
+    UpdateAccountClassificationRequest:
+      type: object
+      description: All fields optional. Only provided keys are merged into metadata.
+      properties:
+        category:
+          type: string
+        liquidity_tier:
+          type: string
+        purpose_tag:
+          type: string
+        joint_owners:
+          type: array
+          nullable: true
+          description: Co-owner profile_id strings (ADR-016 Decision 2).
+          items:
+            type: string
+            format: uuid
 
     CreateAccountRequest:
       type: object
@@ -986,6 +1154,12 @@ components:
           type: string
           format: date-time
           readOnly: true
+        metadata:
+          type: object
+          description: Epic 8 Phase 2 classification metadata (category).
+          additionalProperties:
+            type: string
+          readOnly: true
 
     ListTransactionsResponse:
       type: object
@@ -994,6 +1168,38 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/TransactionResponse'
+
+    ExpenseCategory:
+      type: string
+      enum:
+        - HOUSEHOLD_CORE
+        - CHILD_RELATED
+        - MAINTENANCE
+        - DISCRETIONARY
+        - UNCATEGORIZED
+      description: Epic 8 Phase 2 hardcoded expense category enum (manual tagging only).
+
+    UpdateTransactionCategoryRequest:
+      type: object
+      required:
+        - category
+      properties:
+        category:
+          $ref: '#/components/schemas/ExpenseCategory'
+
+    BulkUpdateTransactionCategoryRequest:
+      type: object
+      required:
+        - transaction_ids
+        - category
+      properties:
+        transaction_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        category:
+          $ref: '#/components/schemas/ExpenseCategory'
 
     # ----------------------------------------------------------
     # STATEMENT UPLOAD DTOs

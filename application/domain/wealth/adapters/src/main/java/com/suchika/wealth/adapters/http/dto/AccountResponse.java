@@ -7,6 +7,7 @@ import io.quarkus.runtime.annotations.RegisterForReflection;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 
 @RegisterForReflection
@@ -43,6 +44,14 @@ public class AccountResponse {
     @JsonProperty("created_at")
     public Instant createdAt;
 
+    /**
+     * Epic 8 Phase 1 classification metadata (category, liquidity_tier, purpose_tag).
+     * category is reserved and not populated until Phase 2 — will be an empty/absent
+     * map for every account until then. See ADR-016.
+     */
+    @JsonProperty("metadata")
+    public Map<String, String> metadata;
+
     public static AccountResponse from(Account account) {
         AccountResponse r = new AccountResponse();
         r.accountId = account.getId();
@@ -55,6 +64,7 @@ public class AccountResponse {
         r.emiAmount = account.getEmiAmount();
         r.active = account.isActive();
         r.createdAt = account.getCreatedAt();
+        r.metadata = account.getMetadata();
         return r;
     }
 }

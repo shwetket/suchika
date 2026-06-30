@@ -1,6 +1,8 @@
 package com.suchika.wealth.adapters.services;
 
+import com.suchika.shared.exception.BadRequestException;
 import com.suchika.shared.exception.NotFoundException;
+import com.suchika.wealth.domain.ExpenseCategory;
 import com.suchika.wealth.domain.Transaction;
 import com.suchika.wealth.domain.TxnType;
 import com.suchika.wealth.ports.output.TransactionRepository;
@@ -84,7 +86,87 @@ class TransactionServiceTest {
 
     @Test
     void getById_notFound_throwsNotFoundException() {
-        assertThrows(NotFoundException.class, () -> service.getById(UUID.randomUUID()));
+        UUID randomId = UUID.randomUUID();
+        assertThrows(NotFoundException.class, () -> service.getById(randomId));
+    }
+
+    // ---- Epic 8 Phase 2: manual expense category tagging (Use Case 8.3, Q24) ----
+
+    @Test
+    void updateCategory_setsCategoryInMetadata() {
+        UUID id = UUID.randomUUID();
+        Transaction txn = Transaction.builder()
+                .id(id)
+                .accountId(UUID.randomUUID())
+                .txnDate(LocalDate.of(2026, Month.JUNE, 1))
+                .amount(new BigDecimal("250.00"))
+                .txnType(TxnType.DEBIT)
+                .description("Groceries")
+                .build();
+        repo.store.add(txn);
+
+        Transaction updated = service.updateCategory(id, ExpenseCategory.HOUSEHOLD_CORE);
+
+        assertEquals("HOUSEHOLD_CORE", updated.getMetadata().get("category"));
+    }
+
+    @Test
+    void updateCategory_nullCategory_throwsBadRequest() {
+        UUID id = UUID.randomUUID();
+        repo.store.add(Transaction.builder()
+                .id(id)
+                .accountId(UUID.randomUUID())
+                .txnDate(LocalDate.of(2026, Month.JUNE, 1))
+                .amount(new BigDecimal("250.00"))
+                .txnType(TxnType.DEBIT)
+                .description("Groceries")
+                .build());
+
+        assertThrows(BadRequestException.class, () -> service.updateCategory(id, null));
+    }
+
+    @Test
+    void updateCategory_notFound_throwsNotFoundException() {
+        UUID randomId = UUID.randomUUID();
+        assertThrows(NotFoundException.class,
+                () -> service.updateCategory(randomId, ExpenseCategory.DISCRETIONARY));
+    }
+
+    @Test
+    void bulkUpdateCategory_tagsEveryGivenId() {
+        UUID id1 = UUID.randomUUID();
+        UUID id2 = UUID.randomUUID();
+        UUID accountId = UUID.randomUUID();
+        repo.store.add(Transaction.builder().id(id1).accountId(accountId)
+                .txnDate(LocalDate.of(2026, Month.JUNE, 1)).amount(new BigDecimal("100.00"))
+                .txnType(TxnType.DEBIT).description("Item 1").build());
+        repo.store.add(Transaction.builder().id(id2).accountId(accountId)
+                .txnDate(LocalDate.of(2026, Month.JUNE, 2)).amount(new BigDecimal("200.00"))
+                .txnType(TxnType.DEBIT).description("Item 2").build());
+
+        List<Transaction> updated = service.bulkUpdateCategory(List.of(id1, id2), ExpenseCategory.CHILD_RELATED);
+
+        assertEquals(2, updated.size());
+        assertTrue(updated.stream().allMatch(t -> "CHILD_RELATED".equals(t.getMetadata().get("category"))));
+    }
+
+    @Test
+    void bulkUpdateCategory_emptyList_throwsBadRequest() {
+        assertThrows(BadRequestException.class,
+                () -> service.bulkUpdateCategory(List.of(), ExpenseCategory.DISCRETIONARY));
+    }
+
+    @Test
+    void bulkUpdateCategory_nullList_throwsBadRequest() {
+        assertThrows(BadRequestException.class,
+                () -> service.bulkUpdateCategory(null, ExpenseCategory.DISCRETIONARY));
+    }
+
+    @Test
+    void bulkUpdateCategory_unknownId_throwsNotFoundException() {
+        List<UUID> ids = List.of(UUID.randomUUID());
+        assertThrows(NotFoundException.class,
+                () -> service.bulkUpdateCategory(ids, ExpenseCategory.DISCRETIONARY));
     }
 
     // ---- Fake repository ----
@@ -121,7 +203,7 @@ class TransactionServiceTest {
         }
 
         @Override
-        public List<Transaction> findByAccountId(UUID accountId, LocalDate from, LocalDate to, TxnType txnType) {
+        public List<Transaction> findByAccountId(UUID accountId, UUID profileId, LocalDate from, LocalDate to, TxnType txnType) {
             this.lastAccountId = accountId;
             this.lastFrom = from;
             this.lastTo = to;
@@ -135,8 +217,16 @@ class TransactionServiceTest {
         }
 
         @Override
-        public boolean existsByDeduplicationKey(UUID accountId, LocalDate txnDate, BigDecimal amount, TxnType txnType) {
+        public boolean existsByDeduplicationKey(UUID accountId, UUID profileId, LocalDate txnDate, BigDecimal amount, TxnType txnType) {
             return false;
+        }
+
+        @Override
+        public BigDecimal sumAmountByTxnType(UUID accountId, UUID profileId, TxnType txnType) {
+            return store.stream()
+                    .filter(t -> accountId.equals(t.getAccountId()) && txnType == t.getTxnType())
+                    .map(Transaction::getAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
         }
     }
 }

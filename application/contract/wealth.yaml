@@ -18,6 +18,8 @@ tags:
     description: Bank accounts, credit cards, loans and investments
   - name: Uploads
     description: CSV statement uploads and error inspection
+  - name: Transactions
+    description: Ledger transactions and expense categorization
 
 paths:
 
@@ -44,6 +46,12 @@ paths:
           required: false
           schema:
             type: boolean
+        - name: profile_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
           description: Successfully listed accounts
@@ -64,6 +72,13 @@ paths:
         Creates a new account.
         Follows AIP-133 (Standard Create).
         The name field must be unique per institution.
+      parameters:
+        - name: profile_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
       requestBody:
         required: true
         content:
@@ -168,6 +183,132 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /v1/accounts/{account_id}/balance:
+
+    get:
+      tags: [Accounts]
+      operationId: getAccountBalance
+      summary: Get the current computed balance for an account
+      description: >
+        Computes current_balance = opening_balance + SUM(CREDIT) - SUM(DEBIT)
+        over the account's full transaction ledger. Epic 8 Phase 1 — opening_balance
+        alone is only the snapshot recorded at account creation, not the running balance.
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - name: profile_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Computed account balance
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountBalance'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/accounts/{account_id}/classification:
+
+    patch:
+      tags: [Accounts]
+      operationId: updateAccountClassification
+      summary: Set classification metadata on an account
+      description: >
+        Epic 8 Phase 1 classification metadata write path (Use Case 8.4 prerequisite).
+        Merges the provided keys into the account's existing metadata map — does not
+        replace the whole map. category is reserved for Phase 2 consumption (rollup
+        and validation engines) but accepted and stored now. See ADR-016.
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAccountClassificationRequest'
+      responses:
+        '200':
+          description: Classification metadata updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/accounts/{account_id}/transactions/{txn_id}/category:
+
+    patch:
+      tags: [Transactions]
+      operationId: updateTransactionCategory
+      summary: Set the expense category on a single transaction
+      description: >
+        Epic 8 Phase 2 manual categorization (Use Case 8.3, Q24). Merges category
+        into the transaction's existing metadata map.
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/TxnId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTransactionCategoryRequest'
+      responses:
+        '200':
+          description: Transaction category updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/accounts/{account_id}/transactions/category:
+
+    patch:
+      tags: [Transactions]
+      operationId: bulkUpdateTransactionCategory
+      summary: Set the expense category on a caller-selected list of transactions
+      description: >
+        Epic 8 Phase 2 bulk-tag-by-selection (Use Case 8.3, Q24 resolution — not a
+        rules engine). Tags every transaction_id in the request with the same category.
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkUpdateTransactionCategoryRequest'
+      responses:
+        '200':
+          description: Transactions updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListTransactionsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /v1/accounts/{account_id}:
 
     get:
@@ -261,6 +402,15 @@ components:
       in: path
       required: true
       description: Unique identifier of the statement upload
+      schema:
+        type: string
+        format: uuid
+
+    TxnId:
+      name: txn_id
+      in: path
+      required: true
+      description: Unique identifier of the transaction
       schema:
         type: string
         format: uuid
@@ -446,6 +596,16 @@ components:
           type: string
           format: date-time
           readOnly: true
+        metadata:
+          type: object
+          description: >
+            Epic 8 classification metadata (category, liquidity_tier, purpose_tag,
+            joint_owners). joint_owners is a comma-joined list of co-owner profile_id
+            strings (ADR-016 Decision 2) — attribution/display only, never a query
+            predicate. See ADR-016.
+          additionalProperties:
+            type: string
+          readOnly: true
 
     CreateAccountRequest:
       type: object
@@ -510,6 +670,130 @@ components:
           nullable: true
         is_active:
           type: boolean
+
+    AccountBalance:
+      type: object
+      description: >
+        Computed balance for a single account. Epic 8 Phase 1, Bug 2 fix.
+      properties:
+        account_id:
+          type: string
+          format: uuid
+        opening_balance:
+          type: number
+          format: double
+        total_credits:
+          type: number
+          format: double
+        total_debits:
+          type: number
+          format: double
+        current_balance:
+          type: number
+          format: double
+          description: opening_balance + total_credits - total_debits
+
+    UpdateAccountClassificationRequest:
+      type: object
+      description: >
+        All fields optional. Only provided keys are merged into the account's
+        existing metadata map.
+      properties:
+        category:
+          type: string
+          nullable: true
+          description: Reserved for Phase 2 consumption. Accepted and stored now.
+        liquidity_tier:
+          type: string
+          nullable: true
+        purpose_tag:
+          type: string
+          nullable: true
+        joint_owners:
+          type: array
+          nullable: true
+          description: >
+            Co-owner profile_id strings (ADR-016 Decision 2). Stored comma-joined
+            in metadata.joint_owners — attribution only, never a query predicate.
+          items:
+            type: string
+            format: uuid
+
+    ExpenseCategory:
+      type: string
+      enum:
+        - HOUSEHOLD_CORE
+        - CHILD_RELATED
+        - MAINTENANCE
+        - DISCRETIONARY
+        - UNCATEGORIZED
+      description: Epic 8 Phase 2 hardcoded expense category enum (manual tagging only).
+
+    Transaction:
+      type: object
+      description: A single ledger transaction.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        account_id:
+          type: string
+          format: uuid
+        upload_id:
+          type: string
+          format: uuid
+        txn_date:
+          type: string
+          format: date
+        amount:
+          type: number
+          format: double
+        txn_type:
+          type: string
+          enum: [CREDIT, DEBIT]
+        description:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        metadata:
+          type: object
+          description: Epic 8 Phase 2 classification metadata (category).
+          additionalProperties:
+            type: string
+          readOnly: true
+
+    ListTransactionsResponse:
+      type: object
+      properties:
+        transactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Transaction'
+
+    UpdateTransactionCategoryRequest:
+      type: object
+      required:
+        - category
+      properties:
+        category:
+          $ref: '#/components/schemas/ExpenseCategory'
+
+    BulkUpdateTransactionCategoryRequest:
+      type: object
+      required:
+        - transaction_ids
+        - category
+      properties:
+        transaction_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        category:
+          $ref: '#/components/schemas/ExpenseCategory'
 
     ListAccountsResponse:
       type: object

@@ -1,8 +1,11 @@
 package com.suchika.wealth.adapters.http;
 
 import com.suchika.shared.exception.BadRequestException;
+import com.suchika.wealth.adapters.http.dto.BulkUpdateTransactionCategoryRequest;
 import com.suchika.wealth.adapters.http.dto.ListTransactionsResponse;
 import com.suchika.wealth.adapters.http.dto.TransactionResponse;
+import com.suchika.wealth.adapters.http.dto.UpdateTransactionCategoryRequest;
+import com.suchika.wealth.domain.ExpenseCategory;
 import com.suchika.wealth.domain.TxnType;
 import com.suchika.wealth.ports.input.TransactionUseCase;
 import jakarta.ws.rs.*;
@@ -46,6 +49,37 @@ public class TransactionResource {
             @PathParam("account_id") UUID accountId,
             @PathParam("txn_id") UUID txnId) {
         return TransactionResponse.from(useCase.getById(txnId));
+    }
+
+    @PATCH
+    @Path("/{txn_id}/category")
+    public TransactionResponse updateCategory(
+            @PathParam("account_id") UUID accountId,
+            @PathParam("txn_id") UUID txnId,
+            UpdateTransactionCategoryRequest request) {
+        if (request == null) throw new BadRequestException("Request body is required");
+        return TransactionResponse.from(useCase.updateCategory(txnId, parseCategory(request.category)));
+    }
+
+    @PATCH
+    @Path("/category")
+    public Response bulkUpdateCategory(
+            @PathParam("account_id") UUID accountId,
+            BulkUpdateTransactionCategoryRequest request) {
+        if (request == null) throw new BadRequestException("Request body is required");
+        ExpenseCategory category = parseCategory(request.category);
+        List<TransactionResponse> updated = useCase.bulkUpdateCategory(request.transactionIds, category)
+                .stream().map(TransactionResponse::from).toList();
+        return Response.ok(new ListTransactionsResponse(updated)).build();
+    }
+
+    private ExpenseCategory parseCategory(String value) {
+        if (value == null) throw new BadRequestException("category is required");
+        try {
+            return ExpenseCategory.valueOf(value);
+        } catch (IllegalArgumentException e) {
+            throw new BadRequestException("Invalid category: " + value);
+        }
     }
 
     private LocalDate parseDate(String value, String paramName) {

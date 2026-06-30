@@ -160,6 +160,58 @@ describe('Dashboard', () => {
     });
   });
 
+  it('shows family net worth and member breakdown when FAMILY snapshot is present', async () => {
+    const snapshotsWithFamily = [
+      {
+        profile_id: 'p1',
+        snapshot_key: 'WEALTH_NET_WORTH',
+        payload: JSON.stringify({ net_worth: 300000 }),
+        calculated_at: '2026-06-24T10:00:00Z',
+      },
+      {
+        profile_id: 'p1',
+        snapshot_key: 'WEALTH_NET_WORTH_FAMILY',
+        payload: JSON.stringify({
+          family_net_worth: 455000,
+          member_count: 2,
+          members: [
+            { profile_id: 'p1', full_name: 'Ketan', relation_to_admin: 'SELF', net_worth: 300000 },
+            {
+              profile_id: 'p2',
+              full_name: 'Shweta',
+              relation_to_admin: 'SPOUSE',
+              net_worth: 155000,
+            },
+          ],
+        }),
+        calculated_at: '2026-06-24T10:00:00Z',
+      },
+    ];
+    mockUseAuth.mockReturnValue({ user: MOCK_USER });
+    getDashboard.mockResolvedValue({ snapshots: snapshotsWithFamily });
+
+    renderDashboard();
+
+    await waitFor(() => {
+      expect(screen.getByText(/family net worth/i)).toBeInTheDocument();
+      expect(screen.getByText('Ketan')).toBeInTheDocument();
+      expect(screen.getByText('Shweta')).toBeInTheDocument();
+      expect(screen.getByText('SPOUSE')).toBeInTheDocument();
+    });
+  });
+
+  it('falls back to per-profile net worth when FAMILY snapshot is absent', async () => {
+    mockUseAuth.mockReturnValue({ user: MOCK_USER });
+    getDashboard.mockResolvedValue({ snapshots: MOCK_SNAPSHOTS });
+
+    renderDashboard();
+
+    await waitFor(() => {
+      expect(screen.getByText(/net worth/i)).toBeInTheDocument();
+      expect(screen.queryByText(/family net worth/i)).not.toBeInTheDocument();
+    });
+  });
+
   it('loads dashboard snapshots on mount from getDashboard', async () => {
     mockUseAuth.mockReturnValue({ user: MOCK_USER });
     getDashboard.mockResolvedValue({ snapshots: MOCK_SNAPSHOTS });

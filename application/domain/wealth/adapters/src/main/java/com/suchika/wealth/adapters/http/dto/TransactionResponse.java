@@ -6,6 +6,7 @@ import com.suchika.wealth.domain.Transaction;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Map;
 import java.util.UUID;
 
 public class TransactionResponse {
@@ -34,6 +35,9 @@ public class TransactionResponse {
     @JsonProperty("created_at")
     public Instant createdAt;
 
+    @JsonProperty("metadata")
+    public Map<String, String> metadata;
+
     public static TransactionResponse from(Transaction txn) {
         TransactionResponse r = new TransactionResponse();
         r.id = txn.getId();
@@ -44,6 +48,7 @@ public class TransactionResponse {
         r.txnType = txn.getTxnType() != null ? txn.getTxnType().name() : null;
         r.description = txn.getDescription();
         r.createdAt = txn.getCreatedAt();
+        r.metadata = txn.getMetadata();
         return r;
     }
 }

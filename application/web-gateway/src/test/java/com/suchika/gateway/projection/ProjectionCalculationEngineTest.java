@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.suchika.gateway.health.HealthServiceClient;
 import com.suchika.gateway.household.HouseholdServiceClient;
+import com.suchika.gateway.profile.ProfileServiceClient;
 import com.suchika.gateway.wealth.WealthServiceClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,6 +35,7 @@ class ProjectionCalculationEngineTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final UUID PROFILE_ID = UUID.fromString("00000000-0000-0000-0000-000000000099");
+    private static final UUID ADMIN_ID = UUID.fromString("00000000-0000-0000-0000-0000000000aa");
 
     @Mock
     WealthServiceClient wealthClient;
@@ -45,6 +47,9 @@ class ProjectionCalculationEngineTest {
     HouseholdServiceClient householdClient;
 
     @Mock
+    ProfileServiceClient profileClient;
+
+    @Mock
     DashboardSnapshotRepository snapshotRepo;
 
     ProjectionCalculationEngine engine;
@@ -52,16 +57,20 @@ class ProjectionCalculationEngineTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        engine = new ProjectionCalculationEngine(wealthClient, healthClient, householdClient, snapshotRepo);
+        engine = new ProjectionCalculationEngine(wealthClient, healthClient, householdClient, profileClient, snapshotRepo);
     }
 
     // ── computeNetWorth ───────────────────────────────────────────────────────
 
     @Test
     void computeNetWorth_sumsAccountBalances() throws Exception {
-        JsonNode accountsResponse = buildAccountsResponse(1000.0, 500.0);
+        UUID accountId1 = UUID.fromString("11111111-0000-0000-0000-000000000001");
+        UUID accountId2 = UUID.fromString("11111111-0000-0000-0000-000000000002");
+        JsonNode accountsResponse = buildAccountsResponse(accountId1, accountId2);
         when(wealthClient.listAccounts(isNull(), eq(true), eq(PROFILE_ID.toString())))
                 .thenReturn(accountsResponse);
+        stubBalance(accountId1, 1000.0);
+        stubBalance(accountId2, 500.0);
 
         engine.computeNetWorth(PROFILE_ID);
 
@@ -87,6 +96,33 @@ class ProjectionCalculationEngineTest {
         JsonNode payload = MAPPER.readTree(payloadCaptor.getValue());
         assertEquals(0.0, payload.path("net_worth").asDouble(), 0.001);
         assertEquals(0, payload.path("account_count").asInt());
+    }
+
+    @Test
+    void computeNetWorth_usesCurrentBalanceEndpoint_notOpeningBalance() throws Exception {
+        // Epic 8 Phase 1, Bug 2 fix: net worth must reflect opening_balance + SUM(CREDIT) - SUM(DEBIT),
+        // not just opening_balance. This test proves the engine calls the per-account balance endpoint
+        // and uses current_balance, ignoring whatever opening_balance happens to be on the list payload.
+        UUID accountId = UUID.fromString("22222222-0000-0000-0000-000000000001");
+        ObjectNode account = MAPPER.createObjectNode();
+        account.put("account_id", accountId.toString());
+        account.put("opening_balance", 100.0); // deliberately wrong/stale if engine read this directly
+        ObjectNode root = MAPPER.createObjectNode();
+        ArrayNode accounts = MAPPER.createArrayNode();
+        accounts.add(account);
+        root.set("accounts", accounts);
+
+        when(wealthClient.listAccounts(isNull(), eq(true), eq(PROFILE_ID.toString()))).thenReturn(root);
+        stubBalance(accountId, 9999.0);
+
+        engine.computeNetWorth(PROFILE_ID);
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_NET_WORTH), payloadCaptor.capture());
+        JsonNode payload = MAPPER.readTree(payloadCaptor.getValue());
+
+        assertEquals(9999.0, payload.path("net_worth").asDouble(), 0.001);
+        verify(wealthClient).getAccountBalance(eq(accountId), eq(PROFILE_ID.toString()));
     }
 
     // ── computeVitalsSummary ─────────────────────────────────────────────────
@@ -171,11 +207,13 @@ class ProjectionCalculationEngineTest {
         UUID goalId = UUID.fromString("aaaaaaaa-0000-0000-0000-000000000001");
         JsonNode goalsResponse = buildGoalsResponse(goalId, "Vacation Fund", 1000.0);
         // Balance = 600 → progress = 60%
-        JsonNode accountsResponse = buildAccountsResponse(600.0);
+        UUID accountId = UUID.fromString("33333333-0000-0000-0000-000000000001");
+        JsonNode accountsResponse = buildAccountsResponse(accountId);
 
         when(householdClient.listGoals(PROFILE_ID, null)).thenReturn(goalsResponse);
         when(wealthClient.listAccounts(isNull(), eq(true), eq(PROFILE_ID.toString())))
                 .thenReturn(accountsResponse);
+        stubBalance(accountId, 600.0);
         // stub the updateGoalCurrentAmount call
         when(householdClient.updateGoalCurrentAmount(eq(goalId), any()))
                 .thenReturn(MAPPER.createObjectNode());
@@ -200,11 +238,13 @@ class ProjectionCalculationEngineTest {
         UUID goalId = UUID.fromString("bbbbbbbb-0000-0000-0000-000000000001");
         JsonNode goalsResponse = buildGoalsResponse(goalId, "Car Fund", 500.0);
         // Balance = 1000 > target 500 → capped at 100%
-        JsonNode accountsResponse = buildAccountsResponse(1000.0);
+        UUID accountId = UUID.fromString("44444444-0000-0000-0000-000000000001");
+        JsonNode accountsResponse = buildAccountsResponse(accountId);
 
         when(householdClient.listGoals(PROFILE_ID, null)).thenReturn(goalsResponse);
         when(wealthClient.listAccounts(isNull(), eq(true), eq(PROFILE_ID.toString())))
                 .thenReturn(accountsResponse);
+        stubBalance(accountId, 1000.0);
         when(householdClient.updateGoalCurrentAmount(eq(goalId), any()))
                 .thenReturn(MAPPER.createObjectNode());
 
@@ -220,10 +260,90 @@ class ProjectionCalculationEngineTest {
         assertEquals(500.0, goals.get(0).path("current_amount").asDouble(), 0.001);
     }
 
+    // ── computeCategoryValidation (Epic 8 Phase 1 validation seed, Use Case 8.4 narrow scope) ──
+
+    @Test
+    void computeCategoryValidation_noAccountsHaveCategory_flagsAllAsUncategorized() throws Exception {
+        // Phase 1: wealth.account.metadata.category is never populated yet (Phase 2 work).
+        // This check is EXPECTED to flag every account as uncategorized right now — that is
+        // correct, not a bug. It must not be faked to report categorized accounts.
+        UUID accountId1 = UUID.fromString("55555555-0000-0000-0000-000000000001");
+        UUID accountId2 = UUID.fromString("55555555-0000-0000-0000-000000000002");
+        JsonNode accountsResponse = buildAccountsResponse(accountId1, accountId2);
+        when(wealthClient.listAccounts(isNull(), eq(true), eq(PROFILE_ID.toString())))
+                .thenReturn(accountsResponse);
+
+        engine.computeCategoryValidation(PROFILE_ID);
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_CATEGORY_VALIDATION), payloadCaptor.capture());
+
+        JsonNode payload = MAPPER.readTree(payloadCaptor.getValue());
+        assertEquals(2, payload.path("total_accounts").asInt());
+        assertEquals(0, payload.path("categorized_count").asInt());
+        assertEquals(2, payload.path("uncategorized_count").asInt());
+        JsonNode uncategorizedIds = payload.path("uncategorized_account_ids");
+        assertTrue(uncategorizedIds.isArray());
+        assertEquals(2, uncategorizedIds.size());
+    }
+
+    @Test
+    void computeCategoryValidation_accountWithCategorySet_isCountedAsCategorized() throws Exception {
+        // Even though Phase 1 doesn't populate category for real accounts, the check itself
+        // must correctly recognize a category when one IS present (e.g. set manually via the
+        // new classification endpoint) — proving the check logic is honest, not hardcoded.
+        UUID categorizedId = UUID.fromString("66666666-0000-0000-0000-000000000001");
+        UUID uncategorizedId = UUID.fromString("66666666-0000-0000-0000-000000000002");
+
+        ObjectNode root = MAPPER.createObjectNode();
+        ArrayNode accounts = MAPPER.createArrayNode();
+
+        ObjectNode withCategory = MAPPER.createObjectNode();
+        withCategory.put("account_id", categorizedId.toString());
+        ObjectNode metadata = MAPPER.createObjectNode();
+        metadata.put("category", "EMERGENCY_FUND");
+        withCategory.set("metadata", metadata);
+        accounts.add(withCategory);
+
+        ObjectNode withoutCategory = MAPPER.createObjectNode();
+        withoutCategory.put("account_id", uncategorizedId.toString());
+        accounts.add(withoutCategory);
+
+        root.set("accounts", accounts);
+        when(wealthClient.listAccounts(isNull(), eq(true), eq(PROFILE_ID.toString()))).thenReturn(root);
+
+        engine.computeCategoryValidation(PROFILE_ID);
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_CATEGORY_VALIDATION), payloadCaptor.capture());
+
+        JsonNode payload = MAPPER.readTree(payloadCaptor.getValue());
+        assertEquals(2, payload.path("total_accounts").asInt());
+        assertEquals(1, payload.path("categorized_count").asInt());
+        assertEquals(1, payload.path("uncategorized_count").asInt());
+        assertEquals(uncategorizedId.toString(), payload.path("uncategorized_account_ids").get(0).asText());
+    }
+
+    @Test
+    void computeCategoryValidation_noAccounts_storesZeroes() throws Exception {
+        when(wealthClient.listAccounts(isNull(), eq(true), eq(PROFILE_ID.toString())))
+                .thenReturn(buildEmptyAccountsResponse());
+
+        engine.computeCategoryValidation(PROFILE_ID);
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_CATEGORY_VALIDATION), payloadCaptor.capture());
+
+        JsonNode payload = MAPPER.readTree(payloadCaptor.getValue());
+        assertEquals(0, payload.path("total_accounts").asInt());
+        assertEquals(0, payload.path("categorized_count").asInt());
+        assertEquals(0, payload.path("uncategorized_count").asInt());
+    }
+
     // ── refreshAll ───────────────────────────────────────────────────────────
 
     @Test
-    void refreshAll_callsAllFourComputeMethods() throws Exception {
+    void refreshAll_callsAllSixComputeMethods() throws Exception {
         // Stub all clients with empty-but-valid responses
         when(wealthClient.listAccounts(any(), any(), any()))
                 .thenReturn(buildEmptyAccountsResponse());
@@ -233,31 +353,133 @@ class ProjectionCalculationEngineTest {
                 .thenReturn(MAPPER.readTree("{\"calendar_events\":[]}"));
         when(householdClient.listGoals(any(), any()))
                 .thenReturn(MAPPER.readTree("{\"goals\":[]}"));
+        when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
+        when(profileClient.listProfiles(eq(ADMIN_ID), eq(true))).thenReturn(buildEmptyProfilesResponse());
         when(snapshotRepo.findByProfileId(PROFILE_ID)).thenReturn(List.of());
 
         engine.refreshAll(PROFILE_ID);
 
-        // All four SnapshotKey upserts must have fired
+        // All six SnapshotKey upserts must have fired
         verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_NET_WORTH), anyString());
         verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_GOAL_PROGRESS), anyString());
         verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.HEALTH_VITALS_SUMMARY), anyString());
         verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.HOUSEHOLD_EVENT_SUMMARY), anyString());
-        // Total: exactly 4 upsert calls
-        verify(snapshotRepo, times(4)).upsert(any(), anyString(), anyString());
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_CATEGORY_VALIDATION), anyString());
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_NET_WORTH_FAMILY), anyString());
+        // Total: exactly 6 upsert calls
+        verify(snapshotRepo, times(6)).upsert(any(), anyString(), anyString());
+    }
+
+    // ── computeFamilyNetWorth (ADR-017) ─────────────────────────────────────────
+
+    @Test
+    void computeFamilyNetWorth_sumsNetWorthAcrossHouseholdMembers() throws Exception {
+        UUID spouseProfileId = UUID.fromString("77777777-0000-0000-0000-000000000002");
+        UUID childProfileId = UUID.fromString("77777777-0000-0000-0000-000000000003");
+
+        when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
+        when(profileClient.listProfiles(eq(ADMIN_ID), eq(true))).thenReturn(buildProfilesResponse(
+                new MemberEntry(PROFILE_ID, "Ketan", "SELF"),
+                new MemberEntry(spouseProfileId, "Shweta", "SPOUSE"),
+                new MemberEntry(childProfileId, "Gayan", "CHILD")
+        ));
+
+        UUID selfAccountId = UUID.fromString("88888888-0000-0000-0000-000000000001");
+        UUID spouseAccountId = UUID.fromString("88888888-0000-0000-0000-000000000002");
+        UUID childAccountId = UUID.fromString("88888888-0000-0000-0000-000000000003");
+
+        when(wealthClient.listAccounts(isNull(), eq(true), eq(PROFILE_ID.toString())))
+                .thenReturn(buildAccountsResponse(selfAccountId));
+        when(wealthClient.listAccounts(isNull(), eq(true), eq(spouseProfileId.toString())))
+                .thenReturn(buildAccountsResponse(spouseAccountId));
+        when(wealthClient.listAccounts(isNull(), eq(true), eq(childProfileId.toString())))
+                .thenReturn(buildAccountsResponse(childAccountId));
+
+        when(wealthClient.getAccountBalance(eq(selfAccountId), eq(PROFILE_ID.toString())))
+                .thenReturn(balanceNode(selfAccountId, 100000.0));
+        when(wealthClient.getAccountBalance(eq(spouseAccountId), eq(spouseProfileId.toString())))
+                .thenReturn(balanceNode(spouseAccountId, 50000.0));
+        when(wealthClient.getAccountBalance(eq(childAccountId), eq(childProfileId.toString())))
+                .thenReturn(balanceNode(childAccountId, 5000.0));
+
+        engine.computeFamilyNetWorth(PROFILE_ID);
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_NET_WORTH_FAMILY), payloadCaptor.capture());
+
+        JsonNode payload = MAPPER.readTree(payloadCaptor.getValue());
+        assertEquals(155000.0, payload.path("family_net_worth").asDouble(), 0.001);
+        assertEquals(3, payload.path("member_count").asInt());
+
+        JsonNode members = payload.path("members");
+        assertEquals(3, members.size());
+        assertEquals("Ketan", members.get(0).path("full_name").asText());
+        assertEquals("SELF", members.get(0).path("relation_to_admin").asText());
+        assertEquals(100000.0, members.get(0).path("net_worth").asDouble(), 0.001);
+        assertEquals("Shweta", members.get(1).path("full_name").asText());
+        assertEquals(50000.0, members.get(1).path("net_worth").asDouble(), 0.001);
+        assertEquals("Gayan", members.get(2).path("full_name").asText());
+        assertEquals(5000.0, members.get(2).path("net_worth").asDouble(), 0.001);
+    }
+
+    @Test
+    void computeFamilyNetWorth_singleMemberHousehold_equalsOwnNetWorth() throws Exception {
+        // Degenerate case: admin is the only active profile in the household.
+        when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
+        when(profileClient.listProfiles(eq(ADMIN_ID), eq(true))).thenReturn(buildProfilesResponse(
+                new MemberEntry(PROFILE_ID, "Ketan", "SELF")
+        ));
+
+        UUID accountId = UUID.fromString("99999999-0000-0000-0000-000000000001");
+        when(wealthClient.listAccounts(isNull(), eq(true), eq(PROFILE_ID.toString())))
+                .thenReturn(buildAccountsResponse(accountId));
+        when(wealthClient.getAccountBalance(eq(accountId), eq(PROFILE_ID.toString())))
+                .thenReturn(balanceNode(accountId, 42000.0));
+
+        engine.computeFamilyNetWorth(PROFILE_ID);
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_NET_WORTH_FAMILY), payloadCaptor.capture());
+
+        JsonNode payload = MAPPER.readTree(payloadCaptor.getValue());
+        assertEquals(42000.0, payload.path("family_net_worth").asDouble(), 0.001);
+        assertEquals(1, payload.path("member_count").asInt());
+    }
+
+    @Test
+    void computeFamilyNetWorth_noActiveMembers_storesZero() throws Exception {
+        when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
+        when(profileClient.listProfiles(eq(ADMIN_ID), eq(true))).thenReturn(buildEmptyProfilesResponse());
+
+        engine.computeFamilyNetWorth(PROFILE_ID);
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_NET_WORTH_FAMILY), payloadCaptor.capture());
+
+        JsonNode payload = MAPPER.readTree(payloadCaptor.getValue());
+        assertEquals(0.0, payload.path("family_net_worth").asDouble(), 0.001);
+        assertEquals(0, payload.path("member_count").asInt());
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────
 
-    private JsonNode buildAccountsResponse(double... balances) {
+    private JsonNode buildAccountsResponse(UUID... accountIds) {
         ObjectNode root = MAPPER.createObjectNode();
         ArrayNode accounts = MAPPER.createArrayNode();
-        for (double balance : balances) {
+        for (UUID accountId : accountIds) {
             ObjectNode account = MAPPER.createObjectNode();
-            account.put("opening_balance", balance);
+            account.put("account_id", accountId.toString());
             accounts.add(account);
         }
         root.set("accounts", accounts);
         return root;
+    }
+
+    private void stubBalance(UUID accountId, double currentBalance) {
+        ObjectNode balance = MAPPER.createObjectNode();
+        balance.put("account_id", accountId.toString());
+        balance.put("current_balance", currentBalance);
+        when(wealthClient.getAccountBalance(eq(accountId), eq(PROFILE_ID.toString()))).thenReturn(balance);
     }
 
     private JsonNode buildEmptyAccountsResponse() {
@@ -309,5 +531,45 @@ class ProjectionCalculationEngineTest {
     }
 
     private record VitalEntry(String type, double primary, double secondary, String unit, String date) {
+    }
+
+    private JsonNode buildOwnProfileResponse() {
+        ObjectNode root = MAPPER.createObjectNode();
+        root.put("profile_id", PROFILE_ID.toString());
+        root.put("admin_id", ADMIN_ID.toString());
+        root.put("full_name", "Ketan");
+        root.put("relation_to_admin", "SELF");
+        return root;
+    }
+
+    private JsonNode buildEmptyProfilesResponse() {
+        ObjectNode root = MAPPER.createObjectNode();
+        root.set("profiles", MAPPER.createArrayNode());
+        return root;
+    }
+
+    private JsonNode buildProfilesResponse(MemberEntry... members) {
+        ObjectNode root = MAPPER.createObjectNode();
+        ArrayNode profiles = MAPPER.createArrayNode();
+        for (MemberEntry member : members) {
+            ObjectNode profile = MAPPER.createObjectNode();
+            profile.put("profile_id", member.profileId.toString());
+            profile.put("admin_id", ADMIN_ID.toString());
+            profile.put("full_name", member.fullName);
+            profile.put("relation_to_admin", member.relation);
+            profiles.add(profile);
+        }
+        root.set("profiles", profiles);
+        return root;
+    }
+
+    private JsonNode balanceNode(UUID accountId, double currentBalance) {
+        ObjectNode balance = MAPPER.createObjectNode();
+        balance.put("account_id", accountId.toString());
+        balance.put("current_balance", currentBalance);
+        return balance;
+    }
+
+    private record MemberEntry(UUID profileId, String fullName, String relation) {
     }
 }

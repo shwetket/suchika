@@ -1,17 +1,27 @@
 package com.suchika.wealth.adapters.persistence;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.suchika.shared.logging.AppLogger;
 import com.suchika.wealth.domain.Account;
 import com.suchika.wealth.domain.AccountType;
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 @Entity
 @Table(name = "account", schema = "wealth")
 public class AccountEntity extends PanacheEntityBase {
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final TypeReference<Map<String, String>> METADATA_TYPE = new TypeReference<>() {};
 
     @Id
     @GeneratedValue
@@ -51,6 +61,10 @@ public class AccountEntity extends PanacheEntityBase {
     @Column(name = "created_at", nullable = false, updatable = false)
     public Instant createdAt;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "metadata", columnDefinition = "jsonb", nullable = false)
+    public String metadata = "{}";
+
     @PrePersist
     void onPrePersist() {
         if (createdAt == null) createdAt = Instant.now();
@@ -70,6 +84,7 @@ public class AccountEntity extends PanacheEntityBase {
         e.emiAmount = account.getEmiAmount();
         e.active = account.isActive();
         e.createdAt = account.getCreatedAt();
+        e.metadata = writeMetadata(account.getMetadata());
         return e;
     }
 
@@ -87,6 +102,31 @@ public class AccountEntity extends PanacheEntityBase {
                 .emiAmount(emiAmount)
                 .active(active)
                 .createdAt(createdAt)
+                .metadata(readMetadata(metadata))
                 .build();
+    }
+
+    private static String writeMetadata(Map<String, String> metadata) {
+        if (metadata == null || metadata.isEmpty()) {
+            return "{}";
+        }
+        try {
+            return MAPPER.writeValueAsString(metadata);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            AppLogger.warn("Failed to serialize account metadata, defaulting to empty object: %s", e.getMessage());
+            return "{}";
+        }
+    }
+
+    private static Map<String, String> readMetadata(String json) {
+        if (json == null || json.isBlank()) {
+            return new HashMap<>();
+        }
+        try {
+            return MAPPER.readValue(json, METADATA_TYPE);
+        } catch (java.io.IOException e) {
+            AppLogger.warn("Failed to deserialize account metadata, defaulting to empty map: %s", e.getMessage());
+            return new HashMap<>();
+        }
     }
 }

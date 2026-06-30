@@ -5,12 +5,17 @@ import com.suchika.shared.exception.ConflictException;
 import com.suchika.shared.exception.NotFoundException;
 import com.suchika.wealth.domain.Account;
 import com.suchika.wealth.domain.AccountType;
+import com.suchika.wealth.domain.Transaction;
+import com.suchika.wealth.domain.TxnType;
+import com.suchika.wealth.ports.input.AccountBalance;
 import com.suchika.wealth.ports.input.CreateAccountCommand;
 import com.suchika.wealth.ports.output.AccountRepository;
+import com.suchika.wealth.ports.output.TransactionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -19,11 +24,13 @@ class AccountServiceTest {
 
     private AccountService service;
     private FakeAccountRepository repo;
+    private FakeTransactionRepository txnRepo;
 
     @BeforeEach
     void setUp() {
         repo = new FakeAccountRepository();
-        service = new AccountService(repo);
+        txnRepo = new FakeTransactionRepository();
+        service = new AccountService(repo, txnRepo);
     }
 
     private static CreateAccountCommand cmd(String name, AccountType type, String institution,
@@ -54,23 +61,20 @@ class AccountServiceTest {
 
     @Test
     void createAccount_blankName_throwsBadRequest() {
-        assertThrows(BadRequestException.class,
-                () -> service.createAccount(null,
-                        cmd("  ", AccountType.SAVINGS, "HDFC Bank", null, null, null, null)));
+        CreateAccountCommand command = cmd("  ", AccountType.SAVINGS, "HDFC Bank", null, null, null, null);
+        assertThrows(BadRequestException.class, () -> service.createAccount(null, command));
     }
 
     @Test
     void createAccount_nullType_throwsBadRequest() {
-        assertThrows(BadRequestException.class,
-                () -> service.createAccount(null,
-                        cmd("HDFC Savings", null, "HDFC Bank", null, null, null, null)));
+        CreateAccountCommand command = cmd("HDFC Savings", null, "HDFC Bank", null, null, null, null);
+        assertThrows(BadRequestException.class, () -> service.createAccount(null, command));
     }
 
     @Test
     void createAccount_blankInstitution_throwsBadRequest() {
-        assertThrows(BadRequestException.class,
-                () -> service.createAccount(null,
-                        cmd("HDFC Savings", AccountType.SAVINGS, " ", null, null, null, null)));
+        CreateAccountCommand command = cmd("HDFC Savings", AccountType.SAVINGS, " ", null, null, null, null);
+        assertThrows(BadRequestException.class, () -> service.createAccount(null, command));
     }
 
     @Test
@@ -85,7 +89,8 @@ class AccountServiceTest {
 
     @Test
     void getAccount_notFound_throwsNotFoundException() {
-        assertThrows(NotFoundException.class, () -> service.getAccount(UUID.randomUUID()));
+        UUID randomId = UUID.randomUUID();
+        assertThrows(NotFoundException.class, () -> service.getAccount(randomId));
     }
 
     @Test
@@ -112,9 +117,10 @@ class AccountServiceTest {
     void updateAccount_blankName_throwsBadRequest() {
         Account account = service.createAccount(null,
                 cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
+        UUID accountId = account.getId();
 
         assertThrows(BadRequestException.class,
-                () -> service.updateAccount(account.getId(), "  ", null, null, null, null, null));
+                () -> service.updateAccount(accountId, "  ", null, null, null, null, null));
     }
 
     @Test
@@ -131,10 +137,11 @@ class AccountServiceTest {
     void updateAccount_deactivateWithTransactions_throwsConflict() {
         Account account = service.createAccount(null,
                 cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
-        repo.markHasTransactions(account.getId());
+        UUID accountId = account.getId();
+        repo.markHasTransactions(accountId);
 
         assertThrows(ConflictException.class,
-                () -> service.updateAccount(account.getId(), null, null, null, null, null, false));
+                () -> service.updateAccount(accountId, null, null, null, null, null, false));
     }
 
     @Test
@@ -151,14 +158,109 @@ class AccountServiceTest {
     void deactivateAccount_withTransactions_throwsConflict() {
         Account account = service.createAccount(null,
                 cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
-        repo.markHasTransactions(account.getId());
+        UUID accountId = account.getId();
+        repo.markHasTransactions(accountId);
 
-        assertThrows(ConflictException.class, () -> service.deactivateAccount(account.getId()));
+        assertThrows(ConflictException.class, () -> service.deactivateAccount(accountId));
     }
 
     @Test
     void deactivateAccount_notFound_throwsNotFoundException() {
-        assertThrows(NotFoundException.class, () -> service.deactivateAccount(UUID.randomUUID()));
+        UUID randomId = UUID.randomUUID();
+        assertThrows(NotFoundException.class, () -> service.deactivateAccount(randomId));
+    }
+
+    // ---- Bug 2 fix: getAccountBalance = opening_balance + SUM(CREDIT) - SUM(DEBIT) ----
+
+    @Test
+    void getAccountBalance_noTransactions_equalsOpeningBalance() {
+        Account account = service.createAccount(null,
+                cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", new BigDecimal("1000.00"), null, null, null));
+
+        AccountBalance balance = service.getAccountBalance(account.getId(), null);
+
+        assertEquals(0, new BigDecimal("1000.00").compareTo(balance.currentBalance()));
+        assertEquals(0, BigDecimal.ZERO.compareTo(balance.totalCredits()));
+        assertEquals(0, BigDecimal.ZERO.compareTo(balance.totalDebits()));
+    }
+
+    @Test
+    void getAccountBalance_withCreditsAndDebits_sumsCorrectly() {
+        Account account = service.createAccount(null,
+                cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", new BigDecimal("1000.00"), null, null, null));
+
+        txnRepo.addCredit(account.getId(), new BigDecimal("5000.00"));
+        txnRepo.addDebit(account.getId(), new BigDecimal("2000.00"));
+
+        AccountBalance balance = service.getAccountBalance(account.getId(), null);
+
+        // 1000 + 5000 - 2000 = 4000
+        assertEquals(0, new BigDecimal("4000.00").compareTo(balance.currentBalance()));
+    }
+
+    @Test
+    void getAccountBalance_notFound_throwsNotFoundException() {
+        UUID randomId = UUID.randomUUID();
+        assertThrows(NotFoundException.class, () -> service.getAccountBalance(randomId, null));
+    }
+
+    // ---- Epic 8 Phase 1: account classification metadata write path ----
+
+    @Test
+    void updateAccountClassification_setsProvidedFields() {
+        Account account = service.createAccount(null,
+                cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
+
+        Account updated = service.updateAccountClassification(
+                account.getId(), "EMERGENCY_FUND", "LIQUID", "SAFETY_NET", null);
+
+        assertEquals("EMERGENCY_FUND", updated.getMetadata().get("category"));
+        assertEquals("LIQUID", updated.getMetadata().get("liquidity_tier"));
+        assertEquals("SAFETY_NET", updated.getMetadata().get("purpose_tag"));
+    }
+
+    @Test
+    void updateAccountClassification_partialFields_leavesOthersUnset() {
+        Account account = service.createAccount(null,
+                cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
+
+        Account updated = service.updateAccountClassification(account.getId(), "INVESTMENT", null, null, null);
+
+        assertEquals("INVESTMENT", updated.getMetadata().get("category"));
+        assertNull(updated.getMetadata().get("liquidity_tier"));
+        assertNull(updated.getMetadata().get("purpose_tag"));
+    }
+
+    @Test
+    void updateAccountClassification_secondCall_mergesRatherThanOverwrites() {
+        Account account = service.createAccount(null,
+                cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
+
+        service.updateAccountClassification(account.getId(), "INVESTMENT", null, null, null);
+        Account updated = service.updateAccountClassification(account.getId(), null, "LIQUID", null, null);
+
+        assertEquals("INVESTMENT", updated.getMetadata().get("category"));
+        assertEquals("LIQUID", updated.getMetadata().get("liquidity_tier"));
+    }
+
+    @Test
+    void updateAccountClassification_notFound_throwsNotFoundException() {
+        UUID randomId = UUID.randomUUID();
+        assertThrows(NotFoundException.class,
+                () -> service.updateAccountClassification(randomId, "INVESTMENT", null, null, null));
+    }
+
+    @Test
+    void updateAccountClassification_jointOwners_storedCommaJoined() {
+        Account account = service.createAccount(null,
+                cmd("Kotak Joint", AccountType.SAVINGS, "Kotak Bank", null, null, null, null));
+        String ownerA = UUID.randomUUID().toString();
+        String ownerB = UUID.randomUUID().toString();
+
+        Account updated = service.updateAccountClassification(
+                account.getId(), null, null, null, java.util.List.of(ownerA, ownerB));
+
+        assertEquals(ownerA + "," + ownerB, updated.getMetadata().get("joint_owners"));
     }
 
     // ---- Fake repository ----
@@ -186,6 +288,7 @@ class AccountServiceTest {
                         .interestRate(account.getInterestRate())
                         .emiAmount(account.getEmiAmount())
                         .active(account.isActive())
+                        .metadata(account.getMetadata())
                         .build();
             }
             store.put(account.getId(), account);
@@ -214,6 +317,49 @@ class AccountServiceTest {
         @Override
         public boolean hasTransactions(UUID accountId) {
             return withTransactions.contains(accountId);
+        }
+    }
+
+    static class FakeTransactionRepository implements TransactionRepository {
+        private final List<Transaction> store = new ArrayList<>();
+
+        void addCredit(UUID accountId, BigDecimal amount) {
+            store.add(Transaction.builder().accountId(accountId).amount(amount)
+                    .txnType(TxnType.CREDIT).txnDate(LocalDate.now()).description("test credit").build());
+        }
+
+        void addDebit(UUID accountId, BigDecimal amount) {
+            store.add(Transaction.builder().accountId(accountId).amount(amount)
+                    .txnType(TxnType.DEBIT).txnDate(LocalDate.now()).description("test debit").build());
+        }
+
+        @Override
+        public Transaction save(Transaction transaction) {
+            store.add(transaction);
+            return transaction;
+        }
+
+        @Override
+        public Optional<Transaction> findById(UUID id) {
+            return store.stream().filter(t -> id.equals(t.getId())).findFirst();
+        }
+
+        @Override
+        public List<Transaction> findByAccountId(UUID accountId, UUID profileId, LocalDate from, LocalDate to, TxnType txnType) {
+            return store.stream().filter(t -> accountId.equals(t.getAccountId())).toList();
+        }
+
+        @Override
+        public boolean existsByDeduplicationKey(UUID accountId, UUID profileId, LocalDate txnDate, BigDecimal amount, TxnType txnType) {
+            return false;
+        }
+
+        @Override
+        public BigDecimal sumAmountByTxnType(UUID accountId, UUID profileId, TxnType txnType) {
+            return store.stream()
+                    .filter(t -> accountId.equals(t.getAccountId()) && txnType == t.getTxnType())
+                    .map(Transaction::getAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
         }
     }
 }

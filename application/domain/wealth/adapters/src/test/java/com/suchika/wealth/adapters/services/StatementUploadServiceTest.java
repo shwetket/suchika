@@ -89,8 +89,9 @@ class StatementUploadServiceTest {
 
     @Test
     void upload_accountNotFound_throwsNotFound() {
+        UUID randomId = UUID.randomUUID();
         assertThrows(NotFoundException.class,
-                () -> service.uploadStatement(UUID.randomUUID(), "test.csv",
+                () -> service.uploadStatement(randomId, "test.csv",
                         "Date,Description,Amount\n01/06/2026,test,100"));
     }
 
@@ -106,7 +107,8 @@ class StatementUploadServiceTest {
 
     @Test
     void rollback_notFound_throwsNotFound() {
-        assertThrows(NotFoundException.class, () -> service.rollbackUpload(UUID.randomUUID()));
+        UUID randomId = UUID.randomUUID();
+        assertThrows(NotFoundException.class, () -> service.rollbackUpload(randomId));
     }
 
     @Test
@@ -121,7 +123,8 @@ class StatementUploadServiceTest {
 
     @Test
     void getUpload_notFound_throwsNotFound() {
-        assertThrows(NotFoundException.class, () -> service.getUpload(UUID.randomUUID()));
+        UUID randomId = UUID.randomUUID();
+        assertThrows(NotFoundException.class, () -> service.getUpload(randomId));
     }
 
     // ---- Phase 1: CsvParseException → error log + FAILED status ----
@@ -263,17 +266,25 @@ class StatementUploadServiceTest {
         }
 
         @Override
-        public List<Transaction> findByAccountId(UUID accountId, LocalDate from, LocalDate to, TxnType txnType) {
+        public List<Transaction> findByAccountId(UUID accountId, UUID profileId, LocalDate from, LocalDate to, TxnType txnType) {
             return saved.stream().filter(t -> accountId.equals(t.getAccountId())).toList();
         }
 
         @Override
-        public boolean existsByDeduplicationKey(UUID accountId, LocalDate txnDate, BigDecimal amount, TxnType txnType) {
+        public boolean existsByDeduplicationKey(UUID accountId, UUID profileId, LocalDate txnDate, BigDecimal amount, TxnType txnType) {
             return saved.stream().anyMatch(t ->
                     accountId.equals(t.getAccountId())
                     && txnDate.equals(t.getTxnDate())
                     && amount.compareTo(t.getAmount()) == 0
                     && txnType == t.getTxnType());
+        }
+
+        @Override
+        public BigDecimal sumAmountByTxnType(UUID accountId, UUID profileId, TxnType txnType) {
+            return saved.stream()
+                    .filter(t -> accountId.equals(t.getAccountId()) && txnType == t.getTxnType())
+                    .map(Transaction::getAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
         }
     }
 

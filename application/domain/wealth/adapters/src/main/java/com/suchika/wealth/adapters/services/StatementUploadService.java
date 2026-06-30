@@ -3,6 +3,7 @@ package com.suchika.wealth.adapters.services;
 import com.suchika.shared.exception.NotFoundException;
 import com.suchika.shared.logging.AppLogger;
 import com.suchika.wealth.adapters.services.StatementCsvParser.ParsedRow;
+import com.suchika.wealth.domain.Account;
 import com.suchika.wealth.domain.StatementUpload;
 import com.suchika.wealth.domain.Transaction;
 import com.suchika.wealth.domain.UploadErrorLog;
@@ -44,8 +45,9 @@ public class StatementUploadService implements StatementUploadUseCase {
     @Override
     @Transactional
     public UploadResult uploadStatement(UUID accountId, String fileName, String csvContent) {
-        accountRepo.findById(accountId)
+        Account account = accountRepo.findById(accountId)
                 .orElseThrow(() -> new NotFoundException("Account not found: " + accountId));
+        final UUID profileId = account.getProfileId();
 
         StatementUpload upload = StatementUpload.builder()
                 .accountId(accountId)
@@ -66,7 +68,7 @@ public class StatementUploadService implements StatementUploadUseCase {
 
             for (ParsedRow row : dedupedRows) {
                 String dedupKey = row.date() + "|" + row.amount().toPlainString() + "|" + row.txnType();
-                if (txnRepo.existsByDeduplicationKey(accountId, row.date(), row.amount(), row.txnType())
+                if (txnRepo.existsByDeduplicationKey(accountId, profileId, row.date(), row.amount(), row.txnType())
                         && !insertedThisBatch.contains(dedupKey)) {
                     skipped.add(new UploadResult.SkippedRow(row.date(), row.amount(), row.description()));
                 } else {

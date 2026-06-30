@@ -19,4 +19,28 @@ public interface AccountUseCase {
                            BigDecimal interestRate, BigDecimal emiAmount, Boolean isActive);
 
     void deactivateAccount(UUID id);
+
+    /**
+     * Computes the current balance for an account: opening_balance + SUM(CREDIT) - SUM(DEBIT)
+     * over its full transaction ledger. Epic 8 Phase 1, Bug 2 fix — opening_balance alone is
+     * only the snapshot recorded at account creation, not the running balance.
+     */
+    AccountBalance getAccountBalance(UUID accountId, UUID profileId);
+
+    /**
+     * Sets Epic 8 classification metadata (category, liquidity_tier, purpose_tag,
+     * joint_owners) on an account. Thin wrapper that merges the given keys into the
+     * existing metadata map — mirrors the transaction.metadata write pattern; does not
+     * replace the whole map.
+     *
+     * <p>category is reserved but NOT consumed by any computation until Phase 2 — storing
+     * it now is intentional so no second migration/contract change is needed later.
+     *
+     * <p>jointOwners (ADR-016 Decision 2, Phase 2) is a list of co-owner profile_id
+     * strings, stored comma-joined under metadata.joint_owners — attribution/display
+     * only, never a query predicate. profile_id remains the single column every query
+     * filters on (ADR-006 unchanged).
+     */
+    Account updateAccountClassification(UUID id, String category, String liquidityTier, String purposeTag,
+                                         List<String> jointOwners);
 }
