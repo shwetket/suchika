@@ -45,10 +45,7 @@ public interface AccountUseCase {
      * <p>Loan fields (loanOriginalPrincipal, loanStartDate, loanTenureMonths,
      * linkedOffsetAccountId) are Epic 8 Phase 3 prerequisites for amortization calculation.
      */
-    Account updateAccountClassification(UUID id, String category, String liquidityTier, String purposeTag,
-                                         List<String> jointOwners, String loanOriginalPrincipal,
-                                         String loanStartDate, String loanTenureMonths,
-                                         String linkedOffsetAccountId);
+    Account updateAccountClassification(UUID id, UpdateAccountClassificationCommand command);
 
     /**
      * Computes the amortization schedule summary for a loan account.

@@ -84,8 +84,8 @@ Write tests alongside every code change. Work is not done until tests exist and 
 4. npm run generate:api          # Sync API client if contract changed (or: gapi from repo root)
 5. npm run lint                  # Zero ESLint errors
 6. npm run lint:fix              # Auto-fix what can be fixed, then re-run lint
-7. npm run format                # Auto-format with Prettier
-8. npm run format:check          # Confirm clean
+7. npx prettier --write .        # Format ALL files — MANDATORY, always run this
+8. npm run format:check          # Confirm Prettier is clean after the write
 9. npm run test:ci               # All Jest tests pass (single run, no watch)
 10. npm run build                # Production build succeeds
 11. cd ..

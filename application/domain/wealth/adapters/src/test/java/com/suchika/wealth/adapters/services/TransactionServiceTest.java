@@ -189,21 +189,24 @@ class TransactionServiceTest {
 
     @Test
     void create_nullDate_throwsBadRequest() {
+        UUID accountId = UUID.randomUUID();
         CreateTransactionCommand cmd = new CreateTransactionCommand(null, new BigDecimal("100"), TxnType.DEBIT, "");
-        assertThrows(BadRequestException.class, () -> service.create(UUID.randomUUID(), null, cmd));
+        assertThrows(BadRequestException.class, () -> service.create(accountId, null, cmd));
     }
 
     @Test
     void create_negativeAmount_throwsBadRequest() {
+        UUID accountId = UUID.randomUUID();
         CreateTransactionCommand cmd = new CreateTransactionCommand(
                 LocalDate.now(), new BigDecimal("-1"), TxnType.DEBIT, "");
-        assertThrows(BadRequestException.class, () -> service.create(UUID.randomUUID(), null, cmd));
+        assertThrows(BadRequestException.class, () -> service.create(accountId, null, cmd));
     }
 
     @Test
     void create_nullTxnType_throwsBadRequest() {
+        UUID accountId = UUID.randomUUID();
         CreateTransactionCommand cmd = new CreateTransactionCommand(LocalDate.now(), new BigDecimal("100"), null, "");
-        assertThrows(BadRequestException.class, () -> service.create(UUID.randomUUID(), null, cmd));
+        assertThrows(BadRequestException.class, () -> service.create(accountId, null, cmd));
     }
 
     // ---- Fake repository ----

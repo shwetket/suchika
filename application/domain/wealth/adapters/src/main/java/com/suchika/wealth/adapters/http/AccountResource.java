@@ -89,10 +89,11 @@ public class AccountResource {
             @PathParam("account_id") UUID accountId,
             UpdateAccountClassificationRequest request) {
         if (request == null) throw new BadRequestException("Request body is required");
-        return AccountResponse.from(useCase.updateAccountClassification(
-                accountId, request.category, request.liquidityTier, request.purposeTag, request.jointOwners,
-                request.loanOriginalPrincipal, request.loanStartDate, request.loanTenureMonths,
-                request.linkedOffsetAccountId));
+        return AccountResponse.from(useCase.updateAccountClassification(accountId,
+                new com.suchika.wealth.ports.input.UpdateAccountClassificationCommand(
+                        request.category, request.liquidityTier, request.purposeTag, request.jointOwners,
+                        request.loanOriginalPrincipal, request.loanStartDate, request.loanTenureMonths,
+                        request.linkedOffsetAccountId)));
     }
 
     @GET

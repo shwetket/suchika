@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 
 /**
@@ -47,7 +48,7 @@ public final class AmortizationCalculator {
             int tenureMonths,
             LocalDate startDate) {
 
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Kolkata"));
         int elapsedMonths = (int) ChronoUnit.MONTHS.between(startDate, today);
         if (elapsedMonths < 0) {
             elapsedMonths = 0;

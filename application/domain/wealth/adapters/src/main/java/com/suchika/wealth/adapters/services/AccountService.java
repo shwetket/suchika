@@ -12,6 +12,7 @@ import com.suchika.wealth.domain.TxnType;
 import com.suchika.wealth.ports.input.AccountBalance;
 import com.suchika.wealth.ports.input.AccountUseCase;
 import com.suchika.wealth.ports.input.CreateAccountCommand;
+import com.suchika.wealth.ports.input.UpdateAccountClassificationCommand;
 import com.suchika.wealth.ports.output.AccountRepository;
 import com.suchika.wealth.ports.output.TransactionRepository;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -139,22 +140,19 @@ public class AccountService implements AccountUseCase {
 
     @Override
     @Transactional
-    public Account updateAccountClassification(UUID id, String category, String liquidityTier, String purposeTag,
-                                                 List<String> jointOwners, String loanOriginalPrincipal,
-                                                 String loanStartDate, String loanTenureMonths,
-                                                 String linkedOffsetAccountId) {
+    public Account updateAccountClassification(UUID id, UpdateAccountClassificationCommand command) {
         Account account = repository.findById(id)
                 .orElseThrow(() -> new NotFoundException(ACCOUNT_NOT_FOUND + id));
 
         Map<String, String> metadata = new HashMap<>(account.getMetadata());
-        if (category != null) metadata.put("category", category);
-        if (liquidityTier != null) metadata.put("liquidity_tier", liquidityTier);
-        if (purposeTag != null) metadata.put("purpose_tag", purposeTag);
-        if (jointOwners != null) metadata.put("joint_owners", String.join(",", jointOwners));
-        if (loanOriginalPrincipal != null) metadata.put("original_principal", loanOriginalPrincipal);
-        if (loanStartDate != null) metadata.put("loan_start_date", loanStartDate);
-        if (loanTenureMonths != null) metadata.put("original_tenure_months", loanTenureMonths);
-        if (linkedOffsetAccountId != null) metadata.put("linked_offset_account_id", linkedOffsetAccountId);
+        if (command.category() != null) metadata.put("category", command.category());
+        if (command.liquidityTier() != null) metadata.put("liquidity_tier", command.liquidityTier());
+        if (command.purposeTag() != null) metadata.put("purpose_tag", command.purposeTag());
+        if (command.jointOwners() != null) metadata.put("joint_owners", String.join(",", command.jointOwners()));
+        if (command.loanOriginalPrincipal() != null) metadata.put("original_principal", command.loanOriginalPrincipal());
+        if (command.loanStartDate() != null) metadata.put("loan_start_date", command.loanStartDate());
+        if (command.loanTenureMonths() != null) metadata.put("original_tenure_months", command.loanTenureMonths());
+        if (command.linkedOffsetAccountId() != null) metadata.put("linked_offset_account_id", command.linkedOffsetAccountId());
         account.setMetadata(metadata);
 
         Account saved = repository.save(account);
