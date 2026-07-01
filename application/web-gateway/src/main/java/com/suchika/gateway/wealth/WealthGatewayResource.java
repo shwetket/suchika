@@ -78,6 +78,21 @@ public class WealthGatewayResource {
         return Response.noContent().build();
     }
 
+    @POST
+    @Path("/accounts/{accountId}/transactions")
+    public Response createTransaction(
+            @PathParam("accountId") UUID accountId,
+            @QueryParam("profile_id") String profileId,
+            JsonNode body) {
+        AppLogger.info("Gateway: creating manual transaction for account %s", accountId);
+        try (Response upstream = wealthServiceClient.createTransaction(accountId, profileId, body)) {
+            return Response.status(upstream.getStatus())
+                    .entity(upstream.readEntity(String.class))
+                    .type(MediaType.APPLICATION_JSON)
+                    .build();
+        }
+    }
+
     @GET
     @Path("/accounts/{accountId}/transactions")
     public JsonNode listTransactions(

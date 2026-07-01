@@ -49,6 +49,13 @@ public interface WealthServiceClient {
     @Path("/accounts/{accountId}")
     void deactivateAccount(@PathParam("accountId") UUID accountId);
 
+    @POST
+    @Path("/accounts/{accountId}/transactions")
+    Response createTransaction(
+            @PathParam("accountId") UUID accountId,
+            @QueryParam("profile_id") String profileId,
+            JsonNode body);
+
     @GET
     @Path("/accounts/{accountId}/transactions")
     JsonNode listTransactions(

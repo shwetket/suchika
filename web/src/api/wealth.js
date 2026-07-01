@@ -23,6 +23,11 @@ export const updateAccount = (accountId, data) =>
 
 export const deactivateAccount = (accountId) => del(`${API_ENDPOINTS.ACCOUNTS}/${accountId}`);
 
+export function createTransaction(accountId, profileId, data) {
+  const url = `${API_ENDPOINTS.ACCOUNTS}/${accountId}/transactions?profile_id=${encodeURIComponent(profileId)}`;
+  return post(url, data);
+}
+
 export function listTransactions(accountId, from, to, txnType) {
   const params = new URLSearchParams();
   if (from !== null && from !== undefined) params.append('from', from);

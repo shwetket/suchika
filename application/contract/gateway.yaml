@@ -284,6 +284,39 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+    post:
+      tags: [Transactions]
+      operationId: createTransaction
+      summary: Manually enter a single transaction
+      description: >
+        Creates a manually-entered transaction without a CSV upload (Q7).
+        Tagged with metadata.source = "MANUAL". No dedup check.
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - name: profile_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTransactionRequest'
+      responses:
+        '201':
+          description: Transaction created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /v1/accounts/{accountId}/transactions/{txnId}:
 
     get:
@@ -1445,6 +1478,26 @@ components:
         - DISCRETIONARY
         - UNCATEGORIZED
       description: Epic 8 Phase 2 hardcoded expense category enum (manual tagging only).
+
+    CreateTransactionRequest:
+      type: object
+      required:
+        - txn_date
+        - amount
+        - txn_type
+      properties:
+        txn_date:
+          type: string
+          format: date
+          example: "2026-07-01"
+        amount:
+          type: number
+          format: double
+          description: Must be positive
+        txn_type:
+          $ref: '#/components/schemas/TransactionType'
+        description:
+          type: string
 
     UpdateTransactionCategoryRequest:
       type: object

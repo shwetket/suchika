@@ -54,6 +54,11 @@ export interface paths {
      * @description Returns transactions for the given account, optionally filtered by date range and transaction type. Follows AIP-132.
      */
     get: operations["listTransactions"];
+    /**
+     * Manually enter a single transaction
+     * @description Creates a manually-entered transaction without a CSV upload (Q7). Tagged with metadata.source = "MANUAL". No dedup check.
+     */
+    post: operations["createTransaction"];
   };
   "/v1/accounts/{accountId}/transactions/{txnId}": {
     /**
@@ -354,6 +359,20 @@ export interface components {
      * @enum {string}
      */
     ExpenseCategory: "HOUSEHOLD_CORE" | "CHILD_RELATED" | "MAINTENANCE" | "DISCRETIONARY" | "UNCATEGORIZED";
+    CreateTransactionRequest: {
+      /**
+       * Format: date
+       * @example 2026-07-01
+       */
+      txn_date: string;
+      /**
+       * Format: double
+       * @description Must be positive
+       */
+      amount: number;
+      txn_type: components["schemas"]["TransactionType"];
+      description?: string;
+    };
     UpdateTransactionCategoryRequest: {
       category: components["schemas"]["ExpenseCategory"];
     };
@@ -647,6 +666,35 @@ export interface operations {
         };
       };
       404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  /**
+   * Manually enter a single transaction
+   * @description Creates a manually-entered transaction without a CSV upload (Q7). Tagged with metadata.source = "MANUAL". No dedup check.
+   */
+  createTransaction: {
+    parameters: {
+      query?: {
+        profile_id?: string;
+      };
+      path: {
+        accountId: components["parameters"]["AccountId"];
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateTransactionRequest"];
+      };
+    };
+    responses: {
+      /** @description Transaction created */
+      201: {
+        content: {
+          "application/json": components["schemas"]["TransactionResponse"];
+        };
+      };
+      400: components["responses"]["BadRequest"];
       500: components["responses"]["InternalError"];
     };
   };

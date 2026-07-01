@@ -1,8 +1,5 @@
 package com.suchika.wealth.adapters.persistence;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.suchika.shared.logging.AppLogger;
 import com.suchika.wealth.domain.AssetType;
 import com.suchika.wealth.domain.PhysicalAsset;
 import com.suchika.wealth.domain.RegistrationType;
@@ -12,16 +9,11 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.UUID;
 
 @Entity
 @Table(name = "physical_asset", schema = "wealth")
 public class PhysicalAssetEntity extends PanacheEntityBase {
-
-    private static final ObjectMapper MAPPER = new ObjectMapper();
-    private static final TypeReference<Map<String, String>> METADATA_TYPE = new TypeReference<>() {};
 
     @Id
     @GeneratedValue
@@ -76,7 +68,7 @@ public class PhysicalAssetEntity extends PanacheEntityBase {
         e.registrationType = asset.getRegistrationType() != null ? asset.getRegistrationType().name() : null;
         e.active = asset.isActive();
         e.createdAt = asset.getCreatedAt();
-        e.metadata = writeMetadata(asset.getMetadata());
+        e.metadata = JsonbMetadataUtil.write(asset.getMetadata());
         return e;
     }
 
@@ -92,31 +84,7 @@ public class PhysicalAssetEntity extends PanacheEntityBase {
                 .registrationType(RegistrationType.valueOf(registrationType))
                 .active(active)
                 .createdAt(createdAt)
-                .metadata(readMetadata(metadata))
+                .metadata(JsonbMetadataUtil.read(metadata))
                 .build();
-    }
-
-    private static String writeMetadata(Map<String, String> metadata) {
-        if (metadata == null || metadata.isEmpty()) {
-            return "{}";
-        }
-        try {
-            return MAPPER.writeValueAsString(metadata);
-        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
-            AppLogger.warn("Failed to serialize physical asset metadata, defaulting to empty object: %s", e.getMessage());
-            return "{}";
-        }
-    }
-
-    private static Map<String, String> readMetadata(String json) {
-        if (json == null || json.isBlank()) {
-            return new HashMap<>();
-        }
-        try {
-            return MAPPER.readValue(json, METADATA_TYPE);
-        } catch (java.io.IOException e) {
-            AppLogger.warn("Failed to deserialize physical asset metadata, defaulting to empty map: %s", e.getMessage());
-            return new HashMap<>();
-        }
     }
 }

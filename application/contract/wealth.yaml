@@ -248,6 +248,96 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /v1/accounts/{account_id}/transactions:
+
+    get:
+      tags: [Transactions]
+      operationId: listTransactions
+      summary: List transactions for an account
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: txn_type
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/TxnType'
+      responses:
+        '200':
+          description: Transactions listed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListTransactionsResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags: [Transactions]
+      operationId: createTransaction
+      summary: Manually enter a single transaction (Q7)
+      description: >
+        Creates a manually-entered transaction without a CSV upload. The transaction
+        is tagged metadata.source = "MANUAL" so it stays distinguishable from
+        CSV-imported rows. No dedup check — manual entries are always intentional.
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - name: profile_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTransactionRequest'
+      responses:
+        '201':
+          description: Transaction created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/accounts/{account_id}/transactions/{txn_id}:
+
+    get:
+      tags: [Transactions]
+      operationId: getTransaction
+      summary: Get a single transaction
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/TxnId'
+      responses:
+        '200':
+          description: Transaction found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /v1/accounts/{account_id}/transactions/{txn_id}/category:
 
     patch:
@@ -942,6 +1032,28 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Transaction'
+
+    CreateTransactionRequest:
+      type: object
+      required:
+        - txn_date
+        - amount
+        - txn_type
+      properties:
+        txn_date:
+          type: string
+          format: date
+          example: "2026-07-01"
+        amount:
+          type: number
+          format: double
+          description: Must be positive
+          example: 5000.00
+        txn_type:
+          $ref: '#/components/schemas/TxnType'
+        description:
+          type: string
+          example: "Grocery shopping"
 
     UpdateTransactionCategoryRequest:
       type: object

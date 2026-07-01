@@ -5,6 +5,7 @@ import com.suchika.shared.exception.NotFoundException;
 import com.suchika.wealth.domain.ExpenseCategory;
 import com.suchika.wealth.domain.Transaction;
 import com.suchika.wealth.domain.TxnType;
+import com.suchika.wealth.ports.input.CreateTransactionCommand;
 import com.suchika.wealth.ports.output.TransactionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -167,6 +168,42 @@ class TransactionServiceTest {
         List<UUID> ids = List.of(UUID.randomUUID());
         assertThrows(NotFoundException.class,
                 () -> service.bulkUpdateCategory(ids, ExpenseCategory.DISCRETIONARY));
+    }
+
+    // ---- Q7: manual transaction entry ----
+
+    @Test
+    void create_happyPath_savesWithManualSourceTag() {
+        UUID accountId = UUID.randomUUID();
+        CreateTransactionCommand cmd = new CreateTransactionCommand(
+                LocalDate.of(2026, Month.JULY, 1), new BigDecimal("5000.00"), TxnType.CREDIT, "Salary");
+
+        Transaction result = service.create(accountId, null, cmd);
+
+        assertNotNull(result.getId());
+        assertEquals(accountId, result.getAccountId());
+        assertEquals(new BigDecimal("5000.00"), result.getAmount());
+        assertEquals("MANUAL", result.getMetadata().get("source"));
+        assertNull(result.getUploadId());
+    }
+
+    @Test
+    void create_nullDate_throwsBadRequest() {
+        CreateTransactionCommand cmd = new CreateTransactionCommand(null, new BigDecimal("100"), TxnType.DEBIT, "");
+        assertThrows(BadRequestException.class, () -> service.create(UUID.randomUUID(), null, cmd));
+    }
+
+    @Test
+    void create_negativeAmount_throwsBadRequest() {
+        CreateTransactionCommand cmd = new CreateTransactionCommand(
+                LocalDate.now(), new BigDecimal("-1"), TxnType.DEBIT, "");
+        assertThrows(BadRequestException.class, () -> service.create(UUID.randomUUID(), null, cmd));
+    }
+
+    @Test
+    void create_nullTxnType_throwsBadRequest() {
+        CreateTransactionCommand cmd = new CreateTransactionCommand(LocalDate.now(), new BigDecimal("100"), null, "");
+        assertThrows(BadRequestException.class, () -> service.create(UUID.randomUUID(), null, cmd));
     }
 
     // ---- Fake repository ----
