@@ -17,6 +17,7 @@ import {
   Accounts as WealthAccounts,
   Transactions as WealthTransactions,
   Reports as WealthReports,
+  PhysicalAssets as WealthPhysicalAssets,
 } from './pages/Wealth';
 import {
   Profiles as HouseholdProfiles,
@@ -105,6 +106,14 @@ function App() {
             element={
               <ProtectedRoute requiredRole="user">
                 <WealthReports />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/wealth/physical-assets"
+            element={
+              <ProtectedRoute requiredRole="user">
+                <WealthPhysicalAssets />
               </ProtectedRoute>
             }
           />

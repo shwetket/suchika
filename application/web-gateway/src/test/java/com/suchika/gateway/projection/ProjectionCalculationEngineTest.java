@@ -17,12 +17,14 @@ import org.mockito.MockitoAnnotations;
 import java.util.List;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -368,6 +370,33 @@ class ProjectionCalculationEngineTest {
         verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_NET_WORTH_FAMILY), anyString());
         // Total: exactly 6 upsert calls
         verify(snapshotRepo, times(6)).upsert(any(), anyString(), anyString());
+    }
+
+    @Test
+    void refreshAll_oneStepThrows_othersStillRun() throws Exception {
+        // Bug 3 fix: a RuntimeException in one compute step (here, wealth-dependent
+        // steps fail because listAccounts throws) must not block independent steps
+        // (health, household) from refreshing and upserting their own snapshots.
+        when(wealthClient.listAccounts(any(), any(), any()))
+                .thenThrow(new RuntimeException("wealth service unavailable"));
+        when(healthClient.listVitals(any(), any()))
+                .thenReturn(MAPPER.readTree("{\"vital_readings\":[]}"));
+        when(householdClient.listCalendarEvents(any(), any(), any(), any()))
+                .thenReturn(MAPPER.readTree("{\"calendar_events\":[]}"));
+        when(householdClient.listGoals(any(), any()))
+                .thenReturn(MAPPER.readTree("{\"goals\":[]}"));
+        when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
+        when(profileClient.listProfiles(eq(ADMIN_ID), eq(true))).thenReturn(buildEmptyProfilesResponse());
+        when(snapshotRepo.findByProfileId(PROFILE_ID)).thenReturn(List.of());
+
+        assertDoesNotThrow(() -> engine.refreshAll(PROFILE_ID));
+
+        // Health and household summaries still computed despite wealth failures
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.HEALTH_VITALS_SUMMARY), anyString());
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.HOUSEHOLD_EVENT_SUMMARY), anyString());
+        // Wealth-dependent snapshots never upserted for this profile, since their steps threw
+        verify(snapshotRepo, never()).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_NET_WORTH), anyString());
+        verify(snapshotRepo, never()).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_CATEGORY_VALIDATION), anyString());
     }
 
     // ── computeFamilyNetWorth (ADR-017) ─────────────────────────────────────────

@@ -46,3 +46,29 @@ export const rollbackUpload = (accountId, uploadId) =>
 
 export const getUploadErrors = (accountId, uploadId) =>
   get(`${API_ENDPOINTS.ACCOUNTS}/${accountId}/uploads/${uploadId}/errors`);
+
+export function listPhysicalAssets(profileId, assetType, isActive) {
+  const params = new URLSearchParams();
+  if (profileId !== null && profileId !== undefined) params.append('profile_id', profileId);
+  if (assetType !== null && assetType !== undefined) params.append('asset_type', assetType);
+  if (isActive !== null && isActive !== undefined) params.append('is_active', String(isActive));
+  const query = params.toString();
+  const url = query
+    ? `${API_ENDPOINTS.PHYSICAL_ASSETS}?${query}`
+    : API_ENDPOINTS.PHYSICAL_ASSETS;
+  return get(url);
+}
+
+export function createPhysicalAsset(profileId, data) {
+  const url = `${API_ENDPOINTS.PHYSICAL_ASSETS}?profile_id=${encodeURIComponent(profileId)}`;
+  return post(url, data);
+}
+
+export const getPhysicalAsset = (assetId) =>
+  get(`${API_ENDPOINTS.PHYSICAL_ASSETS}/${assetId}`);
+
+export const updatePhysicalAsset = (assetId, data) =>
+  patch(`${API_ENDPOINTS.PHYSICAL_ASSETS}/${assetId}`, data);
+
+export const deactivatePhysicalAsset = (assetId) =>
+  del(`${API_ENDPOINTS.PHYSICAL_ASSETS}/${assetId}`);

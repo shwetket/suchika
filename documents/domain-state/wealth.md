@@ -12,8 +12,8 @@ Give any agent or developer instant context on the wealth domain — accounts, t
 
 ---
 
-**Last updated:** 2026-06-30 (Epic 8 Phase 2 — statement source expansion & expense categorization)
-**Version:** v0.4 Phase 1+2+3 complete; Epic 8 Phase 1+2 complete, Phase 3+4 planned (see EPIC8_IMPLEMENTATION_PLAN.md)
+**Last updated:** 2026-06-30 (Bug 3 fix + Physical Assets full vertical slice)
+**Version:** v0.4 Phase 1+2+3 complete; Epic 8 Phase 1+2 complete, Phase 3+4 planned (see EPIC8_IMPLEMENTATION_PLAN.md); Physical Assets backend+frontend now genuinely complete (was previously DB-only)
 **Port:** 8082
 
 ---
@@ -27,7 +27,7 @@ Give any agent or developer instant context on the wealth domain — accounts, t
 | CSV Statement Upload | ✅ Complete | PENDING → SUCCESS/FAILED |
 | Upload rollback | ✅ Complete | Deletes all txns for an upload |
 | Deduplication | ✅ Complete | Cross-file dups rejected; 4-field key (no description) |
-| Physical Assets | ✅ Complete | |
+| Physical Assets | ✅ Complete | Full vertical slice as of 2026-06-30 — see entry below. Prior "Complete" status was stale: only the `V2__physical_assets.sql` migration existed, zero Java backend or frontend |
 | Malformed CSV rejection | ✅ Complete | CsvParseException → upload_error_log |
 | Upload error log endpoint | ✅ Complete | GET /{account_id}/uploads/{upload_id}/errors |
 | Skipped rows in upload response | ✅ Complete | skipped_duplicates list + inserted_count |
@@ -44,6 +44,9 @@ Give any agent or developer instant context on the wealth domain — accounts, t
 | Epic 8 Phase 2: gateway proxies for Phase 1+2 endpoints | ✅ Complete | `getAccountBalance`, `updateAccountClassification`, `updateTransactionCategory`, `bulkUpdateTransactionCategory`, `getUploadErrors` (Bug 1 fix) all added to `WealthGatewayResource`/`WealthServiceClient` |
 | Epic 8 Phase 2: Kotak joint account placeholder | ⚠️ Partial | Created live (`account_id 7e3c4712-cb82-4b90-9a73-9f7f4acf29db`, opening_balance 0) but attached to the **seed `Test Member` profile** (`00000000-0000-0000-0000-000000000002`) — dev DB has no real Shweta/Ketan profile records yet. `joint_owners` left unset (no second real profile to reference); tagged `purpose_tag: PENDING_JOINT_OWNER_ASSIGNMENT` as a findable marker. Re-point `profile_id` and set `joint_owners` via `PATCH /accounts/{id}` + `/classification` once real household profiles exist |
 | Epic 8 Phase 2: `StatementCsvParser` header-list extension (BoB/BoI/Kotak/credit card) | 🔲 Deferred | User has no real bank statement files yet to validate header formats against — do not guess candidate headers. Revisit when sample CSVs are available |
+| Bug 3: `refreshAll()` per-step exception isolation | ✅ Complete | `ProjectionCalculationEngine.refreshAll()` now wraps each of the 6 compute steps via a `runStep()` helper (try-catch + `AppLogger.error`); one step failing no longer blocks the others. Pulled forward from its originally-planned Phase 4 slot per `OpenQuestions.md` Q4 (product owner chose to fix now rather than wait) |
+| `AppLogger.error(String, Throwable, Object...)` argument-order bug | ✅ Fixed | Pre-existing bug in `shared/`: called `Log.errorf(message, throwable, params)` but JBoss Logging's matching overload is `errorf(Throwable, String, Object...)` — Throwable must be first. The mismatched call silently fell back to `errorf(String, Object...)`, packing `throwable` and the `params` array into one mangled varargs array (visible as `[Ljava.lang.Object;@hash` in log output). Fixed to `Log.errorf(throwable, message, params)`. No other call site used this overload, so no behavior change elsewhere |
+| Physical Assets — full vertical slice | ✅ Complete (2026-06-30) | Built domain (`PhysicalAsset`, `AssetType`, `RegistrationType`), ports (`PhysicalAssetUseCase`, `PhysicalAssetRepository`), adapters (`PhysicalAssetEntity` w/ JSONB metadata Jackson round-trip mirroring `AccountEntity`, `PhysicalAssetPanacheRepository`, `PhysicalAssetService`, `PhysicalAssetResource` at `/v1/physical-assets`). Validates `registration_number` uniqueness (`ConflictException`) since the DB has a `uq_registration_number` constraint but no prior app-layer check existed. `wealth.yaml`/gateway mirror/`gateway.yaml` updated with full CRUD paths + `AssetType`/`RegistrationType`/`PhysicalAsset*` schemas; gateway proxy added to `WealthServiceClient`/`WealthGatewayResource`; frontend client regenerated. New `web/src/pages/Wealth/PhysicalAssets.js` page (list/filter/add/edit/deactivate, compliance-deadline fields for PUC/insurance/road-tax with expiry-status coloring), wired into routing (`/wealth/physical-assets`) and nav. 17 new `PhysicalAssetServiceTest` cases + 6 new frontend tests. No adapter-layer (real-Postgres) integration test written this pass — service-layer unit tests + manual contract validation only; consider adding one alongside the next wealth adapter test pass |
 
 ---
 
@@ -82,6 +85,11 @@ Base path: `/api/v1/wealth`
 - `PATCH  /accounts/{id}/classification` — Epic 8 Phase 1+2: merges category/liquidity_tier/purpose_tag/joint_owners into account.metadata
 - `PATCH  /accounts/{accountId}/transactions/{txnId}/category` — Epic 8 Phase 2 NEW: tags one transaction with an `ExpenseCategory`
 - `PATCH  /accounts/{accountId}/transactions/category` — Epic 8 Phase 2 NEW: bulk-tag-by-selection (`transaction_ids[]` + `category`)
+- `GET    /physical-assets?profile_id=` — NEW (2026-06-30): list, filterable by `asset_type`/`is_active`
+- `POST   /physical-assets?profile_id=` — NEW: create; `registration_number` must be unique (409 on duplicate)
+- `GET    /physical-assets/{id}` — NEW
+- `PATCH  /physical-assets/{id}` — NEW: partial update; `metadata` merges into existing map (compliance deadlines)
+- `DELETE /physical-assets/{id}` — NEW: soft-delete (`is_active = false`)
 
 Note: before this Phase 2 pass, the contract had **zero documented paths/schemas for the Transaction resource at all** (not even the pre-existing `listTransactions`/`getTransaction`) — a pre-existing gap, now closed alongside the new category endpoints. Also fixed: `listAccounts`/`createAccount` were missing the `profile_id` query param in the contract even though the Java code always had it.
 
@@ -95,7 +103,7 @@ Note: before this Phase 2 pass, the contract had **zero documented paths/schemas
 | Ports | `application/domain/wealth/ports/src/main/java/com/suchika/wealth/ports/` |
 | Adapters | `application/domain/wealth/adapters/src/main/java/com/suchika/wealth/adapters/` |
 | Flyway | `application/flyway/wealth/` |
-| Frontend | `web/src/pages/Wealth/` (Accounts.js, Transactions.js, Reports.js) |
+| Frontend | `web/src/pages/Wealth/` (Accounts.js, Transactions.js, Reports.js, PhysicalAssets.js) |
 | API module | `web/src/api/wealth.js` |
 
 ---

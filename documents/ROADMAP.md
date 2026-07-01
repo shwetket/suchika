@@ -479,7 +479,7 @@ Each milestone requires the previous to be stable before starting.
 | Wealth — Dedup key fix (4-field, description excluded) | v0.4 | Delivered | None |
 | Frontend — Upload error panel + skipped duplicates UI | v0.4 | Delivered | Error panel shows "Upload failed — check your file" as fallback when error fetch fails; gives no actionable detail in that scenario |
 | Gateway contract updated for new upload response shape | v0.4 | Delivered | None |
-| Wealth — Physical Assets CRUD | v0.2 | Delivered | No frontend page for physical assets — assets are backend-only; user cannot view or manage assets through the UI |
+| Wealth — Physical Assets CRUD (backend + frontend) | v0.4.1 patch (2026-06-30) | Delivered | Corrected prior table entry — the "v0.2 Delivered" claim below was wrong; only the `V2__physical_assets.sql` migration existed before today, zero Java backend or frontend. Full vertical slice (domain/ports/adapters/contract/frontend page) built 2026-06-30 — see `documents/domain-state/wealth.md` |
 | Wealth CQRS Read Model ("Mahesh Summation Rule", EMI arbitrage, reallocation triggers) | v0.4 per REQUIREMENTS | Not Delivered | These use cases from REQUIREMENTS_wealth_domain.md v0.4 section were not built; the dashboard engine computes only opening-balance net worth and basic goal/event summaries |
 | Household — Task Tracking | v0.3 (deferred from) | Not Delivered | Deferred; no schema exists |
 | Household — Item lifecycle (consumed/restock) | v0.3 | Not Delivered | Inventory is an append/delete ledger; no consumed or restock state |
@@ -522,7 +522,7 @@ Each milestone requires the previous to be stable before starting.
 
 The following items are low-scope, high-impact for the active user. They do not require cross-domain logic and do not violate milestone rules.
 
-1. **Build the Physical Assets frontend page** — the backend and API contract are fully delivered. This is a pure frontend task: a page at `/wealth/assets` with list, add, edit, and delete. Estimated effort: one frontend sprint. Rationale: a delivered backend feature that is invisible to the user is wasted work.
+1. ~~**Build the Physical Assets frontend page**~~ **DELIVERED 2026-06-30.** Correction: the premise here was wrong — the backend was never actually built either (only the Flyway migration existed). Built the full vertical slice (domain/ports/adapters/contract + frontend page at `/wealth/physical-assets`) as a v0.4.1 patch. See `documents/domain-state/wealth.md`.
 
 2. **Add edit to Vital Readings** — the health API already supports `GET /vitals/{id}`. Adding an edit modal to the vitals page removes the delete-and-re-log friction and makes the health domain consistent with the doctor visits page. Backend change: add `PUT /vitals/{id}` if not already present; otherwise frontend-only.
 
@@ -540,7 +540,7 @@ The following items are low-scope, high-impact for the active user. They do not 
 
 **Add to v0.5:**
 
-- Physical Assets frontend page (`/wealth/assets`) — backend is done; this is a frontend-only delivery gap
+- ~~Physical Assets frontend page~~ — DELIVERED 2026-06-30 as a v0.4.1 patch (full vertical slice, not just frontend — backend never existed prior). Remove from v0.5 scope.
 - Vital Readings edit endpoint and edit UI — completes the health CRUD symmetry
 - Inventory Items edit UI — completes the household CRUD symmetry
 - Inventory item lifecycle state (consumed / in-stock) — minimum: add a `is_consumed BOOLEAN` column and toggle in the UI; this was a stated v0.3 requirement that was not delivered
@@ -597,7 +597,7 @@ The following items are low-scope, high-impact for the active user. They do not 
 
 6. **No `PUT /inventory-items/{id}` endpoint** — `InventoryItemResource.java` has `@GET`, `@POST`, `@GET /{id}`, and `@DELETE /{id}` only (lines 35–76). No edit path. Users cannot update quantity, category, or platform on an existing inventory item. Severity: LOW (UX gap, confirmed). Impact: delete-and-re-add is the only correction path.
 
-7. **No Physical Assets frontend page** — `web/src/utils/constants.js` line 35 defines `PHYSICAL_ASSETS: '/v1/physical-assets'` and `ROUTE_PATHS` has no `/wealth/assets` entry. No React page or component for physical assets exists anywhere under `web/src/`. The backend (`wealth.physical_asset` table + API) is implemented. Severity: MEDIUM. Impact: the entire physical assets feature is invisible to the user; v0.5 Action Center vehicle compliance deadlines cannot be built without this page.
+7. ~~**No Physical Assets frontend page**~~ **RESOLVED 2026-06-30.** Correction: the backend was also not implemented prior to this fix — this finding's premise ("the backend is implemented") was wrong. Full vertical slice delivered as v0.4.1; page now at `/wealth/physical-assets`.
 
 ### Missing Test Cases (Priority Order)
 
@@ -625,10 +625,10 @@ The following items are low-scope, high-impact for the active user. They do not 
 
 **v0.5 fixes (must complete before vacation planner is built):**
 
-- Add `GET /accounts/{accountId}/uploads/{uploadId}/errors` to `WealthServiceClient` interface and `WealthGatewayResource`, update `application/contract/gateway.yaml`, regenerate `web/src/api/generated.ts`. Add corresponding test to `WealthGatewayResourceTest`.
-- Fix `ProjectionCalculationEngine.computeNetWorth()` and `computeTotalBalance()` to use transaction history. Add `GET /v1/accounts/{accountId}/balance` endpoint on wealth service. Update `ProjectionCalculationEngineTest` to assert transaction-history-based net worth.
-- Wrap each compute step in `refreshAll()` in its own try-catch so partial snapshots are written on individual step failure. Update `ProjectionCalculationEngineTest` to assert partial-refresh behavior.
-- Build Physical Assets frontend page at `/wealth/assets`. No backend work required.
+- ~~Add `GET /accounts/{accountId}/uploads/{uploadId}/errors` to `WealthServiceClient`...~~ DONE (Epic 8 Phase 2).
+- ~~Fix `ProjectionCalculationEngine.computeNetWorth()` and `computeTotalBalance()`...~~ DONE (Epic 8 Phase 1, Bug 2 fix).
+- ~~Wrap each compute step in `refreshAll()` in its own try-catch...~~ DONE 2026-06-30 (Bug 3 fix). New test: `refreshAll_oneStepThrows_othersStillRun`.
+- ~~Build Physical Assets frontend page at `/wealth/assets`...~~ DONE 2026-06-30 as full vertical slice (page is at `/wealth/physical-assets`, not `/wealth/assets` — path corrected during implementation).
 - Add `PUT /vitals/{id}` endpoint to `VitalReadingResource` and edit modal to the Vitals frontend page.
 - Add `PUT /inventory-items/{id}` endpoint to `InventoryItemResource` and edit modal to the Inventory frontend page.
 
@@ -697,7 +697,7 @@ The existing v0.5 plan (Vacation Planner, Consolidated Action Center) remains, w
 
 **Carry-in from reviews (gaps not in original v0.5 plan):**
 
-- Physical Assets frontend page at `/wealth/assets` — backend is complete. Pure frontend task. react-developer. Required before the Action Center can show vehicle compliance deadlines. Blocks Q5.
+- ~~Physical Assets frontend page~~ — DONE 2026-06-30 (full vertical slice, see `domain-state/wealth.md`). No longer blocks the Action Center.
 - `PUT /vitals/{id}` endpoint on health service — `VitalReadingResource.java` has no `@PUT` method. health-developer. Small: one use case method, one adapter handler, update `health.yaml`, update frontend vitals page edit modal.
 - `PUT /inventory-items/{id}` endpoint on household service — `InventoryItemResource.java` has no `@PUT` method. household-developer. Same pattern as vitals edit.
 - Edit modal on Vitals frontend page — react-developer, after health-developer adds the endpoint.
@@ -706,8 +706,8 @@ The existing v0.5 plan (Vacation Planner, Consolidated Action Center) remains, w
 
 **Original v0.5 features (unchanged):**
 
-- Vacation Planner: budget validation against liquid savings, asset compliance warning (PUC/insurance expiry before trip date). Requires Physical Assets frontend to be complete first. gateway quarkus-developer + react-developer.
-- Consolidated Action Center: upcoming events, vehicle compliance deadlines, biometric streak gaps. Requires Physical Assets frontend.
+- Vacation Planner: budget validation against liquid savings, asset compliance warning (PUC/insurance expiry before trip date). Physical Assets frontend dependency now satisfied (delivered 2026-06-30). gateway quarkus-developer + react-developer.
+- Consolidated Action Center: upcoming events, vehicle compliance deadlines, biometric streak gaps. Physical Assets frontend dependency now satisfied.
 
 **Resolve before v0.5 feature work starts:**
 - PROP-005 (frontend state management) — cross-domain Action Center needs shared state.
@@ -763,20 +763,21 @@ The original v0.6 milestone ("Testing Foundation") is partially already done for
 
 ### Open Questions Blocking v0.5 Planning
 
-The following questions from `documents/OpenQuestions.md` must be answered by the product owner before v0.5 scope is locked. Do not assign these to developer agents — they are product decisions.
+**Status update (2026-06-30): Q1–Q13 are now all resolved** — see `documents/OpenQuestions.md` for the authoritative resolutions. Kept the original list below for historical traceability, annotated with outcomes.
 
-- **Q1** — `profile_id` in domain entities: keep or remove? Affects whether wealth-developer adds a `profileId` parameter to the `TransactionRepository` output port (fix #4 above) or uses the assertion approach instead.
-- **Q2** — Net worth calculation: fix now or label as approximate? Already decided by this review as "fix now" (immediate fix #2 above) — but confirm the product owner agrees before the wealth balance endpoint is built.
-- **Q3** — `/errors` gateway proxy: already decided as "fix now" (immediate fix #1 above) — confirm.
-- **Q4** — `refreshAll()` async: confirm that per-step try-catch (option A) is acceptable for v0.5, with async deferred to v1.0.
-- **Q5** — Physical Assets frontend: confirm treatment as v0.5 delivery gap. If C (defer entirely), remove vehicle compliance deadlines from the v0.5 Action Center scope.
-- **Q6** — Inventory lifecycle state: answer before inventory edit UI is built in v0.5. If option A, household-developer adds the `is_consumed` column via a new Flyway migration before the edit endpoint.
-- **Q7** — Manual transaction entry: if approved for v0.5, wealth-developer adds `POST /v1/accounts/{accountId}/transactions` (single transaction body, `source = MANUAL`).
-- **Q8** — Advanced financial engine milestone: must be assigned to a named milestone or archived before v0.5 requirements are finalised.
-- **Q10** — Playwright E2E as CI gate: blocks whether react-developer needs to set up a stub backend for CI in v0.5 or v0.6.
-- **Q12** — `TransactionPanacheRepository` fix approach: the join vs. assertion decision affects whether the `TransactionRepository` output port interface changes (domain-layer impact) or the fix stays in the adapter service layer.
-
-Q9 and Q11 do not block v0.5 — they block v0.6 gate configuration and v1.0 contract testing respectively.
+- ~~**Q1**~~ — RESOLVED: keep `profileId` in domain entities (pragmatic trade-off, documented).
+- ~~**Q2**~~ — RESOLVED + DONE: net worth fix shipped (Epic 8 Phase 1, Bug 2).
+- ~~**Q3**~~ — RESOLVED + DONE: `/errors` gateway proxy shipped (Epic 8 Phase 2, Bug 1).
+- ~~**Q4**~~ — RESOLVED + DONE: per-step try-catch isolation in `refreshAll()` shipped 2026-06-30 (Bug 3).
+- ~~**Q5**~~ — RESOLVED + DONE: Physical Assets full vertical slice shipped 2026-06-30 as a v0.4.1 patch.
+- ~~**Q6**~~ — RESOLVED (custom): `is_consumed` flag means "used in a calculation," not "used up" — no deletion/expiry, full year-over-year history retained. Not yet implemented.
+- ~~**Q7**~~ — RESOLVED: manual transaction entry, Option C (`source = MANUAL` tag). Not yet implemented.
+- ~~**Q8**~~ — RESOLVED: superseded by Q13 — assigned to v0.6 "Financial Intelligence Engine."
+- ~~**Q9**~~ — RESOLVED: 70% project-wide Java coverage floor, CI-enforced, v0.6.
+- ~~**Q10**~~ — RESOLVED: Playwright E2E required in CI via stub backend.
+- ~~**Q11**~~ — RESOLVED: Swagger Request Validator contract tests, v0.6.
+- ~~**Q12**~~ — RESOLVED: add `profile_id` as a secondary filter in `TransactionPanacheRepository`. Partially implemented already (`findByAccountId`/`existsByDeduplicationKey`/`sumAmountByTxnType` all accept an optional `profileId`, used by the balance endpoint) — but `TransactionService.listByAccount`/`TransactionResource` still don't thread it through end-to-end. Remaining work, not blocked on a decision anymore.
+- ~~**Q13**~~ — RESOLVED: Epic 8 (8.1–8.6) assigned to v0.6, sequenced after the (now-delivered) net-worth fix.
 
 ---
 
@@ -784,19 +785,19 @@ Q9 and Q11 do not block v0.5 — they block v0.6 gate configuration and v1.0 con
 
 | Workstream | Owner | When |
 |---|---|---|
-| Gateway `/errors` proxy (fix #1) | wealth-developer | Before any v0.5 feature work |
-| Net worth formula fix — wealth balance endpoint (fix #2, backend) | wealth-developer | Before any v0.5 feature work |
-| Net worth formula fix — gateway engine + test (fix #2, gateway) | quarkus-developer (gateway) | After wealth balance endpoint is merged |
-| `refreshAll()` per-step try-catch (fix #3) | quarkus-developer (gateway) | Before any v0.5 feature work |
-| `TransactionPanacheRepository` profile ownership (fix #4) | wealth-developer | After Q1/Q12 are answered |
-| Physical Assets frontend page `/wealth/assets` | react-developer | v0.5, after Q5 confirmed |
+| ~~Gateway `/errors` proxy (fix #1)~~ | wealth-developer | DONE (Epic 8 Phase 2) |
+| ~~Net worth formula fix — wealth balance endpoint (fix #2, backend)~~ | wealth-developer | DONE (Epic 8 Phase 1) |
+| ~~Net worth formula fix — gateway engine + test (fix #2, gateway)~~ | quarkus-developer (gateway) | DONE (Epic 8 Phase 1) |
+| ~~`refreshAll()` per-step try-catch (fix #3)~~ | quarkus-developer (gateway) | DONE 2026-06-30 |
+| `TransactionPanacheRepository` profile ownership (fix #4) | wealth-developer | Q1/Q12 now answered; repo-level filter exists, HTTP-layer wiring still open |
+| ~~Physical Assets frontend page `/wealth/assets`~~ | react-developer | DONE 2026-06-30 (full vertical slice, path is `/wealth/physical-assets`) |
 | `PUT /vitals/{id}` endpoint | health-developer | v0.5 |
 | Vitals edit modal (frontend) | react-developer | v0.5, after health endpoint merged |
 | `PUT /inventory-items/{id}` endpoint | household-developer | v0.5 |
 | Inventory Items edit modal (frontend) | react-developer | v0.5, after household endpoint merged |
 | "Opening balances only" label on Reports + Dashboard | react-developer | Immediate — no backend dependency |
 | Vacation Planner (cross-domain) | quarkus-developer (gateway) + react-developer | v0.5, after immediate fixes are merged |
-| Consolidated Action Center | quarkus-developer (gateway) + react-developer | v0.5, after Physical Assets page complete |
+| Consolidated Action Center | quarkus-developer (gateway) + react-developer | v0.5 — Physical Assets dependency now satisfied (DONE 2026-06-30) |
 | PROP-005 state management decision | architect | Before Consolidated Action Center starts |
 | v0.6 adapter unit tests (wealth HTTP layer) | wealth-developer | v0.6 |
 | v0.6 adapter unit tests (health HTTP layer) | health-developer | v0.6 |

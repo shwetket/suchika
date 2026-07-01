@@ -53,17 +53,26 @@ public class ProjectionCalculationEngine {
 
     /**
      * Refreshes all six snapshot keys for the given profile.
-     * Each compute step is independent; a failure in one does not block the others.
+     * Each compute step is independent; a failure in one does not block the others
+     * (Bug 3 fix — see Epic 8 Phase 4 / OpenQuestions.md Q4).
      */
     public DashboardResponse refreshAll(UUID profileId) {
         AppLogger.info("ProjectionEngine: refreshing all snapshots for profile %s", profileId);
-        computeNetWorth(profileId);
-        computeGoalProgress(profileId);
-        computeVitalsSummary(profileId);
-        computeEventSummary(profileId);
-        computeCategoryValidation(profileId);
-        computeFamilyNetWorth(profileId);
+        runStep("computeNetWorth", profileId, this::computeNetWorth);
+        runStep("computeGoalProgress", profileId, this::computeGoalProgress);
+        runStep("computeVitalsSummary", profileId, this::computeVitalsSummary);
+        runStep("computeEventSummary", profileId, this::computeEventSummary);
+        runStep("computeCategoryValidation", profileId, this::computeCategoryValidation);
+        runStep("computeFamilyNetWorth", profileId, this::computeFamilyNetWorth);
         return new DashboardResponse(snapshotRepository.findByProfileId(profileId));
+    }
+
+    private void runStep(String stepName, UUID profileId, java.util.function.Consumer<UUID> step) {
+        try {
+            step.accept(profileId);
+        } catch (RuntimeException e) {
+            AppLogger.error("ProjectionEngine: step %s failed for profile %s, skipping", e, stepName, profileId);
+        }
     }
 
     // ── WEALTH_NET_WORTH ──────────────────────────────────────────────────────

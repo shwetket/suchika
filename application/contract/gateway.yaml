@@ -20,6 +20,8 @@ tags:
     description: Account transactions
   - name: StatementUploads
     description: CSV statement uploads
+  - name: Physical Assets
+    description: Vehicle and other physical asset registry with compliance tracking
   - name: Calendar Events
     description: Household calendar events proxied from the household service
   - name: Inventory Items
@@ -465,6 +467,149 @@ paths:
           $ref: '#/components/responses/InternalError'
 
   # ============================================================
+  # PHYSICAL ASSETS
+  # ============================================================
+
+  /v1/physical-assets:
+
+    get:
+      tags: [Physical Assets]
+      operationId: listPhysicalAssets
+      summary: List all physical assets
+      description: >
+        Returns physical assets (vehicles, etc.) optionally filtered by
+        asset_type, is_active, and profile_id. Follows AIP-132.
+      parameters:
+        - name: asset_type
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/AssetType'
+        - name: is_active
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: profile_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListPhysicalAssetsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags: [Physical Assets]
+      operationId: createPhysicalAsset
+      summary: Register a physical asset
+      description: >
+        Creates a new physical asset scoped to a profile.
+        registration_number must be unique. Follows AIP-133.
+      parameters:
+        - name: profile_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePhysicalAssetRequest'
+      responses:
+        '201':
+          description: Physical asset created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PhysicalAssetResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/physical-assets/{assetId}:
+
+    get:
+      tags: [Physical Assets]
+      operationId: getPhysicalAsset
+      summary: Get a physical asset
+      description: Follows AIP-131.
+      parameters:
+        - $ref: '#/components/parameters/AssetId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PhysicalAssetResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    patch:
+      tags: [Physical Assets]
+      operationId: updatePhysicalAsset
+      summary: Update a physical asset
+      description: >
+        Partially updates a physical asset. Only provided fields are updated.
+        metadata is merged into the existing map, never replaced wholesale.
+        asset_type and registration_number are immutable after creation.
+        Follows AIP-134.
+      parameters:
+        - $ref: '#/components/parameters/AssetId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePhysicalAssetRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PhysicalAssetResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags: [Physical Assets]
+      operationId: deactivatePhysicalAsset
+      summary: Deactivate a physical asset
+      description: Soft-deletes a physical asset (is_active = false). Follows AIP-135.
+      parameters:
+        - $ref: '#/components/parameters/AssetId'
+      responses:
+        '204':
+          description: Physical asset deactivated
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ============================================================
   # HOUSEHOLD — CALENDAR EVENTS
   # ============================================================
 
@@ -900,6 +1045,15 @@ components:
         type: string
         format: uuid
 
+    AssetId:
+      name: assetId
+      in: path
+      required: true
+      description: Unique identifier of the physical asset
+      schema:
+        type: string
+        format: uuid
+
   schemas:
 
     # ----------------------------------------------------------
@@ -961,6 +1115,19 @@ components:
         - PENDING
         - COMPLETED
         - FAILED
+
+    AssetType:
+      type: string
+      enum:
+        - VEHICLE
+
+    RegistrationType:
+      type: string
+      enum:
+        - PRIVATE
+        - COMMERCIAL
+        - GOVERNMENT
+        - BH_SERIES
 
     # ----------------------------------------------------------
     # ACCOUNT DTOs
@@ -1117,6 +1284,106 @@ components:
         next_page_token:
           type: string
           nullable: true
+        total_size:
+          type: integer
+          minimum: 0
+
+    # ----------------------------------------------------------
+    # PHYSICAL ASSET DTOs
+    # ----------------------------------------------------------
+
+    PhysicalAssetResponse:
+      type: object
+      properties:
+        asset_id:
+          type: string
+          format: uuid
+          readOnly: true
+        asset_name:
+          type: string
+        asset_type:
+          $ref: '#/components/schemas/AssetType'
+        make:
+          type: string
+        model:
+          type: string
+        registration_number:
+          type: string
+        registration_type:
+          $ref: '#/components/schemas/RegistrationType'
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        metadata:
+          type: object
+          description: >
+            Compliance deadlines and optional vehicle details (puc_expiry,
+            insurance_expiry, insurance_provider, road_tax_expiry, etc.).
+          additionalProperties:
+            type: string
+
+    CreatePhysicalAssetRequest:
+      type: object
+      required:
+        - asset_name
+        - asset_type
+        - make
+        - model
+        - registration_number
+        - registration_type
+      properties:
+        asset_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        asset_type:
+          $ref: '#/components/schemas/AssetType'
+        make:
+          type: string
+          minLength: 1
+          maxLength: 100
+        model:
+          type: string
+          minLength: 1
+          maxLength: 100
+        registration_number:
+          type: string
+          minLength: 1
+          maxLength: 50
+        registration_type:
+          $ref: '#/components/schemas/RegistrationType'
+
+    UpdatePhysicalAssetRequest:
+      type: object
+      description: >
+        All fields optional. Only provided fields are updated. metadata is
+        merged into the existing map, never replaced wholesale.
+      properties:
+        asset_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        make:
+          type: string
+        model:
+          type: string
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+        is_active:
+          type: boolean
+
+    ListPhysicalAssetsResponse:
+      type: object
+      properties:
+        physical_assets:
+          type: array
+          items:
+            $ref: '#/components/schemas/PhysicalAssetResponse'
         total_size:
           type: integer
           minimum: 0

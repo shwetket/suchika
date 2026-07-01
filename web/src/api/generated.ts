@@ -99,6 +99,35 @@ export interface paths {
      */
     delete: operations["rollbackUpload"];
   };
+  "/v1/physical-assets": {
+    /**
+     * List all physical assets
+     * @description Returns physical assets (vehicles, etc.) optionally filtered by asset_type, is_active, and profile_id. Follows AIP-132.
+     */
+    get: operations["listPhysicalAssets"];
+    /**
+     * Register a physical asset
+     * @description Creates a new physical asset scoped to a profile. registration_number must be unique. Follows AIP-133.
+     */
+    post: operations["createPhysicalAsset"];
+  };
+  "/v1/physical-assets/{assetId}": {
+    /**
+     * Get a physical asset
+     * @description Follows AIP-131.
+     */
+    get: operations["getPhysicalAsset"];
+    /**
+     * Deactivate a physical asset
+     * @description Soft-deletes a physical asset (is_active = false). Follows AIP-135.
+     */
+    delete: operations["deactivatePhysicalAsset"];
+    /**
+     * Update a physical asset
+     * @description Partially updates a physical asset. Only provided fields are updated. metadata is merged into the existing map, never replaced wholesale. asset_type and registration_number are immutable after creation. Follows AIP-134.
+     */
+    patch: operations["updatePhysicalAsset"];
+  };
   "/v1/household/calendar-events": {
     /** List calendar events for a profile */
     get: operations["listCalendarEvents"];
@@ -178,6 +207,10 @@ export interface components {
     TransactionType: "CREDIT" | "DEBIT";
     /** @enum {string} */
     UploadStatus: "PENDING" | "COMPLETED" | "FAILED";
+    /** @enum {string} */
+    AssetType: "VEHICLE";
+    /** @enum {string} */
+    RegistrationType: "PRIVATE" | "COMMERCIAL" | "GOVERNMENT" | "BH_SERIES";
     AccountResponse: {
       /** Format: uuid */
       account_id?: string;
@@ -252,6 +285,45 @@ export interface components {
     ListAccountsResponse: {
       accounts?: components["schemas"]["AccountResponse"][];
       next_page_token?: string | null;
+      total_size?: number;
+    };
+    PhysicalAssetResponse: {
+      /** Format: uuid */
+      asset_id?: string;
+      asset_name?: string;
+      asset_type?: components["schemas"]["AssetType"];
+      make?: string;
+      model?: string;
+      registration_number?: string;
+      registration_type?: components["schemas"]["RegistrationType"];
+      is_active?: boolean;
+      /** Format: date-time */
+      created_at?: string;
+      /** @description Compliance deadlines and optional vehicle details (puc_expiry, insurance_expiry, insurance_provider, road_tax_expiry, etc.). */
+      metadata?: {
+        [key: string]: string;
+      };
+    };
+    CreatePhysicalAssetRequest: {
+      asset_name: string;
+      asset_type: components["schemas"]["AssetType"];
+      make: string;
+      model: string;
+      registration_number: string;
+      registration_type: components["schemas"]["RegistrationType"];
+    };
+    /** @description All fields optional. Only provided fields are updated. metadata is merged into the existing map, never replaced wholesale. */
+    UpdatePhysicalAssetRequest: {
+      asset_name?: string;
+      make?: string;
+      model?: string;
+      metadata?: {
+        [key: string]: string;
+      };
+      is_active?: boolean;
+    };
+    ListPhysicalAssetsResponse: {
+      physical_assets?: components["schemas"]["PhysicalAssetResponse"][];
       total_size?: number;
     };
     TransactionResponse: {
@@ -368,6 +440,8 @@ export interface components {
     TxnId: string;
     /** @description Unique identifier of the statement upload */
     UploadId: string;
+    /** @description Unique identifier of the physical asset */
+    AssetId: string;
   };
   requestBodies: never;
   headers: never;
@@ -736,6 +810,123 @@ export interface operations {
       204: {
         content: never;
       };
+      404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  /**
+   * List all physical assets
+   * @description Returns physical assets (vehicles, etc.) optionally filtered by asset_type, is_active, and profile_id. Follows AIP-132.
+   */
+  listPhysicalAssets: {
+    parameters: {
+      query?: {
+        asset_type?: components["schemas"]["AssetType"];
+        is_active?: boolean;
+        profile_id?: string;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ListPhysicalAssetsResponse"];
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  /**
+   * Register a physical asset
+   * @description Creates a new physical asset scoped to a profile. registration_number must be unique. Follows AIP-133.
+   */
+  createPhysicalAsset: {
+    parameters: {
+      query?: {
+        profile_id?: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreatePhysicalAssetRequest"];
+      };
+    };
+    responses: {
+      /** @description Physical asset created */
+      201: {
+        content: {
+          "application/json": components["schemas"]["PhysicalAssetResponse"];
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      409: components["responses"]["Conflict"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  /**
+   * Get a physical asset
+   * @description Follows AIP-131.
+   */
+  getPhysicalAsset: {
+    parameters: {
+      path: {
+        assetId: components["parameters"]["AssetId"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["PhysicalAssetResponse"];
+        };
+      };
+      404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  /**
+   * Deactivate a physical asset
+   * @description Soft-deletes a physical asset (is_active = false). Follows AIP-135.
+   */
+  deactivatePhysicalAsset: {
+    parameters: {
+      path: {
+        assetId: components["parameters"]["AssetId"];
+      };
+    };
+    responses: {
+      /** @description Physical asset deactivated */
+      204: {
+        content: never;
+      };
+      404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  /**
+   * Update a physical asset
+   * @description Partially updates a physical asset. Only provided fields are updated. metadata is merged into the existing map, never replaced wholesale. asset_type and registration_number are immutable after creation. Follows AIP-134.
+   */
+  updatePhysicalAsset: {
+    parameters: {
+      path: {
+        assetId: components["parameters"]["AssetId"];
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdatePhysicalAssetRequest"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["PhysicalAssetResponse"];
+        };
+      };
+      400: components["responses"]["BadRequest"];
       404: components["responses"]["NotFound"];
       500: components["responses"]["InternalError"];
     };

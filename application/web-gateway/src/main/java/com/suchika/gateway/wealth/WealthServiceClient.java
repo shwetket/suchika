@@ -93,4 +93,29 @@ public interface WealthServiceClient {
     JsonNode getUploadErrors(
             @PathParam("accountId") UUID accountId,
             @PathParam("uploadId") UUID uploadId);
+
+    @GET
+    @Path("/physical-assets")
+    JsonNode listPhysicalAssets(
+            @QueryParam("asset_type") String assetType,
+            @QueryParam("is_active") Boolean isActive,
+            @QueryParam("profile_id") String profileId);
+
+    @POST
+    @Path("/physical-assets")
+    Response createPhysicalAsset(
+            @QueryParam("profile_id") String profileId,
+            JsonNode body);
+
+    @GET
+    @Path("/physical-assets/{assetId}")
+    JsonNode getPhysicalAsset(@PathParam("assetId") UUID assetId);
+
+    @PATCH
+    @Path("/physical-assets/{assetId}")
+    JsonNode updatePhysicalAsset(@PathParam("assetId") UUID assetId, JsonNode body);
+
+    @DELETE
+    @Path("/physical-assets/{assetId}")
+    void deactivatePhysicalAsset(@PathParam("assetId") UUID assetId);
 }
