@@ -51,6 +51,30 @@ public class ProjectionCalculationEngine {
     private static final String OUTSTANDING_BALANCE_FIELD = "outstanding_balance";
     private static final String MONTHLY_EMI_FIELD = "monthly_emi";
 
+    // Phase 4 — goals engine field name constants (Sonar S1192: 3+ uses → named constant)
+    private static final String STATUS_FIELD = "status";
+    private static final String GOAL_ID_FIELD = "goal_id";
+    private static final String GOAL_NAME_FIELD = "goal_name";
+    private static final String DESCRIPTION_FIELD = "description";
+    private static final String CURRENT_VALUE_FIELD = "current_value";
+    private static final String TARGET_VALUE_FIELD = "target_value";
+    private static final String UNIT_FIELD = "unit";
+    private static final String CHECK_ID_FIELD = "check_id";
+    private static final String MESSAGE_FIELD = "message";
+    private static final String SEVERITY_FIELD = "severity";
+    private static final String OVERALL_STATUS_FIELD = "overall_status";
+    private static final String CHECKS_FIELD = "checks";
+    private static final String STATUS_PASS = "PASS";
+    private static final String STATUS_WARNING = "WARNING";
+    private static final String STATUS_ACHIEVED = "ACHIEVED";
+    private static final String STATUS_IN_PROGRESS = "IN_PROGRESS";
+    private static final String POLICY_SETTINGS_FIELD = "policy_settings";
+    private static final double DEFAULT_DEBT_CROSSOVER_THRESHOLD = 50.0;
+    private static final double DEFAULT_MONTHLY_BUDGET_CAP = 0.0;
+    private static final double DEFAULT_FREEDOM_RUNWAY_MONTHS = 6.0;
+    private static final double DEFAULT_INSURANCE_MULTIPLE = 10.0;
+    private static final double DEFAULT_YEAR_ONE_ANNUAL_TARGET = 1_000_000.0;
+
     // Epic 8 Phase 3 — annual growth rates injected via config; field initializer provides
     // the same default so plain `new` in unit tests produces correct expected values.
     @ConfigProperty(name = "app.wealth.growth.rate.MUTUAL_FUND", defaultValue = "0.12")
@@ -83,9 +107,26 @@ public class ProjectionCalculationEngine {
     }
 
     /**
-     * Refreshes all nine snapshot keys for the given profile.
+     * Refreshes all eleven snapshot keys for the given profile.
      * Each compute step is independent; a failure in one does not block the others
      * (Bug 3 fix — see Epic 8 Phase 4 / OpenQuestions.md Q4).
+     *
+     * <p>Step ordering matters: Phase 4 steps (11-12) must run after Phase 3 steps
+     * (7-9) because computeFormulaGoals and computeValidation read the Phase 3
+     * snapshot payloads from the repository rather than re-calling domain services.
+     *
+     * <p>Steps:
+     * 1  computeNetWorth              — WEALTH_NET_WORTH
+     * 2  computeGoalProgress          — WEALTH_GOAL_PROGRESS
+     * 3  computeVitalsSummary         — HEALTH_VITALS_SUMMARY
+     * 4  computeEventSummary          — HOUSEHOLD_EVENT_SUMMARY
+     * 5  computeCategoryValidation    — WEALTH_CATEGORY_VALIDATION
+     * 6  computeFamilyNetWorth        — WEALTH_NET_WORTH_FAMILY
+     * 7  computeEmiTracking           — WEALTH_EMI_TRACKING_FAMILY
+     * 8  computeLiquidityTiers        — WEALTH_LIQUIDITY_TIERS_FAMILY
+     * 9  computeGrowthProjection      — WEALTH_GROWTH_PROJECTION_FAMILY
+     * 10 computeFormulaGoals          — WEALTH_FORMULA_GOALS_FAMILY
+     * 11 computeValidation            — WEALTH_VALIDATION_REPORT_FAMILY
      */
     public DashboardResponse refreshAll(UUID profileId) {
         AppLogger.info("ProjectionEngine: refreshing all snapshots for profile %s", profileId);
@@ -98,6 +139,8 @@ public class ProjectionCalculationEngine {
         runStep("computeEmiTracking", profileId, this::computeEmiTracking);
         runStep("computeLiquidityTiers", profileId, this::computeLiquidityTiers);
         runStep("computeGrowthProjection", profileId, this::computeGrowthProjection);
+        runStep("computeFormulaGoals", profileId, this::computeFormulaGoals);
+        runStep("computeValidation", profileId, this::computeValidation);
         return new DashboardResponse(snapshotRepository.findByProfileId(profileId));
     }
 
@@ -630,6 +673,339 @@ public class ProjectionCalculationEngine {
             return ppfRate;
         }
         return -1.0;
+    }
+
+    // ── WEALTH_FORMULA_GOALS_FAMILY (Epic 8 Phase 4) ──────────────────────────
+
+    /**
+     * Epic 8 Phase 4 — five hardcoded formula goals engine (Use Case 8.5).
+     * Reads Phase 3 snapshot payloads already stored in the repository — no new
+     * domain REST calls needed. Policy thresholds are read from admin.policy_settings.
+     *
+     * <p>Goal 1 — Debt Crossover: totalMonthlyEmi / familyNetWorth * 100 &lt; threshold.
+     * Goal 2 — 30-70 Target: LIQUID tier / total &gt;= 30%.
+     * Goal 3 — Freedom Runway: (LIQUID + SEMI_LIQUID) / monthlyBudgetCap &gt;= targetMonths.
+     * Goal 4 — Insurance Free: totalInvestmentValue &gt;= annualIncome * insuranceMultiple.
+     * Goal 5 — Year One: familyNetWorth &gt;= yearOneAnnualTarget.
+     */
+    void computeFormulaGoals(UUID profileId) {
+        UUID adminId = resolveAdminId(profileId);
+        if (adminId == null) {
+            return;
+        }
+
+        // Read policy settings from admin
+        JsonNode policySettings = resolveAdminPolicySettings(adminId);
+
+        // Read Phase 3 snapshot payloads from the repository
+        java.util.Map<String, JsonNode> snapshots = loadSnapshotsAsMap(profileId);
+
+        JsonNode netWorthPayload = snapshots.getOrDefault(SnapshotKey.WEALTH_NET_WORTH_FAMILY, MAPPER.createObjectNode());
+        JsonNode emiPayload = snapshots.getOrDefault(SnapshotKey.WEALTH_EMI_TRACKING_FAMILY, MAPPER.createObjectNode());
+        JsonNode liquidityPayload = snapshots.getOrDefault(SnapshotKey.WEALTH_LIQUIDITY_TIERS_FAMILY, MAPPER.createObjectNode());
+        JsonNode growthPayload = snapshots.getOrDefault(SnapshotKey.WEALTH_GROWTH_PROJECTION_FAMILY, MAPPER.createObjectNode());
+
+        double familyNetWorth = netWorthPayload.path("family_net_worth").asDouble(0.0);
+        double totalMonthlyEmi = emiPayload.path(MONTHLY_EMI_FIELD).asDouble(0.0);
+        JsonNode tiers = liquidityPayload.path("tiers");
+        double liquidBalance = tiers.path("LIQUID").asDouble(0.0);
+        double semiLiquidBalance = tiers.path("SEMI_LIQUID").asDouble(0.0);
+        double totalLiquidity = liquidityPayload.path("total").asDouble(0.0);
+        double totalInvestmentValue = growthPayload.path("total_current_value").asDouble(0.0);
+
+        // Policy values with defaults
+        double debtThreshold = policySettings.path("debt_crossover_threshold_percent").asDouble(DEFAULT_DEBT_CROSSOVER_THRESHOLD);
+        double monthlyBudgetCap = policySettings.path("monthly_budget_cap").asDouble(DEFAULT_MONTHLY_BUDGET_CAP);
+        double freedomRunwayMonths = policySettings.path("freedom_runway_months").asDouble(DEFAULT_FREEDOM_RUNWAY_MONTHS);
+        double insuranceMultiple = policySettings.path("insurance_multiple").asDouble(DEFAULT_INSURANCE_MULTIPLE);
+        double yearOneTarget = policySettings.path("year_one_annual_target").asDouble(DEFAULT_YEAR_ONE_ANNUAL_TARGET);
+
+        ArrayNode goalsArray = MAPPER.createArrayNode();
+        int achievedCount = 0;
+
+        // Goal 1 — Debt Crossover
+        double debtPercent = familyNetWorth > 0 ? totalMonthlyEmi / familyNetWorth * 100.0 : 0.0;
+        boolean debtAchieved = debtPercent < debtThreshold;
+        goalsArray.add(buildGoalEntry(
+                "DEBT_CROSSOVER",
+                "Debt Crossover",
+                debtAchieved,
+                "Monthly EMI below " + (int) debtThreshold + "% of net worth",
+                debtPercent,
+                debtThreshold,
+                "percent"));
+        if (debtAchieved) achievedCount++;
+
+        // Goal 2 — 30-70 Target
+        double liquidPercent = totalLiquidity > 0 ? liquidBalance / totalLiquidity * 100.0 : 0.0;
+        double growthPercent = totalLiquidity > 0 ? totalInvestmentValue / totalLiquidity * 100.0 : 0.0;
+        boolean thirtySeventyAchieved = liquidPercent >= 30.0;
+        ObjectNode thirtySeventyEntry = buildGoalEntry(
+                "THIRTY_SEVENTY_TARGET",
+                "30-70 Target",
+                thirtySeventyAchieved,
+                "At least 30% of assets in liquid tier",
+                liquidPercent,
+                30.0,
+                "percent");
+        thirtySeventyEntry.put("liquid_percent", liquidPercent);
+        thirtySeventyEntry.put("growth_percent", growthPercent);
+        goalsArray.add(thirtySeventyEntry);
+        if (thirtySeventyAchieved) achievedCount++;
+
+        // Goal 3 — Freedom Runway
+        double currentRunwayMonths = monthlyBudgetCap > 0
+                ? (liquidBalance + semiLiquidBalance) / monthlyBudgetCap
+                : 0.0;
+        boolean runwayAchieved = currentRunwayMonths >= freedomRunwayMonths;
+        ObjectNode runwayEntry = buildGoalEntry(
+                "FREEDOM_RUNWAY",
+                "Freedom Runway",
+                runwayAchieved,
+                "Liquid reserves cover " + (int) freedomRunwayMonths + " months of expenses",
+                currentRunwayMonths,
+                freedomRunwayMonths,
+                "months");
+        runwayEntry.put("current_months", currentRunwayMonths);
+        goalsArray.add(runwayEntry);
+        if (runwayAchieved) achievedCount++;
+
+        // Goal 4 — Insurance Free
+        double annualIncome = monthlyBudgetCap * 12.0;
+        double insuranceTarget = annualIncome * insuranceMultiple;
+        boolean insuranceAchieved = totalInvestmentValue >= insuranceTarget;
+        goalsArray.add(buildGoalEntry(
+                "INSURANCE_FREE",
+                "Insurance Free",
+                insuranceAchieved,
+                "Investment portfolio covers " + (int) insuranceMultiple + "x annual income",
+                totalInvestmentValue,
+                insuranceTarget,
+                "currency"));
+        if (insuranceAchieved) achievedCount++;
+
+        // Goal 5 — Year One
+        boolean yearOneAchieved = familyNetWorth >= yearOneTarget;
+        goalsArray.add(buildGoalEntry(
+                "YEAR_ONE",
+                "Year One",
+                yearOneAchieved,
+                "Family net worth reaches annual target",
+                familyNetWorth,
+                yearOneTarget,
+                "currency"));
+        if (yearOneAchieved) achievedCount++;
+
+        ObjectNode payload = MAPPER.createObjectNode();
+        payload.set("goals", goalsArray);
+        payload.put("achieved_count", achievedCount);
+        payload.put("total_count", 5);
+        snapshotRepository.upsert(profileId, SnapshotKey.WEALTH_FORMULA_GOALS_FAMILY, payload.toString());
+    }
+
+    private ObjectNode buildGoalEntry(String goalId, String goalName, boolean achieved,
+                                      String description, double currentValue, double targetValue, String unit) {
+        ObjectNode entry = MAPPER.createObjectNode();
+        entry.put(GOAL_ID_FIELD, goalId);
+        entry.put(GOAL_NAME_FIELD, goalName);
+        entry.put(STATUS_FIELD, achieved ? STATUS_ACHIEVED : STATUS_IN_PROGRESS);
+        entry.put(DESCRIPTION_FIELD, description);
+        entry.put(CURRENT_VALUE_FIELD, currentValue);
+        entry.put(TARGET_VALUE_FIELD, targetValue);
+        entry.put(UNIT_FIELD, unit);
+        return entry;
+    }
+
+    // ── WEALTH_VALIDATION_REPORT_FAMILY (Epic 8 Phase 4) ──────────────────────
+
+    /**
+     * Epic 8 Phase 4 — validation gate (Use Case 8.4). Runs four checks against
+     * existing Phase 3 snapshot payloads. Each check produces PASS, WARNING, or
+     * CRITICAL. Overall status = CRITICAL if any check is CRITICAL, WARNING if any
+     * check is WARNING, PASS if all PASS.
+     *
+     * <p>Check 1 — Category Resolution: are all accounts categorised?
+     * Check 2 — Missing Growth Rate: do investment accounts have a configured rate?
+     * Check 3 — EMI Data Completeness: do loan accounts have amortization metadata?
+     * Check 4 — Budget Cap Set: is monthly_budget_cap configured in policy settings?
+     *
+     * <p>Per Q16 resolution: CRITICAL does not block other snapshots — runStep isolation
+     * handles that. The validation engine just produces its own PASS/WARNING/CRITICAL
+     * result; what the dashboard shows for a CRITICAL key is a frontend concern.
+     */
+    void computeValidation(UUID profileId) {
+        UUID adminId = resolveAdminId(profileId);
+        if (adminId == null) {
+            return;
+        }
+
+        JsonNode policySettings = resolveAdminPolicySettings(adminId);
+        java.util.Map<String, JsonNode> snapshots = loadSnapshotsAsMap(profileId);
+
+        ArrayNode checksArray = MAPPER.createArrayNode();
+        int passCount = 0;
+        int warningCount = 0;
+        int criticalCount = 0;
+
+        // Check 1 — Category Resolution
+        JsonNode categoryPayload = snapshots.getOrDefault(SnapshotKey.WEALTH_CATEGORY_VALIDATION, MAPPER.createObjectNode());
+        int uncategorizedCount = categoryPayload.path("uncategorized_count").asInt(0);
+        if (uncategorizedCount > 0) {
+            checksArray.add(buildCheckEntry(
+                    "CATEGORY_RESOLUTION",
+                    STATUS_WARNING,
+                    uncategorizedCount + " account(s) have no expense category set",
+                    STATUS_WARNING));
+            warningCount++;
+        } else {
+            checksArray.add(buildCheckEntry(
+                    "CATEGORY_RESOLUTION",
+                    STATUS_PASS,
+                    "All accounts have an expense category set",
+                    STATUS_PASS));
+            passCount++;
+        }
+
+        // Check 2 — Missing Growth Rate
+        JsonNode growthPayload = snapshots.getOrDefault(SnapshotKey.WEALTH_GROWTH_PROJECTION_FAMILY, MAPPER.createObjectNode());
+        boolean missingRate = hasMissingGrowthRate(growthPayload);
+        if (missingRate) {
+            checksArray.add(buildCheckEntry(
+                    "MISSING_GROWTH_RATE",
+                    STATUS_WARNING,
+                    "One or more investment accounts are missing a configured growth rate",
+                    STATUS_WARNING));
+            warningCount++;
+        } else {
+            checksArray.add(buildCheckEntry(
+                    "MISSING_GROWTH_RATE",
+                    STATUS_PASS,
+                    "All tracked investment accounts have a growth rate configured",
+                    STATUS_PASS));
+            passCount++;
+        }
+
+        // Check 3 — EMI Data Completeness
+        JsonNode emiPayload = snapshots.getOrDefault(SnapshotKey.WEALTH_EMI_TRACKING_FAMILY, MAPPER.createObjectNode());
+        int memberCount = emiPayload.path(MEMBER_COUNT_FIELD).asInt(0);
+        double totalEmi = emiPayload.path(MONTHLY_EMI_FIELD).asDouble(0.0);
+        boolean emiIncomplete = memberCount > 0 && totalEmi == 0.0;
+        if (emiIncomplete) {
+            checksArray.add(buildCheckEntry(
+                    "EMI_DATA_COMPLETENESS",
+                    STATUS_WARNING,
+                    "Loan accounts found but no amortization metadata set — EMI figures may be zero",
+                    STATUS_WARNING));
+            warningCount++;
+        } else {
+            checksArray.add(buildCheckEntry(
+                    "EMI_DATA_COMPLETENESS",
+                    STATUS_PASS,
+                    "EMI data completeness check passed",
+                    STATUS_PASS));
+            passCount++;
+        }
+
+        // Check 4 — Budget Cap Set
+        double budgetCap = policySettings.path("monthly_budget_cap").asDouble(0.0);
+        if (budgetCap <= 0.0) {
+            checksArray.add(buildCheckEntry(
+                    "BUDGET_CAP_SET",
+                    STATUS_WARNING,
+                    "monthly_budget_cap not configured in policy settings — goals engine used a default value",
+                    STATUS_WARNING));
+            warningCount++;
+        } else {
+            checksArray.add(buildCheckEntry(
+                    "BUDGET_CAP_SET",
+                    STATUS_PASS,
+                    "Monthly budget cap is configured",
+                    STATUS_PASS));
+            passCount++;
+        }
+
+        String overallStatus;
+        if (criticalCount > 0) {
+            overallStatus = "CRITICAL";
+        } else if (warningCount > 0) {
+            overallStatus = STATUS_WARNING;
+        } else {
+            overallStatus = STATUS_PASS;
+        }
+
+        ObjectNode payload = MAPPER.createObjectNode();
+        payload.set(CHECKS_FIELD, checksArray);
+        payload.put(OVERALL_STATUS_FIELD, overallStatus);
+        payload.put("pass_count", passCount);
+        payload.put("warning_count", warningCount);
+        payload.put("critical_count", criticalCount);
+        snapshotRepository.upsert(profileId, SnapshotKey.WEALTH_VALIDATION_REPORT_FAMILY, payload.toString());
+    }
+
+    private ObjectNode buildCheckEntry(String checkId, String status, String message, String severity) {
+        ObjectNode entry = MAPPER.createObjectNode();
+        entry.put(CHECK_ID_FIELD, checkId);
+        entry.put(STATUS_FIELD, status);
+        entry.put(MESSAGE_FIELD, message);
+        entry.put(SEVERITY_FIELD, severity);
+        return entry;
+    }
+
+    /**
+     * Returns true if any projection entry in WEALTH_GROWTH_PROJECTION_FAMILY has
+     * a missing growth rate — represented by the absence of a projection entry
+     * (account_type not in tracked set means it was excluded, which is correct; the
+     * concern is investment-type accounts that somehow ended up in the projections
+     * array but with rate == 0). For Phase 4, we flag any projection entry where
+     * the growth_rate_annual value is 0 or missing, since all tracked types have
+     * strictly positive rates (MUTUAL_FUND=12%, NPS=10%, PPF=7.1%).
+     */
+    private boolean hasMissingGrowthRate(JsonNode growthPayload) {
+        JsonNode projections = growthPayload.path("projections");
+        if (!projections.isArray()) {
+            return false;
+        }
+        for (JsonNode proj : projections) {
+            if (proj.path("growth_rate_annual").asDouble(0.0) <= 0.0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // ── snapshot read helpers (Phase 4) ──────────────────────────────────────
+
+    /**
+     * Loads all stored snapshots for the given profile into a key→parsed-JsonNode map.
+     * Used by the Phase 4 engines to read Phase 3 outputs without re-calling domain REST services.
+     */
+    private java.util.Map<String, JsonNode> loadSnapshotsAsMap(UUID profileId) {
+        java.util.Map<String, JsonNode> result = new java.util.HashMap<>();
+        for (DashboardSnapshotDto dto : snapshotRepository.findByProfileId(profileId)) {
+            try {
+                result.put(dto.getSnapshotKey(), MAPPER.readTree(dto.getPayload()));
+            } catch (Exception e) {
+                AppLogger.error("ProjectionEngine: failed to parse snapshot %s for profile %s", e,
+                        dto.getSnapshotKey(), profileId);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Reads admin.policy_settings JSONB from the profile service.
+     * Returns an empty node if the field is absent or if the call fails — all policy
+     * values have safe defaults applied in the goals/validation engines.
+     */
+    private JsonNode resolveAdminPolicySettings(UUID adminId) {
+        try {
+            JsonNode admin = profileServiceClient.getAdmin(adminId);
+            JsonNode policySettings = admin.path(POLICY_SETTINGS_FIELD);
+            return policySettings.isMissingNode() ? MAPPER.createObjectNode() : policySettings;
+        } catch (RuntimeException e) {
+            AppLogger.info("ProjectionEngine: could not load admin policy_settings for admin %s, using defaults", adminId);
+            return MAPPER.createObjectNode();
+        }
     }
 
     // ── household resolution helper ───────────────────────────────────────────

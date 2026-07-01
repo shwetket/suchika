@@ -18,3 +18,8 @@ export const updateProfile = (profileId, data) =>
   patch(`${API_ENDPOINTS.PROFILES}/${profileId}`, data);
 
 export const deactivateProfile = (profileId) => del(`${API_ENDPOINTS.PROFILES}/${profileId}`);
+
+export const getAdmin = (adminId) => get(`${API_ENDPOINTS.ADMINS}/${adminId}`);
+
+export const updateAdminPolicy = (adminId, policySettings) =>
+  patch(`${API_ENDPOINTS.ADMINS}/${adminId}/policy`, { policy_settings: policySettings });

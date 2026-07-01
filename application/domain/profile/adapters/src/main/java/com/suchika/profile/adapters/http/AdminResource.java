@@ -57,4 +57,15 @@ public class AdminResource {
         adminUseCase.deactivateAdmin(adminId);
         return Response.noContent().build();
     }
+
+    @PATCH
+    @Path("/{admin_id}/policy")
+    public AdminResponse updatePolicySettings(@PathParam("admin_id") UUID adminId,
+                                              UpdateAdminPolicyRequest request) {
+        if (request == null || request.policySettings == null) {
+            throw new BadRequestException("policy_settings is required");
+        }
+        Admin admin = adminUseCase.updatePolicySettings(adminId, request.policySettings);
+        return AdminResponse.from(admin);
+    }
 }

@@ -27,9 +27,10 @@ public final class SnapshotKey {
      * other snapshot. Payload nests a per-member breakdown in a "members" array.
      *
      * Phase 1: WEALTH_NET_WORTH_FAMILY has a working compute method.
-     * Phase 3 (this phase): WEALTH_EMI_TRACKING_FAMILY, WEALTH_LIQUIDITY_TIERS_FAMILY,
-     * WEALTH_GROWTH_PROJECTION_FAMILY are now populated by compute methods.
-     * Reserved for later phases: WEALTH_GOAL_PROGRESS_FAMILY, WEALTH_VALIDATION_REPORT_FAMILY.
+     * Phase 3: WEALTH_EMI_TRACKING_FAMILY, WEALTH_LIQUIDITY_TIERS_FAMILY,
+     * WEALTH_GROWTH_PROJECTION_FAMILY are populated by compute methods.
+     * Phase 4 (this phase): WEALTH_FORMULA_GOALS_FAMILY (5-formula goals engine),
+     * WEALTH_VALIDATION_REPORT_FAMILY (validation gate with PASS/WARNING/CRITICAL).
      */
     public static final String WEALTH_NET_WORTH_FAMILY = "WEALTH_NET_WORTH_FAMILY";
     public static final String WEALTH_GOAL_PROGRESS_FAMILY = "WEALTH_GOAL_PROGRESS_FAMILY";
@@ -37,6 +38,14 @@ public final class SnapshotKey {
     public static final String WEALTH_EMI_TRACKING_FAMILY = "WEALTH_EMI_TRACKING_FAMILY";
     public static final String WEALTH_LIQUIDITY_TIERS_FAMILY = "WEALTH_LIQUIDITY_TIERS_FAMILY";
     public static final String WEALTH_GROWTH_PROJECTION_FAMILY = "WEALTH_GROWTH_PROJECTION_FAMILY";
+
+    /**
+     * Epic 8 Phase 4 — five hardcoded formula goals (Debt Crossover, 30-70 Target,
+     * Freedom Runway, Insurance Free, Year One). Household-scoped; stored under the
+     * admin's own profile_id. Consumes Phase 3 snapshots already in the repository
+     * rather than re-calling domain services.
+     */
+    public static final String WEALTH_FORMULA_GOALS_FAMILY = "WEALTH_FORMULA_GOALS_FAMILY";
 
     private SnapshotKey() {
     }

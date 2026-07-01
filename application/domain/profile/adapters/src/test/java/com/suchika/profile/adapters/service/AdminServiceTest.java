@@ -143,6 +143,44 @@ class AdminServiceTest {
         assertThrows(NotFoundException.class, () -> service.deactivateAdmin(UUID.randomUUID()));
     }
 
+    @Test
+    void updatePolicySettings_mergesIntoExisting() {
+        Admin admin = service.createAdmin("Ketan", null);
+        UUID adminId = admin.getId();
+
+        Map<String, String> first = new HashMap<>();
+        first.put("monthly_budget_cap", "50000");
+        first.put("freedom_runway_months", "12");
+        service.updatePolicySettings(adminId, first);
+
+        Map<String, String> second = new HashMap<>();
+        second.put("insurance_multiple", "10");
+        Admin result = service.updatePolicySettings(adminId, second);
+
+        assertEquals("50000", result.getPolicySettings().get("monthly_budget_cap"));
+        assertEquals("12", result.getPolicySettings().get("freedom_runway_months"));
+        assertEquals("10", result.getPolicySettings().get("insurance_multiple"));
+    }
+
+    @Test
+    void updatePolicySettings_nullValue_skipsKey() {
+        Admin admin = service.createAdmin("Ketan", null);
+        UUID adminId = admin.getId();
+
+        Map<String, String> initial = new HashMap<>();
+        initial.put("monthly_budget_cap", "50000");
+        service.updatePolicySettings(adminId, initial);
+
+        Map<String, String> patch = new HashMap<>();
+        patch.put("monthly_budget_cap", null);
+        patch.put("freedom_runway_months", "6");
+        Admin result = service.updatePolicySettings(adminId, patch);
+
+        assertEquals("50000", result.getPolicySettings().get("monthly_budget_cap"),
+            "null value must not overwrite existing key");
+        assertEquals("6", result.getPolicySettings().get("freedom_runway_months"));
+    }
+
     // ---- Fake repositories ----
 
     static class FakeAdminRepository implements AdminRepository {
