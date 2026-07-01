@@ -113,6 +113,7 @@ export const Navigation = ({ theme, onToggleTheme }) => {
               <NavDropdown label="Wealth">
                 <DropdownLink to="/wealth/accounts">Accounts</DropdownLink>
                 <DropdownLink to="/wealth/transactions">Transactions</DropdownLink>
+                <DropdownLink to="/wealth/physical-assets">Physical Assets</DropdownLink>
               </NavDropdown>
 
               <NavDropdown label="Health">

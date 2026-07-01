@@ -12,6 +12,13 @@ public interface TransactionUseCase {
 
     List<Transaction> listByAccount(UUID accountId, LocalDate from, LocalDate to, TxnType txnType);
 
+    /**
+     * Creates a single manually-entered transaction (Q7). The transaction is saved
+     * with metadata.source = "MANUAL" so it stays distinguishable from CSV-imported
+     * rows for future analysis. No dedup check — manual entries are always intentional.
+     */
+    Transaction create(UUID accountId, UUID profileId, CreateTransactionCommand command);
+
     Transaction getById(UUID id);
 
     /**

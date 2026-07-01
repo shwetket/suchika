@@ -2,6 +2,7 @@ package com.suchika.wealth.adapters.http;
 
 import com.suchika.wealth.adapters.http.dto.AccountBalanceResponse;
 import com.suchika.wealth.adapters.http.dto.AccountResponse;
+import com.suchika.wealth.adapters.http.dto.AmortizationSummaryResponse;
 import com.suchika.wealth.adapters.http.dto.CreateAccountRequest;
 import com.suchika.wealth.adapters.http.dto.ListAccountsResponse;
 import com.suchika.wealth.adapters.http.dto.UpdateAccountClassificationRequest;
@@ -88,8 +89,19 @@ public class AccountResource {
             @PathParam("account_id") UUID accountId,
             UpdateAccountClassificationRequest request) {
         if (request == null) throw new BadRequestException("Request body is required");
-        return AccountResponse.from(useCase.updateAccountClassification(
-                accountId, request.category, request.liquidityTier, request.purposeTag, request.jointOwners));
+        return AccountResponse.from(useCase.updateAccountClassification(accountId,
+                new com.suchika.wealth.ports.input.UpdateAccountClassificationCommand(
+                        request.category, request.liquidityTier, request.purposeTag, request.jointOwners,
+                        request.loanOriginalPrincipal, request.loanStartDate, request.loanTenureMonths,
+                        request.linkedOffsetAccountId)));
+    }
+
+    @GET
+    @Path("/{account_id}/amortization")
+    public AmortizationSummaryResponse getAmortization(
+            @PathParam("account_id") UUID accountId,
+            @QueryParam("profile_id") UUID profileId) {
+        return AmortizationSummaryResponse.from(useCase.getAmortization(accountId, profileId));
     }
 
     private AccountType parseAccountType(String value) {

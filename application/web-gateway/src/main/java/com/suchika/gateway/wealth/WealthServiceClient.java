@@ -49,6 +49,13 @@ public interface WealthServiceClient {
     @Path("/accounts/{accountId}")
     void deactivateAccount(@PathParam("accountId") UUID accountId);
 
+    @POST
+    @Path("/accounts/{accountId}/transactions")
+    Response createTransaction(
+            @PathParam("accountId") UUID accountId,
+            @QueryParam("profile_id") String profileId,
+            JsonNode body);
+
     @GET
     @Path("/accounts/{accountId}/transactions")
     JsonNode listTransactions(
@@ -93,4 +100,35 @@ public interface WealthServiceClient {
     JsonNode getUploadErrors(
             @PathParam("accountId") UUID accountId,
             @PathParam("uploadId") UUID uploadId);
+
+    @GET
+    @Path("/physical-assets")
+    JsonNode listPhysicalAssets(
+            @QueryParam("asset_type") String assetType,
+            @QueryParam("is_active") Boolean isActive,
+            @QueryParam("profile_id") String profileId);
+
+    @POST
+    @Path("/physical-assets")
+    Response createPhysicalAsset(
+            @QueryParam("profile_id") String profileId,
+            JsonNode body);
+
+    @GET
+    @Path("/physical-assets/{assetId}")
+    JsonNode getPhysicalAsset(@PathParam("assetId") UUID assetId);
+
+    @PATCH
+    @Path("/physical-assets/{assetId}")
+    JsonNode updatePhysicalAsset(@PathParam("assetId") UUID assetId, JsonNode body);
+
+    @DELETE
+    @Path("/physical-assets/{assetId}")
+    void deactivatePhysicalAsset(@PathParam("assetId") UUID assetId);
+
+    @GET
+    @Path("/accounts/{accountId}/amortization")
+    JsonNode getAmortization(
+            @PathParam("accountId") UUID accountId,
+            @QueryParam("profile_id") String profileId);
 }

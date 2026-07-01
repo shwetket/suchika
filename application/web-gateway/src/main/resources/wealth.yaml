@@ -20,6 +20,8 @@ tags:
     description: CSV statement uploads and error inspection
   - name: Transactions
     description: Ledger transactions and expense categorization
+  - name: PhysicalAssets
+    description: Vehicle and other physical asset registry with compliance tracking
 
 paths:
 
@@ -246,6 +248,129 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /v1/accounts/{account_id}/amortization:
+
+    get:
+      tags: [Accounts]
+      operationId: getAmortization
+      summary: Get current amortization summary for a loan account
+      description: >
+        Computes outstanding balance, monthly EMI, remaining months, and interest
+        breakdown for HOME_LOAN, CAR_LOAN, or PERSONAL_LOAN accounts. Requires
+        loan metadata to be set via PATCH /classification first (original_principal,
+        loan_start_date, original_tenure_months). Epic 8 Phase 3.
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - name: profile_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Amortization summary as of today
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AmortizationSummaryResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/accounts/{account_id}/transactions:
+
+    get:
+      tags: [Transactions]
+      operationId: listTransactions
+      summary: List transactions for an account
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: txn_type
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/TxnType'
+      responses:
+        '200':
+          description: Transactions listed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListTransactionsResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags: [Transactions]
+      operationId: createTransaction
+      summary: Manually enter a single transaction (Q7)
+      description: >
+        Creates a manually-entered transaction without a CSV upload. The transaction
+        is tagged metadata.source = "MANUAL" so it stays distinguishable from
+        CSV-imported rows. No dedup check — manual entries are always intentional.
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - name: profile_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTransactionRequest'
+      responses:
+        '201':
+          description: Transaction created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/accounts/{account_id}/transactions/{txn_id}:
+
+    get:
+      tags: [Transactions]
+      operationId: getTransaction
+      summary: Get a single transaction
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/TxnId'
+      responses:
+        '200':
+          description: Transaction found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /v1/accounts/{account_id}/transactions/{txn_id}/category:
 
     patch:
@@ -383,6 +508,147 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /v1/physical-assets:
+
+    get:
+      tags: [PhysicalAssets]
+      operationId: listPhysicalAssets
+      summary: List all physical assets
+      description: >
+        Returns physical assets (vehicles, etc.). Supports filtering by
+        asset_type and is_active. Follows AIP-132 (Standard List).
+      parameters:
+        - name: asset_type
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/AssetType'
+        - name: is_active
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: profile_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Successfully listed physical assets
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListPhysicalAssetsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags: [PhysicalAssets]
+      operationId: createPhysicalAsset
+      summary: Register a physical asset
+      description: >
+        Creates a new physical asset. Follows AIP-133 (Standard Create).
+        registration_number must be unique across all assets.
+      parameters:
+        - name: profile_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePhysicalAssetRequest'
+      responses:
+        '201':
+          description: Physical asset created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PhysicalAsset'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/physical-assets/{asset_id}:
+
+    get:
+      tags: [PhysicalAssets]
+      operationId: getPhysicalAsset
+      summary: Get a physical asset
+      description: Returns a single physical asset by ID. Follows AIP-131 (Standard Get).
+      parameters:
+        - $ref: '#/components/parameters/AssetId'
+      responses:
+        '200':
+          description: Physical asset found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PhysicalAsset'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    patch:
+      tags: [PhysicalAssets]
+      operationId: updatePhysicalAsset
+      summary: Update a physical asset
+      description: >
+        Partially updates a physical asset. Follows AIP-134 (Standard Update).
+        Only fields present in the request body are updated. metadata is merged
+        into the existing map, never replaced wholesale. asset_type and
+        registration_number are immutable after creation.
+      parameters:
+        - $ref: '#/components/parameters/AssetId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePhysicalAssetRequest'
+      responses:
+        '200':
+          description: Physical asset updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PhysicalAsset'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags: [PhysicalAssets]
+      operationId: deactivatePhysicalAsset
+      summary: Deactivate a physical asset
+      description: >
+        Soft deletes a physical asset by setting is_active to false.
+        Follows AIP-135 (Standard Delete).
+      parameters:
+        - $ref: '#/components/parameters/AssetId'
+      responses:
+        '204':
+          description: Physical asset deactivated successfully
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
 components:
 
   parameters:
@@ -411,6 +677,15 @@ components:
       in: path
       required: true
       description: Unique identifier of the transaction
+      schema:
+        type: string
+        format: uuid
+
+    AssetId:
+      name: asset_id
+      in: path
+      required: true
+      description: Unique identifier of the physical asset
       schema:
         type: string
         format: uuid
@@ -533,6 +808,24 @@ components:
         - PPF
         - FD
       description: Type of the account
+
+    AssetType:
+      type: string
+      enum:
+        - VEHICLE
+      description: Category discriminator for physical assets. Only VEHICLE currently.
+
+    RegistrationType:
+      type: string
+      enum:
+        - PRIVATE
+        - COMMERCIAL
+        - GOVERNMENT
+        - BH_SERIES
+      description: >
+        Drives compliance scheduling. PRIVATE = lifetime road tax, annual
+        PUC/insurance. COMMERCIAL = annual road tax + fitness certificate.
+        GOVERNMENT = custom schedule. BH_SERIES = biennial road-tax renewal.
 
     Account:
       type: object
@@ -718,6 +1011,46 @@ components:
           items:
             type: string
             format: uuid
+        loan_original_principal:
+          type: string
+          nullable: true
+          description: Original loan principal in decimal string form. Stored as metadata.original_principal.
+        loan_start_date:
+          type: string
+          nullable: true
+          description: EMI start / disbursement date in yyyy-MM-dd format. Stored as metadata.loan_start_date.
+        loan_tenure_months:
+          type: string
+          nullable: true
+          description: Original loan tenure as integer string. Stored as metadata.original_tenure_months.
+        linked_offset_account_id:
+          type: string
+          nullable: true
+          description: >
+            UUID string of a linked offset savings account. Stored as metadata.linked_offset_account_id.
+            Used in EMI arbitrage computation (Epic 8 Phase 3).
+
+    AmortizationSummaryResponse:
+      type: object
+      description: Computed amortization snapshot for a loan account as of today. Epic 8 Phase 3.
+      properties:
+        monthly_emi:
+          type: number
+          format: double
+        outstanding_balance:
+          type: number
+          format: double
+        remaining_months:
+          type: integer
+        total_interest_remaining:
+          type: number
+          format: double
+        principal_paid:
+          type: number
+          format: double
+        interest_paid:
+          type: number
+          format: double
 
     ExpenseCategory:
       type: string
@@ -773,6 +1106,28 @@ components:
           items:
             $ref: '#/components/schemas/Transaction'
 
+    CreateTransactionRequest:
+      type: object
+      required:
+        - txn_date
+        - amount
+        - txn_type
+      properties:
+        txn_date:
+          type: string
+          format: date
+          example: "2026-07-01"
+        amount:
+          type: number
+          format: double
+          description: Must be positive
+          example: 5000.00
+        txn_type:
+          $ref: '#/components/schemas/TxnType'
+        description:
+          type: string
+          example: "Grocery shopping"
+
     UpdateTransactionCategoryRequest:
       type: object
       required:
@@ -810,6 +1165,112 @@ components:
         total_size:
           type: integer
           description: Total number of accounts matching the filter
+
+    PhysicalAsset:
+      type: object
+      description: Represents a physical asset (vehicle, etc.) owned by the household.
+      properties:
+        asset_id:
+          type: string
+          format: uuid
+          readOnly: true
+        asset_name:
+          type: string
+          example: "Family Car"
+        asset_type:
+          $ref: '#/components/schemas/AssetType'
+        make:
+          type: string
+          example: "Maruti"
+        model:
+          type: string
+          example: "Swift"
+        registration_number:
+          type: string
+          example: "KA-01-AB-1234"
+        registration_type:
+          $ref: '#/components/schemas/RegistrationType'
+        is_active:
+          type: boolean
+          default: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        metadata:
+          type: object
+          description: >
+            Compliance deadlines and optional vehicle details (puc_expiry,
+            insurance_expiry, insurance_provider, road_tax_expiry, chassis_number,
+            etc.). See V2__physical_assets.sql for the full key list.
+          additionalProperties:
+            type: string
+
+    CreatePhysicalAssetRequest:
+      type: object
+      required:
+        - asset_name
+        - asset_type
+        - make
+        - model
+        - registration_number
+        - registration_type
+      properties:
+        asset_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "Family Car"
+        asset_type:
+          $ref: '#/components/schemas/AssetType'
+        make:
+          type: string
+          minLength: 1
+          maxLength: 100
+        model:
+          type: string
+          minLength: 1
+          maxLength: 100
+        registration_number:
+          type: string
+          minLength: 1
+          maxLength: 50
+        registration_type:
+          $ref: '#/components/schemas/RegistrationType'
+
+    UpdatePhysicalAssetRequest:
+      type: object
+      description: >
+        All fields optional. Only provided fields are updated. metadata is
+        merged into the existing map, never replaced wholesale. asset_type and
+        registration_number cannot be changed after creation.
+      properties:
+        asset_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        make:
+          type: string
+        model:
+          type: string
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+        is_active:
+          type: boolean
+
+    ListPhysicalAssetsResponse:
+      type: object
+      description: List of physical assets.
+      properties:
+        physical_assets:
+          type: array
+          items:
+            $ref: '#/components/schemas/PhysicalAsset'
+        total_size:
+          type: integer
+          description: Total number of physical assets matching the filter
 
     Error:
       type: object

@@ -86,6 +86,6 @@ public class AppLogger {
      * Log error message with exception and parameters.
      */
     public static void error(String message, Throwable throwable, Object... params) {
-        Log.errorf(message, throwable, params);
+        Log.errorf(throwable, message, params);
     }
 }

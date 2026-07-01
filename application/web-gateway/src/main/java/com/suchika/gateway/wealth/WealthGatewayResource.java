@@ -78,6 +78,21 @@ public class WealthGatewayResource {
         return Response.noContent().build();
     }
 
+    @POST
+    @Path("/accounts/{accountId}/transactions")
+    public Response createTransaction(
+            @PathParam("accountId") UUID accountId,
+            @QueryParam("profile_id") String profileId,
+            JsonNode body) {
+        AppLogger.info("Gateway: creating manual transaction for account %s", accountId);
+        try (Response upstream = wealthServiceClient.createTransaction(accountId, profileId, body)) {
+            return Response.status(upstream.getStatus())
+                    .entity(upstream.readEntity(String.class))
+                    .type(MediaType.APPLICATION_JSON)
+                    .build();
+        }
+    }
+
     @GET
     @Path("/accounts/{accountId}/transactions")
     public JsonNode listTransactions(
@@ -144,5 +159,55 @@ public class WealthGatewayResource {
             @PathParam("accountId") UUID accountId,
             @PathParam("uploadId") UUID uploadId) {
         return wealthServiceClient.getUploadErrors(accountId, uploadId);
+    }
+
+    @GET
+    @Path("/physical-assets")
+    public JsonNode listPhysicalAssets(
+            @QueryParam("asset_type") String assetType,
+            @QueryParam("is_active") Boolean isActive,
+            @QueryParam("profile_id") String profileId) {
+        return wealthServiceClient.listPhysicalAssets(assetType, isActive, profileId);
+    }
+
+    @POST
+    @Path("/physical-assets")
+    public Response createPhysicalAsset(
+            @QueryParam("profile_id") String profileId,
+            JsonNode body) {
+        AppLogger.info("Gateway: creating physical asset");
+        try (Response upstream = wealthServiceClient.createPhysicalAsset(profileId, body)) {
+            return Response.status(upstream.getStatus())
+                    .entity(upstream.readEntity(String.class))
+                    .type(MediaType.APPLICATION_JSON)
+                    .build();
+        }
+    }
+
+    @GET
+    @Path("/physical-assets/{assetId}")
+    public JsonNode getPhysicalAsset(@PathParam("assetId") UUID assetId) {
+        return wealthServiceClient.getPhysicalAsset(assetId);
+    }
+
+    @PATCH
+    @Path("/physical-assets/{assetId}")
+    public JsonNode updatePhysicalAsset(@PathParam("assetId") UUID assetId, JsonNode body) {
+        return wealthServiceClient.updatePhysicalAsset(assetId, body);
+    }
+
+    @DELETE
+    @Path("/physical-assets/{assetId}")
+    public Response deactivatePhysicalAsset(@PathParam("assetId") UUID assetId) {
+        wealthServiceClient.deactivatePhysicalAsset(assetId);
+        return Response.noContent().build();
+    }
+
+    @GET
+    @Path("/accounts/{accountId}/amortization")
+    public JsonNode getAmortization(
+            @PathParam("accountId") UUID accountId,
+            @QueryParam("profile_id") String profileId) {
+        return wealthServiceClient.getAmortization(accountId, profileId);
     }
 }

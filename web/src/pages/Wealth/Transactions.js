@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { listProfiles } from '../../api/profiles';
 import {
+  createTransaction,
   getUploadErrors,
   listAccounts,
   listTransactions,
@@ -167,13 +168,20 @@ TransactionRow.propTypes = {
   }).isRequired,
 };
 
-function TransactionsTab({ accountId }) {
+const EMPTY_TXN_FORM = { txn_date: '', amount: '', txn_type: 'DEBIT', description: '' };
+
+function TransactionsTab({ accountId, profileId }) {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [txnType, setTxnType] = useState('ALL');
+
+  const [showAdd, setShowAdd] = useState(false);
+  const [addForm, setAddForm] = useState(EMPTY_TXN_FORM);
+  const [addError, setAddError] = useState(null);
+  const [addSaving, setAddSaving] = useState(false);
 
   const load = useCallback(async () => {
     if (!accountId) return;
@@ -193,41 +201,91 @@ function TransactionsTab({ accountId }) {
     load();
   }, [load]);
 
+  const handleAddChange = useCallback((e) => {
+    const { name, value } = e.target;
+    setAddForm((prev) => ({ ...prev, [name]: value }));
+  }, []);
+
+  const handleAddSubmit = useCallback(
+    async (e) => {
+      e.preventDefault();
+      if (!addForm.txn_date) {
+        setAddError('Date is required');
+        return;
+      }
+      if (!addForm.amount || Number(addForm.amount) <= 0) {
+        setAddError('Amount must be positive');
+        return;
+      }
+      setAddSaving(true);
+      setAddError(null);
+      try {
+        await createTransaction(accountId, profileId, {
+          txn_date: addForm.txn_date,
+          amount: Number(addForm.amount),
+          txn_type: addForm.txn_type,
+          description: addForm.description.trim() || null,
+        });
+        setShowAdd(false);
+        setAddForm(EMPTY_TXN_FORM);
+        await load();
+      } catch (err) {
+        setAddError(err.message || 'Failed to create transaction');
+      } finally {
+        setAddSaving(false);
+      }
+    },
+    [addForm, accountId, profileId, load]
+  );
+
   return (
     <div>
-      <div className="flex flex-wrap gap-3 mb-4">
-        <input
-          type="date"
-          value={fromDate}
-          onChange={(e) => setFromDate(e.target.value)}
-          className={inputClass}
-          placeholder="From"
-        />
-        <input
-          type="date"
-          value={toDate}
-          onChange={(e) => setToDate(e.target.value)}
-          className={inputClass}
-          placeholder="To"
-        />
-        <div className="flex gap-1">
-          {TXN_TYPES.map((t) => {
-            const sel = txnType === t;
-            const cls = sel
-              ? 'bg-blue-600 text-white'
-              : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50';
-            return (
-              <button
-                type="button"
-                key={t}
-                onClick={() => setTxnType(t)}
-                className={`px-3 py-1.5 rounded-full text-sm font-medium ${cls}`}
-              >
-                {t}
-              </button>
-            );
-          })}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="flex flex-wrap gap-3">
+          <input
+            type="date"
+            value={fromDate}
+            onChange={(e) => setFromDate(e.target.value)}
+            className={inputClass}
+            placeholder="From"
+          />
+          <input
+            type="date"
+            value={toDate}
+            onChange={(e) => setToDate(e.target.value)}
+            className={inputClass}
+            placeholder="To"
+          />
+          <div className="flex gap-1">
+            {TXN_TYPES.map((t) => {
+              const sel = txnType === t;
+              const cls = sel
+                ? 'bg-blue-600 text-white'
+                : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50';
+              return (
+                <button
+                  type="button"
+                  key={t}
+                  onClick={() => setTxnType(t)}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium ${cls}`}
+                >
+                  {t}
+                </button>
+              );
+            })}
+          </div>
         </div>
+        <button
+          type="button"
+          onClick={() => {
+            setAddForm(EMPTY_TXN_FORM);
+            setAddError(null);
+            setShowAdd(true);
+          }}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 whitespace-nowrap"
+        >
+          + Add Transaction
+        </button>
       </div>
 
       {error && (
@@ -262,11 +320,102 @@ function TransactionsTab({ accountId }) {
           </table>
         </div>
       )}
+
+      {showAdd && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div className="flex items-center justify-between p-5 border-b">
+              <h2 className="text-lg font-bold">Add Transaction</h2>
+              <button
+                type="button"
+                onClick={() => setShowAdd(false)}
+                className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+              >
+                &times;
+              </button>
+            </div>
+            <form onSubmit={handleAddSubmit} className="p-5 space-y-4">
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700">
+                  Date <span className="text-red-500">*</span>
+                </label>
+                <input
+                  name="txn_date"
+                  type="date"
+                  value={addForm.txn_date}
+                  onChange={handleAddChange}
+                  className={inputClass}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700">
+                  Amount (₹) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  name="amount"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={addForm.amount}
+                  onChange={handleAddChange}
+                  placeholder="0.00"
+                  className={inputClass}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700">
+                  Type <span className="text-red-500">*</span>
+                </label>
+                <div className="flex gap-2">
+                  {['DEBIT', 'CREDIT'].map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setAddForm((p) => ({ ...p, txn_type: t }))}
+                      className={`flex-1 py-2 rounded text-sm font-medium border ${addForm.txn_type === t ? (t === 'DEBIT' ? 'bg-red-100 border-red-400 text-red-700' : 'bg-green-100 border-green-400 text-green-700') : 'border-gray-300 text-gray-600'}`}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700">Description</label>
+                <input
+                  name="description"
+                  type="text"
+                  value={addForm.description}
+                  onChange={handleAddChange}
+                  placeholder="e.g. Grocery shopping"
+                  className={inputClass}
+                />
+              </div>
+              {addError && <p className="text-red-600 text-sm">{addError}</p>}
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAdd(false)}
+                  className="px-4 py-2 border border-gray-300 rounded text-sm text-gray-600 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={addSaving}
+                  className="px-4 py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {addSaving ? 'Saving...' : 'Add'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-TransactionsTab.propTypes = { accountId: PropTypes.string };
-TransactionsTab.defaultProps = { accountId: null };
+TransactionsTab.propTypes = { accountId: PropTypes.string, profileId: PropTypes.string };
+TransactionsTab.defaultProps = { accountId: null, profileId: null };
 
 function UploadTab({ accountId }) {
   const [fileName, setFileName] = useState('');
@@ -623,7 +772,9 @@ export const WealthTransactions = () => {
             ))}
           </div>
 
-          {activeTab === 'transactions' && <TransactionsTab accountId={selectedAccountId} />}
+          {activeTab === 'transactions' && (
+            <TransactionsTab accountId={selectedAccountId} profileId={selectedProfileId} />
+          )}
           {activeTab === 'upload' && <UploadTab accountId={selectedAccountId} />}
         </>
       )}

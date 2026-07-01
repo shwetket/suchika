@@ -27,4 +27,16 @@ public class UpdateAccountClassificationRequest {
 
     @JsonProperty("joint_owners")
     public List<String> jointOwners;
+
+    @JsonProperty("loan_original_principal")
+    public String loanOriginalPrincipal;
+
+    @JsonProperty("loan_start_date")
+    public String loanStartDate;
+
+    @JsonProperty("loan_tenure_months")
+    public String loanTenureMonths;
+
+    @JsonProperty("linked_offset_account_id")
+    public String linkedOffsetAccountId;
 }

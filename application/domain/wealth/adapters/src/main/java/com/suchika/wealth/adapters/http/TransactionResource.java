@@ -2,11 +2,13 @@ package com.suchika.wealth.adapters.http;
 
 import com.suchika.shared.exception.BadRequestException;
 import com.suchika.wealth.adapters.http.dto.BulkUpdateTransactionCategoryRequest;
+import com.suchika.wealth.adapters.http.dto.CreateTransactionRequest;
 import com.suchika.wealth.adapters.http.dto.ListTransactionsResponse;
 import com.suchika.wealth.adapters.http.dto.TransactionResponse;
 import com.suchika.wealth.adapters.http.dto.UpdateTransactionCategoryRequest;
 import com.suchika.wealth.domain.ExpenseCategory;
 import com.suchika.wealth.domain.TxnType;
+import com.suchika.wealth.ports.input.CreateTransactionCommand;
 import com.suchika.wealth.ports.input.TransactionUseCase;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -41,6 +43,23 @@ public class TransactionResource {
         List<TransactionResponse> transactions = useCase.listByAccount(accountId, from, to, txnType)
                 .stream().map(TransactionResponse::from).toList();
         return Response.ok(new ListTransactionsResponse(transactions)).build();
+    }
+
+    @POST
+    public Response createTransaction(
+            @PathParam("account_id") UUID accountId,
+            @QueryParam("profile_id") UUID profileId,
+            CreateTransactionRequest request) {
+        if (request == null) throw new BadRequestException("Request body is required");
+        TxnType txnType = parseTxnType(request.txnType);
+        if (txnType == null) throw new BadRequestException("txn_type is required");
+        LocalDate txnDate = parseDate(request.txnDate, "txn_date");
+        if (txnDate == null) throw new BadRequestException("txn_date is required");
+        CreateTransactionCommand command = new CreateTransactionCommand(
+                txnDate, request.amount, txnType, request.description);
+        return Response.status(201)
+                .entity(TransactionResponse.from(useCase.create(accountId, profileId, command)))
+                .build();
     }
 
     @GET

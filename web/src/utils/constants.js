@@ -64,6 +64,7 @@ export const ROUTE_PATHS = {
   WEALTH_ACCOUNTS: '/wealth/accounts',
   WEALTH_TRANSACTIONS: '/wealth/transactions',
   WEALTH_REPORTS: '/wealth/reports',
+  WEALTH_PHYSICAL_ASSETS: '/wealth/physical-assets',
 
   HOUSEHOLD_PROFILES: '/household/profiles',
   HOUSEHOLD_CALENDAR: '/household/calendar',

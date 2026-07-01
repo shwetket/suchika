@@ -2,6 +2,7 @@ package com.suchika.wealth.ports.input;
 
 import com.suchika.wealth.domain.Account;
 import com.suchika.wealth.domain.AccountType;
+import com.suchika.wealth.domain.AmortizationSummary;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -29,9 +30,9 @@ public interface AccountUseCase {
 
     /**
      * Sets Epic 8 classification metadata (category, liquidity_tier, purpose_tag,
-     * joint_owners) on an account. Thin wrapper that merges the given keys into the
-     * existing metadata map — mirrors the transaction.metadata write pattern; does not
-     * replace the whole map.
+     * joint_owners, and loan fields) on an account. Thin wrapper that merges the given
+     * keys into the existing metadata map — mirrors the transaction.metadata write pattern;
+     * does not replace the whole map.
      *
      * <p>category is reserved but NOT consumed by any computation until Phase 2 — storing
      * it now is intentional so no second migration/contract change is needed later.
@@ -40,7 +41,17 @@ public interface AccountUseCase {
      * strings, stored comma-joined under metadata.joint_owners — attribution/display
      * only, never a query predicate. profile_id remains the single column every query
      * filters on (ADR-006 unchanged).
+     *
+     * <p>Loan fields (loanOriginalPrincipal, loanStartDate, loanTenureMonths,
+     * linkedOffsetAccountId) are Epic 8 Phase 3 prerequisites for amortization calculation.
      */
-    Account updateAccountClassification(UUID id, String category, String liquidityTier, String purposeTag,
-                                         List<String> jointOwners);
+    Account updateAccountClassification(UUID id, UpdateAccountClassificationCommand command);
+
+    /**
+     * Computes the amortization schedule summary for a loan account.
+     * Requires interest_rate on the account and original_principal, loan_start_date,
+     * original_tenure_months in account.metadata (set via PATCH /classification).
+     * Epic 8 Phase 3.
+     */
+    AmortizationSummary getAmortization(UUID accountId, UUID profileId);
 }
