@@ -405,10 +405,13 @@ export const Accounts = () => {
         });
         if (LOAN_TYPES.has(editingAccount.account_type)) {
           const loanMeta = {};
-          if (editForm.loan_original_principal) loanMeta.loan_original_principal = editForm.loan_original_principal;
+          if (editForm.loan_original_principal)
+            loanMeta.loan_original_principal = editForm.loan_original_principal;
           if (editForm.loan_start_date) loanMeta.loan_start_date = editForm.loan_start_date;
-          if (editForm.loan_tenure_months) loanMeta.loan_tenure_months = editForm.loan_tenure_months;
-          if (editForm.linked_offset_account_id) loanMeta.linked_offset_account_id = editForm.linked_offset_account_id;
+          if (editForm.loan_tenure_months)
+            loanMeta.loan_tenure_months = editForm.loan_tenure_months;
+          if (editForm.linked_offset_account_id)
+            loanMeta.linked_offset_account_id = editForm.linked_offset_account_id;
           if (Object.keys(loanMeta).length > 0) {
             await updateAccountClassification(editingAccount.account_id, loanMeta);
           }
@@ -590,7 +593,9 @@ export const Accounts = () => {
                 </p>
                 <div className="space-y-3">
                   <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium text-gray-700">Original Principal (₹)</label>
+                    <label className="text-sm font-medium text-gray-700">
+                      Original Principal (₹)
+                    </label>
                     <input
                       name="loan_original_principal"
                       type="number"
@@ -624,7 +629,9 @@ export const Accounts = () => {
                   </div>
                   {savingsAccounts.length > 0 && (
                     <div className="flex flex-col gap-1">
-                      <label className="text-sm font-medium text-gray-700">Linked Offset Account</label>
+                      <label className="text-sm font-medium text-gray-700">
+                        Linked Offset Account
+                      </label>
                       <select
                         name="linked_offset_account_id"
                         value={editForm.linked_offset_account_id}

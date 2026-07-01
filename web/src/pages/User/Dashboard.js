@@ -201,14 +201,16 @@ function SnapshotSummary({ snapshots }) {
             Liquidity Tiers
           </p>
           <div className="grid grid-cols-2 gap-2">
-            {['LIQUID', 'SEMI_LIQUID', 'ILLIQUID', 'LOCKED'].filter(
-              (tier) => (liquidityPayload.tiers[tier] ?? 0) > 0
-            ).map((tier) => (
-              <div key={tier} className="text-sm flex justify-between">
-                <span className="text-gray-500">{tier.replace('_', ' ')}</span>
-                <span className="font-medium">{formatCurrency(liquidityPayload.tiers[tier])}</span>
-              </div>
-            ))}
+            {['LIQUID', 'SEMI_LIQUID', 'ILLIQUID', 'LOCKED']
+              .filter((tier) => (liquidityPayload.tiers[tier] ?? 0) > 0)
+              .map((tier) => (
+                <div key={tier} className="text-sm flex justify-between">
+                  <span className="text-gray-500">{tier.replace('_', ' ')}</span>
+                  <span className="font-medium">
+                    {formatCurrency(liquidityPayload.tiers[tier])}
+                  </span>
+                </div>
+              ))}
           </div>
         </div>
       )}

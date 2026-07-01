@@ -63,9 +63,7 @@ describe('PhysicalAssets page', () => {
   it('shows loading state during fetch', async () => {
     listPhysicalAssets.mockImplementation(
       () =>
-        new Promise((resolve) =>
-          setTimeout(() => resolve({ physical_assets: MOCK_ASSETS }), 200)
-        )
+        new Promise((resolve) => setTimeout(() => resolve({ physical_assets: MOCK_ASSETS }), 200))
     );
     render(<PhysicalAssets />);
     await waitFor(() => screen.getByText('Alice'));

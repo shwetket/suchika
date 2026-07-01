@@ -209,8 +209,14 @@ function TransactionsTab({ accountId, profileId }) {
   const handleAddSubmit = useCallback(
     async (e) => {
       e.preventDefault();
-      if (!addForm.txn_date) { setAddError('Date is required'); return; }
-      if (!addForm.amount || Number(addForm.amount) <= 0) { setAddError('Amount must be positive'); return; }
+      if (!addForm.txn_date) {
+        setAddError('Date is required');
+        return;
+      }
+      if (!addForm.amount || Number(addForm.amount) <= 0) {
+        setAddError('Amount must be positive');
+        return;
+      }
       setAddSaving(true);
       setAddError(null);
       try {
@@ -235,43 +241,47 @@ function TransactionsTab({ accountId, profileId }) {
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-      <div className="flex flex-wrap gap-3">
-        <input
-          type="date"
-          value={fromDate}
-          onChange={(e) => setFromDate(e.target.value)}
-          className={inputClass}
-          placeholder="From"
-        />
-        <input
-          type="date"
-          value={toDate}
-          onChange={(e) => setToDate(e.target.value)}
-          className={inputClass}
-          placeholder="To"
-        />
-        <div className="flex gap-1">
-          {TXN_TYPES.map((t) => {
-            const sel = txnType === t;
-            const cls = sel
-              ? 'bg-blue-600 text-white'
-              : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50';
-            return (
-              <button
-                type="button"
-                key={t}
-                onClick={() => setTxnType(t)}
-                className={`px-3 py-1.5 rounded-full text-sm font-medium ${cls}`}
-              >
-                {t}
-              </button>
-            );
-          })}
+        <div className="flex flex-wrap gap-3">
+          <input
+            type="date"
+            value={fromDate}
+            onChange={(e) => setFromDate(e.target.value)}
+            className={inputClass}
+            placeholder="From"
+          />
+          <input
+            type="date"
+            value={toDate}
+            onChange={(e) => setToDate(e.target.value)}
+            className={inputClass}
+            placeholder="To"
+          />
+          <div className="flex gap-1">
+            {TXN_TYPES.map((t) => {
+              const sel = txnType === t;
+              const cls = sel
+                ? 'bg-blue-600 text-white'
+                : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50';
+              return (
+                <button
+                  type="button"
+                  key={t}
+                  onClick={() => setTxnType(t)}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium ${cls}`}
+                >
+                  {t}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
         <button
           type="button"
-          onClick={() => { setAddForm(EMPTY_TXN_FORM); setAddError(null); setShowAdd(true); }}
+          onClick={() => {
+            setAddForm(EMPTY_TXN_FORM);
+            setAddError(null);
+            setShowAdd(true);
+          }}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 whitespace-nowrap"
         >
           + Add Transaction
@@ -316,19 +326,46 @@ function TransactionsTab({ accountId, profileId }) {
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
             <div className="flex items-center justify-between p-5 border-b">
               <h2 className="text-lg font-bold">Add Transaction</h2>
-              <button type="button" onClick={() => setShowAdd(false)} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+              <button
+                type="button"
+                onClick={() => setShowAdd(false)}
+                className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+              >
+                &times;
+              </button>
             </div>
             <form onSubmit={handleAddSubmit} className="p-5 space-y-4">
               <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-gray-700">Date <span className="text-red-500">*</span></label>
-                <input name="txn_date" type="date" value={addForm.txn_date} onChange={handleAddChange} className={inputClass} />
+                <label className="text-sm font-medium text-gray-700">
+                  Date <span className="text-red-500">*</span>
+                </label>
+                <input
+                  name="txn_date"
+                  type="date"
+                  value={addForm.txn_date}
+                  onChange={handleAddChange}
+                  className={inputClass}
+                />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-gray-700">Amount (₹) <span className="text-red-500">*</span></label>
-                <input name="amount" type="number" min="0.01" step="0.01" value={addForm.amount} onChange={handleAddChange} placeholder="0.00" className={inputClass} />
+                <label className="text-sm font-medium text-gray-700">
+                  Amount (₹) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  name="amount"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={addForm.amount}
+                  onChange={handleAddChange}
+                  placeholder="0.00"
+                  className={inputClass}
+                />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-gray-700">Type <span className="text-red-500">*</span></label>
+                <label className="text-sm font-medium text-gray-700">
+                  Type <span className="text-red-500">*</span>
+                </label>
                 <div className="flex gap-2">
                   {['DEBIT', 'CREDIT'].map((t) => (
                     <button
@@ -344,12 +381,31 @@ function TransactionsTab({ accountId, profileId }) {
               </div>
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium text-gray-700">Description</label>
-                <input name="description" type="text" value={addForm.description} onChange={handleAddChange} placeholder="e.g. Grocery shopping" className={inputClass} />
+                <input
+                  name="description"
+                  type="text"
+                  value={addForm.description}
+                  onChange={handleAddChange}
+                  placeholder="e.g. Grocery shopping"
+                  className={inputClass}
+                />
               </div>
               {addError && <p className="text-red-600 text-sm">{addError}</p>}
               <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setShowAdd(false)} className="px-4 py-2 border border-gray-300 rounded text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
-                <button type="submit" disabled={addSaving} className="px-4 py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 disabled:opacity-50">{addSaving ? 'Saving...' : 'Add'}</button>
+                <button
+                  type="button"
+                  onClick={() => setShowAdd(false)}
+                  className="px-4 py-2 border border-gray-300 rounded text-sm text-gray-600 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={addSaving}
+                  className="px-4 py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {addSaving ? 'Saving...' : 'Add'}
+                </button>
               </div>
             </form>
           </div>
@@ -716,7 +772,9 @@ export const WealthTransactions = () => {
             ))}
           </div>
 
-          {activeTab === 'transactions' && <TransactionsTab accountId={selectedAccountId} profileId={selectedProfileId} />}
+          {activeTab === 'transactions' && (
+            <TransactionsTab accountId={selectedAccountId} profileId={selectedProfileId} />
+          )}
           {activeTab === 'upload' && <UploadTab accountId={selectedAccountId} />}
         </>
       )}

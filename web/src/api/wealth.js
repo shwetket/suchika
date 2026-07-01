@@ -25,7 +25,9 @@ export const updateAccountClassification = (accountId, data) =>
   patch(`${API_ENDPOINTS.ACCOUNTS}/${accountId}/classification`, data);
 
 export const getAmortization = (accountId, profileId) =>
-  get(`${API_ENDPOINTS.ACCOUNTS}/${accountId}/amortization?profile_id=${encodeURIComponent(profileId)}`);
+  get(
+    `${API_ENDPOINTS.ACCOUNTS}/${accountId}/amortization?profile_id=${encodeURIComponent(profileId)}`
+  );
 
 export const deactivateAccount = (accountId) => del(`${API_ENDPOINTS.ACCOUNTS}/${accountId}`);
 
@@ -64,9 +66,7 @@ export function listPhysicalAssets(profileId, assetType, isActive) {
   if (assetType !== null && assetType !== undefined) params.append('asset_type', assetType);
   if (isActive !== null && isActive !== undefined) params.append('is_active', String(isActive));
   const query = params.toString();
-  const url = query
-    ? `${API_ENDPOINTS.PHYSICAL_ASSETS}?${query}`
-    : API_ENDPOINTS.PHYSICAL_ASSETS;
+  const url = query ? `${API_ENDPOINTS.PHYSICAL_ASSETS}?${query}` : API_ENDPOINTS.PHYSICAL_ASSETS;
   return get(url);
 }
 
@@ -75,8 +75,7 @@ export function createPhysicalAsset(profileId, data) {
   return post(url, data);
 }
 
-export const getPhysicalAsset = (assetId) =>
-  get(`${API_ENDPOINTS.PHYSICAL_ASSETS}/${assetId}`);
+export const getPhysicalAsset = (assetId) => get(`${API_ENDPOINTS.PHYSICAL_ASSETS}/${assetId}`);
 
 export const updatePhysicalAsset = (assetId, data) =>
   patch(`${API_ENDPOINTS.PHYSICAL_ASSETS}/${assetId}`, data);
