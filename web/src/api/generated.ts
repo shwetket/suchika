@@ -41,6 +41,13 @@ export interface paths {
      */
     get: operations["getAccountBalance"];
   };
+  "/v1/accounts/{accountId}/amortization": {
+    /**
+     * Get current amortization summary for a loan account
+     * @description Epic 8 Phase 3. Requires loan metadata set via PATCH /classification. Only valid for HOME_LOAN, CAR_LOAN, PERSONAL_LOAN accounts.
+     */
+    get: operations["getAmortization"];
+  };
   "/v1/accounts/{accountId}/classification": {
     /**
      * Set Epic 8 classification metadata on an account
@@ -257,6 +264,24 @@ export interface components {
       purpose_tag?: string;
       /** @description Co-owner profile_id strings (ADR-016 Decision 2). */
       joint_owners?: string[] | null;
+      loan_original_principal?: string | null;
+      loan_start_date?: string | null;
+      loan_tenure_months?: string | null;
+      linked_offset_account_id?: string | null;
+    };
+    /** @description Computed amortization snapshot for a loan account. Epic 8 Phase 3. */
+    AmortizationSummaryResponse: {
+      /** Format: double */
+      monthly_emi?: number;
+      /** Format: double */
+      outstanding_balance?: number;
+      remaining_months?: number;
+      /** Format: double */
+      total_interest_remaining?: number;
+      /** Format: double */
+      principal_paid?: number;
+      /** Format: double */
+      interest_paid?: number;
     };
     CreateAccountRequest: {
       account_name: string;
@@ -610,6 +635,31 @@ export interface operations {
           "application/json": components["schemas"]["AccountBalanceResponse"];
         };
       };
+      404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  /**
+   * Get current amortization summary for a loan account
+   * @description Epic 8 Phase 3. Requires loan metadata set via PATCH /classification. Only valid for HOME_LOAN, CAR_LOAN, PERSONAL_LOAN accounts.
+   */
+  getAmortization: {
+    parameters: {
+      query?: {
+        profile_id?: string;
+      };
+      path: {
+        accountId: components["parameters"]["AccountId"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["AmortizationSummaryResponse"];
+        };
+      };
+      400: components["responses"]["BadRequest"];
       404: components["responses"]["NotFound"];
       500: components["responses"]["InternalError"];
     };

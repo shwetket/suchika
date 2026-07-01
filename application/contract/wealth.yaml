@@ -248,6 +248,39 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /v1/accounts/{account_id}/amortization:
+
+    get:
+      tags: [Accounts]
+      operationId: getAmortization
+      summary: Get current amortization summary for a loan account
+      description: >
+        Computes outstanding balance, monthly EMI, remaining months, and interest
+        breakdown for HOME_LOAN, CAR_LOAN, or PERSONAL_LOAN accounts. Requires
+        loan metadata to be set via PATCH /classification first (original_principal,
+        loan_start_date, original_tenure_months). Epic 8 Phase 3.
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - name: profile_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Amortization summary as of today
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AmortizationSummaryResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /v1/accounts/{account_id}/transactions:
 
     get:
@@ -978,6 +1011,46 @@ components:
           items:
             type: string
             format: uuid
+        loan_original_principal:
+          type: string
+          nullable: true
+          description: Original loan principal in decimal string form. Stored as metadata.original_principal.
+        loan_start_date:
+          type: string
+          nullable: true
+          description: EMI start / disbursement date in yyyy-MM-dd format. Stored as metadata.loan_start_date.
+        loan_tenure_months:
+          type: string
+          nullable: true
+          description: Original loan tenure as integer string. Stored as metadata.original_tenure_months.
+        linked_offset_account_id:
+          type: string
+          nullable: true
+          description: >
+            UUID string of a linked offset savings account. Stored as metadata.linked_offset_account_id.
+            Used in EMI arbitrage computation (Epic 8 Phase 3).
+
+    AmortizationSummaryResponse:
+      type: object
+      description: Computed amortization snapshot for a loan account as of today. Epic 8 Phase 3.
+      properties:
+        monthly_emi:
+          type: number
+          format: double
+        outstanding_balance:
+          type: number
+          format: double
+        remaining_months:
+          type: integer
+        total_interest_remaining:
+          type: number
+          format: double
+        principal_paid:
+          type: number
+          format: double
+        interest_paid:
+          type: number
+          format: double
 
     ExpenseCategory:
       type: string

@@ -1,7 +1,13 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { listProfiles } from '../../api/profiles';
-import { createAccount, deactivateAccount, listAccounts, updateAccount } from '../../api/wealth';
+import {
+  createAccount,
+  deactivateAccount,
+  listAccounts,
+  updateAccount,
+  updateAccountClassification,
+} from '../../api/wealth';
 
 const ACCOUNT_TYPES = [
   'SAVINGS',
@@ -13,7 +19,7 @@ const ACCOUNT_TYPES = [
   'FD',
 ];
 const TYPE_TABS = ['ALL', ...ACCOUNT_TYPES];
-const LOAN_TYPES = new Set(['HOME_LOAN', 'PERSONAL_LOAN']);
+const LOAN_TYPES = new Set(['HOME_LOAN', 'PERSONAL_LOAN', 'CAR_LOAN']);
 
 const EMPTY_ADD = {
   account_name: '',
@@ -31,6 +37,10 @@ const EMPTY_EDIT = {
   interest_rate: '',
   emi_amount: '',
   is_active: true,
+  loan_original_principal: '',
+  loan_start_date: '',
+  loan_tenure_months: '',
+  linked_offset_account_id: '',
 };
 
 const inputClass =
@@ -263,6 +273,8 @@ export const Accounts = () => {
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [activeFilter, setActiveFilter] = useState(null);
 
+  const [savingsAccounts, setSavingsAccounts] = useState([]);
+
   const [showAdd, setShowAdd] = useState(false);
   const [addForm, setAddForm] = useState(EMPTY_ADD);
   const [addError, setAddError] = useState(null);
@@ -345,18 +357,31 @@ export const Accounts = () => {
     [addForm, selectedProfileId, loadAccounts]
   );
 
-  const handleEditOpen = useCallback((account) => {
-    setEditingAccount(account);
-    setEditForm({
-      account_name: account.account_name,
-      opening_balance: account.opening_balance ?? '',
-      credit_limit: account.credit_limit ?? '',
-      interest_rate: account.interest_rate ?? '',
-      emi_amount: account.emi_amount ?? '',
-      is_active: account.is_active,
-    });
-    setEditError(null);
-  }, []);
+  const handleEditOpen = useCallback(
+    (account) => {
+      setEditingAccount(account);
+      const meta = account.metadata || {};
+      setEditForm({
+        account_name: account.account_name,
+        opening_balance: account.opening_balance ?? '',
+        credit_limit: account.credit_limit ?? '',
+        interest_rate: account.interest_rate ?? '',
+        emi_amount: account.emi_amount ?? '',
+        is_active: account.is_active,
+        loan_original_principal: meta.original_principal ?? '',
+        loan_start_date: meta.loan_start_date ?? '',
+        loan_tenure_months: meta.original_tenure_months ?? '',
+        linked_offset_account_id: meta.linked_offset_account_id ?? '',
+      });
+      setEditError(null);
+      if (LOAN_TYPES.has(account.account_type) && selectedProfileId) {
+        listAccounts(selectedProfileId, 'SAVINGS', true)
+          .then((data) => setSavingsAccounts(data.accounts ?? []))
+          .catch(() => setSavingsAccounts([]));
+      }
+    },
+    [selectedProfileId]
+  );
 
   const handleEditChange = useCallback((e) => {
     const { name, value, type, checked } = e.target;
@@ -378,6 +403,16 @@ export const Accounts = () => {
           emi_amount: editForm.emi_amount === '' ? null : Number(editForm.emi_amount),
           is_active: editForm.is_active,
         });
+        if (LOAN_TYPES.has(editingAccount.account_type)) {
+          const loanMeta = {};
+          if (editForm.loan_original_principal) loanMeta.loan_original_principal = editForm.loan_original_principal;
+          if (editForm.loan_start_date) loanMeta.loan_start_date = editForm.loan_start_date;
+          if (editForm.loan_tenure_months) loanMeta.loan_tenure_months = editForm.loan_tenure_months;
+          if (editForm.linked_offset_account_id) loanMeta.linked_offset_account_id = editForm.linked_offset_account_id;
+          if (Object.keys(loanMeta).length > 0) {
+            await updateAccountClassification(editingAccount.account_id, loanMeta);
+          }
+        }
         setEditingAccount(null);
         await loadAccounts();
       } catch (err) {
@@ -548,6 +583,66 @@ export const Accounts = () => {
               form={{ ...editForm, account_type: editingAccount.account_type }}
               onChange={handleEditChange}
             />
+            {LOAN_TYPES.has(editingAccount.account_type) && (
+              <div className="border-t border-gray-200 pt-4">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                  Loan Details
+                </p>
+                <div className="space-y-3">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-medium text-gray-700">Original Principal (₹)</label>
+                    <input
+                      name="loan_original_principal"
+                      type="number"
+                      value={editForm.loan_original_principal}
+                      onChange={handleEditChange}
+                      placeholder="e.g. 5000000"
+                      className={inputClass}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-medium text-gray-700">Loan Start Date</label>
+                    <input
+                      name="loan_start_date"
+                      type="date"
+                      value={editForm.loan_start_date}
+                      onChange={handleEditChange}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-medium text-gray-700">Tenure (months)</label>
+                    <input
+                      name="loan_tenure_months"
+                      type="number"
+                      min="1"
+                      value={editForm.loan_tenure_months}
+                      onChange={handleEditChange}
+                      placeholder="e.g. 240"
+                      className={inputClass}
+                    />
+                  </div>
+                  {savingsAccounts.length > 0 && (
+                    <div className="flex flex-col gap-1">
+                      <label className="text-sm font-medium text-gray-700">Linked Offset Account</label>
+                      <select
+                        name="linked_offset_account_id"
+                        value={editForm.linked_offset_account_id}
+                        onChange={handleEditChange}
+                        className={inputClass}
+                      >
+                        <option value="">None</option>
+                        {savingsAccounts.map((a) => (
+                          <option key={a.account_id} value={a.account_id}>
+                            {a.account_name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
             <div className="flex items-center gap-3">
               <input
                 id="edit-is-active"

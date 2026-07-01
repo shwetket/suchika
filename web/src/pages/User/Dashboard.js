@@ -32,6 +32,8 @@ const SNAPSHOT_KEYS = {
   NET_WORTH_FAMILY: 'WEALTH_NET_WORTH_FAMILY',
   EVENT_SUMMARY: 'HOUSEHOLD_EVENT_SUMMARY',
   GOAL_PROGRESS: 'WEALTH_GOAL_PROGRESS',
+  EMI_TRACKING_FAMILY: 'WEALTH_EMI_TRACKING_FAMILY',
+  LIQUIDITY_TIERS_FAMILY: 'WEALTH_LIQUIDITY_TIERS_FAMILY',
 };
 
 function safeParseJson(str) {
@@ -123,6 +125,8 @@ function SnapshotSummary({ snapshots }) {
   const familyNetWorthSnap = byKey[SNAPSHOT_KEYS.NET_WORTH_FAMILY];
   const eventSnap = byKey[SNAPSHOT_KEYS.EVENT_SUMMARY];
   const goalSnap = byKey[SNAPSHOT_KEYS.GOAL_PROGRESS];
+  const emiSnap = byKey[SNAPSHOT_KEYS.EMI_TRACKING_FAMILY];
+  const liquiditySnap = byKey[SNAPSHOT_KEYS.LIQUIDITY_TIERS_FAMILY];
 
   const netWorthPayload = netWorthSnap ? safeParseJson(netWorthSnap.payload) : null;
   const familyNetWorthPayload = familyNetWorthSnap
@@ -130,6 +134,8 @@ function SnapshotSummary({ snapshots }) {
     : null;
   const eventPayload = eventSnap ? safeParseJson(eventSnap.payload) : null;
   const goalPayload = goalSnap ? safeParseJson(goalSnap.payload) : null;
+  const emiPayload = emiSnap ? safeParseJson(emiSnap.payload) : null;
+  const liquidityPayload = liquiditySnap ? safeParseJson(liquiditySnap.payload) : null;
 
   const lastRefreshed =
     familyNetWorthSnap?.calculated_at ||
@@ -176,6 +182,36 @@ function SnapshotSummary({ snapshots }) {
         )}
       </div>
       {isFamilyView && <MemberBreakdown members={members} />}
+      {emiPayload && emiPayload.total_monthly_emi > 0 && (
+        <div className="mt-3 bg-orange-50 rounded-lg p-4">
+          <p className="text-xs text-orange-500 font-medium uppercase tracking-wide">Monthly EMI</p>
+          <p className="text-xl font-bold text-orange-900 mt-1">
+            {formatCurrency(emiPayload.total_monthly_emi)}
+          </p>
+          {emiPayload.total_monthly_interest_saved > 0 && (
+            <p className="text-xs text-orange-600 mt-1">
+              Saves {formatCurrency(emiPayload.total_monthly_interest_saved)}/mo via offset
+            </p>
+          )}
+        </div>
+      )}
+      {liquidityPayload?.tiers && (
+        <div className="mt-3 border border-gray-100 rounded-lg p-4">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+            Liquidity Tiers
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {['LIQUID', 'SEMI_LIQUID', 'ILLIQUID', 'LOCKED'].filter(
+              (tier) => (liquidityPayload.tiers[tier] ?? 0) > 0
+            ).map((tier) => (
+              <div key={tier} className="text-sm flex justify-between">
+                <span className="text-gray-500">{tier.replace('_', ' ')}</span>
+                <span className="font-medium">{formatCurrency(liquidityPayload.tiers[tier])}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       {lastRefreshed && (
         <p className="text-xs text-gray-400 mt-3">
           Last refreshed: {formatTimestamp(lastRefreshed)}

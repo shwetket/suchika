@@ -125,4 +125,10 @@ public interface WealthServiceClient {
     @DELETE
     @Path("/physical-assets/{assetId}")
     void deactivatePhysicalAsset(@PathParam("assetId") UUID assetId);
+
+    @GET
+    @Path("/accounts/{accountId}/amortization")
+    JsonNode getAmortization(
+            @PathParam("accountId") UUID accountId,
+            @QueryParam("profile_id") String profileId);
 }

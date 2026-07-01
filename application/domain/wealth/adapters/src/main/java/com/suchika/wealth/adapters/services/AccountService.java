@@ -6,6 +6,8 @@ import com.suchika.shared.exception.NotFoundException;
 import com.suchika.shared.logging.AppLogger;
 import com.suchika.wealth.domain.Account;
 import com.suchika.wealth.domain.AccountType;
+import com.suchika.wealth.domain.AmortizationCalculator;
+import com.suchika.wealth.domain.AmortizationSummary;
 import com.suchika.wealth.domain.TxnType;
 import com.suchika.wealth.ports.input.AccountBalance;
 import com.suchika.wealth.ports.input.AccountUseCase;
@@ -16,7 +18,11 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @ApplicationScoped
@@ -128,22 +134,64 @@ public class AccountService implements AccountUseCase {
         return new AccountBalance(accountId, opening, totalCredits, totalDebits, current);
     }
 
+    private static final Set<AccountType> LOAN_TYPES = Set.of(
+            AccountType.HOME_LOAN, AccountType.CAR_LOAN, AccountType.PERSONAL_LOAN);
+
     @Override
     @Transactional
     public Account updateAccountClassification(UUID id, String category, String liquidityTier, String purposeTag,
-                                                 List<String> jointOwners) {
+                                                 List<String> jointOwners, String loanOriginalPrincipal,
+                                                 String loanStartDate, String loanTenureMonths,
+                                                 String linkedOffsetAccountId) {
         Account account = repository.findById(id)
                 .orElseThrow(() -> new NotFoundException(ACCOUNT_NOT_FOUND + id));
 
-        java.util.Map<String, String> metadata = new java.util.HashMap<>(account.getMetadata());
+        Map<String, String> metadata = new HashMap<>(account.getMetadata());
         if (category != null) metadata.put("category", category);
         if (liquidityTier != null) metadata.put("liquidity_tier", liquidityTier);
         if (purposeTag != null) metadata.put("purpose_tag", purposeTag);
         if (jointOwners != null) metadata.put("joint_owners", String.join(",", jointOwners));
+        if (loanOriginalPrincipal != null) metadata.put("original_principal", loanOriginalPrincipal);
+        if (loanStartDate != null) metadata.put("loan_start_date", loanStartDate);
+        if (loanTenureMonths != null) metadata.put("original_tenure_months", loanTenureMonths);
+        if (linkedOffsetAccountId != null) metadata.put("linked_offset_account_id", linkedOffsetAccountId);
         account.setMetadata(metadata);
 
         Account saved = repository.save(account);
         AppLogger.info("Account classification updated: %s", id);
         return saved;
+    }
+
+    @Override
+    public AmortizationSummary getAmortization(UUID accountId, UUID profileId) {
+        Account account = repository.findById(accountId)
+                .orElseThrow(() -> new NotFoundException(ACCOUNT_NOT_FOUND + accountId));
+
+        if (!LOAN_TYPES.contains(account.getAccountType())) {
+            throw new BadRequestException(
+                    "Amortization is only available for loan accounts (HOME_LOAN, CAR_LOAN, PERSONAL_LOAN)");
+        }
+
+        Map<String, String> metadata = account.getMetadata();
+        String principalStr = metadata.get("original_principal");
+        String startDateStr = metadata.get("loan_start_date");
+        String tenureStr = metadata.get("original_tenure_months");
+
+        if (isBlank(principalStr) || isBlank(startDateStr) || isBlank(tenureStr)) {
+            throw new BadRequestException(
+                    "Loan metadata not set — use PATCH /classification to set "
+                            + "original_principal, loan_start_date, original_tenure_months");
+        }
+
+        BigDecimal principal = new BigDecimal(principalStr);
+        LocalDate startDate = LocalDate.parse(startDateStr);
+        int tenureMonths = Integer.parseInt(tenureStr);
+        BigDecimal annualRate = account.getInterestRate() != null ? account.getInterestRate() : BigDecimal.ZERO;
+
+        return AmortizationCalculator.compute(principal, annualRate, tenureMonths, startDate);
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 }

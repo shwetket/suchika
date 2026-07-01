@@ -21,6 +21,12 @@ export const getAccount = (accountId) => get(`${API_ENDPOINTS.ACCOUNTS}/${accoun
 export const updateAccount = (accountId, data) =>
   patch(`${API_ENDPOINTS.ACCOUNTS}/${accountId}`, data);
 
+export const updateAccountClassification = (accountId, data) =>
+  patch(`${API_ENDPOINTS.ACCOUNTS}/${accountId}/classification`, data);
+
+export const getAmortization = (accountId, profileId) =>
+  get(`${API_ENDPOINTS.ACCOUNTS}/${accountId}/amortization?profile_id=${encodeURIComponent(profileId)}`);
+
 export const deactivateAccount = (accountId) => del(`${API_ENDPOINTS.ACCOUNTS}/${accountId}`);
 
 export function createTransaction(accountId, profileId, data) {

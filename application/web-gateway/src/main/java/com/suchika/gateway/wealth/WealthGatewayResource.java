@@ -202,4 +202,12 @@ public class WealthGatewayResource {
         wealthServiceClient.deactivatePhysicalAsset(assetId);
         return Response.noContent().build();
     }
+
+    @GET
+    @Path("/accounts/{accountId}/amortization")
+    public JsonNode getAmortization(
+            @PathParam("accountId") UUID accountId,
+            @QueryParam("profile_id") String profileId) {
+        return wealthServiceClient.getAmortization(accountId, profileId);
+    }
 }

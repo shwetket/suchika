@@ -212,7 +212,7 @@ class AccountServiceTest {
                 cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
 
         Account updated = service.updateAccountClassification(
-                account.getId(), "EMERGENCY_FUND", "LIQUID", "SAFETY_NET", null);
+                account.getId(), "EMERGENCY_FUND", "LIQUID", "SAFETY_NET", null, null, null, null, null);
 
         assertEquals("EMERGENCY_FUND", updated.getMetadata().get("category"));
         assertEquals("LIQUID", updated.getMetadata().get("liquidity_tier"));
@@ -224,7 +224,7 @@ class AccountServiceTest {
         Account account = service.createAccount(null,
                 cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
 
-        Account updated = service.updateAccountClassification(account.getId(), "INVESTMENT", null, null, null);
+        Account updated = service.updateAccountClassification(account.getId(), "INVESTMENT", null, null, null, null, null, null, null);
 
         assertEquals("INVESTMENT", updated.getMetadata().get("category"));
         assertNull(updated.getMetadata().get("liquidity_tier"));
@@ -236,8 +236,8 @@ class AccountServiceTest {
         Account account = service.createAccount(null,
                 cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
 
-        service.updateAccountClassification(account.getId(), "INVESTMENT", null, null, null);
-        Account updated = service.updateAccountClassification(account.getId(), null, "LIQUID", null, null);
+        service.updateAccountClassification(account.getId(), "INVESTMENT", null, null, null, null, null, null, null);
+        Account updated = service.updateAccountClassification(account.getId(), null, "LIQUID", null, null, null, null, null, null);
 
         assertEquals("INVESTMENT", updated.getMetadata().get("category"));
         assertEquals("LIQUID", updated.getMetadata().get("liquidity_tier"));
@@ -247,7 +247,7 @@ class AccountServiceTest {
     void updateAccountClassification_notFound_throwsNotFoundException() {
         UUID randomId = UUID.randomUUID();
         assertThrows(NotFoundException.class,
-                () -> service.updateAccountClassification(randomId, "INVESTMENT", null, null, null));
+                () -> service.updateAccountClassification(randomId, "INVESTMENT", null, null, null, null, null, null, null));
     }
 
     @Test
@@ -258,9 +258,23 @@ class AccountServiceTest {
         String ownerB = UUID.randomUUID().toString();
 
         Account updated = service.updateAccountClassification(
-                account.getId(), null, null, null, java.util.List.of(ownerA, ownerB));
+                account.getId(), null, null, null, java.util.List.of(ownerA, ownerB), null, null, null, null);
 
         assertEquals(ownerA + "," + ownerB, updated.getMetadata().get("joint_owners"));
+    }
+
+    @Test
+    void updateAccountClassification_loanFields_storedInMetadata() {
+        Account account = service.createAccount(null,
+                cmd("Home Loan", AccountType.HOME_LOAN, "SBI", new java.math.BigDecimal("5000000"), null, new java.math.BigDecimal("8.75"), new java.math.BigDecimal("45000")));
+
+        Account updated = service.updateAccountClassification(
+                account.getId(), null, null, null, null, "5000000", "2023-04-01", "240", "savings-uuid-123");
+
+        assertEquals("5000000", updated.getMetadata().get("original_principal"));
+        assertEquals("2023-04-01", updated.getMetadata().get("loan_start_date"));
+        assertEquals("240", updated.getMetadata().get("original_tenure_months"));
+        assertEquals("savings-uuid-123", updated.getMetadata().get("linked_offset_account_id"));
     }
 
     // ---- Fake repository ----

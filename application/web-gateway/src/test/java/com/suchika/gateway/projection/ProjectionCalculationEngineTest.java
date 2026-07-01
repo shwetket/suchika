@@ -345,7 +345,7 @@ class ProjectionCalculationEngineTest {
     // ── refreshAll ───────────────────────────────────────────────────────────
 
     @Test
-    void refreshAll_callsAllSixComputeMethods() throws Exception {
+    void refreshAll_callsAllNineComputeMethods() throws Exception {
         // Stub all clients with empty-but-valid responses
         when(wealthClient.listAccounts(any(), any(), any()))
                 .thenReturn(buildEmptyAccountsResponse());
@@ -361,15 +361,18 @@ class ProjectionCalculationEngineTest {
 
         engine.refreshAll(PROFILE_ID);
 
-        // All six SnapshotKey upserts must have fired
+        // All nine SnapshotKey upserts must have fired (6 original + 3 Phase 3)
         verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_NET_WORTH), anyString());
         verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_GOAL_PROGRESS), anyString());
         verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.HEALTH_VITALS_SUMMARY), anyString());
         verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.HOUSEHOLD_EVENT_SUMMARY), anyString());
         verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_CATEGORY_VALIDATION), anyString());
         verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_NET_WORTH_FAMILY), anyString());
-        // Total: exactly 6 upsert calls
-        verify(snapshotRepo, times(6)).upsert(any(), anyString(), anyString());
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_EMI_TRACKING_FAMILY), anyString());
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_LIQUIDITY_TIERS_FAMILY), anyString());
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_GROWTH_PROJECTION_FAMILY), anyString());
+        // Total: exactly 9 upsert calls
+        verify(snapshotRepo, times(9)).upsert(any(), anyString(), anyString());
     }
 
     @Test

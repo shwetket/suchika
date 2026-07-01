@@ -207,6 +207,37 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /v1/accounts/{accountId}/amortization:
+
+    get:
+      tags: [Accounts]
+      operationId: getAmortization
+      summary: Get current amortization summary for a loan account
+      description: >
+        Epic 8 Phase 3. Requires loan metadata set via PATCH /classification.
+        Only valid for HOME_LOAN, CAR_LOAN, PERSONAL_LOAN accounts.
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - name: profile_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AmortizationSummaryResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /v1/accounts/{accountId}/classification:
 
     patch:
@@ -1246,6 +1277,40 @@ components:
           items:
             type: string
             format: uuid
+        loan_original_principal:
+          type: string
+          nullable: true
+        loan_start_date:
+          type: string
+          nullable: true
+        loan_tenure_months:
+          type: string
+          nullable: true
+        linked_offset_account_id:
+          type: string
+          nullable: true
+
+    AmortizationSummaryResponse:
+      type: object
+      description: Computed amortization snapshot for a loan account. Epic 8 Phase 3.
+      properties:
+        monthly_emi:
+          type: number
+          format: double
+        outstanding_balance:
+          type: number
+          format: double
+        remaining_months:
+          type: integer
+        total_interest_remaining:
+          type: number
+          format: double
+        principal_paid:
+          type: number
+          format: double
+        interest_paid:
+          type: number
+          format: double
 
     CreateAccountRequest:
       type: object
