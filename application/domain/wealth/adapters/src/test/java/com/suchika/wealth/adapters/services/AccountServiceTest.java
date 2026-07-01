@@ -250,9 +250,10 @@ class AccountServiceTest {
     @Test
     void updateAccountClassification_notFound_throwsNotFoundException() {
         UUID randomId = UUID.randomUUID();
+        UpdateAccountClassificationCommand command =
+                new UpdateAccountClassificationCommand("INVESTMENT", null, null, null, null, null, null, null);
         assertThrows(NotFoundException.class,
-                () -> service.updateAccountClassification(randomId,
-                        new UpdateAccountClassificationCommand("INVESTMENT", null, null, null, null, null, null, null)));
+                () -> service.updateAccountClassification(randomId, command));
     }
 
     @Test

@@ -48,6 +48,8 @@ public class ProjectionCalculationEngine {
     private static final String INV_TYPE_PPF = "PPF";
     private static final String METADATA_FIELD = "metadata";
     private static final String PROFILES_FIELD = "profiles";
+    private static final String OUTSTANDING_BALANCE_FIELD = "outstanding_balance";
+    private static final String MONTHLY_EMI_FIELD = "monthly_emi";
 
     // Epic 8 Phase 3 — annual growth rates injected via config; field initializer provides
     // the same default so plain `new` in unit tests produces correct expected values.
@@ -413,8 +415,8 @@ public class ProjectionCalculationEngine {
                 continue;
             }
             loansPayload.add(loanEntry);
-            totals[0] += loanEntry.path("outstanding_balance").asDouble(0.0);
-            totals[1] += loanEntry.path("monthly_emi").asDouble(0.0);
+            totals[0] += loanEntry.path(OUTSTANDING_BALANCE_FIELD).asDouble(0.0);
+            totals[1] += loanEntry.path(MONTHLY_EMI_FIELD).asDouble(0.0);
             totals[2] += loanEntry.path("monthly_interest_saved").asDouble(0.0);
         }
         return loansPayload;
@@ -436,8 +438,8 @@ public class ProjectionCalculationEngine {
             return null;
         }
 
-        double outstanding = amortization.path("outstanding_balance").asDouble(0.0);
-        double monthlyEmi = amortization.path("monthly_emi").asDouble(0.0);
+        double outstanding = amortization.path(OUTSTANDING_BALANCE_FIELD).asDouble(0.0);
+        double monthlyEmi = amortization.path(MONTHLY_EMI_FIELD).asDouble(0.0);
         int remainingMonths = amortization.path("remaining_months").asInt(0);
         double annualRate = amortization.path("interest_rate").asDouble(0.0);
         double monthlyInterestSaved = computeOffsetSavings(account, memberProfileIdText, annualRate);
@@ -445,8 +447,8 @@ public class ProjectionCalculationEngine {
         ObjectNode entry = MAPPER.createObjectNode();
         entry.put(ACCOUNT_ID_FIELD, accountIdText);
         entry.put(ACCOUNT_NAME_FIELD, account.path(ACCOUNT_NAME_FIELD).asText(""));
-        entry.put("outstanding_balance", outstanding);
-        entry.put("monthly_emi", monthlyEmi);
+        entry.put(OUTSTANDING_BALANCE_FIELD, outstanding);
+        entry.put(MONTHLY_EMI_FIELD, monthlyEmi);
         entry.put("remaining_months", remainingMonths);
         entry.put("monthly_interest_saved", monthlyInterestSaved);
         return entry;
