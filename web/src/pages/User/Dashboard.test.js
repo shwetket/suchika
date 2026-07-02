@@ -272,4 +272,79 @@ describe('Dashboard', () => {
 
     resolveRefresh({ snapshots: [] });
   });
+
+  it('shows goals card with achieved and in-progress goals when FORMULA_GOALS_FAMILY snapshot present', async () => {
+    const snapshotsWithGoals = [
+      {
+        profile_id: 'p1',
+        snapshot_key: 'WEALTH_FORMULA_GOALS_FAMILY',
+        payload: JSON.stringify({
+          total_count: 2,
+          achieved_count: 1,
+          goals: [
+            { goal_id: 'g1', goal_name: 'Emergency Fund', status: 'ACHIEVED' },
+            { goal_id: 'g2', goal_name: 'Retirement Corpus', status: 'IN_PROGRESS' },
+          ],
+        }),
+        calculated_at: '2026-07-01T10:00:00Z',
+      },
+    ];
+    mockUseAuth.mockReturnValue({ user: MOCK_USER });
+    getDashboard.mockResolvedValue({ snapshots: snapshotsWithGoals });
+
+    renderDashboard();
+
+    await waitFor(() => {
+      expect(screen.getByText(/household goals/i)).toBeInTheDocument();
+      expect(screen.getByText('Emergency Fund')).toBeInTheDocument();
+      expect(screen.getByText('Retirement Corpus')).toBeInTheDocument();
+      expect(screen.getByText('Achieved')).toBeInTheDocument();
+      expect(screen.getByText('In Progress')).toBeInTheDocument();
+    });
+  });
+
+  it('shows WARNING validation badge with warning count when VALIDATION_REPORT_FAMILY snapshot present', async () => {
+    const snapshotsWithValidation = [
+      {
+        profile_id: 'p1',
+        snapshot_key: 'WEALTH_VALIDATION_REPORT_FAMILY',
+        payload: JSON.stringify({
+          overall_status: 'WARNING',
+          warning_count: 3,
+        }),
+        calculated_at: '2026-07-01T10:00:00Z',
+      },
+    ];
+    mockUseAuth.mockReturnValue({ user: MOCK_USER });
+    getDashboard.mockResolvedValue({ snapshots: snapshotsWithValidation });
+
+    renderDashboard();
+
+    await waitFor(() => {
+      expect(screen.getByText(/data quality: warning/i)).toBeInTheDocument();
+      expect(screen.getByText(/3 warnings/i)).toBeInTheDocument();
+    });
+  });
+
+  it('shows PASS validation badge without warning count when overall_status is PASS', async () => {
+    const snapshotsWithPass = [
+      {
+        profile_id: 'p1',
+        snapshot_key: 'WEALTH_VALIDATION_REPORT_FAMILY',
+        payload: JSON.stringify({
+          overall_status: 'PASS',
+          warning_count: 0,
+        }),
+        calculated_at: '2026-07-01T10:00:00Z',
+      },
+    ];
+    mockUseAuth.mockReturnValue({ user: MOCK_USER });
+    getDashboard.mockResolvedValue({ snapshots: snapshotsWithPass });
+
+    renderDashboard();
+
+    await waitFor(() => {
+      expect(screen.getByText(/data quality: pass/i)).toBeInTheDocument();
+    });
+  });
 });

@@ -34,6 +34,8 @@ const SNAPSHOT_KEYS = {
   GOAL_PROGRESS: 'WEALTH_GOAL_PROGRESS',
   EMI_TRACKING_FAMILY: 'WEALTH_EMI_TRACKING_FAMILY',
   LIQUIDITY_TIERS_FAMILY: 'WEALTH_LIQUIDITY_TIERS_FAMILY',
+  FORMULA_GOALS_FAMILY: 'WEALTH_FORMULA_GOALS_FAMILY',
+  VALIDATION_REPORT_FAMILY: 'WEALTH_VALIDATION_REPORT_FAMILY',
 };
 
 function safeParseJson(str) {
@@ -127,6 +129,8 @@ function SnapshotSummary({ snapshots }) {
   const goalSnap = byKey[SNAPSHOT_KEYS.GOAL_PROGRESS];
   const emiSnap = byKey[SNAPSHOT_KEYS.EMI_TRACKING_FAMILY];
   const liquiditySnap = byKey[SNAPSHOT_KEYS.LIQUIDITY_TIERS_FAMILY];
+  const formulaGoalsSnap = byKey[SNAPSHOT_KEYS.FORMULA_GOALS_FAMILY];
+  const validationSnap = byKey[SNAPSHOT_KEYS.VALIDATION_REPORT_FAMILY];
 
   const netWorthPayload = netWorthSnap ? safeParseJson(netWorthSnap.payload) : null;
   const familyNetWorthPayload = familyNetWorthSnap
@@ -136,6 +140,8 @@ function SnapshotSummary({ snapshots }) {
   const goalPayload = goalSnap ? safeParseJson(goalSnap.payload) : null;
   const emiPayload = emiSnap ? safeParseJson(emiSnap.payload) : null;
   const liquidityPayload = liquiditySnap ? safeParseJson(liquiditySnap.payload) : null;
+  const goalsPayload = formulaGoalsSnap ? safeParseJson(formulaGoalsSnap.payload) : null;
+  const validationPayload = validationSnap ? safeParseJson(validationSnap.payload) : null;
 
   const lastRefreshed =
     familyNetWorthSnap?.calculated_at ||
@@ -212,6 +218,44 @@ function SnapshotSummary({ snapshots }) {
                 </div>
               ))}
           </div>
+        </div>
+      )}
+      {goalsPayload?.goals?.length > 0 && (
+        <div className="mt-3 border border-gray-100 rounded-lg p-4">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+            Household Goals ({goalsPayload.achieved_count}/{goalsPayload.total_count} achieved)
+          </p>
+          <div className="space-y-2">
+            {goalsPayload.goals.map((goal) => (
+              <div key={goal.goal_id} className="flex items-center justify-between text-sm">
+                <span className="text-gray-600">{goal.goal_name}</span>
+                <span
+                  className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                    goal.status === 'ACHIEVED'
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-yellow-100 text-yellow-700'
+                  }`}
+                >
+                  {goal.status === 'ACHIEVED' ? 'Achieved' : 'In Progress'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {validationPayload && (
+        <div
+          className={`mt-3 rounded-lg px-4 py-2 text-sm ${
+            validationPayload.overall_status === 'PASS'
+              ? 'bg-green-50 text-green-700'
+              : validationPayload.overall_status === 'WARNING'
+                ? 'bg-yellow-50 text-yellow-700'
+                : 'bg-red-50 text-red-700'
+          }`}
+        >
+          Data Quality: {validationPayload.overall_status}
+          {validationPayload.warning_count > 0 &&
+            ` · ${validationPayload.warning_count} warning${validationPayload.warning_count > 1 ? 's' : ''}`}
         </div>
       )}
       {lastRefreshed && (

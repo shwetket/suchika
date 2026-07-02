@@ -6,6 +6,7 @@ import com.suchika.profile.domain.Admin;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 
 @RegisterForReflection
@@ -30,6 +31,9 @@ public class AdminResponse {
     @JsonProperty("created_at")
     public Instant createdAt;
 
+    @JsonProperty("policy_settings")
+    public Map<String, String> policySettings;
+
     public static AdminResponse from(Admin admin) {
         AdminResponse r = new AdminResponse();
         r.name = "admins/" + admin.getId();
@@ -38,6 +42,7 @@ public class AdminResponse {
         r.emailAddress = admin.getEmailAddress();
         r.active = admin.isActive();
         r.createdAt = admin.getCreatedAt();
+        r.policySettings = admin.getPolicySettings();
         return r;
     }
 }

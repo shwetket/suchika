@@ -4,13 +4,16 @@ import com.suchika.profile.domain.Admin;
 import com.suchika.profile.ports.input.AdminUseCase;
 import com.suchika.profile.ports.output.AdminRepository;
 import com.suchika.profile.ports.output.ProfileRepository;
+import com.suchika.shared.exception.BadRequestException;
 import com.suchika.shared.exception.ConflictException;
 import com.suchika.shared.exception.NotFoundException;
 import com.suchika.shared.logging.AppLogger;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @ApplicationScoped
@@ -90,5 +93,27 @@ public class AdminService implements AdminUseCase {
         admin.setActive(false);
         adminRepository.save(admin);
         AppLogger.info("Admin deactivated: %s", adminId);
+    }
+
+    @Override
+    @Transactional
+    public Admin updatePolicySettings(UUID adminId, Map<String, String> settings) {
+        if (settings == null) {
+            throw new BadRequestException("policy_settings must not be null");
+        }
+        Admin admin = adminRepository.findById(adminId)
+            .orElseThrow(() -> new NotFoundException(ADMIN_NOT_FOUND + adminId));
+
+        Map<String, String> merged = new HashMap<>(admin.getPolicySettings());
+        settings.forEach((key, value) -> {
+            if (value != null) {
+                merged.put(key, value);
+            }
+        });
+        admin.setPolicySettings(merged);
+
+        Admin saved = adminRepository.save(admin);
+        AppLogger.info("Admin policy settings updated: %s", adminId);
+        return saved;
     }
 }

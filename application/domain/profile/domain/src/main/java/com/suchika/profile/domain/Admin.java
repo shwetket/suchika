@@ -1,6 +1,8 @@
 package com.suchika.profile.domain;
 
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 public class Admin {
@@ -10,15 +12,20 @@ public class Admin {
     private String emailAddress;
     private boolean active;
     private Instant createdAt;
+    private Map<String, String> policySettings;
 
-    public Admin() {}
+    public Admin() {
+        this.policySettings = new HashMap<>();
+    }
 
-    public Admin(UUID id, String displayName, String emailAddress, boolean active, Instant createdAt) {
+    public Admin(UUID id, String displayName, String emailAddress, boolean active, Instant createdAt,
+                 Map<String, String> policySettings) {
         this.id = id;
         this.displayName = displayName;
         this.emailAddress = emailAddress;
         this.active = active;
         this.createdAt = createdAt;
+        this.policySettings = policySettings != null ? policySettings : new HashMap<>();
     }
 
     public UUID getId() { return id; }
@@ -35,4 +42,9 @@ public class Admin {
 
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+
+    public Map<String, String> getPolicySettings() { return policySettings; }
+    public void setPolicySettings(Map<String, String> policySettings) {
+        this.policySettings = policySettings != null ? policySettings : new HashMap<>();
+    }
 }
