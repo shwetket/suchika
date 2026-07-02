@@ -19,5 +19,7 @@ public interface VitalReadingUseCase {
     /** Returns all readings for the profile, newest first. Optional type filter. */
     List<VitalReading> listByProfile(UUID profileId, VitalType vitalType);
 
+    VitalReading update(UUID id, UpdateVitalReadingCommand command);
+
     void delete(UUID id);
 }

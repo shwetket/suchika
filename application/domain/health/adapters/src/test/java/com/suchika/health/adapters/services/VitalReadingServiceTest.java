@@ -2,6 +2,7 @@ package com.suchika.health.adapters.services;
 
 import com.suchika.health.domain.VitalReading;
 import com.suchika.health.domain.VitalType;
+import com.suchika.health.ports.input.UpdateVitalReadingCommand;
 import com.suchika.health.ports.output.VitalReadingRepository;
 import com.suchika.shared.exception.BadRequestException;
 import com.suchika.shared.exception.NotFoundException;
@@ -106,6 +107,42 @@ class VitalReadingServiceTest {
     void delete_throws_not_found_for_unknown_id() {
         UUID unknownId = UUID.randomUUID();
         assertThrows(NotFoundException.class, () -> service.delete(unknownId));
+    }
+
+    @Test
+    void update_partial_fields() {
+        UUID profileId = UUID.randomUUID();
+        VitalReading created = service.recordReading(profileId, VitalType.WEIGHT,
+                LocalDate.of(2024, Month.JANUARY, 15), new BigDecimal("72.5"), null, "kg", "morning");
+
+        UpdateVitalReadingCommand command = new UpdateVitalReadingCommand(
+                null, new BigDecimal("71.0"), null, null, null);
+        VitalReading updated = service.update(created.getId(), command);
+
+        assertEquals(new BigDecimal("71.0"), updated.getValuePrimary());
+        assertEquals("kg", updated.getUnit());
+        assertEquals("morning", updated.getNotes());
+        assertEquals(VitalType.WEIGHT, updated.getVitalType());
+    }
+
+    @Test
+    void update_rejects_zero_value_primary() {
+        UUID profileId = UUID.randomUUID();
+        VitalReading created = service.recordReading(profileId, VitalType.WEIGHT,
+                LocalDate.of(2024, Month.JANUARY, 15), new BigDecimal("72.5"), null, "kg", null);
+        UUID createdId = created.getId();
+
+        UpdateVitalReadingCommand command = new UpdateVitalReadingCommand(
+                null, BigDecimal.ZERO, null, null, null);
+        assertThrows(BadRequestException.class, () -> service.update(createdId, command));
+    }
+
+    @Test
+    void update_throws_not_found_for_unknown_id() {
+        UUID unknownId = UUID.randomUUID();
+        UpdateVitalReadingCommand command = new UpdateVitalReadingCommand(
+                null, new BigDecimal("70"), null, null, null);
+        assertThrows(NotFoundException.class, () -> service.update(unknownId, command));
     }
 
     // ── Stub repository ───────────────────────────────────────────────────────

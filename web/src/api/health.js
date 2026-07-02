@@ -12,6 +12,8 @@ export function listVitals(profileId, vitalType) {
 
 export const recordVital = (data) => post(API_ENDPOINTS.VITALS, data);
 
+export const updateVital = (id, data) => patch(`${API_ENDPOINTS.VITALS}/${id}`, data);
+
 export const deleteVital = (id) => del(`${API_ENDPOINTS.VITALS}/${id}`);
 
 export function listDoctorVisits(profileId) {

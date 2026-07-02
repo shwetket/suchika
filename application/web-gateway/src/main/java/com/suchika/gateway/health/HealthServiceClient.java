@@ -28,6 +28,10 @@ public interface HealthServiceClient {
     @Path("/vitals/{id}")
     JsonNode getVital(@PathParam("id") UUID id);
 
+    @PATCH
+    @Path("/vitals/{id}")
+    JsonNode updateVital(@PathParam("id") UUID id, JsonNode body);
+
     @DELETE
     @Path("/vitals/{id}")
     void deleteVital(@PathParam("id") UUID id);

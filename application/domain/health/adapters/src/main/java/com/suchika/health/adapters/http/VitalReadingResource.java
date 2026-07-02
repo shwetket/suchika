@@ -2,8 +2,10 @@ package com.suchika.health.adapters.http;
 
 import com.suchika.health.adapters.http.dto.ListVitalReadingsResponse;
 import com.suchika.health.adapters.http.dto.RecordVitalReadingRequest;
+import com.suchika.health.adapters.http.dto.UpdateVitalReadingRequest;
 import com.suchika.health.adapters.http.dto.VitalReadingResponse;
 import com.suchika.health.domain.VitalType;
+import com.suchika.health.ports.input.UpdateVitalReadingCommand;
 import com.suchika.health.ports.input.VitalReadingUseCase;
 import com.suchika.shared.exception.BadRequestException;
 import jakarta.ws.rs.*;
@@ -49,6 +51,16 @@ public class VitalReadingResource {
     @Path("/{id}")
     public VitalReadingResponse getById(@PathParam("id") UUID id) {
         return VitalReadingResponse.from(useCase.getById(id));
+    }
+
+    @PATCH
+    @Path("/{id}")
+    public VitalReadingResponse update(@PathParam("id") UUID id, UpdateVitalReadingRequest request) {
+        if (request == null) throw new BadRequestException("Request body is required");
+        UpdateVitalReadingCommand command = new UpdateVitalReadingCommand(
+                request.readingDate, request.valuePrimary, request.valueSecondary,
+                request.unit, request.notes);
+        return VitalReadingResponse.from(useCase.update(id, command));
     }
 
     @DELETE

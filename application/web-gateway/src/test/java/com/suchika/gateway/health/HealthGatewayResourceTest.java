@@ -15,6 +15,7 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -41,6 +42,13 @@ class HealthGatewayResourceTest {
         when(mockRecord.readEntity(String.class))
                 .thenReturn("{\"id\":\"bbb00000-0000-0000-0000-000000000000\"}");
         when(healthServiceClient.recordVital(any())).thenReturn(mockRecord);
+
+        when(healthServiceClient.updateVital(eq(UUID.fromString("f3b90000-0000-0000-0000-000000000001")), any()))
+                .thenReturn(mapper.readTree(
+                        "{\"id\":\"f3b90000-0000-0000-0000-000000000001\","
+                        + "\"vital_type\":\"BLOOD_PRESSURE\","
+                        + "\"value_primary\":122.0,"
+                        + "\"value_secondary\":82.0}"));
     }
 
     @Test
@@ -76,5 +84,20 @@ class HealthGatewayResourceTest {
                 .then()
                 .statusCode(201)
                 .body("id", notNullValue());
+    }
+
+    @Test
+    void testUpdateVital() {
+        String updateJson = "{\"value_primary\":122.0,\"value_secondary\":82.0}";
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(updateJson)
+                .when()
+                .patch("/v1/vitals/f3b90000-0000-0000-0000-000000000001")
+                .then()
+                .statusCode(200)
+                .body("value_primary", is(122.0F))
+                .body("value_secondary", is(82.0F));
     }
 }
