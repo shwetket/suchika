@@ -70,7 +70,15 @@
       "src/api/generated.ts",
       "src/api/household.js",
       "src/utils/index.js"
-    ]
+    ],
+    "coverageThreshold": {
+      "global": {
+        "branches": 70,
+        "functions": 75,
+        "lines": 80,
+        "statements": 79
+      }
+    }
   },
   "browserslist": {
     "production": [
