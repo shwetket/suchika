@@ -69,6 +69,10 @@ public class ProjectionCalculationEngine {
     private static final String STATUS_ACHIEVED = "ACHIEVED";
     private static final String STATUS_IN_PROGRESS = "IN_PROGRESS";
     private static final String POLICY_SETTINGS_FIELD = "policy_settings";
+    private static final String GOALS_FIELD = "goals";
+    private static final String TOTAL_MONTHLY_EMI_FIELD = "total_monthly_emi";
+    private static final String TIER_LIQUID = "LIQUID";
+    private static final String TIER_SEMI_LIQUID = "SEMI_LIQUID";
     private static final double DEFAULT_DEBT_CROSSOVER_THRESHOLD = 50.0;
     private static final double DEFAULT_MONTHLY_BUDGET_CAP = 0.0;
     private static final double DEFAULT_FREEDOM_RUNWAY_MONTHS = 6.0;
@@ -192,7 +196,7 @@ public class ProjectionCalculationEngine {
 
     void computeGoalProgress(UUID profileId) {
         JsonNode goalsResponse = householdServiceClient.listGoals(profileId, null);
-        JsonNode goalsArray = goalsResponse.path("goals");
+        JsonNode goalsArray = goalsResponse.path(GOALS_FIELD);
 
         double totalBalance = computeTotalBalance(profileId);
 
@@ -200,7 +204,7 @@ public class ProjectionCalculationEngine {
         if (goalsArray.isArray()) {
             for (JsonNode goal : goalsArray) {
                 String goalId = goal.path("id").asText("");
-                String goalName = goal.path("goal_name").asText("");
+                String goalName = goal.path(GOAL_NAME_FIELD).asText("");
                 double targetAmount = goal.path("target_amount").asDouble(0.0);
                 double currentAmount = Math.min(totalBalance, targetAmount);
                 double progressPercent = targetAmount > 0
@@ -209,7 +213,7 @@ public class ProjectionCalculationEngine {
 
                 ObjectNode entry = MAPPER.createObjectNode();
                 entry.put("id", goalId);
-                entry.put("goal_name", goalName);
+                entry.put(GOAL_NAME_FIELD, goalName);
                 entry.put("target_amount", targetAmount);
                 entry.put("current_amount", currentAmount);
                 entry.put("progress_percent", progressPercent);
@@ -222,7 +226,7 @@ public class ProjectionCalculationEngine {
         }
 
         ObjectNode payload = MAPPER.createObjectNode();
-        payload.set("goals", goalsPayload);
+        payload.set(GOALS_FIELD, goalsPayload);
         snapshotRepository.upsert(profileId, SnapshotKey.WEALTH_GOAL_PROGRESS, payload.toString());
     }
 
@@ -442,7 +446,7 @@ public class ProjectionCalculationEngine {
 
         ObjectNode payload = MAPPER.createObjectNode();
         payload.put("total_outstanding_balance", totalOutstanding);
-        payload.put("total_monthly_emi", totalEmi);
+        payload.put(TOTAL_MONTHLY_EMI_FIELD, totalEmi);
         payload.put("total_monthly_interest_saved", totalInterestSaved);
         payload.put(MEMBER_COUNT_FIELD, memberCount);
         payload.set(MEMBERS_FIELD, membersPayload);
@@ -557,8 +561,8 @@ public class ProjectionCalculationEngine {
         double grandTotal = liquidTotal + semiLiquidTotal + illiquidTotal + lockedTotal + unclassifiedTotal;
 
         ObjectNode tiers = MAPPER.createObjectNode();
-        tiers.put("LIQUID", liquidTotal);
-        tiers.put("SEMI_LIQUID", semiLiquidTotal);
+        tiers.put(TIER_LIQUID, liquidTotal);
+        tiers.put(TIER_SEMI_LIQUID, semiLiquidTotal);
         tiers.put("ILLIQUID", illiquidTotal);
         tiers.put("LOCKED", lockedTotal);
         tiers.put("UNCLASSIFIED", unclassifiedTotal);
@@ -577,8 +581,8 @@ public class ProjectionCalculationEngine {
             double balance = currentBalanceFor(account, memberProfileId);
             String tier = account.path(METADATA_FIELD).path("liquidity_tier").asText("").trim();
             switch (tier) {
-                case "LIQUID" -> totals[0] += balance;
-                case "SEMI_LIQUID" -> totals[1] += balance;
+                case TIER_LIQUID -> totals[0] += balance;
+                case TIER_SEMI_LIQUID -> totals[1] += balance;
                 case "ILLIQUID" -> totals[2] += balance;
                 case "LOCKED" -> totals[3] += balance;
                 default -> totals[4] += balance;
@@ -706,10 +710,10 @@ public class ProjectionCalculationEngine {
         JsonNode growthPayload = snapshots.getOrDefault(SnapshotKey.WEALTH_GROWTH_PROJECTION_FAMILY, MAPPER.createObjectNode());
 
         double familyNetWorth = netWorthPayload.path("family_net_worth").asDouble(0.0);
-        double totalMonthlyEmi = emiPayload.path("total_monthly_emi").asDouble(0.0);
+        double totalMonthlyEmi = emiPayload.path(TOTAL_MONTHLY_EMI_FIELD).asDouble(0.0);
         JsonNode tiers = liquidityPayload.path("tiers");
-        double liquidBalance = tiers.path("LIQUID").asDouble(0.0);
-        double semiLiquidBalance = tiers.path("SEMI_LIQUID").asDouble(0.0);
+        double liquidBalance = tiers.path(TIER_LIQUID).asDouble(0.0);
+        double semiLiquidBalance = tiers.path(TIER_SEMI_LIQUID).asDouble(0.0);
         double totalLiquidity = liquidityPayload.path("total").asDouble(0.0);
         double totalInvestmentValue = growthPayload.path("total_current_value").asDouble(0.0);
 
@@ -797,7 +801,7 @@ public class ProjectionCalculationEngine {
         if (yearOneAchieved) achievedCount++;
 
         ObjectNode payload = MAPPER.createObjectNode();
-        payload.set("goals", goalsArray);
+        payload.set(GOALS_FIELD, goalsArray);
         payload.put("achieved_count", achievedCount);
         payload.put("total_count", 5);
         snapshotRepository.upsert(profileId, SnapshotKey.WEALTH_FORMULA_GOALS_FAMILY, payload.toString());
@@ -888,7 +892,7 @@ public class ProjectionCalculationEngine {
         // Check 3 — EMI Data Completeness
         JsonNode emiPayload = snapshots.getOrDefault(SnapshotKey.WEALTH_EMI_TRACKING_FAMILY, MAPPER.createObjectNode());
         int memberCount = emiPayload.path(MEMBER_COUNT_FIELD).asInt(0);
-        double totalEmi = emiPayload.path("total_monthly_emi").asDouble(0.0);
+        double totalEmi = emiPayload.path(TOTAL_MONTHLY_EMI_FIELD).asDouble(0.0);
         boolean emiIncomplete = memberCount > 0 && totalEmi == 0.0;
         if (emiIncomplete) {
             checksArray.add(buildCheckEntry(
