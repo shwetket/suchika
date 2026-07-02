@@ -32,6 +32,7 @@ public class TransactionResource {
     @GET
     public Response listTransactions(
             @PathParam("account_id") UUID accountId,
+            @QueryParam("profile_id") UUID profileId,
             @QueryParam("from") String fromParam,
             @QueryParam("to") String toParam,
             @QueryParam("txn_type") String txnTypeParam) {
@@ -40,7 +41,7 @@ public class TransactionResource {
         LocalDate to = parseDate(toParam, "to");
         TxnType txnType = parseTxnType(txnTypeParam);
 
-        List<TransactionResponse> transactions = useCase.listByAccount(accountId, from, to, txnType)
+        List<TransactionResponse> transactions = useCase.listByAccount(accountId, profileId, from, to, txnType)
                 .stream().map(TransactionResponse::from).toList();
         return Response.ok(new ListTransactionsResponse(transactions)).build();
     }

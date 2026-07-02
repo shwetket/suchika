@@ -60,6 +60,7 @@ public interface WealthServiceClient {
     @Path("/accounts/{accountId}/transactions")
     JsonNode listTransactions(
             @PathParam("accountId") UUID accountId,
+            @QueryParam("profile_id") String profileId,
             @QueryParam("from") String from,
             @QueryParam("to") String to,
             @QueryParam("txn_type") String txnType);

@@ -30,10 +30,8 @@ public class TransactionService implements TransactionUseCase {
     }
 
     @Override
-    public List<Transaction> listByAccount(UUID accountId, LocalDate from, LocalDate to, TxnType txnType) {
-        // profile_id scoping is not yet part of this use case's HTTP contract (out of Epic 8
-        // Phase 1 scope) — null preserves existing unscoped behavior for this call site.
-        return repository.findByAccountId(accountId, null, from, to, txnType);
+    public List<Transaction> listByAccount(UUID accountId, UUID profileId, LocalDate from, LocalDate to, TxnType txnType) {
+        return repository.findByAccountId(accountId, profileId, from, to, txnType);
     }
 
     @Override

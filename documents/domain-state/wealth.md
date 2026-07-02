@@ -12,8 +12,8 @@ Give any agent or developer instant context on the wealth domain — accounts, t
 
 ---
 
-**Last updated:** 2026-07-02 (Epic 8 Phase 4 — Formula Goals Engine & Validation Report)
-**Version:** v0.4 Phase 1+2+3+4 complete; Epic 8 fully delivered (all 11 gateway projection steps live)
+**Last updated:** 2026-07-02 (v0.5 Phase 0 — TransactionResource/TransactionService profile_id threading fix)
+**Version:** v0.4 Phase 1+2+3+4 complete; Epic 8 fully delivered (all 11 gateway projection steps live); v0.5 Phase 0 data-isolation gap closed
 **Port:** 8082
 
 ---
@@ -62,6 +62,7 @@ Give any agent or developer instant context on the wealth domain — accounts, t
 | Epic 8 Phase 4: PolicySettings admin page | ✅ Complete (2026-07-02) | `web/src/pages/Admin/PolicySettings.js` — form with 5 policy fields, loads from `getAdmin()`, saves via `updateAdminPolicy()`. Route: `/admin/policy` (admin role required). Nav: Admin → Policy Settings dropdown |
 | Epic 8 Phase 4: Dashboard formula goals + validation cards | ✅ Complete (2026-07-02) | Dashboard shows Household Goals card (N/M achieved, each goal with ACHIEVED/IN_PROGRESS badge) and Data Quality banner (PASS=green, WARNING=yellow, FAIL=red) when snapshots present |
 | Epic 8 Phase 4: bug fix — `total_monthly_emi` field name | ✅ Fixed (2026-07-02) | `computeFormulaGoals` and `computeValidation` incorrectly read `MONTHLY_EMI_FIELD` ("monthly_emi") from the EMI snapshot; the actual key written by `computeEmiTracking` is `"total_monthly_emi"`. Fixed to use the string literal directly |
+| v0.5 Phase 0: `TransactionResource`/`TransactionService` profile_id threading fix | ✅ Complete (2026-07-02) | Closed a real ADR-006 gap found by architect review: the repo-layer filter (`TransactionPanacheRepository.findByAccountId`/`existsByDeduplicationKey`) already existed and worked (proven by adapter tests since Epic 8 Phase 1), but `TransactionService.listByAccount()` hardcoded `null` for profileId and `TransactionResource.listTransactions()` had no `profile_id` query param at all, so the filter was never actually invoked for transaction listing. Fixed: `TransactionUseCase.listByAccount()` now takes `profileId`; `TransactionResource.listTransactions()` accepts `@QueryParam("profile_id")`; stale "out of scope" comment removed. `StatementUploadService`'s dedup call site (`existsByDeduplicationKey`) was checked and found to already pass the real `profileId` resolved from `account.getProfileId()` — it was never part of the gap, no change needed there. Contract (`wealth.yaml` + web-gateway mirror + `gateway.yaml`) updated with `profile_id` param on `listTransactions`; `WealthServiceClient`/`WealthGatewayResource` updated to thread `profile_id` through following the same pattern as `getAccountBalance`/`getAmortization`; frontend `web/src/api/wealth.js` `listTransactions()` and its caller in `Transactions.js` (`TransactionsTab`, which already had `profileId` in scope for `createTransaction`) updated; `web/src/api/generated.ts` regenerated. New tests: `TransactionServiceTest.listByAccount_passesProfileIdThroughToRepo`, `listByAccount_profileFilter_excludesTransactionsOnDifferentProfilesAccount` (fake repo simulates the real subquery filter semantics); `WealthGatewayResourceTest` mock signature updated. `:application:domain:wealth:adapters:test` and `:application:web-gateway:test` both pass. |
 
 ---
 
@@ -91,7 +92,7 @@ Base path: `/api/v1/wealth`
 - `GET    /accounts/{id}`
 - `PUT    /accounts/{id}`
 - `DELETE /accounts/{id}`
-- `GET    /accounts/{id}/transactions`
+- `GET    /accounts/{id}/transactions?profile_id=` — v0.5 Phase 0: `profile_id` param added (was previously missing; filter existed at repo layer but was unreachable)
 - `POST   /accounts/{accountId}/uploads?profile_id=` — upload CSV (returns `StatementUploadResponse` with `inserted_count` + `skipped_duplicates`)
 - `GET    /accounts/{accountId}/uploads`
 - `DELETE /accounts/{accountId}/uploads/{uploadId}/rollback`
@@ -137,6 +138,8 @@ Note: before this Phase 2 pass, the contract had **zero documented paths/schemas
 
 ## Open Issues / Backlog
 
+- ✅ **v0.5 Phase 0: `TransactionResource`/`TransactionService` profile_id threading fix — COMPLETE (2026-07-02).** See Implementation Status table entry above for full detail. Product owner decision `OpenQuestions.md` Q28 — fixed now rather than deferred.
+- **v0.5 Phase 2 (planned): Vacation Planner cross-domain feature.** Lives under Household nav (`/household/vacation-planner` — product owner decision, `OpenQuestions.md` Q27), but reads wealth data: liquid savings from `WEALTH_LIQUIDITY_TIERS_FAMILY` snapshot for budget validation, and `physical_asset.metadata` (PUC/insurance/road-tax expiry dates) for the asset-compliance check. Physical asset dates stay JSONB — no schema promotion (`OpenQuestions.md` Q29); parse defensively (null-safe) in the gateway composing this feature.
 - ✅ Frontend: display `skipped_duplicates` panel and `error log` panel in upload UI (v0.4 Phase 3)
 - Duplicate resolution UI for `is_duplicate=TRUE` rows (future)
 - Wire `projections.dashboard_snapshot` to live wealth data (future)

@@ -188,14 +188,20 @@ function TransactionsTab({ accountId, profileId }) {
     setLoading(true);
     setError(null);
     try {
-      const data = await listTransactions(accountId, fromDate || null, toDate || null, txnType);
+      const data = await listTransactions(
+        accountId,
+        profileId,
+        fromDate || null,
+        toDate || null,
+        txnType
+      );
       setTransactions(data.transactions ?? []);
     } catch (err) {
       setError(err.message || 'Failed to load transactions');
     } finally {
       setLoading(false);
     }
-  }, [accountId, fromDate, toDate, txnType]);
+  }, [accountId, profileId, fromDate, toDate, txnType]);
 
   useEffect(() => {
     load();

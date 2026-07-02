@@ -97,10 +97,11 @@ public class WealthGatewayResource {
     @Path("/accounts/{accountId}/transactions")
     public JsonNode listTransactions(
             @PathParam("accountId") UUID accountId,
+            @QueryParam("profile_id") String profileId,
             @QueryParam("from") String from,
             @QueryParam("to") String to,
             @QueryParam("txn_type") String txnType) {
-        return wealthServiceClient.listTransactions(accountId, from, to, txnType);
+        return wealthServiceClient.listTransactions(accountId, profileId, from, to, txnType);
     }
 
     @GET

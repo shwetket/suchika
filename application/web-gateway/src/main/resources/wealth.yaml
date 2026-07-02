@@ -289,6 +289,12 @@ paths:
       summary: List transactions for an account
       parameters:
         - $ref: '#/components/parameters/AccountId'
+        - name: profile_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
         - name: from
           in: query
           required: false

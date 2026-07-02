@@ -36,8 +36,9 @@ export function createTransaction(accountId, profileId, data) {
   return post(url, data);
 }
 
-export function listTransactions(accountId, from, to, txnType) {
+export function listTransactions(accountId, profileId, from, to, txnType) {
   const params = new URLSearchParams();
+  if (profileId !== null && profileId !== undefined) params.append('profile_id', profileId);
   if (from !== null && from !== undefined) params.append('from', from);
   if (to !== null && to !== undefined) params.append('to', to);
   if (txnType !== null && txnType !== undefined && txnType !== 'ALL')

@@ -44,7 +44,7 @@ class TransactionServiceTest {
                 .build();
         repo.store.add(txn);
 
-        List<Transaction> result = service.listByAccount(accountId, from, to, TxnType.CREDIT);
+        List<Transaction> result = service.listByAccount(accountId, null, from, to, TxnType.CREDIT);
 
         assertEquals(1, result.size());
         assertEquals(txn.getId(), result.get(0).getId());
@@ -58,12 +58,55 @@ class TransactionServiceTest {
     void listByAccount_nullFilters_passThroughToRepo() {
         UUID accountId = UUID.randomUUID();
 
-        service.listByAccount(accountId, null, null, null);
+        service.listByAccount(accountId, null, null, null, null);
 
         assertEquals(accountId, repo.lastAccountId);
         assertNull(repo.lastFrom);
         assertNull(repo.lastTo);
         assertNull(repo.lastTxnType);
+    }
+
+    // ---- v0.5 Phase 0: profile_id scoping (ADR-006) ----
+
+    @Test
+    void listByAccount_passesProfileIdThroughToRepo() {
+        UUID accountId = UUID.randomUUID();
+        UUID profileId = UUID.randomUUID();
+
+        service.listByAccount(accountId, profileId, null, null, null);
+
+        assertEquals(profileId, repo.lastProfileId);
+    }
+
+    @Test
+    void listByAccount_profileFilter_excludesTransactionsOnDifferentProfilesAccount() {
+        // Proves the service layer threads profileId all the way to the repository,
+        // which is the layer where the actual cross-profile exclusion happens
+        // (ADR-006 — filtering lives in adapters/, never in domain/). The fake here
+        // mirrors the real TransactionPanacheRepository's subquery semantics: when a
+        // non-null profileId is passed that doesn't own the account, zero rows return.
+        UUID accountId = UUID.randomUUID();
+        UUID ownerProfileId = UUID.randomUUID();
+        UUID otherProfileId = UUID.randomUUID();
+        repo.accountOwnerProfileId = ownerProfileId;
+
+        Transaction txn = Transaction.builder()
+                .id(UUID.randomUUID())
+                .accountId(accountId)
+                .txnDate(LocalDate.of(2026, Month.JUNE, 1))
+                .amount(new BigDecimal("999.00"))
+                .txnType(TxnType.DEBIT)
+                .description("Owner's transaction")
+                .build();
+        repo.store.add(txn);
+
+        List<Transaction> asOwner = service.listByAccount(accountId, ownerProfileId, null, null, null);
+        assertEquals(1, asOwner.size(), "Owner profile should see the transaction on their own account");
+
+        List<Transaction> asOtherProfile = service.listByAccount(accountId, otherProfileId, null, null, null);
+        assertTrue(asOtherProfile.isEmpty(),
+                "A different profile_id must not see transactions on an account it does not own, "
+                        + "even though the accountId matched");
     }
 
     @Test
@@ -214,9 +257,18 @@ class TransactionServiceTest {
     static class FakeTransactionRepository implements TransactionRepository {
         final List<Transaction> store = new ArrayList<>();
         UUID lastAccountId;
+        UUID lastProfileId;
         LocalDate lastFrom;
         LocalDate lastTo;
         TxnType lastTxnType;
+
+        /**
+         * Simulates the account's owning profile_id, mirroring the real
+         * TransactionPanacheRepository's "accountId in (select ... where profileId = ?)"
+         * subquery filter: when non-null and it doesn't match the profileId argument,
+         * findByAccountId returns no rows for that account.
+         */
+        UUID accountOwnerProfileId;
 
         @Override
         public Transaction save(Transaction transaction) {
@@ -245,9 +297,13 @@ class TransactionServiceTest {
         @Override
         public List<Transaction> findByAccountId(UUID accountId, UUID profileId, LocalDate from, LocalDate to, TxnType txnType) {
             this.lastAccountId = accountId;
+            this.lastProfileId = profileId;
             this.lastFrom = from;
             this.lastTo = to;
             this.lastTxnType = txnType;
+            if (profileId != null && accountOwnerProfileId != null && !profileId.equals(accountOwnerProfileId)) {
+                return List.of();
+            }
             return store.stream()
                     .filter(t -> accountId.equals(t.getAccountId()))
                     .filter(t -> from == null || !t.getTxnDate().isBefore(from))
