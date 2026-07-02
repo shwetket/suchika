@@ -222,13 +222,14 @@ Show what has been shipped and what is planned at each milestone, with the featu
 
 Phase 3 (Consolidated Action Center) is now unblocked on the state-management front — it still needs Q30 (biometric streak gap definition) resolved before implementation starts.
 
-### Phase 2 — Vacation Planner (cross-domain; depends on Phase 0 wealth/physical-asset work only, NOT on Phase 1)
+### Phase 2 — Vacation Planner (cross-domain; depends on Phase 0 wealth/physical-asset work only, NOT on Phase 1) — COMPLETE 2026-07-02
 
-- [ ] **Nav placement confirmed:** under Household nav, route `/household/vacation-planner` (Q27)
-- [ ] Budget validation: liquid savings (wealth `WEALTH_LIQUIDITY_TIERS_FAMILY`) vs trip cost
-- [ ] Asset compliance block: vehicle PUC/Insurance expiry (wealth `physical_asset.metadata` — parsed defensively as JSONB, no schema promotion per Q29) vs trip date (household calendar)
-- [ ] New gateway `VacationPlannerResource`/`VacationPlannerService` composing `WealthServiceClient` + `HouseholdServiceClient` calls (same pattern as ADR-013's projection engine)
-- [ ] Frontend page under `web/src/pages/Household/`
+- [x] **Nav placement confirmed:** under Household nav, route `/household/vacation-planner` (Q27). This also surfaced and fixed a pre-existing gap — Calendar/Inventory/Goals had no nav dropdown at all before this; added one "Household" `NavDropdown` covering all four pages.
+- [x] Budget validation: liquid savings vs trip cost — reads the already-computed `WEALTH_LIQUIDITY_TIERS_FAMILY` snapshot (no new wealth REST calls; if the snapshot doesn't exist yet, returns `UNAVAILABLE` with a message telling the user to refresh the dashboard first, rather than a wrong number)
+- [x] Asset compliance block: vehicle PUC/Insurance expiry (`physical_asset.metadata` JSONB, parsed defensively per Q29 — no schema promotion) checked against **trip end date** (conservative: vehicle must stay compliant through the whole trip, not just its start)
+- [x] New gateway `VacationPlannerResource`/`VacationPlannerService` (package `com.suchika.gateway.vacationplanner`) — composes `WealthServiceClient` only (no calendar lookup needed; trip dates are user-supplied, not derived from `household.calendar_event`). New top-level path `/v1/vacation-planner/budget-check`, same "own path segment for gateway-native features" convention as `/v1/projections/...` (not a proxy for a single domain resource, so it doesn't live under `/v1/household/...` like the Calendar/Inventory/Goals proxies do)
+- [x] Frontend page `web/src/pages/Household/VacationPlanner.js` — profile select, trip cost/date inputs, budget check + compliance cards, uses `useMutation` (ADR-018 React Query pattern from Phase 1)
+- [x] 11 new backend tests (8 service unit + 3 resource integration, all passing) + 7 new frontend tests + 1 new Navigation test, all passing. Full Gradle `:application:web-gateway:test` and frontend `test:ci` suites re-verified green after this change.
 
 ### Phase 3 — Consolidated Action Center (blocked on Phase 1 landing; ALSO blocked on Q30 — biometric streak gap definition — before implementation starts)
 
@@ -882,7 +883,7 @@ The original v0.6 milestone ("Testing Foundation") is partially already done for
 | ~~`PUT /inventory-items/{id}` endpoint~~ | household-developer | DONE 2026-07-02 (commit `1f1077b`) |
 | ~~Inventory Items edit modal (frontend)~~ | react-developer | DONE 2026-07-02 (commit `1f1077b`) |
 | ~~Reports page net balance fix~~ | react-developer | DONE 2026-07-02 (commit `3bb2c27`) — the "opening balances only" label turned out to be an accurate description of a real remaining bug, not stale copy; fixed the calculation instead of just the label |
-| Vacation Planner (cross-domain) | quarkus-developer (gateway) + react-developer | v0.5 Phase 2 — ready to start |
+| ~~Vacation Planner (cross-domain)~~ | quarkus-developer (gateway) + react-developer | DONE 2026-07-02 |
 | Consolidated Action Center | quarkus-developer (gateway) + react-developer | v0.5 Phase 3 — Physical Assets dependency satisfied (2026-06-30); PROP-005 resolved (2026-07-02); React Query groundwork done (2026-07-02); blocked only on biometric streak gap definition (Q30) |
 | ~~PROP-005 state management decision~~ | architect | DONE 2026-07-02 → ADR-018 (React Query) |
 | ~~React Query rollout (QueryClientProvider + Dashboard migration)~~ | react-developer | DONE 2026-07-02 |

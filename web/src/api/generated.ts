@@ -199,6 +199,13 @@ export interface paths {
      */
     get: operations["getDashboard"];
   };
+  "/v1/vacation-planner/budget-check": {
+    /**
+     * Check trip budget against liquid savings and vehicle compliance against trip dates
+     * @description Reads the profile's already-computed WEALTH_LIQUIDITY_TIERS_FAMILY snapshot (refresh the dashboard first if it does not exist yet) and compares the LIQUID tier balance to the trip cost. Separately checks every active VEHICLE physical asset's PUC/insurance expiry (read directly from JSONB metadata) against the trip end date.
+     */
+    post: operations["vacationPlannerBudgetCheck"];
+  };
 }
 
 export type webhooks = Record<string, never>;
@@ -217,6 +224,44 @@ export interface components {
     };
     DashboardResponse: {
       snapshots?: components["schemas"]["DashboardSnapshotDto"][];
+    };
+    VacationPlannerRequest: {
+      /** Format: double */
+      trip_cost?: number;
+      /** Format: date */
+      trip_start_date?: string;
+      /** Format: date */
+      trip_end_date: string;
+    };
+    VacationPlannerBudgetCheck: {
+      /** @enum {string} */
+      status?: "PASS" | "WARNING" | "UNAVAILABLE";
+      /** Format: double */
+      liquid_savings?: number;
+      /** Format: double */
+      trip_cost?: number;
+      /** Format: double */
+      shortfall?: number;
+      /** @description Present only when status is UNAVAILABLE */
+      message?: string;
+    };
+    VacationPlannerComplianceIssue: {
+      /** Format: uuid */
+      asset_id?: string;
+      asset_name?: string;
+      /** @enum {string} */
+      issue_type?: "PUC_EXPIRED" | "INSURANCE_EXPIRED";
+      /** Format: date */
+      expiry_date?: string;
+    };
+    VacationPlannerAssetCompliance: {
+      /** @enum {string} */
+      status?: "PASS" | "WARNING";
+      issues?: components["schemas"]["VacationPlannerComplianceIssue"][];
+    };
+    VacationPlannerResponse: {
+      budget_check?: components["schemas"]["VacationPlannerBudgetCheck"];
+      asset_compliance?: components["schemas"]["VacationPlannerAssetCompliance"];
     };
     /** @enum {string} */
     AccountType: "SAVINGS" | "CURRENT" | "CREDIT_CARD" | "HOME_LOAN" | "PERSONAL_LOAN" | "CAR_LOAN" | "MUTUAL_FUND" | "NPS" | "PPF" | "FD";
@@ -1363,6 +1408,32 @@ export interface operations {
           "application/json": components["schemas"]["DashboardResponse"];
         };
       };
+      500: components["responses"]["InternalError"];
+    };
+  };
+  /**
+   * Check trip budget against liquid savings and vehicle compliance against trip dates
+   * @description Reads the profile's already-computed WEALTH_LIQUIDITY_TIERS_FAMILY snapshot (refresh the dashboard first if it does not exist yet) and compares the LIQUID tier balance to the trip cost. Separately checks every active VEHICLE physical asset's PUC/insurance expiry (read directly from JSONB metadata) against the trip end date.
+   */
+  vacationPlannerBudgetCheck: {
+    parameters: {
+      query: {
+        profile_id: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["VacationPlannerRequest"];
+      };
+    };
+    responses: {
+      /** @description Budget and compliance check results */
+      200: {
+        content: {
+          "application/json": components["schemas"]["VacationPlannerResponse"];
+        };
+      };
+      400: components["responses"]["BadRequest"];
       500: components["responses"]["InternalError"];
     };
   };

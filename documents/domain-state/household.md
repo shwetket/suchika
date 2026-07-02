@@ -12,8 +12,8 @@ Document the design and implementation status for the household domain (v0.3).
 
 ---
 
-**Last updated:** 2026-06-24
-**Version:** v0.3 — complete (backend + gateway + frontend)
+**Last updated:** 2026-07-02
+**Version:** v0.3 — complete (backend + gateway + frontend); v0.5 Phase 0/2 items in progress, see Open Issues / Backlog
 **Port:** 8084
 
 ---
@@ -86,6 +86,7 @@ Document the design and implementation status for the household domain (v0.3).
 | purchase_date | DATE | NOT NULL |
 | category | VARCHAR(50) | nullable |
 | metadata | JSONB | NOT NULL DEFAULT '{}' |
+| is_consumed | BOOLEAN | NOT NULL DEFAULT false (V4, v0.5 Phase 0) — means "used in a calculation," not "physically used up"; rows are never deleted or expired |
 | created_at | TIMESTAMPTZ | NOT NULL DEFAULT now() |
 
 ### `household.goal`
@@ -120,6 +121,7 @@ Base URL: `http://localhost:8084`
 | GET | /v1/inventory-items | List items (filter by source_platform, category) |
 | POST | /v1/inventory-items | Add item |
 | GET | /v1/inventory-items/{id} | Get single item |
+| PUT | /v1/inventory-items/{id} | Full update, including `is_consumed` toggle (v0.5 Phase 0) |
 | DELETE | /v1/inventory-items/{id} | Delete |
 | GET | /v1/goals | List goals (filter by status) |
 | POST | /v1/goals | Create goal |
@@ -168,9 +170,9 @@ Base URL: `http://localhost:8084`
 - Dashboard Refresh section uses `user.profile_id` from auth context; if auth token does not include `profile_id`, the refresh button stays disabled. Link profile_id into the auth response in a future iteration.
 - Task Tracking deferred to v0.4 — no `task` table exists yet. Will need `V4__tasks.sql` when scoped.
 - Inventory CSV import deferred to v0.4 — v0.3 is manual CRUD only.
-- **v0.5 Phase 0 (planned): `PUT /v1/inventory-items/{id}` endpoint + edit modal.** Verified 2026-07-02: `InventoryItemResource.java` currently has only GET/POST/GET-by-id/DELETE — no PUT exists.
-- **v0.5 Phase 0 (planned): `is_consumed BOOLEAN` flag on inventory items** (Q6 resolution — means "used in a calculation," not "used up"; no deletion, no expiry). New Flyway `V4__inventory_item_consumed_flag.sql` (V1-V3 already committed, never edit them).
-- **v0.5 Phase 2 (planned): Vacation Planner feature lives here in nav** — route `/household/vacation-planner` (product owner decision, `OpenQuestions.md` Q27), even though it's a cross-domain feature reading wealth liquidity data and wealth physical-asset compliance dates alongside household calendar events. New gateway `VacationPlannerResource`/`VacationPlannerService` composes `HouseholdServiceClient` (calendar events, trip dates) + `WealthServiceClient` (liquid savings, physical asset metadata).
+- ✅ **v0.5 Phase 0: `PUT /v1/inventory-items/{id}` endpoint + edit modal — COMPLETE (2026-07-02).** `InventoryItemResource.java` gained a `@PUT @Path("/{id}")` handler; `InventoryItemUseCase.update()` does a partial merge against the existing record. Edit modal added to `web/src/pages/Household/Inventory.js`.
+- ✅ **v0.5 Phase 0: `is_consumed BOOLEAN` flag on inventory items — COMPLETE (2026-07-02).** Q6 resolution — means "used in a calculation," not "used up"; no deletion, no expiry. `V4__inventory_item_consumed_flag.sql` added `is_consumed BOOLEAN NOT NULL DEFAULT false`; toggled via the same PUT endpoint above rather than a separate route.
+- ✅ **v0.5 Phase 2: Vacation Planner feature lives here in nav — COMPLETE (2026-07-02).** Route `/household/vacation-planner` (product owner decision, `OpenQuestions.md` Q27) — added via a new "Household" `NavDropdown` in `Navigation.js`, which also fixed a pre-existing gap (Calendar/Inventory/Goals had no nav links at all before this). The feature itself is implemented entirely in the gateway's new `com.suchika.gateway.vacationplanner` package and reads only wealth data (`WEALTH_LIQUIDITY_TIERS_FAMILY` snapshot + `physical_asset.metadata`) — it does **not** call `HouseholdServiceClient` or look at calendar events; trip dates are supplied directly by the user in the form, not derived from `household.calendar_event`. See `documents/domain-state/wealth.md` for the full implementation detail — this entry exists here only to explain the nav placement.
 
 ## Completed in v0.3 Gateway Pass (G1–G4)
 

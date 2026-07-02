@@ -110,6 +110,13 @@ export const Navigation = ({ theme, onToggleTheme }) => {
                 Profiles
               </Link>
 
+              <NavDropdown label="Household">
+                <DropdownLink to="/household/calendar">Calendar</DropdownLink>
+                <DropdownLink to="/household/inventory">Inventory</DropdownLink>
+                <DropdownLink to="/household/goals">Goals</DropdownLink>
+                <DropdownLink to="/household/vacation-planner">Vacation Planner</DropdownLink>
+              </NavDropdown>
+
               <NavDropdown label="Wealth">
                 <DropdownLink to="/wealth/accounts">Accounts</DropdownLink>
                 <DropdownLink to="/wealth/transactions">Transactions</DropdownLink>

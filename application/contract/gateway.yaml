@@ -30,6 +30,11 @@ tags:
     description: Financial savings goals proxied from the household service
   - name: Projections
     description: CQRS projection refresh and dashboard snapshot reads
+  - name: Vacation Planner
+    description: >
+      Gateway-native cross-domain compute (v0.5 Phase 2) — trip budget check
+      against liquid savings and vehicle compliance check against trip dates.
+      Not a proxy for a single domain resource.
 
 paths:
 
@@ -1105,6 +1110,43 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /v1/vacation-planner/budget-check:
+
+    post:
+      tags: [Vacation Planner]
+      operationId: vacationPlannerBudgetCheck
+      summary: Check trip budget against liquid savings and vehicle compliance against trip dates
+      description: >
+        Reads the profile's already-computed WEALTH_LIQUIDITY_TIERS_FAMILY
+        snapshot (refresh the dashboard first if it does not exist yet) and
+        compares the LIQUID tier balance to the trip cost. Separately checks
+        every active VEHICLE physical asset's PUC/insurance expiry (read
+        directly from JSONB metadata) against the trip end date.
+      parameters:
+        - name: profile_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VacationPlannerRequest'
+      responses:
+        '200':
+          description: Budget and compliance check results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VacationPlannerResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
 components:
 
   parameters:
@@ -1184,6 +1226,78 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/DashboardSnapshotDto'
+
+    # ----------------------------------------------------------
+    # VACATION PLANNER DTOs (v0.5 Phase 2)
+    # ----------------------------------------------------------
+
+    VacationPlannerRequest:
+      type: object
+      required:
+        - trip_end_date
+      properties:
+        trip_cost:
+          type: number
+          format: double
+        trip_start_date:
+          type: string
+          format: date
+        trip_end_date:
+          type: string
+          format: date
+
+    VacationPlannerBudgetCheck:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [PASS, WARNING, UNAVAILABLE]
+        liquid_savings:
+          type: number
+          format: double
+        trip_cost:
+          type: number
+          format: double
+        shortfall:
+          type: number
+          format: double
+        message:
+          type: string
+          description: Present only when status is UNAVAILABLE
+
+    VacationPlannerComplianceIssue:
+      type: object
+      properties:
+        asset_id:
+          type: string
+          format: uuid
+        asset_name:
+          type: string
+        issue_type:
+          type: string
+          enum: [PUC_EXPIRED, INSURANCE_EXPIRED]
+        expiry_date:
+          type: string
+          format: date
+
+    VacationPlannerAssetCompliance:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [PASS, WARNING]
+        issues:
+          type: array
+          items:
+            $ref: '#/components/schemas/VacationPlannerComplianceIssue'
+
+    VacationPlannerResponse:
+      type: object
+      properties:
+        budget_check:
+          $ref: '#/components/schemas/VacationPlannerBudgetCheck'
+        asset_compliance:
+          $ref: '#/components/schemas/VacationPlannerAssetCompliance'
 
     # ----------------------------------------------------------
     # ENUMS
