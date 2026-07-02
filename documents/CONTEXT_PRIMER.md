@@ -31,19 +31,26 @@ Hexagonal Architecture (Ports & Adapters). Single PostgreSQL database (`app_db`)
 
 ---
 
-## Current Version: v0.4 — Complete (tagged v0.4)
+## Current Version: v0.5 — Complete (2026-07-02)
 
 | Domain | Backend | Frontend | Status |
 |---|---|---|---|
 | Profile | ✅ | ✅ | Complete — policy settings added (Epic 8 Ph4) |
-| Wealth | ✅ | ✅ | Complete — full Epic 8 engine (Phases 1–4) |
-| Health | ✅ | ✅ | Complete |
-| Household | ✅ | ✅ | Complete — v0.3 |
-| web-gateway | ✅ | — | 11 CQRS projection steps live |
+| Wealth | ✅ | ✅ | Complete — full Epic 8 engine (Phases 1–4) + v0.5 fixes |
+| Health | ✅ | ✅ | Complete — vitals edit added in v0.5 |
+| Household | ✅ | ✅ | Complete — v0.3 + v0.5 inventory edit/is_consumed |
+| web-gateway | ✅ | — | 12 CQRS projection steps live (Action Center added in v0.5) |
 
-**Next milestone: v0.5** — Vacation Planner + Consolidated Action Center (see ROADMAP.md).
+**Next milestone: v0.6** — Testing Foundation, re-scoped (see ROADMAP.md — most original v0.6 items are already done; remaining gaps are contract tests and branch coverage).
 
-Quality gates (v0.4): all Gradle tests green, ArchUnit clean, 0 SonarQube issues. 375 JS tests, 22 gateway projection tests.
+Quality gates (v0.5): all Gradle tests green (web-gateway 64 tests), ArchUnit clean, React Query adopted (ADR-018). 406 JS tests, 30 gateway projection tests.
+
+**v0.5 key additions (Phases 0-3, all complete):**
+
+- **Phase 0:** `PATCH /v1/vitals/{id}` edit + modal; `PUT /v1/inventory-items/{id}` edit + modal; `is_consumed` flag on inventory items (Q6); `profile_id` threaded through transaction list/dedup (closed a real ADR-006 gap); Reports page net balance bug fixed (was still summing raw `opening_balance`)
+- **Phase 1:** React Query adopted for frontend server state (ADR-018, resolves PROP-005); `Dashboard.js` migrated as the reference pattern
+- **Phase 2:** Vacation Planner (`/household/vacation-planner`) — trip budget check against liquid savings, vehicle compliance check against trip dates; new gateway package `com.suchika.gateway.vacationplanner`
+- **Phase 3:** Consolidated Action Center (`/action-center`) — 12th `ProjectionCalculationEngine` step aggregating upcoming events, vehicle compliance deadlines, and biometric streak gaps (Q30: core 3 vital types, 30-day threshold, per-profile) across all household members
 
 **v0.4 key additions:**
 
