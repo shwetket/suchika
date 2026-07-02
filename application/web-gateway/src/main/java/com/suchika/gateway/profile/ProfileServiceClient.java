@@ -39,4 +39,8 @@ public interface ProfileServiceClient {
     @GET
     @Path("/admins")
     JsonNode listAdmins();
+
+    @GET
+    @Path("/admins/{adminId}")
+    JsonNode getAdmin(@PathParam("adminId") UUID adminId);
 }

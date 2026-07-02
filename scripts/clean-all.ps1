@@ -14,7 +14,7 @@ Write-Host "    Your .env file is preserved." -ForegroundColor Yellow
 Push-Location $root
 try {
     Write-Host "`n--- Dry-run preview (files that WOULD be deleted) ---" -ForegroundColor Cyan
-    & git clean -fdxn --exclude='application/finance/.env' --exclude='.env'
+    & git clean -fdxn --exclude='.env'
     Write-Host "--- End of preview ---`n" -ForegroundColor Cyan
 
     if (-not $Force) {
@@ -25,7 +25,7 @@ try {
         }
     }
 
-    & git clean -fdx --exclude='application/finance/.env' --exclude='.env'
+    & git clean -fdx --exclude='.env'
     if ($LASTEXITCODE -eq 0) {
         Write-Host "`n  [OK]  Repository cleaned." -ForegroundColor Green
         Write-Host "        Run: setup-dev   if this is a fresh clone, or" -ForegroundColor DarkGray

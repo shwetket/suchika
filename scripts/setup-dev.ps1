@@ -7,7 +7,7 @@ param([switch]$SkipDb)
 $ErrorActionPreference = 'Continue'
 $root    = Split-Path -Parent $PSScriptRoot
 $envSrc  = Join-Path $root 'infrastructure\local\.env.template'
-$envDest = Join-Path $root 'application\finance\.env'
+$envDest = Join-Path $root '.env'
 $boot    = Join-Path $root 'application\flyway\00_bootstrap.sql'
 $psqlExe = 'C:\Program Files\PostgreSQL\18\bin\psql.exe'
 

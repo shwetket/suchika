@@ -72,7 +72,7 @@ DropdownLink.defaultProps = {
 };
 
 export const Navigation = ({ theme, onToggleTheme }) => {
-  const { user, logout, isAuthenticated } = useAuth();
+  const { user, logout, isAuthenticated, hasRole } = useAuth();
 
   return (
     <nav className="bg-indigo-900 text-white px-6 py-3">
@@ -120,6 +120,12 @@ export const Navigation = ({ theme, onToggleTheme }) => {
                 <DropdownLink to="/health/vitals">Vitals</DropdownLink>
                 <DropdownLink to="/health/doctors">Doctor Visits</DropdownLink>
               </NavDropdown>
+
+              {hasRole('admin') && (
+                <NavDropdown label="Admin">
+                  <DropdownLink to="/admin/policy">Policy Settings</DropdownLink>
+                </NavDropdown>
+              )}
             </>
           )}
 

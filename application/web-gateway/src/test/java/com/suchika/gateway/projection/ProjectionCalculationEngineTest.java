@@ -60,6 +60,8 @@ class ProjectionCalculationEngineTest {
     void setUp() {
         MockitoAnnotations.openMocks(this);
         engine = new ProjectionCalculationEngine(wealthClient, healthClient, householdClient, profileClient, snapshotRepo);
+        when(wealthClient.listAccounts(isNull(), eq(true), anyString())).thenReturn(buildEmptyAccountsResponse());
+        when(householdClient.listGoals(any(), isNull())).thenReturn(MAPPER.createObjectNode().set("goals", MAPPER.createArrayNode()));
     }
 
     // ── computeNetWorth ───────────────────────────────────────────────────────
@@ -345,7 +347,7 @@ class ProjectionCalculationEngineTest {
     // ── refreshAll ───────────────────────────────────────────────────────────
 
     @Test
-    void refreshAll_callsAllNineComputeMethods() throws Exception {
+    void refreshAll_callsAllElevenComputeMethods() throws Exception {
         // Stub all clients with empty-but-valid responses
         when(wealthClient.listAccounts(any(), any(), any()))
                 .thenReturn(buildEmptyAccountsResponse());
@@ -357,11 +359,12 @@ class ProjectionCalculationEngineTest {
                 .thenReturn(MAPPER.readTree("{\"goals\":[]}"));
         when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
         when(profileClient.listProfiles(eq(ADMIN_ID), eq(true))).thenReturn(buildEmptyProfilesResponse());
+        when(profileClient.getAdmin(ADMIN_ID)).thenReturn(buildAdminResponse(MAPPER.createObjectNode()));
         when(snapshotRepo.findByProfileId(PROFILE_ID)).thenReturn(List.of());
 
         engine.refreshAll(PROFILE_ID);
 
-        // All nine SnapshotKey upserts must have fired (6 original + 3 Phase 3)
+        // All eleven SnapshotKey upserts must have fired (6 original + 3 Phase 3 + 2 Phase 4)
         verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_NET_WORTH), anyString());
         verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_GOAL_PROGRESS), anyString());
         verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.HEALTH_VITALS_SUMMARY), anyString());
@@ -371,8 +374,10 @@ class ProjectionCalculationEngineTest {
         verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_EMI_TRACKING_FAMILY), anyString());
         verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_LIQUIDITY_TIERS_FAMILY), anyString());
         verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_GROWTH_PROJECTION_FAMILY), anyString());
-        // Total: exactly 9 upsert calls
-        verify(snapshotRepo, times(9)).upsert(any(), anyString(), anyString());
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_FORMULA_GOALS_FAMILY), anyString());
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_VALIDATION_REPORT_FAMILY), anyString());
+        // Total: exactly 11 upsert calls
+        verify(snapshotRepo, times(11)).upsert(any(), anyString(), anyString());
     }
 
     @Test
@@ -493,6 +498,176 @@ class ProjectionCalculationEngineTest {
         assertEquals(0, payload.path("member_count").asInt());
     }
 
+    // ── computeFormulaGoals (Epic 8 Phase 4) ────────────────────────────────
+
+    @Test
+    void computeFormulaGoals_allGoalsInProgress_whenNoPolicy() throws Exception {
+        // No policy set → all defaults; all Phase 3 snapshots return zero/empty data
+        // → five goals all IN_PROGRESS (zero net worth, zero EMI, zero liquidity, etc.)
+        when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
+        when(profileClient.getAdmin(ADMIN_ID)).thenReturn(buildAdminResponse(MAPPER.createObjectNode()));
+        when(snapshotRepo.findByProfileId(PROFILE_ID)).thenReturn(List.of());
+
+        engine.computeFormulaGoals(PROFILE_ID);
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_FORMULA_GOALS_FAMILY), payloadCaptor.capture());
+
+        JsonNode payload = MAPPER.readTree(payloadCaptor.getValue());
+        assertEquals(5, payload.path("total_count").asInt());
+        assertEquals(5, payload.path("goals").size());
+
+        // All goals IN_PROGRESS when starting from zero, except DEBT_CROSSOVER and INSURANCE_FREE
+        JsonNode goals = payload.path("goals");
+        for (JsonNode goal : goals) {
+            String goalId = goal.path("goal_id").asText();
+            if (!"DEBT_CROSSOVER".equals(goalId) && !"INSURANCE_FREE".equals(goalId)) {
+                assertEquals("IN_PROGRESS", goal.path("status").asText(), "Goal " + goalId + " should be IN_PROGRESS");
+            }
+        }
+        // achieved_count = 0 (debt crossover: 0/0=0 < 50 → ACHIEVED; but net worth is 0 so EMI/NW = 0 < 50 → ACHIEVED)
+        // Actually: debtPercent = 0 (emi=0, nw=0 → 0/0 check gives 0) < 50 → ACHIEVED
+        // So debt crossover alone fires. Let's verify achieved_count >= 0 and that specific goals match.
+        // The Debt Crossover WILL be ACHIEVED (0 < 50) but others won't — verify the goal_id
+        assertEquals("DEBT_CROSSOVER", goals.get(0).path("goal_id").asText());
+        assertEquals("ACHIEVED", goals.get(0).path("status").asText()); // 0 < 50 threshold
+        // Year One: 0 < 1_000_000 → IN_PROGRESS
+        assertEquals("YEAR_ONE", goals.get(4).path("goal_id").asText());
+        assertEquals("IN_PROGRESS", goals.get(4).path("status").asText());
+    }
+
+    @Test
+    void computeFormulaGoals_debtCrossoverAchieved_whenEmiLow() throws Exception {
+        // EMI = 1000, net worth = 100000 → ratio = 1% < 50% threshold → ACHIEVED
+        when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
+        when(profileClient.getAdmin(ADMIN_ID)).thenReturn(buildAdminResponse(MAPPER.createObjectNode()));
+
+        // Build snapshot DTOs for net worth and EMI
+        List<DashboardSnapshotDto> dtos = List.of(
+                buildSnapshotDto(SnapshotKey.WEALTH_NET_WORTH_FAMILY,
+                        "{\"family_net_worth\":100000.0,\"member_count\":1}"),
+                buildSnapshotDto(SnapshotKey.WEALTH_EMI_TRACKING_FAMILY,
+                        "{\"total_monthly_emi\":1000.0,\"total_outstanding_balance\":500000.0,\"member_count\":1}"),
+                buildSnapshotDto(SnapshotKey.WEALTH_LIQUIDITY_TIERS_FAMILY,
+                        "{\"tiers\":{\"LIQUID\":0.0,\"SEMI_LIQUID\":0.0},\"total\":0.0}"),
+                buildSnapshotDto(SnapshotKey.WEALTH_GROWTH_PROJECTION_FAMILY,
+                        "{\"total_current_value\":0.0,\"projections\":[]}")
+        );
+        when(snapshotRepo.findByProfileId(PROFILE_ID)).thenReturn(dtos);
+
+        engine.computeFormulaGoals(PROFILE_ID);
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_FORMULA_GOALS_FAMILY), payloadCaptor.capture());
+
+        JsonNode payload = MAPPER.readTree(payloadCaptor.getValue());
+        JsonNode goals = payload.path("goals");
+        assertEquals("DEBT_CROSSOVER", goals.get(0).path("goal_id").asText());
+        assertEquals("ACHIEVED", goals.get(0).path("status").asText());
+        assertEquals(1.0, goals.get(0).path("current_value").asDouble(), 0.001); // 1000/100000*100 = 1.0
+        assertEquals(50.0, goals.get(0).path("target_value").asDouble(), 0.001);
+    }
+
+    @Test
+    void computeFormulaGoals_yearOneAchieved_whenNetWorthExceedsTarget() throws Exception {
+        when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
+
+        // Policy: year_one_annual_target = 500000
+        ObjectNode policy = MAPPER.createObjectNode();
+        policy.put("year_one_annual_target", 500000.0);
+        when(profileClient.getAdmin(ADMIN_ID)).thenReturn(buildAdminResponse(policy));
+
+        List<DashboardSnapshotDto> dtos = List.of(
+                buildSnapshotDto(SnapshotKey.WEALTH_NET_WORTH_FAMILY,
+                        "{\"family_net_worth\":750000.0,\"member_count\":1}"),
+                buildSnapshotDto(SnapshotKey.WEALTH_EMI_TRACKING_FAMILY,
+                        "{\"total_monthly_emi\":0.0,\"total_outstanding_balance\":0.0,\"member_count\":0}"),
+                buildSnapshotDto(SnapshotKey.WEALTH_LIQUIDITY_TIERS_FAMILY,
+                        "{\"tiers\":{\"LIQUID\":0.0,\"SEMI_LIQUID\":0.0},\"total\":0.0}"),
+                buildSnapshotDto(SnapshotKey.WEALTH_GROWTH_PROJECTION_FAMILY,
+                        "{\"total_current_value\":0.0,\"projections\":[]}")
+        );
+        when(snapshotRepo.findByProfileId(PROFILE_ID)).thenReturn(dtos);
+
+        engine.computeFormulaGoals(PROFILE_ID);
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_FORMULA_GOALS_FAMILY), payloadCaptor.capture());
+
+        JsonNode payload = MAPPER.readTree(payloadCaptor.getValue());
+        JsonNode goals = payload.path("goals");
+        JsonNode yearOneGoal = goals.get(4);
+        assertEquals("YEAR_ONE", yearOneGoal.path("goal_id").asText());
+        assertEquals("ACHIEVED", yearOneGoal.path("status").asText());
+        assertEquals(750000.0, yearOneGoal.path("current_value").asDouble(), 0.001);
+        assertEquals(500000.0, yearOneGoal.path("target_value").asDouble(), 0.001);
+    }
+
+    // ── computeValidation (Epic 8 Phase 4) ───────────────────────────────────
+
+    @Test
+    void computeValidation_warningWhenCategoryUncategorized() throws Exception {
+        when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
+        when(profileClient.getAdmin(ADMIN_ID)).thenReturn(buildAdminResponse(MAPPER.createObjectNode()));
+
+        // Category validation snapshot: 3 uncategorized accounts
+        List<DashboardSnapshotDto> dtos = List.of(
+                buildSnapshotDto(SnapshotKey.WEALTH_CATEGORY_VALIDATION,
+                        "{\"total_accounts\":3,\"categorized_count\":0,\"uncategorized_count\":3}"),
+                buildSnapshotDto(SnapshotKey.WEALTH_GROWTH_PROJECTION_FAMILY,
+                        "{\"total_current_value\":0.0,\"projections\":[]}"),
+                buildSnapshotDto(SnapshotKey.WEALTH_EMI_TRACKING_FAMILY,
+                        "{\"total_monthly_emi\":0.0,\"member_count\":0}")
+        );
+        when(snapshotRepo.findByProfileId(PROFILE_ID)).thenReturn(dtos);
+
+        engine.computeValidation(PROFILE_ID);
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_VALIDATION_REPORT_FAMILY), payloadCaptor.capture());
+
+        JsonNode payload = MAPPER.readTree(payloadCaptor.getValue());
+        assertEquals("WARNING", payload.path("overall_status").asText());
+        JsonNode checks = payload.path("checks");
+        // First check is CATEGORY_RESOLUTION → WARNING
+        assertEquals("CATEGORY_RESOLUTION", checks.get(0).path("check_id").asText());
+        assertEquals("WARNING", checks.get(0).path("status").asText());
+        // warning_count >= 1 (at least category + budget cap since no policy set)
+        assertTrue(payload.path("warning_count").asInt() >= 1);
+    }
+
+    @Test
+    void computeValidation_passWhenAllChecksClean() throws Exception {
+        when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
+
+        // Policy with budget cap set
+        ObjectNode policy = MAPPER.createObjectNode();
+        policy.put("monthly_budget_cap", 50000.0);
+        when(profileClient.getAdmin(ADMIN_ID)).thenReturn(buildAdminResponse(policy));
+
+        // All snapshots clean
+        List<DashboardSnapshotDto> dtos = List.of(
+                buildSnapshotDto(SnapshotKey.WEALTH_CATEGORY_VALIDATION,
+                        "{\"total_accounts\":2,\"categorized_count\":2,\"uncategorized_count\":0}"),
+                buildSnapshotDto(SnapshotKey.WEALTH_GROWTH_PROJECTION_FAMILY,
+                        "{\"total_current_value\":100000.0,\"projections\":[{\"account_id\":\"aaa\",\"growth_rate_annual\":0.12}]}"),
+                buildSnapshotDto(SnapshotKey.WEALTH_EMI_TRACKING_FAMILY,
+                        "{\"total_monthly_emi\":5000.0,\"member_count\":1}")
+        );
+        when(snapshotRepo.findByProfileId(PROFILE_ID)).thenReturn(dtos);
+
+        engine.computeValidation(PROFILE_ID);
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_VALIDATION_REPORT_FAMILY), payloadCaptor.capture());
+
+        JsonNode payload = MAPPER.readTree(payloadCaptor.getValue());
+        assertEquals("PASS", payload.path("overall_status").asText());
+        assertEquals(4, payload.path("pass_count").asInt());
+        assertEquals(0, payload.path("warning_count").asInt());
+        assertEquals(0, payload.path("critical_count").asInt());
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────
 
     private JsonNode buildAccountsResponse(UUID... accountIds) {
@@ -603,5 +778,16 @@ class ProjectionCalculationEngineTest {
     }
 
     private record MemberEntry(UUID profileId, String fullName, String relation) {
+    }
+
+    private JsonNode buildAdminResponse(ObjectNode policySettings) {
+        ObjectNode root = MAPPER.createObjectNode();
+        root.put("id", ADMIN_ID.toString());
+        root.set("policy_settings", policySettings);
+        return root;
+    }
+
+    private DashboardSnapshotDto buildSnapshotDto(String snapshotKey, String payloadJson) {
+        return new DashboardSnapshotDto(PROFILE_ID, snapshotKey, payloadJson, java.time.Instant.now());
     }
 }

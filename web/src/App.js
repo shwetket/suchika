@@ -13,6 +13,9 @@ import { SignUp } from './pages/Public/SignUp';
 // User Pages
 import { Dashboard } from './pages/User/Dashboard';
 
+// Admin Pages
+import { PolicySettings } from './pages/Admin/PolicySettings';
+
 import {
   Accounts as WealthAccounts,
   Transactions as WealthTransactions,
@@ -174,6 +177,16 @@ function App() {
             element={
               <ProtectedRoute requiredRole="user">
                 <HealthProfilePage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Admin Routes */}
+          <Route
+            path="/admin/policy"
+            element={
+              <ProtectedRoute requiredRole="admin">
+                <PolicySettings />
               </ProtectedRoute>
             }
           />
