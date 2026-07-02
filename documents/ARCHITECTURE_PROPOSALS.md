@@ -5,7 +5,7 @@
 | **Type** | Reference — Proposal Log |
 | **Audience** | All developers |
 | **Status** | Active |
-| **Last updated** | 2026-06-23 |
+| **Last updated** | 2026-07-02 |
 
 ## Objective
 
@@ -25,7 +25,7 @@ Track open architectural questions that need a team decision before implementati
 | [PROP-002](#prop-002-cross-domain-data-in-restricted-profiles) | Cross-Domain Data in Restricted Profiles | Open |
 | [PROP-003](#prop-003-event-sourcing-for-wealth-transactions) | Event Sourcing for Wealth Transactions | Open |
 | [PROP-004](#prop-004-api-versioning-strategy) | API Versioning Strategy | Open |
-| [PROP-005](#prop-005-frontend-state-management) | Frontend State Management | Open |
+| [PROP-005](#prop-005-frontend-state-management) | Frontend State Management | Resolved → ADR-018 |
 
 ---
 
@@ -102,7 +102,9 @@ Track open architectural questions that need a team decision before implementati
 
 ## PROP-005: Frontend State Management
 
-**Status:** Open
+**Status:** Resolved — see ADR-018
+
+**Decision made:** Option A — React Query for server state (data fetching/caching/refetching), `useState`/`useReducer` for local UI state, existing Context API retained for auth/global state. No Redux, no Zustand. Decided 2026-07-02 by the product owner. Unblocks the v0.5 Consolidated Action Center (Phase 3).
 
 **Context:** The frontend is a React app using Context API for auth state. As cross-domain views (Unified Dashboard, Vacation Planner) grow, local component state will not be enough.
 
@@ -120,5 +122,3 @@ Track open architectural questions that need a team decision before implementati
 - Lightweight global store.
 - Pro: minimal boilerplate, easy to colocate with features.
 - Con: less opinionated — needs team conventions.
-
-**Decision needed:** Which approach before building the Unified Dashboard?

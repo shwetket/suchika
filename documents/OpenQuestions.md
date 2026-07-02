@@ -5,7 +5,7 @@
 | **Type** | Decision Log |
 | **Audience** | Product owner (Ketan) |
 | **Status** | Active |
-| **Last updated** | 2026-06-30 (Q1-Q13 resolved) |
+| **Last updated** | 2026-07-02 (Q26-Q29 resolved; Q30 added) |
 
 ## Purpose
 
@@ -217,3 +217,31 @@ C) Leave unscheduled — treat `REQUIREMENTS_wealth_domain.md` Epic 8 as approve
 
 **Q24.** ~~Should Phase 2's manual transaction-category tagging reuse the existing single-row update path...~~ **DEFAULTED — 2026-06-30 (auto mode, low-risk call).**
 *Resolution:* Option B — minimal bulk-tag-by-selection endpoint (tag a list of transaction IDs in one call) ships in Phase 2. Rationale: a 12-month statement backlog tagged one row at a time is unusable, and the bulk-by-ID-list shape is small (no pattern-matching, no rules, no admin UI) so it does not meaningfully encroach on v1.3's Rule-Based Tagging Engine scope. Flagging this as a default I made rather than a silent decision — say the word if you'd rather start with single-row only.
+
+---
+
+## v0.5 Readiness Review Questions — 2026-07-02
+
+*Context for all questions below: raised during the architect's pre-v0.5 code-verification pass (Vacation Planner + Consolidated Action Center readiness). These surfaced as genuine product-owner decisions gating v0.5 phased work, distinct from things the architect could decide independently.*
+
+**Q26.** ~~Which frontend state-management approach (PROP-005) should be adopted before the Consolidated Action Center starts...~~ **RESOLVED — 2026-07-02 (product owner).**
+*Resolution:* Option A — React Query for server state, existing Context API kept for auth/global state, no Redux/Zustand. Full rationale and rejected alternatives: see `documents/ARCHITECTURE_DECISIONS.md` ADR-018. Unblocks v0.5 Phase 3 (Consolidated Action Center).
+
+*Original question, preserved for context:* PROP-005 (frontend state management) was still marked Open with no ADR despite ROADMAP.md flagging it as a pre-Action-Center blocker since 2026-06-29. Options were React Query + local state (A), Redux Toolkit (B), Zustand (C).
+
+**Q27.** ~~Where should the Vacation Planner page live in the frontend nav?~~ **RESOLVED — 2026-07-02 (product owner).**
+*Resolution:* Under Household nav, route `/household/vacation-planner`, even though the feature reads cross-domain data (wealth liquid savings + household calendar + wealth physical assets).
+
+**Q28.** ~~Should the `TransactionResource`/`TransactionService` profile_id threading gap be fixed now or deferred?~~ **RESOLVED — 2026-07-02 (product owner).**
+*Resolution:* Fix now, as part of v0.5 Phase 0 (small independent CRUD/fix work), not deferred. Scope: add `profile_id` query param to `TransactionResource.listTransactions()`, thread it through `TransactionUseCase.listByAccount()` and `TransactionService.listByAccount()` (currently hardcodes `null` with an explicit comment opting out — see `TransactionService.java:32-37`), reusing the filter logic that already exists and works correctly in `TransactionPanacheRepository` (verified present at `findByAccountId`/`existsByDeduplicationKey`/`sumAmountByTxnType`, just never invoked from the HTTP layer with a real profileId).
+
+**Q29.** ~~Should physical asset PUC/insurance/road-tax expiry dates be promoted from JSONB metadata to typed columns before the Vacation Planner's asset-compliance check is built?~~ **RESOLVED — 2026-07-02 (product owner).**
+*Resolution:* Keep as JSONB (no schema promotion). The Vacation Planner's compliance check parses `metadata.puc_expiry`/`metadata.insurance_expiry`/`metadata.road_tax_expiry` (string dates from the existing `Map<String,String>` metadata) defensively in the gateway — null-safe, tolerant of missing/malformed keys, no DB-level date validation added. Matches the existing precedent (`wealth.physical_asset.metadata` documented shape in `V2__physical_assets.sql`).
+
+**Q30.** What counts as a "biometric streak gap" for the Consolidated Action Center (v0.5 Phase 3)?
+
+*Status:* **Open — blocks Phase 3 only.** Does not block Phase 0, 1, or 2 (Vacation Planner). No threshold invented yet; do not implement against a guessed definition.
+
+*Context:* The v0.5 Consolidated Action Center scope lists "biometric streak gaps" as one of three alert sources (alongside upcoming calendar events and vehicle compliance deadlines), but no acceptance criteria exist anywhere in `BUSINESS_REQUIREMENTS.md` or the health domain-state file. Needs product-owner input on: which vital types count (all 10, or a subset like weight/BP/blood-sugar), what gap threshold triggers an alert (e.g., "no weight reading in 7 days"), and whether the gap is evaluated per-profile or family-wide (consistent with ADR-017's household-rollup precedent for wealth, though vitals are explicitly per-person per that same ADR).
+
+*To be resolved before Phase 3 (Consolidated Action Center) implementation starts. Phase 0-2 work is unaffected.*

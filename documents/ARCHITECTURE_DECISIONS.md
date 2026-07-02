@@ -5,7 +5,7 @@
 | **Type** | Reference — ADR Log |
 | **Audience** | All developers |
 | **Status** | Active |
-| **Last updated** | 2026-06-30 (ADR-017 added) |
+| **Last updated** | 2026-07-02 (ADR-018 added) |
 
 ## Objective
 
@@ -38,6 +38,7 @@ Record every significant architectural decision made for this project, along wit
 | [ADR-015](#adr-015-uploadresult-as-a-ports-layer-return-type) | UploadResult as a Ports-Layer Return Type | Accepted — 2026-06-29 |
 | [ADR-016](#adr-016-joint-account-ownership-via-designated-profile_id--metadata-attribution) | Joint Account Ownership via Designated `profile_id` + Metadata Attribution | Accepted — 2026-06-30 |
 | [ADR-017](#adr-017-household-level-dashboard-aggregation) | Household-Level Dashboard Aggregation | Accepted — 2026-06-30 |
+| [ADR-018](#adr-018-react-query-for-frontend-server-state) | React Query for Frontend Server State | Accepted — 2026-07-02 |
 
 ---
 
@@ -374,3 +375,28 @@ The joint Kotak account (ADR-016: designated `profile_id` = Shweta, `metadata.jo
 **Impact on Epic 8 phases:** See `documents/EPIC8_IMPLEMENTATION_PLAN.md` (revised 2026-06-30) — the family-rollup aggregation step is added to Phase 1 as a thin wrapper around the per-account balance fix already in progress; it does not replace or invalidate that work. Phases 3-4 (EMI tracking, goals, validation) reuse the same aggregation mechanism (`listProfiles(admin_id)` + loop + sum-with-nested-breakdown) rather than needing a redesign.
 
 **Schema impact:** None. No new table, no new column, no new migration. `projections.dashboard_snapshot` keeps its existing `(profile_id, snapshot_key)` primary key shape — only new `snapshot_key` string constants are added in `SnapshotKey.java`.
+
+---
+
+## ADR-018: React Query for Frontend Server State
+
+**Status:** Accepted — decided 2026-07-02 (product owner)
+
+**Decision:** Adopt React Query (`@tanstack/react-query`) as the standard mechanism for all server-state data fetching, caching, and refetching in the frontend. Existing `useState`/`useReducer` local component state stays for pure UI state (form inputs, modal open/closed, filter selections). The existing Context API stays for auth/global state (current user, role, active profile). No Redux, no Zustand.
+
+**Context:** PROP-005 asked how the frontend should manage state as cross-domain views (Vacation Planner, Consolidated Action Center) grow beyond what ad-hoc `useEffect` + `useState` data-fetching can comfortably support. Three options were on the table: React Query + local state (Option A), Redux Toolkit (Option B), Zustand (Option C).
+
+**Rationale:**
+- The app is overwhelmingly server-data-driven — almost every page's state originates from a domain/gateway REST call, not from complex client-only interaction state. React Query is purpose-built for exactly this shape of app.
+- Avoids Redux Toolkit's boilerplate (actions, slices, selectors) for a problem that is fundamentally "fetch, cache, invalidate, refetch" — not general-purpose global state.
+- Avoids introducing a second general-state library (Zustand) alongside the Context API already in use for auth — one pattern for server state (React Query) and one pattern for global UI/auth state (Context) is simpler to teach and review than three overlapping systems.
+- Directly unblocks the Consolidated Action Center (v0.5 Phase 3): it aggregates alerts from all three domains in one view and needs shared, de-duplicated server-state fetching/caching across pages — a first-class React Query use case (shared query keys, background refetch, no manual cache-busting logic).
+- Vacation Planner (v0.5 Phase 2) can adopt the same pattern from the start rather than needing a rewrite once Phase 3 begins.
+
+**Scope of adoption:** New pages (Vacation Planner, Consolidated Action Center) build on React Query from day one. Existing pages are migrated opportunistically — no forced big-bang rewrite of already-working pages.
+
+**Rejected alternatives:**
+- **Redux Toolkit:** predictable and has good devtools, but the app has no significant client-only global state beyond auth (already served by Context) — Redux's ceremony isn't justified here.
+- **Zustand:** minimal boilerplate, but doesn't solve caching/refetching/invalidation the way React Query does natively; would still need a separate data-fetching layer on top, effectively reinventing React Query.
+
+**Impact:** `web/package.json` gains `@tanstack/react-query` (or `react-query` per whichever major version the team lands on) as a new dependency. A `QueryClientProvider` is added once at the app root (`web/src/App.js` or equivalent). No backend change.
