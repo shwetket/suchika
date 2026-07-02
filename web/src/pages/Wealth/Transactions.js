@@ -170,8 +170,12 @@ TransactionRow.propTypes = {
 
 const EMPTY_TXN_FORM = { txn_date: '', amount: '', txn_type: 'DEBIT', description: '' };
 
+const PAGE_SIZE = 20;
+
 function TransactionsTab({ accountId, profileId }) {
   const [transactions, setTransactions] = useState([]);
+  const [totalSize, setTotalSize] = useState(0);
+  const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [fromDate, setFromDate] = useState('');
@@ -193,19 +197,30 @@ function TransactionsTab({ accountId, profileId }) {
         profileId,
         fromDate || null,
         toDate || null,
-        txnType
+        txnType,
+        page,
+        PAGE_SIZE
       );
       setTransactions(data.transactions ?? []);
+      setTotalSize(data.total_size ?? (data.transactions ?? []).length);
     } catch (err) {
       setError(err.message || 'Failed to load transactions');
     } finally {
       setLoading(false);
     }
-  }, [accountId, profileId, fromDate, toDate, txnType]);
+  }, [accountId, profileId, fromDate, toDate, txnType, page]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  // Reset to page 0 whenever the filters (not the page itself) change.
+  useEffect(() => {
+    setPage(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountId, profileId, fromDate, toDate, txnType]);
+
+  const totalPages = Math.max(1, Math.ceil(totalSize / PAGE_SIZE));
 
   const handleAddChange = useCallback((e) => {
     const { name, value } = e.target;
@@ -324,6 +339,30 @@ function TransactionsTab({ accountId, profileId }) {
               ))}
             </tbody>
           </table>
+
+          <div className="flex items-center justify-between mt-4 text-sm text-gray-600">
+            <span>
+              Page {page + 1} of {totalPages} ({totalSize} total)
+            </span>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                disabled={page === 0}
+                className="px-3 py-1.5 border border-gray-300 rounded text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Previous
+              </button>
+              <button
+                type="button"
+                onClick={() => setPage((p) => (p + 1 < totalPages ? p + 1 : p))}
+                disabled={page + 1 >= totalPages}
+                className="px-3 py-1.5 border border-gray-300 rounded text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

@@ -428,6 +428,10 @@ export interface components {
     };
     ListTransactionsResponse: {
       transactions?: components["schemas"]["TransactionResponse"][];
+      /** Format: int64 */
+      total_size?: number;
+      page?: number;
+      size?: number;
     };
     /**
      * @description Epic 8 Phase 2 hardcoded expense category enum (manual tagging only).
@@ -754,6 +758,10 @@ export interface operations {
         /** @description End date filter (inclusive), format YYYY-MM-DD. */
         to?: string;
         txn_type?: components["schemas"]["TransactionType"];
+        /** @description 0-indexed page number. Defaults to 0. */
+        page?: number;
+        /** @description Page size. Defaults to 50, max 200. */
+        size?: number;
       };
       path: {
         accountId: components["parameters"]["AccountId"];
@@ -766,6 +774,7 @@ export interface operations {
           "application/json": components["schemas"]["ListTransactionsResponse"];
         };
       };
+      400: components["responses"]["BadRequest"];
       404: components["responses"]["NotFound"];
       500: components["responses"]["InternalError"];
     };

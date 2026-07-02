@@ -7,6 +7,7 @@ import com.suchika.wealth.domain.ExpenseCategory;
 import com.suchika.wealth.domain.Transaction;
 import com.suchika.wealth.domain.TxnType;
 import com.suchika.wealth.ports.input.CreateTransactionCommand;
+import com.suchika.wealth.ports.input.PagedTransactions;
 import com.suchika.wealth.ports.input.TransactionUseCase;
 import com.suchika.wealth.ports.output.TransactionRepository;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -32,6 +33,14 @@ public class TransactionService implements TransactionUseCase {
     @Override
     public List<Transaction> listByAccount(UUID accountId, UUID profileId, LocalDate from, LocalDate to, TxnType txnType) {
         return repository.findByAccountId(accountId, profileId, from, to, txnType);
+    }
+
+    @Override
+    public PagedTransactions listByAccountPaginated(UUID accountId, UUID profileId, LocalDate from, LocalDate to,
+                                                      TxnType txnType, int page, int size) {
+        List<Transaction> transactions = repository.findByAccountId(accountId, profileId, from, to, txnType, page, size);
+        long totalCount = repository.countByAccountId(accountId, profileId, from, to, txnType);
+        return new PagedTransactions(transactions, totalCount);
     }
 
     @Override

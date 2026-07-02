@@ -100,8 +100,10 @@ public class WealthGatewayResource {
             @QueryParam("profile_id") String profileId,
             @QueryParam("from") String from,
             @QueryParam("to") String to,
-            @QueryParam("txn_type") String txnType) {
-        return wealthServiceClient.listTransactions(accountId, profileId, from, to, txnType);
+            @QueryParam("txn_type") String txnType,
+            @QueryParam("page") Integer page,
+            @QueryParam("size") Integer size) {
+        return wealthServiceClient.listTransactions(accountId, profileId, from, to, txnType, page, size);
     }
 
     @GET

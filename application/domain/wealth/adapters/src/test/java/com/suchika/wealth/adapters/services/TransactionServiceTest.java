@@ -252,6 +252,44 @@ class TransactionServiceTest {
         assertThrows(BadRequestException.class, () -> service.create(accountId, null, cmd));
     }
 
+    // ---- v0.6 UX: transaction list pagination ----
+
+    @Test
+    void listByAccountPaginated_returnsRequestedPageAndTotalCount() {
+        UUID accountId = UUID.randomUUID();
+        for (int i = 0; i < 5; i++) {
+            repo.store.add(Transaction.builder()
+                    .id(UUID.randomUUID())
+                    .accountId(accountId)
+                    .txnDate(LocalDate.of(2026, Month.JANUARY, 1 + i))
+                    .amount(BigDecimal.TEN)
+                    .txnType(TxnType.DEBIT)
+                    .description("txn " + i)
+                    .build());
+        }
+
+        com.suchika.wealth.ports.input.PagedTransactions result =
+                service.listByAccountPaginated(accountId, null, null, null, null, 1, 2);
+
+        assertEquals(2, result.transactions().size());
+        assertEquals(5, result.totalCount());
+        assertEquals(1, repo.lastPage);
+        assertEquals(2, repo.lastSize);
+    }
+
+    @Test
+    void listByAccountPaginated_passesProfileIdAndFiltersThroughToRepo() {
+        UUID accountId = UUID.randomUUID();
+        UUID profileId = UUID.randomUUID();
+        LocalDate from = LocalDate.of(2026, Month.JANUARY, 1);
+
+        service.listByAccountPaginated(accountId, profileId, from, null, TxnType.CREDIT, 0, 10);
+
+        assertEquals(profileId, repo.lastProfileId);
+        assertEquals(from, repo.lastFrom);
+        assertEquals(TxnType.CREDIT, repo.lastTxnType);
+    }
+
     // ---- Fake repository ----
 
     static class FakeTransactionRepository implements TransactionRepository {
@@ -294,6 +332,9 @@ class TransactionServiceTest {
             return store.stream().filter(t -> id.equals(t.getId())).findFirst();
         }
 
+        Integer lastPage;
+        Integer lastSize;
+
         @Override
         public List<Transaction> findByAccountId(UUID accountId, UUID profileId, LocalDate from, LocalDate to, TxnType txnType) {
             this.lastAccountId = accountId;
@@ -310,6 +351,22 @@ class TransactionServiceTest {
                     .filter(t -> to == null || !t.getTxnDate().isAfter(to))
                     .filter(t -> txnType == null || txnType.equals(t.getTxnType()))
                     .toList();
+        }
+
+        @Override
+        public List<Transaction> findByAccountId(UUID accountId, UUID profileId, LocalDate from, LocalDate to, TxnType txnType,
+                                                   int page, int size) {
+            this.lastPage = page;
+            this.lastSize = size;
+            List<Transaction> all = findByAccountId(accountId, profileId, from, to, txnType);
+            int start = Math.min(page * size, all.size());
+            int end = Math.min(start + size, all.size());
+            return all.subList(start, end);
+        }
+
+        @Override
+        public long countByAccountId(UUID accountId, UUID profileId, LocalDate from, LocalDate to, TxnType txnType) {
+            return findByAccountId(accountId, profileId, from, to, txnType).size();
         }
 
         @Override
