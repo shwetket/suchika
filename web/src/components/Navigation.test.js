@@ -14,7 +14,7 @@ const defaultProps = {
 };
 
 function renderNav(authValue) {
-  mockUseAuth.mockReturnValue(authValue);
+  mockUseAuth.mockReturnValue({ hasRole: () => false, ...authValue });
   return render(
     <MemoryRouter>
       <Navigation {...defaultProps} />
@@ -94,7 +94,7 @@ describe('Navigation', () => {
 
   it('calls onToggleTheme when theme button clicked', () => {
     const onToggleTheme = jest.fn();
-    mockUseAuth.mockReturnValue({ user: null, logout: jest.fn(), isAuthenticated: false });
+    mockUseAuth.mockReturnValue({ user: null, logout: jest.fn(), isAuthenticated: false, hasRole: () => false });
     render(
       <MemoryRouter>
         <Navigation theme="light" onToggleTheme={onToggleTheme} />

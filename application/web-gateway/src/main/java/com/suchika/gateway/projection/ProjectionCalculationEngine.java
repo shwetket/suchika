@@ -706,7 +706,7 @@ public class ProjectionCalculationEngine {
         JsonNode growthPayload = snapshots.getOrDefault(SnapshotKey.WEALTH_GROWTH_PROJECTION_FAMILY, MAPPER.createObjectNode());
 
         double familyNetWorth = netWorthPayload.path("family_net_worth").asDouble(0.0);
-        double totalMonthlyEmi = emiPayload.path(MONTHLY_EMI_FIELD).asDouble(0.0);
+        double totalMonthlyEmi = emiPayload.path("total_monthly_emi").asDouble(0.0);
         JsonNode tiers = liquidityPayload.path("tiers");
         double liquidBalance = tiers.path("LIQUID").asDouble(0.0);
         double semiLiquidBalance = tiers.path("SEMI_LIQUID").asDouble(0.0);
@@ -888,7 +888,7 @@ public class ProjectionCalculationEngine {
         // Check 3 — EMI Data Completeness
         JsonNode emiPayload = snapshots.getOrDefault(SnapshotKey.WEALTH_EMI_TRACKING_FAMILY, MAPPER.createObjectNode());
         int memberCount = emiPayload.path(MEMBER_COUNT_FIELD).asInt(0);
-        double totalEmi = emiPayload.path(MONTHLY_EMI_FIELD).asDouble(0.0);
+        double totalEmi = emiPayload.path("total_monthly_emi").asDouble(0.0);
         boolean emiIncomplete = memberCount > 0 && totalEmi == 0.0;
         if (emiIncomplete) {
             checksArray.add(buildCheckEntry(

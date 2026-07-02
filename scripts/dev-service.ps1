@@ -1,5 +1,5 @@
 #Requires -Version 5.1
-# Shared dev-mode helper — called by dev-aliases.ps1, not directly by users.
+# Shared dev-mode helper - called by dev-aliases.ps1, not directly by users.
 # Opens a new terminal window running quarkusDev (or npm start for web).
 # STARTUP ORDER: always start profile before other domain services.
 #
@@ -34,16 +34,16 @@ function IsPortBusy($p) {
 }
 
 if (IsPortBusy $port[$Service]) {
-    Write-Host "  [!]  Port $($port[$Service]) already in use — $Service may already be running." -ForegroundColor Yellow
+    Write-Host "  [!]  Port $($port[$Service]) already in use - $Service may already be running." -ForegroundColor Yellow
     Write-Host "       Run: stop-all   then retry, or run: status   to check." -ForegroundColor DarkGray
     return
 }
 
 if ($Service -eq 'web') {
-    $cmd = "Set-Location '$root\web'; Write-Host 'React dev server  →  http://localhost:3000' -ForegroundColor Cyan; npm start"
+    $cmd = "Set-Location '$root\web'; Write-Host 'React dev server  ->  http://localhost:3000' -ForegroundColor Cyan; npm start"
 } else {
     $task = $gradleTask[$Service]
-    $cmd  = "Set-Location '$root'; Write-Host '$Service dev server  →  http://localhost:$($port[$Service])' -ForegroundColor Cyan; .\gradlew.bat $task"
+    $cmd  = "Set-Location '$root'; Write-Host '$Service dev server  ->  http://localhost:$($port[$Service])' -ForegroundColor Cyan; .\gradlew.bat $task"
 }
 
 # Prefer Windows Terminal tabs; fall back to a new PowerShell window
@@ -56,4 +56,4 @@ if ($wtAvailable) {
 }
 
 Write-Host "  [>>] $Service starting on port $($port[$Service])  (new window)" -ForegroundColor Green
-Write-Host "       Run: status   to check when it's ready." -ForegroundColor DarkGray
+Write-Host "       Run: status   to check when it is ready." -ForegroundColor DarkGray
