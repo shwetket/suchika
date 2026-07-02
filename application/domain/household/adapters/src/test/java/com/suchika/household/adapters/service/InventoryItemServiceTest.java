@@ -87,6 +87,45 @@ class InventoryItemServiceTest {
     }
 
     @Test
+    void update_notFound_throwsNotFoundException() {
+        assertThrows(NotFoundException.class, () -> service.update(UUID.randomUUID(), "New Name",
+                null, null, null, null, null, null));
+    }
+
+    @Test
+    void update_patchesProvidedFieldsOnly() {
+        UUID profileId = UUID.randomUUID();
+        InventoryItem created = service.create(profileId, "Milk", new BigDecimal("2"),
+                ItemUnit.L, SourcePlatform.INSTAMART, PURCHASE_DATE, "Dairy");
+
+        InventoryItem updated = service.update(created.getId(), "Whole Milk", null, null,
+                null, null, null, null);
+
+        assertEquals("Whole Milk", updated.getItemName());
+        assertEquals(0, new BigDecimal("2").compareTo(updated.getQuantity()));
+        assertEquals(ItemUnit.L, updated.getUnit());
+        assertEquals(SourcePlatform.INSTAMART, updated.getSourcePlatform());
+        assertEquals("Dairy", updated.getCategory());
+        assertEquals(false, updated.isConsumed());
+    }
+
+    @Test
+    void update_toggleIsConsumedTrue_marksRecordConsumed() {
+        UUID profileId = UUID.randomUUID();
+        InventoryItem created = service.create(profileId, "Milk", new BigDecimal("2"),
+                ItemUnit.L, SourcePlatform.INSTAMART, PURCHASE_DATE, "Dairy");
+        assertEquals(false, created.isConsumed());
+
+        InventoryItem updated = service.update(created.getId(), null, null, null,
+                null, null, null, true);
+
+        assertEquals(true, updated.isConsumed());
+        // Untouched fields remain the same — is_consumed means "used in a calculation",
+        // not "used up"; no other data should be altered by the toggle.
+        assertEquals("Milk", updated.getItemName());
+    }
+
+    @Test
     void delete_notFound_throwsNotFoundException() {
         assertThrows(NotFoundException.class, () -> service.delete(UUID.randomUUID()));
     }
@@ -120,6 +159,7 @@ class InventoryItemServiceTest {
                     .sourcePlatform(item.getSourcePlatform())
                     .purchaseDate(item.getPurchaseDate())
                     .category(item.getCategory())
+                    .consumed(item.isConsumed())
                     .createdAt(item.getCreatedAt() != null ? item.getCreatedAt() : Instant.EPOCH)
                     .build();
             store.put(id, stored);

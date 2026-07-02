@@ -94,6 +94,12 @@ public class HouseholdGatewayResource {
         return householdServiceClient.getInventoryItem(id);
     }
 
+    @PUT
+    @Path("/inventory-items/{id}")
+    public JsonNode updateInventoryItem(@PathParam("id") UUID id, JsonNode body) {
+        return householdServiceClient.updateInventoryItem(id, body);
+    }
+
     @DELETE
     @Path("/inventory-items/{id}")
     public Response deleteInventoryItem(@PathParam("id") UUID id) {

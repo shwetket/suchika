@@ -9,6 +9,7 @@ jest.mock('../../api/profiles', () => ({
 jest.mock('../../api/household', () => ({
   listInventoryItems: jest.fn(),
   createInventoryItem: jest.fn(),
+  updateInventoryItem: jest.fn(),
   deleteInventoryItem: jest.fn(),
 }));
 
@@ -16,6 +17,7 @@ const { listProfiles } = require('../../api/profiles');
 const {
   listInventoryItems,
   createInventoryItem,
+  updateInventoryItem,
   deleteInventoryItem,
 } = require('../../api/household');
 
@@ -31,6 +33,7 @@ const MOCK_ITEMS = [
     source_platform: 'BLINKIT',
     purchase_date: '2026-06-20',
     category: 'Dairy',
+    is_consumed: false,
   },
   {
     id: 'i2',
@@ -41,6 +44,7 @@ const MOCK_ITEMS = [
     source_platform: 'AMAZON_FRESH',
     purchase_date: '2026-06-18',
     category: null,
+    is_consumed: true,
   },
 ];
 
@@ -340,6 +344,155 @@ describe('Inventory page', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/failed to delete item/i)).toBeInTheDocument();
+    });
+  });
+
+  it('"Edit" button opens the edit form modal pre-filled with item data', async () => {
+    listInventoryItems.mockResolvedValue({ inventory_items: MOCK_ITEMS });
+    render(<Inventory />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+    await waitFor(() => screen.getAllByText('Edit'));
+
+    fireEvent.click(screen.getAllByText('Edit')[0]);
+
+    expect(screen.getByRole('heading', { name: /edit item/i })).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Milk')).toBeInTheDocument();
+  });
+
+  it('submits edit item form and reloads list', async () => {
+    listInventoryItems.mockResolvedValue({ inventory_items: MOCK_ITEMS });
+    updateInventoryItem.mockResolvedValue({ id: 'i1', item_name: 'Whole Milk' });
+    render(<Inventory />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+    await waitFor(() => screen.getAllByText('Edit'));
+
+    fireEvent.click(screen.getAllByText('Edit')[0]);
+
+    fireEvent.change(screen.getByDisplayValue('Milk'), {
+      target: { name: 'item_name', value: 'Whole Milk' },
+    });
+
+    const submitBtn = screen
+      .getAllByRole('button', { name: /save changes/i })
+      .find((b) => b.type === 'submit');
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(updateInventoryItem).toHaveBeenCalledWith(
+        'i1',
+        expect.objectContaining({ item_name: 'Whole Milk' })
+      );
+    });
+  });
+
+  it('shows validation error when item_name is cleared on edit', async () => {
+    listInventoryItems.mockResolvedValue({ inventory_items: MOCK_ITEMS });
+    render(<Inventory />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+    await waitFor(() => screen.getAllByText('Edit'));
+
+    fireEvent.click(screen.getAllByText('Edit')[0]);
+
+    fireEvent.change(screen.getByDisplayValue('Milk'), {
+      target: { name: 'item_name', value: '' },
+    });
+
+    const submitBtn = screen
+      .getAllByRole('button', { name: /save changes/i })
+      .find((b) => b.type === 'submit');
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText(/item name is required/i)).toBeInTheDocument();
+    });
+  });
+
+  it('closes the edit item modal when Cancel is clicked', async () => {
+    listInventoryItems.mockResolvedValue({ inventory_items: MOCK_ITEMS });
+    render(<Inventory />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+    await waitFor(() => screen.getAllByText('Edit'));
+
+    fireEvent.click(screen.getAllByText('Edit')[0]);
+    expect(screen.getByRole('heading', { name: /edit item/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
+    expect(screen.queryByRole('heading', { name: /edit item/i })).not.toBeInTheDocument();
+  });
+
+  it('shows error when updateInventoryItem API fails on edit', async () => {
+    listInventoryItems.mockResolvedValue({ inventory_items: MOCK_ITEMS });
+    updateInventoryItem.mockRejectedValue(new Error());
+    render(<Inventory />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+    await waitFor(() => screen.getAllByText('Edit'));
+
+    fireEvent.click(screen.getAllByText('Edit')[0]);
+
+    const submitBtn = screen
+      .getAllByRole('button', { name: /save changes/i })
+      .find((b) => b.type === 'submit');
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText(/failed to update item/i)).toBeInTheDocument();
+    });
+  });
+
+  it('renders is_consumed checkbox reflecting item state', async () => {
+    listInventoryItems.mockResolvedValue({ inventory_items: MOCK_ITEMS });
+    render(<Inventory />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+    await waitFor(() => screen.getByText('Milk'));
+
+    const checkboxes = screen.getAllByRole('checkbox');
+    expect(checkboxes[0]).not.toBeChecked();
+    expect(checkboxes[1]).toBeChecked();
+  });
+
+  it('toggles is_consumed and reloads list', async () => {
+    listInventoryItems.mockResolvedValue({ inventory_items: MOCK_ITEMS });
+    updateInventoryItem.mockResolvedValue({ id: 'i1', is_consumed: true });
+    render(<Inventory />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+    await waitFor(() => screen.getByText('Milk'));
+
+    const checkboxes = screen.getAllByRole('checkbox');
+    fireEvent.click(checkboxes[0]);
+
+    await waitFor(() => {
+      expect(updateInventoryItem).toHaveBeenCalledWith('i1', { is_consumed: true });
+    });
+  });
+
+  it('shows error when toggling is_consumed fails', async () => {
+    listInventoryItems.mockResolvedValue({ inventory_items: MOCK_ITEMS });
+    updateInventoryItem.mockRejectedValue(new Error());
+    render(<Inventory />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+    await waitFor(() => screen.getByText('Milk'));
+
+    const checkboxes = screen.getAllByRole('checkbox');
+    fireEvent.click(checkboxes[0]);
+
+    await waitFor(() => {
+      expect(screen.getByText(/failed to update item/i)).toBeInTheDocument();
     });
   });
 });

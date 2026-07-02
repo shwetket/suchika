@@ -38,6 +38,9 @@ public class InventoryItemDto {
     @JsonProperty("category")
     public String category;
 
+    @JsonProperty("is_consumed")
+    public boolean isConsumed;
+
     @JsonProperty("created_at")
     public Instant createdAt;
 
@@ -51,6 +54,7 @@ public class InventoryItemDto {
         dto.sourcePlatform = item.getSourcePlatform() != null ? item.getSourcePlatform().name() : null;
         dto.purchaseDate = item.getPurchaseDate();
         dto.category = item.getCategory();
+        dto.isConsumed = item.isConsumed();
         dto.createdAt = item.getCreatedAt();
         return dto;
     }

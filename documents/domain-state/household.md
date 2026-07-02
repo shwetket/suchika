@@ -168,6 +168,9 @@ Base URL: `http://localhost:8084`
 - Dashboard Refresh section uses `user.profile_id` from auth context; if auth token does not include `profile_id`, the refresh button stays disabled. Link profile_id into the auth response in a future iteration.
 - Task Tracking deferred to v0.4 — no `task` table exists yet. Will need `V4__tasks.sql` when scoped.
 - Inventory CSV import deferred to v0.4 — v0.3 is manual CRUD only.
+- **v0.5 Phase 0 (planned): `PUT /v1/inventory-items/{id}` endpoint + edit modal.** Verified 2026-07-02: `InventoryItemResource.java` currently has only GET/POST/GET-by-id/DELETE — no PUT exists.
+- **v0.5 Phase 0 (planned): `is_consumed BOOLEAN` flag on inventory items** (Q6 resolution — means "used in a calculation," not "used up"; no deletion, no expiry). New Flyway `V4__inventory_item_consumed_flag.sql` (V1-V3 already committed, never edit them).
+- **v0.5 Phase 2 (planned): Vacation Planner feature lives here in nav** — route `/household/vacation-planner` (product owner decision, `OpenQuestions.md` Q27), even though it's a cross-domain feature reading wealth liquidity data and wealth physical-asset compliance dates alongside household calendar events. New gateway `VacationPlannerResource`/`VacationPlannerService` composes `HouseholdServiceClient` (calendar events, trip dates) + `WealthServiceClient` (liquid savings, physical asset metadata).
 
 ## Completed in v0.3 Gateway Pass (G1–G4)
 

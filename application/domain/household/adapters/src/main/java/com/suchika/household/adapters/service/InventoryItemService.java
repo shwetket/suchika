@@ -51,6 +51,32 @@ public class InventoryItemService implements InventoryItemUseCase {
 
     @Override
     @Transactional
+    public InventoryItem update(UUID id, String itemName, BigDecimal quantity, ItemUnit unit,
+                                SourcePlatform sourcePlatform, LocalDate purchaseDate,
+                                String category, Boolean isConsumed) {
+        InventoryItem existing = repository.findById(id)
+                .orElseThrow(() -> new NotFoundException(ITEM_NOT_FOUND + id));
+
+        InventoryItem updated = InventoryItem.builder()
+                .id(existing.getId())
+                .profileId(existing.getProfileId())
+                .itemName(itemName != null ? itemName : existing.getItemName())
+                .quantity(quantity != null ? quantity : existing.getQuantity())
+                .unit(unit != null ? unit : existing.getUnit())
+                .sourcePlatform(sourcePlatform != null ? sourcePlatform : existing.getSourcePlatform())
+                .purchaseDate(purchaseDate != null ? purchaseDate : existing.getPurchaseDate())
+                .category(category != null ? category : existing.getCategory())
+                .consumed(isConsumed != null ? isConsumed : existing.isConsumed())
+                .createdAt(existing.getCreatedAt())
+                .build();
+
+        InventoryItem saved = repository.save(updated);
+        AppLogger.info("Inventory item updated: %s", saved.getId());
+        return saved;
+    }
+
+    @Override
+    @Transactional
     public void delete(UUID id) {
         if (!repository.existsById(id)) {
             throw new NotFoundException(ITEM_NOT_FOUND + id);

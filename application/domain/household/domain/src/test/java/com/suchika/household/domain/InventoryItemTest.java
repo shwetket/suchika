@@ -43,6 +43,30 @@ class InventoryItemTest {
     }
 
     @Test
+    void create_defaultsIsConsumedToFalse() {
+        InventoryItem item = InventoryItem.create(
+                PROFILE_ID, "Rice", new BigDecimal("5.0"),
+                ItemUnit.KG, SourcePlatform.BLINKIT, PURCHASE_DATE, null);
+
+        assertEquals(false, item.isConsumed());
+    }
+
+    @Test
+    void builder_isConsumedTrue_reflectedOnGetter() {
+        InventoryItem item = InventoryItem.builder()
+                .profileId(PROFILE_ID)
+                .itemName("Rice")
+                .quantity(new BigDecimal("5.0"))
+                .unit(ItemUnit.KG)
+                .sourcePlatform(SourcePlatform.BLINKIT)
+                .purchaseDate(PURCHASE_DATE)
+                .consumed(true)
+                .build();
+
+        assertEquals(true, item.isConsumed());
+    }
+
+    @Test
     void create_zeroQuantity_throwsIllegalArgumentException() {
         assertThrows(IllegalArgumentException.class, () ->
                 InventoryItem.create(PROFILE_ID, "Milk", BigDecimal.ZERO, ItemUnit.L, SourcePlatform.MANUAL, PURCHASE_DATE, null));

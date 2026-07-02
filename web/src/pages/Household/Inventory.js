@@ -1,7 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { listProfiles } from '../../api/profiles';
-import { createInventoryItem, deleteInventoryItem, listInventoryItems } from '../../api/household';
+import {
+  createInventoryItem,
+  deleteInventoryItem,
+  listInventoryItems,
+  updateInventoryItem,
+} from '../../api/household';
 
 const UNITS = ['KG', 'G', 'L', 'ML', 'UNITS', 'PACK', 'DOZEN', 'OTHER'];
 
@@ -57,6 +62,17 @@ const EMPTY_FORM = {
   category: '',
 };
 
+function toEditForm(item) {
+  return {
+    item_name: item.item_name,
+    quantity: String(item.quantity),
+    unit: item.unit,
+    source_platform: item.source_platform,
+    purchase_date: item.purchase_date,
+    category: item.category || '',
+  };
+}
+
 const inputClass =
   'border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full';
 
@@ -106,7 +122,7 @@ Field.propTypes = {
 
 Field.defaultProps = { required: false };
 
-function ItemRow({ item, onDelete }) {
+function ItemRow({ item, onEdit, onDelete, onToggleConsumed }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const colour = PLATFORM_COLOURS[item.source_platform] || 'bg-gray-100 text-gray-700';
 
@@ -126,6 +142,19 @@ function ItemRow({ item, onDelete }) {
       </td>
       <td className="px-4 py-3 text-sm text-gray-500">{item.category || '—'}</td>
       <td className="px-4 py-3 text-sm">
+        <label className="inline-flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={!!item.is_consumed}
+            onChange={(e) => onToggleConsumed(item, e.target.checked)}
+            className="h-4 w-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+          />
+          <span className={item.is_consumed ? 'text-green-700' : 'text-gray-400'}>
+            {item.is_consumed ? 'Consumed' : 'Not consumed'}
+          </span>
+        </label>
+      </td>
+      <td className="px-4 py-3 text-sm">
         {confirmDelete ? (
           <div className="flex gap-2">
             <button
@@ -144,13 +173,22 @@ function ItemRow({ item, onDelete }) {
             </button>
           </div>
         ) : (
-          <button
-            type="button"
-            onClick={() => setConfirmDelete(true)}
-            className="px-2 py-1 border border-red-400 text-red-500 rounded text-xs hover:bg-red-50"
-          >
-            Delete
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => onEdit(item)}
+              className="px-2 py-1 border border-indigo-400 text-indigo-600 rounded text-xs hover:bg-indigo-50"
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmDelete(true)}
+              className="px-2 py-1 border border-red-400 text-red-500 rounded text-xs hover:bg-red-50"
+            >
+              Delete
+            </button>
+          </div>
         )}
       </td>
     </tr>
@@ -166,8 +204,11 @@ ItemRow.propTypes = {
     source_platform: PropTypes.string.isRequired,
     purchase_date: PropTypes.string.isRequired,
     category: PropTypes.string,
+    is_consumed: PropTypes.bool,
   }).isRequired,
+  onEdit: PropTypes.func.isRequired,
   onDelete: PropTypes.func.isRequired,
+  onToggleConsumed: PropTypes.func.isRequired,
 };
 
 export const Inventory = () => {
@@ -182,6 +223,11 @@ export const Inventory = () => {
   const [addForm, setAddForm] = useState(EMPTY_FORM);
   const [addError, setAddError] = useState(null);
   const [addSaving, setAddSaving] = useState(false);
+
+  const [editingItem, setEditingItem] = useState(null);
+  const [editForm, setEditForm] = useState(EMPTY_FORM);
+  const [editError, setEditError] = useState(null);
+  const [editSaving, setEditSaving] = useState(false);
 
   useEffect(() => {
     listProfiles(null, null)
@@ -271,6 +317,74 @@ export const Inventory = () => {
     [loadItems]
   );
 
+  const handleEditOpen = useCallback((item) => {
+    setEditingItem(item);
+    setEditForm(toEditForm(item));
+    setEditError(null);
+  }, []);
+
+  const handleEditChange = useCallback((e) => {
+    const { name, value } = e.target;
+    setEditForm((prev) => ({ ...prev, [name]: value }));
+  }, []);
+
+  const handleEditSubmit = useCallback(
+    async (e) => {
+      e.preventDefault();
+      if (!editForm.item_name.trim()) {
+        setEditError('Item name is required');
+        return;
+      }
+      if (!editForm.quantity || Number(editForm.quantity) <= 0) {
+        setEditError('Quantity must be greater than 0');
+        return;
+      }
+      if (!editForm.unit) {
+        setEditError('Unit is required');
+        return;
+      }
+      if (!editForm.source_platform) {
+        setEditError('Source platform is required');
+        return;
+      }
+      if (!editForm.purchase_date) {
+        setEditError('Purchase date is required');
+        return;
+      }
+      setEditSaving(true);
+      setEditError(null);
+      try {
+        await updateInventoryItem(editingItem.id, {
+          item_name: editForm.item_name.trim(),
+          quantity: Number(editForm.quantity),
+          unit: editForm.unit,
+          source_platform: editForm.source_platform,
+          purchase_date: editForm.purchase_date,
+          category: editForm.category || null,
+        });
+        setEditingItem(null);
+        await loadItems();
+      } catch (err) {
+        setEditError(err.message || 'Failed to update item');
+      } finally {
+        setEditSaving(false);
+      }
+    },
+    [editForm, editingItem, loadItems]
+  );
+
+  const handleToggleConsumed = useCallback(
+    async (item, isConsumed) => {
+      try {
+        await updateInventoryItem(item.id, { is_consumed: isConsumed });
+        await loadItems();
+      } catch (err) {
+        setError(err.message || 'Failed to update item');
+      }
+    },
+    [loadItems]
+  );
+
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6">
@@ -348,21 +462,33 @@ export const Inventory = () => {
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
-                    {['Item', 'Quantity', 'Platform', 'Purchased', 'Category', 'Actions'].map(
-                      (h) => (
-                        <th
-                          key={h}
-                          className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
-                        >
-                          {h}
-                        </th>
-                      )
-                    )}
+                    {[
+                      'Item',
+                      'Quantity',
+                      'Platform',
+                      'Purchased',
+                      'Category',
+                      'Consumed',
+                      'Actions',
+                    ].map((h) => (
+                      <th
+                        key={h}
+                        className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                      >
+                        {h}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody className="bg-white">
                   {items.map((item) => (
-                    <ItemRow key={item.id} item={item} onDelete={handleDelete} />
+                    <ItemRow
+                      key={item.id}
+                      item={item}
+                      onEdit={handleEditOpen}
+                      onDelete={handleDelete}
+                      onToggleConsumed={handleToggleConsumed}
+                    />
                   ))}
                 </tbody>
               </table>
@@ -460,6 +586,101 @@ export const Inventory = () => {
                 className="px-4 py-2 bg-indigo-600 text-white rounded text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
               >
                 {addSaving ? 'Saving...' : 'Add Item'}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {editingItem && (
+        <Modal title="Edit Item" onClose={() => setEditingItem(null)}>
+          <form onSubmit={handleEditSubmit} className="space-y-4">
+            <Field label="Item Name" required>
+              <input
+                name="item_name"
+                type="text"
+                value={editForm.item_name}
+                onChange={handleEditChange}
+                placeholder="e.g. Milk"
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Quantity" required>
+              <input
+                name="quantity"
+                type="number"
+                min="0.001"
+                step="any"
+                value={editForm.quantity}
+                onChange={handleEditChange}
+                placeholder="e.g. 2"
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Unit" required>
+              <select
+                name="unit"
+                value={editForm.unit}
+                onChange={handleEditChange}
+                className={inputClass}
+              >
+                <option value="">Select unit</option>
+                {UNITS.map((u) => (
+                  <option key={u} value={u}>
+                    {u}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Source Platform" required>
+              <select
+                name="source_platform"
+                value={editForm.source_platform}
+                onChange={handleEditChange}
+                className={inputClass}
+              >
+                <option value="">Select platform</option>
+                {SOURCE_PLATFORMS.map((p) => (
+                  <option key={p} value={p}>
+                    {formatPlatform(p)}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Purchase Date" required>
+              <input
+                name="purchase_date"
+                type="date"
+                value={editForm.purchase_date}
+                onChange={handleEditChange}
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Category">
+              <input
+                name="category"
+                type="text"
+                value={editForm.category}
+                onChange={handleEditChange}
+                placeholder="Optional (e.g. Dairy)"
+                className={inputClass}
+              />
+            </Field>
+            {editError && <p className="text-red-600 text-sm">{editError}</p>}
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setEditingItem(null)}
+                className="px-4 py-2 border border-gray-300 rounded text-sm text-gray-600 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={editSaving}
+                className="px-4 py-2 bg-indigo-600 text-white rounded text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {editSaving ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
           </form>

@@ -3,6 +3,7 @@ package com.suchika.household.adapters.http;
 import com.suchika.household.adapters.http.dto.CreateInventoryItemRequest;
 import com.suchika.household.adapters.http.dto.InventoryItemDto;
 import com.suchika.household.adapters.http.dto.ListInventoryItemsResponse;
+import com.suchika.household.adapters.http.dto.UpdateInventoryItemRequest;
 import com.suchika.household.domain.ItemUnit;
 import com.suchika.household.domain.SourcePlatform;
 import com.suchika.household.ports.input.InventoryItemUseCase;
@@ -11,6 +12,7 @@ import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
@@ -66,6 +68,15 @@ public class InventoryItemResource {
     @Path("/{id}")
     public InventoryItemDto get(@PathParam("id") UUID id) {
         return InventoryItemDto.from(useCase.get(id));
+    }
+
+    @PUT
+    @Path("/{id}")
+    public InventoryItemDto update(@PathParam("id") UUID id, UpdateInventoryItemRequest request) {
+        ItemUnit unit = parseItemUnit(request.unit);
+        SourcePlatform platform = parseSourcePlatform(request.sourcePlatform);
+        return InventoryItemDto.from(useCase.update(id, request.itemName, request.quantity,
+                unit, platform, request.purchaseDate, request.category, request.isConsumed));
     }
 
     @DELETE

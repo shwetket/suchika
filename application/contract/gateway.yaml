@@ -284,6 +284,12 @@ paths:
         and transaction type. Follows AIP-132.
       parameters:
         - $ref: '#/components/parameters/AccountId'
+        - name: profile_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
         - name: from
           in: query
           required: false
@@ -877,6 +883,36 @@ paths:
             application/json:
               schema:
                 type: object
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    put:
+      tags: [Inventory Items]
+      operationId: updateInventoryItem
+      summary: Update an inventory item
+      description: >
+        Full edit of an inventory item, including toggling is_consumed
+        ("used in a calculation," not "physically used up"). Items are never
+        deleted or expired.
+      parameters:
+        - $ref: '#/components/parameters/HouseholdId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Item updated
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '404':
           $ref: '#/components/responses/NotFound'
         '500':

@@ -19,5 +19,9 @@ public interface InventoryItemUseCase {
 
     InventoryItem get(UUID id);
 
+    InventoryItem update(UUID id, String itemName, BigDecimal quantity, ItemUnit unit,
+                         SourcePlatform sourcePlatform, LocalDate purchaseDate,
+                         String category, Boolean isConsumed);
+
     void delete(UUID id);
 }

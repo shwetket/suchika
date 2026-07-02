@@ -163,6 +163,11 @@ export interface paths {
   "/v1/household/inventory-items/{id}": {
     /** Get an inventory item */
     get: operations["getInventoryItem"];
+    /**
+     * Update an inventory item
+     * @description Full edit of an inventory item, including toggling is_consumed ("used in a calculation," not "physically used up"). Items are never deleted or expired.
+     */
+    put: operations["updateInventoryItem"];
     /** Delete an inventory item */
     delete: operations["deleteInventoryItem"];
   };
@@ -698,6 +703,7 @@ export interface operations {
   listTransactions: {
     parameters: {
       query?: {
+        profile_id?: string;
         /** @description Start date filter (inclusive), format YYYY-MM-DD. */
         from?: string;
         /** @description End date filter (inclusive), format YYYY-MM-DD. */
@@ -1178,6 +1184,33 @@ export interface operations {
           "application/json": Record<string, never>;
         };
       };
+      404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  /**
+   * Update an inventory item
+   * @description Full edit of an inventory item, including toggling is_consumed ("used in a calculation," not "physically used up"). Items are never deleted or expired.
+   */
+  updateInventoryItem: {
+    parameters: {
+      path: {
+        id: components["parameters"]["HouseholdId"];
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": Record<string, never>;
+      };
+    };
+    responses: {
+      /** @description Item updated */
+      200: {
+        content: {
+          "application/json": Record<string, never>;
+        };
+      };
+      400: components["responses"]["BadRequest"];
       404: components["responses"]["NotFound"];
       500: components["responses"]["InternalError"];
     };
