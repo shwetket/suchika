@@ -194,32 +194,33 @@ Show what has been shipped and what is planned at each milestone, with the featu
 
 **Readiness verified against actual code 2026-07-02** (not just docs — see architect's verification pass). PROP-005 resolved same day → ADR-018 (React Query). Product owner also resolved Vacation Planner nav placement, `profile_id` fix timing, and physical-asset date storage (see `OpenQuestions.md` Q26-Q29). Plan below is phased by dependency: Phase 0 (independent fixes) → Phase 1 (ADR-018 groundwork) → Phase 2 (Vacation Planner, does not depend on Phase 1) → Phase 3 (Consolidated Action Center, depends on Phase 1).
 
-### Phase 0 — Small independent CRUD/fix work (no dependencies, parallelizable)
+### Phase 0 — Small independent CRUD/fix work (no dependencies, parallelizable) — COMPLETE 2026-07-02
 
-- [ ] **Vital Readings — Edit**
-  - `PUT /v1/vitals/{id}` endpoint on health service (`VitalReadingResource.java` currently has GET/POST/GET-by-id/DELETE only — verified, no PUT exists)
+- [x] **Vital Readings — Edit** (commit `e034aee`)
+  - `PATCH /v1/vitals/{id}` endpoint on health service (shipped as PATCH, not PUT, to match the existing doctor-visits precedent it was told to mirror — doctor-visits also uses PATCH, and the doc's prior "PUT" description was itself stale)
   - Edit modal in Vitals frontend page (mirrors doctor visits UX)
 
-- [ ] **Inventory Items — Edit**
-  - `PUT /v1/inventory-items/{id}` endpoint on household service (`InventoryItemResource.java` currently has GET/POST/GET-by-id/DELETE only — verified, no PUT exists)
+- [x] **Inventory Items — Edit** (commit `1f1077b`)
+  - `PUT /v1/inventory-items/{id}` endpoint on household service
   - Edit modal in Inventory frontend page
 
-- [ ] **Inventory `is_consumed` flag** (Q6 resolution — "used in a calculation," not "used up"; no deletion, no expiry)
-  - New Flyway `application/flyway/household/V4__inventory_item_consumed_flag.sql`
-  - `InventoryItem` domain field, entity, DTOs, toggle in UI
+- [x] **Inventory `is_consumed` flag** (commit `1f1077b`, Q6 resolution — "used in a calculation," not "used up"; no deletion, no expiry)
+  - `application/flyway/household/V4__inventory_item_consumed_flag.sql`
+  - `InventoryItem` domain field, entity, DTOs, toggle in UI (folded into the same PUT endpoint above)
 
-- [ ] **`TransactionResource`/`TransactionService` profile_id threading fix** (Q28 — fix now, not deferred)
-  - Verified actual state: repo-layer filter is fully implemented and correct (`TransactionPanacheRepository.findByAccountId`/`existsByDeduplicationKey`/`sumAmountByTxnType` all accept and apply an optional `profileId`), but `TransactionService.listByAccount()` hardcodes `null` with an explicit code comment opting out, and `TransactionResource.listTransactions()` has no `profile_id` query param at all — so the filter exists but is never exercised from the HTTP surface. (Corrects prior "partially done" language — the gap is entirely in the service/resource layer, not the repository.)
-  - Fix: add `profile_id` query param to the resource, thread through the use case and service, remove the null-hardcode
+- [x] **`TransactionResource`/`TransactionService` profile_id threading fix** (commit `c7a98ea`, Q28 — fixed now, not deferred)
+  - `profile_id` query param added to `TransactionResource.listTransactions()`, threaded through `TransactionUseCase`/`TransactionService`; the null-hardcode and its "out of scope" comment are gone
 
-- [ ] Verify/remove stale "opening balances only" copy on Reports/Dashboard (moot since net worth formula fixed in Epic 8 Phase 1 — confirm no leftover interim-fix text remains)
+- [x] **Reports page net balance bug fixed** (commit `3bb2c27`) — this item started as "verify/remove stale opening-balances copy" but the copy turned out to be accurate, not stale: `Reports.js` was still summing raw `opening_balance` directly, never having been migrated to the Epic 8 Phase 1 fix that `Dashboard.js` already used. Fixed to read the `WEALTH_NET_WORTH` snapshot via `getDashboard`, with a Refresh button and an explicit "Not calculated" state, matching Dashboard's pattern.
 
-### Phase 1 — PROP-005 groundwork (React Query)
+### Phase 1 — PROP-005 groundwork (React Query) — COMPLETE 2026-07-02
 
 - [x] **Decision resolved 2026-07-02** — see ADR-018. React Query for server state; Context API stays for auth/global state; no Redux/Zustand.
-- [ ] Add `@tanstack/react-query` dependency, `QueryClientProvider` at app root
-- [ ] Migrate one reference page (e.g., Dashboard) to establish the pattern before Phase 3 begins
-- [ ] Update `documents/FRONTEND_GUIDELINES.md` with the React Query convention
+- [x] Added `@tanstack/react-query` (`^5.101.2`) dependency; `QueryClientProvider` wraps the app in `App.js` (single app-lifetime `QueryClient`)
+- [x] Migrated `Dashboard.js` to the reference pattern — `useQuery` for `getDashboard`, `useMutation` + `queryClient.setQueryData` for `refreshProjections`. All 19 existing Dashboard tests pass unchanged (behavior preserved). `test-utils.js`'s shared `AllProviders` wrapper now includes `QueryClientProvider` (fresh `QueryClient` per render, retries disabled) for every test that uses it.
+- [x] Updated `documents/FRONTEND_GUIDELINES.md` §4 with the React Query convention
+
+Phase 3 (Consolidated Action Center) is now unblocked on the state-management front — it still needs Q30 (biometric streak gap definition) resolved before implementation starts.
 
 ### Phase 2 — Vacation Planner (cross-domain; depends on Phase 0 wealth/physical-asset work only, NOT on Phase 1)
 
@@ -874,17 +875,18 @@ The original v0.6 milestone ("Testing Foundation") is partially already done for
 | ~~Net worth formula fix — wealth balance endpoint (fix #2, backend)~~ | wealth-developer | DONE (Epic 8 Phase 1) |
 | ~~Net worth formula fix — gateway engine + test (fix #2, gateway)~~ | quarkus-developer (gateway) | DONE (Epic 8 Phase 1) |
 | ~~`refreshAll()` per-step try-catch (fix #3)~~ | quarkus-developer (gateway) | DONE 2026-06-30 |
-| `TransactionPanacheRepository` profile ownership (fix #4) | wealth-developer | Q1/Q12 now answered; repo-level filter exists, HTTP-layer wiring still open |
+| ~~`TransactionPanacheRepository` profile ownership (fix #4)~~ | wealth-developer | DONE 2026-07-02 (commit `c7a98ea`) |
 | ~~Physical Assets frontend page `/wealth/assets`~~ | react-developer | DONE 2026-06-30 (full vertical slice, path is `/wealth/physical-assets`) |
-| `PUT /vitals/{id}` endpoint | health-developer | v0.5 |
-| Vitals edit modal (frontend) | react-developer | v0.5, after health endpoint merged |
-| `PUT /inventory-items/{id}` endpoint | household-developer | v0.5 |
-| Inventory Items edit modal (frontend) | react-developer | v0.5, after household endpoint merged |
-| "Opening balances only" label on Reports + Dashboard | react-developer | Immediate — no backend dependency |
-| Vacation Planner (cross-domain) | quarkus-developer (gateway) + react-developer | v0.5, after immediate fixes are merged |
-| Consolidated Action Center | quarkus-developer (gateway) + react-developer | v0.5 Phase 3 — Physical Assets dependency satisfied (2026-06-30); PROP-005 resolved (2026-07-02); blocked only on biometric streak gap definition (Q30) |
-| PROP-005 state management decision | architect | RESOLVED 2026-07-02 → ADR-018 (React Query) |
-| TransactionResource/TransactionService profile_id threading fix | wealth-developer | v0.5 Phase 0 — fix now, per product owner (Q28) |
+| ~~`PATCH /vitals/{id}` endpoint~~ | health-developer | DONE 2026-07-02 (commit `e034aee`) |
+| ~~Vitals edit modal (frontend)~~ | react-developer | DONE 2026-07-02 (commit `e034aee`) |
+| ~~`PUT /inventory-items/{id}` endpoint~~ | household-developer | DONE 2026-07-02 (commit `1f1077b`) |
+| ~~Inventory Items edit modal (frontend)~~ | react-developer | DONE 2026-07-02 (commit `1f1077b`) |
+| ~~Reports page net balance fix~~ | react-developer | DONE 2026-07-02 (commit `3bb2c27`) — the "opening balances only" label turned out to be an accurate description of a real remaining bug, not stale copy; fixed the calculation instead of just the label |
+| Vacation Planner (cross-domain) | quarkus-developer (gateway) + react-developer | v0.5 Phase 2 — ready to start |
+| Consolidated Action Center | quarkus-developer (gateway) + react-developer | v0.5 Phase 3 — Physical Assets dependency satisfied (2026-06-30); PROP-005 resolved (2026-07-02); React Query groundwork done (2026-07-02); blocked only on biometric streak gap definition (Q30) |
+| ~~PROP-005 state management decision~~ | architect | DONE 2026-07-02 → ADR-018 (React Query) |
+| ~~React Query rollout (QueryClientProvider + Dashboard migration)~~ | react-developer | DONE 2026-07-02 |
+| ~~TransactionResource/TransactionService profile_id threading fix~~ | wealth-developer | DONE 2026-07-02 (commit `c7a98ea`) |
 | v0.6 adapter unit tests (wealth HTTP layer) | wealth-developer | v0.6 |
 | v0.6 adapter unit tests (health HTTP layer) | health-developer | v0.6 |
 | v0.6 domain entity unit tests (profile) | profile-developer | v0.6 |

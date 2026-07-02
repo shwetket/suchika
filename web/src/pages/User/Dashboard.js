@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React from 'react';
 import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../hooks/useAuth';
 import { getDashboard, refreshProjections } from '../../api/household';
 
@@ -283,39 +284,32 @@ SnapshotSummary.defaultProps = {
 
 export const Dashboard = () => {
   const { user } = useAuth();
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [snapshots, setSnapshots] = useState(null);
-  const [refreshError, setRefreshError] = useState(null);
-
+  const queryClient = useQueryClient();
   const profileId = user?.profile_id ?? null;
 
-  const loadDashboard = useCallback(async () => {
-    if (!profileId) return;
-    try {
-      const data = await getDashboard(profileId);
-      setSnapshots(data?.snapshots ?? []);
-    } catch {
-      setSnapshots([]);
-    }
-  }, [profileId]);
+  const dashboardQuery = useQuery({
+    queryKey: ['dashboard', profileId],
+    queryFn: () => getDashboard(profileId),
+    enabled: Boolean(profileId),
+  });
 
-  useEffect(() => {
-    loadDashboard();
-  }, [loadDashboard]);
+  const refreshMutation = useMutation({
+    mutationFn: () => refreshProjections(profileId),
+    onSuccess: (data) => {
+      queryClient.setQueryData(['dashboard', profileId], data);
+    },
+  });
 
-  const handleRefresh = useCallback(async () => {
+  const snapshots = dashboardQuery.data?.snapshots ?? [];
+  const isRefreshing = refreshMutation.isPending;
+  const refreshError = refreshMutation.isError
+    ? refreshMutation.error?.message || 'Refresh failed'
+    : null;
+
+  const handleRefresh = () => {
     if (!profileId || isRefreshing) return;
-    setIsRefreshing(true);
-    setRefreshError(null);
-    try {
-      const data = await refreshProjections(profileId);
-      setSnapshots(data?.snapshots ?? []);
-    } catch (err) {
-      setRefreshError(err.message || 'Refresh failed');
-    } finally {
-      setIsRefreshing(false);
-    }
-  }, [profileId, isRefreshing]);
+    refreshMutation.mutate();
+  };
 
   return (
     <div className="p-6 max-w-4xl mx-auto">

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './context/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Navigation } from './components/Navigation';
@@ -39,6 +40,9 @@ function resolveTheme(theme, prefersDark) {
   return prefersDark ? 'dark' : 'light';
 }
 
+// Single client for the app's lifetime (ADR-018: React Query for server state).
+const queryClient = new QueryClient();
+
 function App() {
   const [theme, setTheme] = useState('auto');
 
@@ -63,139 +67,141 @@ function App() {
   };
 
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Navigation theme={theme} onToggleTheme={toggleTheme} />
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/" element={<Home />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/signin" element={<SignIn />} />
-          <Route path="/signup" element={<SignUp />} />
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <BrowserRouter>
+          <Navigation theme={theme} onToggleTheme={toggleTheme} />
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/" element={<Home />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/signin" element={<SignIn />} />
+            <Route path="/signup" element={<SignUp />} />
 
-          {/* Redirect old stub routes */}
-          <Route path="/transactions" element={<Navigate to="/wealth/transactions" replace />} />
-          <Route path="/health" element={<Navigate to="/health/vitals" replace />} />
+            {/* Redirect old stub routes */}
+            <Route path="/transactions" element={<Navigate to="/wealth/transactions" replace />} />
+            <Route path="/health" element={<Navigate to="/health/vitals" replace />} />
 
-          {/* User Routes - requires 'user' role or higher */}
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute requiredRole="user">
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
+            {/* User Routes - requires 'user' role or higher */}
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute requiredRole="user">
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
 
-          {/* Wealth Domain */}
-          <Route
-            path="/wealth/accounts"
-            element={
-              <ProtectedRoute requiredRole="user">
-                <WealthAccounts />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/wealth/transactions"
-            element={
-              <ProtectedRoute requiredRole="user">
-                <WealthTransactions />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/wealth/reports"
-            element={
-              <ProtectedRoute requiredRole="user">
-                <WealthReports />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/wealth/physical-assets"
-            element={
-              <ProtectedRoute requiredRole="user">
-                <WealthPhysicalAssets />
-              </ProtectedRoute>
-            }
-          />
+            {/* Wealth Domain */}
+            <Route
+              path="/wealth/accounts"
+              element={
+                <ProtectedRoute requiredRole="user">
+                  <WealthAccounts />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/wealth/transactions"
+              element={
+                <ProtectedRoute requiredRole="user">
+                  <WealthTransactions />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/wealth/reports"
+              element={
+                <ProtectedRoute requiredRole="user">
+                  <WealthReports />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/wealth/physical-assets"
+              element={
+                <ProtectedRoute requiredRole="user">
+                  <WealthPhysicalAssets />
+                </ProtectedRoute>
+              }
+            />
 
-          {/* Household Domain */}
-          <Route
-            path="/household/profiles"
-            element={
-              <ProtectedRoute requiredRole="user">
-                <HouseholdProfiles />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/household/calendar"
-            element={
-              <ProtectedRoute requiredRole="user">
-                <HouseholdCalendar />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/household/inventory"
-            element={
-              <ProtectedRoute requiredRole="user">
-                <HouseholdInventory />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/household/goals"
-            element={
-              <ProtectedRoute requiredRole="user">
-                <HouseholdGoals />
-              </ProtectedRoute>
-            }
-          />
+            {/* Household Domain */}
+            <Route
+              path="/household/profiles"
+              element={
+                <ProtectedRoute requiredRole="user">
+                  <HouseholdProfiles />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/household/calendar"
+              element={
+                <ProtectedRoute requiredRole="user">
+                  <HouseholdCalendar />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/household/inventory"
+              element={
+                <ProtectedRoute requiredRole="user">
+                  <HouseholdInventory />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/household/goals"
+              element={
+                <ProtectedRoute requiredRole="user">
+                  <HouseholdGoals />
+                </ProtectedRoute>
+              }
+            />
 
-          {/* Health Domain */}
-          <Route
-            path="/health/vitals"
-            element={
-              <ProtectedRoute requiredRole="user">
-                <HealthVitals />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/health/doctors"
-            element={
-              <ProtectedRoute requiredRole="user">
-                <HealthDoctorVisits />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/health/profile"
-            element={
-              <ProtectedRoute requiredRole="user">
-                <HealthProfilePage />
-              </ProtectedRoute>
-            }
-          />
+            {/* Health Domain */}
+            <Route
+              path="/health/vitals"
+              element={
+                <ProtectedRoute requiredRole="user">
+                  <HealthVitals />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/health/doctors"
+              element={
+                <ProtectedRoute requiredRole="user">
+                  <HealthDoctorVisits />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/health/profile"
+              element={
+                <ProtectedRoute requiredRole="user">
+                  <HealthProfilePage />
+                </ProtectedRoute>
+              }
+            />
 
-          {/* Admin Routes */}
-          <Route
-            path="/admin/policy"
-            element={
-              <ProtectedRoute requiredRole="admin">
-                <PolicySettings />
-              </ProtectedRoute>
-            }
-          />
+            {/* Admin Routes */}
+            <Route
+              path="/admin/policy"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <PolicySettings />
+                </ProtectedRoute>
+              }
+            />
 
-          {/* Fallback */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }
 
