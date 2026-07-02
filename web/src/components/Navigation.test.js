@@ -51,6 +51,18 @@ describe('Navigation', () => {
     expect(screen.getByRole('link', { name: 'Profiles' })).toBeInTheDocument();
   });
 
+  it('shows Action Center link when authenticated', () => {
+    renderNav({
+      user: { username: 'alice', role: 'user' },
+      logout: jest.fn(),
+      isAuthenticated: true,
+    });
+    expect(screen.getByRole('link', { name: 'Action Center' })).toHaveAttribute(
+      'href',
+      '/action-center'
+    );
+  });
+
   it('shows Household dropdown with correct links when authenticated', () => {
     renderNav({
       user: { username: 'alice', role: 'user' },

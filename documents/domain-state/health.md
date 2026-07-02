@@ -92,6 +92,7 @@ Gateway proxy: `application/web-gateway/src/main/java/com/suchika/gateway/health
 - BMI auto-calculation from height + weight readings (v0.3)
 - Google Fit manual sync (v1.0)
 - ~~v0.5 Phase 0: `PUT /v1/vitals/{id}` endpoint + edit modal~~ — **Done 2026-07-02.** Implemented as `PATCH /v1/vitals/{id}` (matches the existing doctor-visits convention, which is also PATCH, not PUT as an earlier version of this doc said). Details below.
+- ✅ **v0.5 Phase 3: Consolidated Action Center biometric streak gaps — COMPLETE (2026-07-02).** No health-domain code changed — this is a gateway-only read of the existing `GET /v1/vitals?profile_id=X` endpoint. `ProjectionCalculationEngine.computeActionCenterAlerts()` (web-gateway `projection` package) calls `healthServiceClient.listVitals(memberProfileId, null)` per household member, groups by `vital_type` keeping the latest `reading_date` (same "newest-first" assumption as the existing `computeVitalsSummary` step), and flags a gap (`ACTION_CENTER_ALERTS_FAMILY.biometric_streak_gaps`) for WEIGHT/BLOOD_PRESSURE/BLOOD_SUGAR_FASTING (Q30's "core 3" — not all 10 `VitalType` values) if the last reading is 30+ days old, or if that vital type has never been logged at all (treated as an infinite gap, not silently skipped).
 
 ### v0.5 Phase 0 — Vital Reading Edit (done 2026-07-02)
 

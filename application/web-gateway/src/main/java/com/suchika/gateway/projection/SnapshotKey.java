@@ -47,6 +47,14 @@ public final class SnapshotKey {
      */
     public static final String WEALTH_FORMULA_GOALS_FAMILY = "WEALTH_FORMULA_GOALS_FAMILY";
 
+    /**
+     * v0.5 Phase 3 — Consolidated Action Center. Household-scoped, stored under
+     * the admin's own profile_id like the other _FAMILY keys. Aggregates upcoming
+     * calendar events, vehicle compliance deadlines, and biometric streak gaps
+     * across all household members into one read-only alert feed.
+     */
+    public static final String ACTION_CENTER_ALERTS_FAMILY = "ACTION_CENTER_ALERTS_FAMILY";
+
     private SnapshotKey() {
     }
 }

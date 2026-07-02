@@ -13,6 +13,7 @@ import { SignUp } from './pages/Public/SignUp';
 
 // User Pages
 import { Dashboard } from './pages/User/Dashboard';
+import { ActionCenter } from './pages/User/ActionCenter';
 
 // Admin Pages
 import { PolicySettings } from './pages/Admin/PolicySettings';
@@ -89,6 +90,14 @@ function App() {
               element={
                 <ProtectedRoute requiredRole="user">
                   <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/action-center"
+              element={
+                <ProtectedRoute requiredRole="user">
+                  <ActionCenter />
                 </ProtectedRoute>
               }
             />

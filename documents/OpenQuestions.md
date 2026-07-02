@@ -5,7 +5,7 @@
 | **Type** | Decision Log |
 | **Audience** | Product owner (Ketan) |
 | **Status** | Active |
-| **Last updated** | 2026-07-02 (Q26-Q29 resolved; Q30 added) |
+| **Last updated** | 2026-07-02 (Q26-Q30 all resolved) |
 
 ## Purpose
 
@@ -238,10 +238,10 @@ C) Leave unscheduled — treat `REQUIREMENTS_wealth_domain.md` Epic 8 as approve
 **Q29.** ~~Should physical asset PUC/insurance/road-tax expiry dates be promoted from JSONB metadata to typed columns before the Vacation Planner's asset-compliance check is built?~~ **RESOLVED — 2026-07-02 (product owner).**
 *Resolution:* Keep as JSONB (no schema promotion). The Vacation Planner's compliance check parses `metadata.puc_expiry`/`metadata.insurance_expiry`/`metadata.road_tax_expiry` (string dates from the existing `Map<String,String>` metadata) defensively in the gateway — null-safe, tolerant of missing/malformed keys, no DB-level date validation added. Matches the existing precedent (`wealth.physical_asset.metadata` documented shape in `V2__physical_assets.sql`).
 
-**Q30.** What counts as a "biometric streak gap" for the Consolidated Action Center (v0.5 Phase 3)?
+**Q30.** ~~What counts as a "biometric streak gap" for the Consolidated Action Center (v0.5 Phase 3)?~~ **RESOLVED — 2026-07-02 (product owner).**
 
-*Status:* **Open — blocks Phase 3 only.** Does not block Phase 0, 1, or 2 (Vacation Planner). No threshold invented yet; do not implement against a guessed definition.
+*Resolution:* Tracked vital types: WEIGHT, BLOOD_PRESSURE, BLOOD_SUGAR_FASTING ("core 3" — not all 10 VitalType values). Gap threshold: 30 days without a reading. Scope: per-profile, evaluated independently for each household member (consistent with ADR-017's rule that vitals stay per-person, never rolled up). Engineering default not explicitly asked but applied consistently: a vital type with zero readings ever is also flagged as a gap (treated as an infinite gap) rather than silently skipped — matches the "honest gap reporting" precedent set by `computeCategoryValidation` in Epic 8 Phase 1.
 
-*Context:* The v0.5 Consolidated Action Center scope lists "biometric streak gaps" as one of three alert sources (alongside upcoming calendar events and vehicle compliance deadlines), but no acceptance criteria exist anywhere in `BUSINESS_REQUIREMENTS.md` or the health domain-state file. Needs product-owner input on: which vital types count (all 10, or a subset like weight/BP/blood-sugar), what gap threshold triggers an alert (e.g., "no weight reading in 7 days"), and whether the gap is evaluated per-profile or family-wide (consistent with ADR-017's household-rollup precedent for wealth, though vitals are explicitly per-person per that same ADR).
+*Original question, preserved for context:* The v0.5 Consolidated Action Center scope lists "biometric streak gaps" as one of three alert sources (alongside upcoming calendar events and vehicle compliance deadlines), but no acceptance criteria existed anywhere in `BUSINESS_REQUIREMENTS.md` or the health domain-state file. Needed product-owner input on: which vital types count, what gap threshold triggers an alert, and whether the gap is evaluated per-profile or family-wide.
 
-*To be resolved before Phase 3 (Consolidated Action Center) implementation starts. Phase 0-2 work is unaffected.*
+*Implemented 2026-07-02:* `ProjectionCalculationEngine.computeActionCenterAlerts()` → `ACTION_CENTER_ALERTS_FAMILY` snapshot key. See `documents/domain-state/wealth.md` and `documents/domain-state/health.md` for implementation detail.

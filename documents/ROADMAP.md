@@ -5,7 +5,7 @@
 | **Type** | Reference |
 | **Audience** | All developers, product |
 | **Status** | Active |
-| **Last updated** | 2026-07-02 (v0.5 phased plan added, PROP-005 resolved) |
+| **Last updated** | 2026-07-02 (v0.5 Phases 0-3 all complete) |
 
 ## Objective
 
@@ -220,7 +220,7 @@ Show what has been shipped and what is planned at each milestone, with the featu
 - [x] Migrated `Dashboard.js` to the reference pattern — `useQuery` for `getDashboard`, `useMutation` + `queryClient.setQueryData` for `refreshProjections`. All 19 existing Dashboard tests pass unchanged (behavior preserved). `test-utils.js`'s shared `AllProviders` wrapper now includes `QueryClientProvider` (fresh `QueryClient` per render, retries disabled) for every test that uses it.
 - [x] Updated `documents/FRONTEND_GUIDELINES.md` §4 with the React Query convention
 
-Phase 3 (Consolidated Action Center) is now unblocked on the state-management front — it still needs Q30 (biometric streak gap definition) resolved before implementation starts.
+Phase 3 (Consolidated Action Center) — COMPLETE 2026-07-02, see the Phase 3 section below.
 
 ### Phase 2 — Vacation Planner (cross-domain; depends on Phase 0 wealth/physical-asset work only, NOT on Phase 1) — COMPLETE 2026-07-02
 
@@ -231,12 +231,14 @@ Phase 3 (Consolidated Action Center) is now unblocked on the state-management fr
 - [x] Frontend page `web/src/pages/Household/VacationPlanner.js` — profile select, trip cost/date inputs, budget check + compliance cards, uses `useMutation` (ADR-018 React Query pattern from Phase 1)
 - [x] 11 new backend tests (8 service unit + 3 resource integration, all passing) + 7 new frontend tests + 1 new Navigation test, all passing. Full Gradle `:application:web-gateway:test` and frontend `test:ci` suites re-verified green after this change.
 
-### Phase 3 — Consolidated Action Center (blocked on Phase 1 landing; ALSO blocked on Q30 — biometric streak gap definition — before implementation starts)
+### Phase 3 — Consolidated Action Center — COMPLETE 2026-07-02
 
-- [ ] Single read-only dashboard aggregating alerts from all 3 domains
-- [ ] Upcoming calendar events, vehicle compliance deadlines (reuses Phase 2's JSONB parsing), biometric streak gaps
-- [ ] **Biometric streak gap definition is still an open question (Q30)** — no threshold invented; must be resolved by product owner before this phase starts, not before Phase 0-2
-- [ ] Frontend consumes the new aggregation endpoint using the React Query pattern established in Phase 1
+- [x] **Q30 resolved 2026-07-02** — core 3 vital types (WEIGHT, BLOOD_PRESSURE, BLOOD_SUGAR_FASTING), 30-day gap threshold, per-profile scope. See `OpenQuestions.md` Q30.
+- [x] Single read-only alert feed aggregating all 3 domains — implemented as a 12th `ProjectionCalculationEngine` step (`computeActionCenterAlerts` → `ACTION_CENTER_ALERTS_FAMILY` snapshot), reusing the existing CQRS dashboard-snapshot infrastructure rather than a new standalone endpoint. This is a better fit than Vacation Planner's dedicated resource, since Action Center's alerts are current-state data (cacheable, refreshed like every other `_FAMILY` snapshot), not ad-hoc user input.
+- [x] Upcoming calendar events (per member, 30-day lookahead, same window as `computeEventSummary`), vehicle compliance deadlines (reuses `ExpiryDateUtil` — a small new shared helper extracted from Phase 2's `VacationPlannerService` to avoid duplicating the JSONB date-parsing logic — flags PUC/insurance expiring within 30 days or already expired), biometric streak gaps (per Q30 resolution; a vital type with zero readings ever is also flagged, not silently skipped)
+- [x] Frontend page `web/src/pages/User/ActionCenter.js` at `/action-center`, top-level nav link next to Dashboard (not nested in a domain dropdown, since it's genuinely cross-domain like Dashboard itself) — uses the React Query pattern from Phase 1, reuses the existing `getDashboard`/`refreshProjections` calls (no new frontend API file needed)
+- [x] Found and fixed a real bug during implementation: a Java ternary mixing a boxed `(Integer) null` cast with a primitive `int` branch triggers binary numeric promotion and unboxes the null, throwing an NPE at runtime — fixed by assigning to an intermediate `Integer` variable instead. Caught immediately by the new unit tests, not by manual testing.
+- [x] 5 new engine unit tests + full `refreshAll_callsAllTwelveComputeMethods` regression update (renamed from "Eleven") + 5 new frontend tests + 1 new Navigation test, all passing alongside the full existing suite.
 
 Note: Profile-scoped data isolation (`profile_id` filtering on all domains) was delivered in v0.2. All Epic 8 pre-v0.5 blockers (gateway /errors proxy, net worth formula fix, refreshAll() isolation) delivered in v0.4.
 
@@ -474,7 +476,7 @@ Each milestone requires the previous to be stable before starting.
 | v0.2 | Profile + Wealth + Health UAT-ready; statement upload lifecycle (PENDING/SUCCESS/FAILED) verified; all data member-scoped | DONE |
 | v0.3 | Household domain live; SonarQube zero blockers; dashboard shows live data | DONE |
 | v0.4 | Zero silent data drops on malformed input; full Epic 8 wealth intelligence engine live; 375 JS tests + 0 Sonar issues | DONE |
-| v0.5 | Cross-domain vacation planner works end-to-end | PLANNED |
+| v0.5 | Cross-domain vacation planner works end-to-end | DONE |
 | v1.0 | Auth + encryption pass local security review | PLANNED |
 | v1.3 | Full data export/import round-trip verified | PLANNED |
 | v2.0 | Local AI daily briefing generates without errors | PLANNED |
@@ -884,7 +886,7 @@ The original v0.6 milestone ("Testing Foundation") is partially already done for
 | ~~Inventory Items edit modal (frontend)~~ | react-developer | DONE 2026-07-02 (commit `1f1077b`) |
 | ~~Reports page net balance fix~~ | react-developer | DONE 2026-07-02 (commit `3bb2c27`) — the "opening balances only" label turned out to be an accurate description of a real remaining bug, not stale copy; fixed the calculation instead of just the label |
 | ~~Vacation Planner (cross-domain)~~ | quarkus-developer (gateway) + react-developer | DONE 2026-07-02 |
-| Consolidated Action Center | quarkus-developer (gateway) + react-developer | v0.5 Phase 3 — Physical Assets dependency satisfied (2026-06-30); PROP-005 resolved (2026-07-02); React Query groundwork done (2026-07-02); blocked only on biometric streak gap definition (Q30) |
+| ~~Consolidated Action Center~~ | quarkus-developer (gateway) + react-developer | DONE 2026-07-02 |
 | ~~PROP-005 state management decision~~ | architect | DONE 2026-07-02 → ADR-018 (React Query) |
 | ~~React Query rollout (QueryClientProvider + Dashboard migration)~~ | react-developer | DONE 2026-07-02 |
 | ~~TransactionResource/TransactionService profile_id threading fix~~ | wealth-developer | DONE 2026-07-02 (commit `c7a98ea`) |

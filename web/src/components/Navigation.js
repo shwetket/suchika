@@ -104,6 +104,13 @@ export const Navigation = ({ theme, onToggleTheme }) => {
               </Link>
 
               <Link
+                to="/action-center"
+                className="text-indigo-100 hover:text-white text-sm font-medium"
+              >
+                Action Center
+              </Link>
+
+              <Link
                 to="/household/profiles"
                 className="text-indigo-100 hover:text-white text-sm font-medium"
               >

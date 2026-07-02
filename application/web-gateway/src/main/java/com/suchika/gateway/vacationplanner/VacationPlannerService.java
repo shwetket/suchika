@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.suchika.gateway.projection.DashboardSnapshotDto;
 import com.suchika.gateway.projection.DashboardSnapshotRepository;
 import com.suchika.gateway.projection.SnapshotKey;
+import com.suchika.gateway.wealth.ExpiryDateUtil;
 import com.suchika.gateway.wealth.WealthServiceClient;
 import com.suchika.shared.exception.BadRequestException;
 import com.suchika.shared.logging.AppLogger;
@@ -15,7 +16,6 @@ import jakarta.inject.Inject;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 
 import java.time.LocalDate;
-import java.time.format.DateTimeParseException;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -118,17 +118,9 @@ public class VacationPlannerService {
 
     private void addExpiryIssueIfAny(
             JsonNode asset, String metadataKey, String issueLabel, LocalDate tripEndDate, ArrayNode issues) {
-        String expiryText = asset.path(METADATA_FIELD).path(metadataKey).asText("");
-        if (expiryText.isBlank()) {
-            return;
-        }
-
-        LocalDate expiryDate;
-        try {
-            expiryDate = LocalDate.parse(expiryText);
-        } catch (DateTimeParseException e) {
-            AppLogger.info("VacationPlanner: unparseable %s '%s' on asset %s, skipping",
-                    metadataKey, expiryText, asset.path(ASSET_ID_FIELD).asText(""));
+        JsonNode metadata = asset.path(METADATA_FIELD);
+        LocalDate expiryDate = ExpiryDateUtil.parse(metadata, metadataKey);
+        if (expiryDate == null) {
             return;
         }
 
@@ -137,7 +129,7 @@ public class VacationPlannerService {
             issue.put(ASSET_ID_FIELD, asset.path(ASSET_ID_FIELD).asText(""));
             issue.put(ASSET_NAME_FIELD, asset.path(ASSET_NAME_FIELD).asText(""));
             issue.put("issue_type", issueLabel.toUpperCase(Locale.ROOT) + "_EXPIRED");
-            issue.put("expiry_date", expiryText);
+            issue.put("expiry_date", metadata.path(metadataKey).asText(""));
             issues.add(issue);
         }
     }
