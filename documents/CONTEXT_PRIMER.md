@@ -5,7 +5,7 @@
 | **Type** | Reference |
 | **Audience** | AI agents, new developers |
 | **Status** | Active |
-| **Last updated** | 2026-06-29 |
+| **Last updated** | 2026-07-02 |
 
 ## Objective
 
@@ -31,26 +31,42 @@ Hexagonal Architecture (Ports & Adapters). Single PostgreSQL database (`app_db`)
 
 ---
 
-## Current Version: v0.4 — Complete
+## Current Version: v0.4 — Complete (tagged v0.4)
 
 | Domain | Backend | Frontend | Status |
 |---|---|---|---|
-| Profile | ✅ | ✅ | Complete |
-| Wealth | ✅ | ✅ | Complete — v0.4 |
+| Profile | ✅ | ✅ | Complete — policy settings added (Epic 8 Ph4) |
+| Wealth | ✅ | ✅ | Complete — full Epic 8 engine (Phases 1–4) |
 | Health | ✅ | ✅ | Complete |
 | Household | ✅ | ✅ | Complete — v0.3 |
+| web-gateway | ✅ | — | 11 CQRS projection steps live |
 
-**Next milestone: v0.5** — TBD (see ROADMAP.md).
+**Next milestone: v0.5** — Vacation Planner + Consolidated Action Center (see ROADMAP.md).
 
-Quality gates (v0.4): all Gradle tests green, ArchUnit clean, 0 SonarQube BLOCKER/CRITICAL issues.
+Quality gates (v0.4): all Gradle tests green, ArchUnit clean, 0 SonarQube issues. 375 JS tests, 22 gateway projection tests.
 
 **v0.4 key additions:**
-- Wealth CSV upload: structured error logging to `wealth.upload_error_log` on malformed CSV
+
+*Error Handling (core v0.4):*
+- Malformed CSV rejection: structured error log to `wealth.upload_error_log`; `GET /uploads/{id}/errors` endpoint
 - Dedup key fix: 4-field key `(account_id, txn_date, amount, txn_type)` — description excluded
-- `UploadResult` return type: wraps upload entity with `insertedCount` + `List<SkippedRow>`
-- New endpoint: `GET /accounts/{accountId}/uploads/{uploadId}/errors` returns `List<UploadErrorLogResponse>`
-- Frontend upload error panel and skipped duplicates UI panel
-- Gateway contract (`application/contract/gateway.yaml`) updated for new upload response shape
+- Frontend upload error panel and skipped-duplicates panel
+
+*Physical Assets — full vertical slice (v0.4.1 patch):*
+- `wealth.physical_asset` table with JSONB metadata, registration uniqueness constraint
+- Full CRUD API (`/v1/physical-assets`), gateway proxy, frontend page at `/wealth/physical-assets`
+- PUC / insurance / road-tax compliance-deadline fields with expiry-status colouring
+
+*Manual Transaction Entry (Q7):*
+- `POST /v1/accounts/{accountId}/transactions`; `upload_id` made nullable (`V7` migration)
+- `source = MANUAL` in transaction metadata distinguishes from CSV-sourced rows
+- Add Transaction modal in frontend Transactions page
+
+*Epic 8 — Automated Wealth Intelligence Engine (Phases 1–4):*
+- **Phase 1:** `account.metadata` JSONB column; `PATCH /accounts/{id}/classification` (category, liquidity tier, purpose tag, loan fields, joint owners); `GET /accounts/{id}/balance` (opening + transactions); `computeCategoryValidation` and `computeFamilyNetWorth` gateway steps; ADR-016 (joint accounts) and ADR-017 (family rollup)
+- **Phase 2:** Expense category tagging — single (`PATCH /transactions/{id}/category`) and bulk by ID list; 5 `ExpenseCategory` enum values; `TransactionEntity.metadata` JSONB wired end-to-end
+- **Phase 3:** `AmortizationCalculator` (pure domain, EMI formula with offset arbitrage); `computeEmiTracking`, `computeLiquidityTiers`, `computeGrowthProjection` gateway steps; loan details form in Accounts UI; `JsonbMetadataUtil` eliminates CPD across 3 entity classes
+- **Phase 4:** `policy_settings JSONB` on `profile.admin` (Flyway V3); `PATCH /admins/{id}/policy`; `computeFormulaGoals` (5 formula goals: Debt Crossover, 30-70 Target, Freedom Runway, Insurance Free, Year One); `computeValidation` (4 advisory checks); Admin Policy Settings page; Dashboard goals + validation cards
 
 ---
 

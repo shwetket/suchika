@@ -5,7 +5,7 @@
 | **Type** | Reference |
 | **Audience** | All developers, product |
 | **Status** | Active |
-| **Last updated** | 2026-06-30 |
+| **Last updated** | 2026-07-02 |
 
 ## Objective
 
@@ -105,54 +105,113 @@ Show what has been shipped and what is planned at each milestone, with the featu
 
 ---
 
-## v0.4 — Error Handling (Unhappy Path) [COMPLETE]
+## v0.4 — Error Handling + Physical Assets + Epic 8 Wealth Intelligence Engine [COMPLETE — tagged v0.4]
 
-**Focus:** System resilience for malformed and edge-case data.
+**Focus:** System resilience, complete physical-asset lifecycle, and the full Automated Wealth Intelligence Engine (Epic 8 Phases 1–4).
 
 ### Features Delivered
 
+**Error Handling (core v0.4):**
+
 - [x] **Malformed CSV Rejection**
   - Reject entire file if date or amount columns are missing
-  - `wealth.upload_error_log` table stores structured error records (`error_type`, `missing_columns`, `error_detail`)
-  - `GET /v1/accounts/{accountId}/uploads/{uploadId}/errors` returns the error log
+  - `wealth.upload_error_log` stores structured error records (`error_type`, `missing_columns`, `error_detail`)
+  - `GET /v1/accounts/{accountId}/uploads/{uploadId}/errors` returns the error log; proxied via gateway
   - Frontend upload error panel displays parse failure reasons
 
 - [x] **Dedup Key Fix (4-field)**
   - Cross-file dedup key: `(account_id, txn_date, amount, txn_type)` — description excluded
-  - Same-file identical rows receive a sequence suffix so they are stored as distinct events
-  - `UploadResult` return type wraps upload entity with `insertedCount` + `List<SkippedRow>`
-  - Frontend skipped duplicates UI panel shows what was rejected and why
+  - Same-file identical rows receive a sequence suffix (stored as distinct events)
+  - `UploadResult` wraps upload entity with `insertedCount` + `List<SkippedRow>`
+  - Frontend skipped-duplicates panel shows what was rejected and why
 
 - [x] **Gateway Contract Update**
-  - `application/contract/gateway.yaml` updated for new upload response shape
-  - `web/src/api/generated.ts` regenerated
+  - `application/contract/gateway.yaml` updated for new upload response shape; `web/src/api/generated.ts` regenerated
 
-- [ ] **Quarantine Protocol (Grocery Data)** — deferred to v0.5
-  - Quarantine malformed rows instead of rejecting entire file
-  - Log quarantined items for manual correction
+**Physical Assets — full vertical slice (v0.4.1 patch):**
 
-- [ ] **Duplicate Resolution UI** — deferred to v0.5
-  - View flagged duplicates
-  - Accept (keep both) or Reject (delete marked copy)
-  - Batch accept/reject actions
+- [x] **Backend + API**
+  - `wealth.physical_asset` table with JSONB metadata and `uq_registration_number` unique constraint
+  - Full CRUD: `POST /physical-assets`, `GET /physical-assets` (filter by type/active), `GET /{id}`, `PATCH /{id}`, `DELETE /{id}`
+  - Domain/ports/adapters (hexagonal) + gateway proxy + `wealth.yaml`/`gateway.yaml` updated
+
+- [x] **Frontend — `/wealth/physical-assets`**
+  - List/filter, add/edit modal, deactivate; PUC / insurance / road-tax compliance deadlines with expiry-status colouring
+
+**Manual Transaction Entry (Q7):**
+
+- [x] `POST /v1/accounts/{accountId}/transactions`; `upload_id` column made nullable (`V7` migration)
+- [x] `source = MANUAL` tag in transaction metadata — distinguishable from CSV-sourced rows
+- [x] Add Transaction modal in frontend Transactions page
+
+**Epic 8 Phase 1 — Account Classification & Net Worth Foundation:**
+
+- [x] `account.metadata JSONB NOT NULL DEFAULT '{}'` column (`V6` migration)
+- [x] `PATCH /v1/accounts/{id}/classification` — writes `category`, `liquidity_tier`, `purpose_tag`, `joint_owners`, and 4 loan fields (principal, start date, tenure, offset account) into metadata
+- [x] `GET /v1/accounts/{id}/balance` — returns `opening_balance + SUM(CREDIT) - SUM(DEBIT)` (Bug 2 fix — dashboard net worth now uses transaction history)
+- [x] `computeCategoryValidation` gateway step → `WEALTH_CATEGORY_VALIDATION` snapshot
+- [x] `computeFamilyNetWorth` gateway step → `WEALTH_NET_WORTH_FAMILY` snapshot (ADR-017 family rollup across all household members)
+- [x] ADR-016 (joint account ownership), ADR-017 (family-level aggregation)
+
+**Epic 8 Phase 2 — Expense Category Tagging:**
+
+- [x] `PATCH /v1/accounts/{accountId}/transactions/{txnId}/category` — single-transaction tagging
+- [x] `PATCH /v1/accounts/{accountId}/transactions/category` — bulk tag by ID list (Q24)
+- [x] 5 `ExpenseCategory` enum values: `HOUSEHOLD_CORE`, `CHILD_RELATED`, `MAINTENANCE`, `DISCRETIONARY`, `UNCATEGORIZED`
+- [x] `TransactionEntity.metadata` JSONB fully wired (was silently reset to `{}` on every save — Bug fix)
+- [x] Joint account `joint_owners` stored in `account.metadata` per ADR-016
+
+**Epic 8 Phase 3 — Loan Amortization, EMI Arbitrage & Liquidity:**
+
+- [x] `AmortizationCalculator` — pure domain class: EMI formula, outstanding balance, remaining tenure, interest split
+- [x] `GET /v1/accounts/{id}/amortization` — returns `AmortizationSummary`; BadRequest if metadata not set, 404 if not a loan type
+- [x] `computeEmiTracking` gateway step → `WEALTH_EMI_TRACKING_FAMILY` (per-loan EMI + offset arbitrage savings)
+- [x] `computeLiquidityTiers` gateway step → `WEALTH_LIQUIDITY_TIERS_FAMILY` (LIQUID / SEMI_LIQUID / ILLIQUID / LOCKED / UNCLASSIFIED totals)
+- [x] `computeGrowthProjection` gateway step → `WEALTH_GROWTH_PROJECTION_FAMILY` (5yr/10yr projections for MUTUAL_FUND 12%, NPS 10%, PPF 7.1%)
+- [x] Loan details form in Accounts UI; Dashboard EMI card and Liquidity Tier breakdown
+- [x] `JsonbMetadataUtil` — package-private utility extracted to eliminate CPD across `AccountEntity`, `PhysicalAssetEntity`, `TransactionEntity`
+- [x] `refreshAll()` per-step exception isolation via `runStep()` helper (Bug 3 — one failing step no longer blocks others)
+
+**Epic 8 Phase 4 — Formula Goals Engine & Validation Report:**
+
+- [x] `policy_settings JSONB NOT NULL DEFAULT '{}'` on `profile.admin` (Flyway V3); 5 configurable thresholds
+- [x] `PATCH /v1/admins/{adminId}/policy` with merge semantics
+- [x] Admin Policy Settings page at `/admin/policy` (admin role required)
+- [x] `computeFormulaGoals` gateway step → `WEALTH_FORMULA_GOALS_FAMILY`; 5 hardcoded formula goals: DEBT_CROSSOVER, THIRTY_SEVENTY_TARGET, FREEDOM_RUNWAY, INSURANCE_FREE, YEAR_ONE
+- [x] `computeValidation` gateway step → `WEALTH_VALIDATION_REPORT_FAMILY`; 4 advisory checks (category resolution, missing growth rate, EMI completeness, budget cap unset)
+- [x] Dashboard: Household Goals card (N/M achieved) and Data Quality banner (PASS / WARNING / FAIL)
+
+**Deferred:**
+
+- [ ] **Quarantine Protocol (Grocery Data)** — deferred to v0.6 (inventory CSV import not yet built)
+- [ ] **Duplicate Resolution UI** — deferred to v0.6
 
 ---
 
 ## v0.5 — Beta Release
 
-**Focus:** Stable build for controlled local testing. First cross-domain logic.
+**Focus:** Cross-domain intelligence features + UX completeness gaps from v0.4 reviews.
 
 ### Features
 
+- [ ] **Vital Readings — Edit**
+  - `PUT /v1/vitals/{id}` endpoint on health service
+  - Edit modal in Vitals frontend page (mirrors doctor visits UX)
+
+- [ ] **Inventory Items — Edit**
+  - `PUT /v1/inventory-items/{id}` endpoint on household service
+  - Edit modal in Inventory frontend page
+
 - [ ] **Vacation Planner (Cross-Domain)**
-  - Budget validation: check liquid savings against trip cost
-  - Asset compliance block: warn if vehicle PUC/Insurance expires before trip
+  - Budget validation: check liquid savings (wealth) against trip cost
+  - Asset compliance block: warn if vehicle PUC/Insurance expires before trip date (household calendar)
 
 - [ ] **Consolidated Action Center**
   - Single read-only dashboard aggregating alerts from all 3 domains
   - Upcoming calendar events, vehicle compliance deadlines, biometric streak gaps
+  - Requires PROP-005 (frontend state management) decision before starting
 
-Note: Profile-scoped data isolation (`profile_id` filtering on all domains) was delivered in v0.2 and is not a v0.5 item.
+Note: Profile-scoped data isolation (`profile_id` filtering on all domains) was delivered in v0.2. All Epic 8 pre-v0.5 blockers (gateway /errors proxy, net worth formula fix, refreshAll() isolation) delivered in v0.4.
 
 ---
 
@@ -387,7 +446,7 @@ Each milestone requires the previous to be stable before starting.
 | v0.1 | Upload 100+ transactions from 3+ CSVs without data loss | DONE |
 | v0.2 | Profile + Wealth + Health UAT-ready; statement upload lifecycle (PENDING/SUCCESS/FAILED) verified; all data member-scoped | DONE |
 | v0.3 | Household domain live; SonarQube zero blockers; dashboard shows live data | DONE |
-| v0.4 | Zero silent data drops on malformed input | DONE |
+| v0.4 | Zero silent data drops on malformed input; full Epic 8 wealth intelligence engine live; 375 JS tests + 0 Sonar issues | DONE |
 | v0.5 | Cross-domain vacation planner works end-to-end | PLANNED |
 | v1.0 | Auth + encryption pass local security review | PLANNED |
 | v1.3 | Full data export/import round-trip verified | PLANNED |
