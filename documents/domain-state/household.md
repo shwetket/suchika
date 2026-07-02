@@ -12,7 +12,7 @@ Document the design and implementation status for the household domain (v0.3).
 
 ---
 
-**Last updated:** 2026-07-02
+**Last updated:** 2026-07-03 (v0.6 — Goals page copy note)
 **Version:** v0.3 — complete (backend + gateway + frontend); v0.5 Phase 0/2 items in progress, see Open Issues / Backlog
 **Port:** 8084
 
@@ -174,6 +174,7 @@ Base URL: `http://localhost:8084`
 - ✅ **v0.5 Phase 0: `is_consumed BOOLEAN` flag on inventory items — COMPLETE (2026-07-02).** Q6 resolution — means "used in a calculation," not "used up"; no deletion, no expiry. `V4__inventory_item_consumed_flag.sql` added `is_consumed BOOLEAN NOT NULL DEFAULT false`; toggled via the same PUT endpoint above rather than a separate route.
 - ✅ **v0.5 Phase 2: Vacation Planner feature lives here in nav — COMPLETE (2026-07-02).** Route `/household/vacation-planner` (product owner decision, `OpenQuestions.md` Q27) — added via a new "Household" `NavDropdown` in `Navigation.js`, which also fixed a pre-existing gap (Calendar/Inventory/Goals had no nav links at all before this). The feature itself is implemented entirely in the gateway's new `com.suchika.gateway.vacationplanner` package and reads only wealth data (`WEALTH_LIQUIDITY_TIERS_FAMILY` snapshot + `physical_asset.metadata`) — it does **not** call `HouseholdServiceClient` or look at calendar events; trip dates are supplied directly by the user in the form, not derived from `household.calendar_event`. See `documents/domain-state/wealth.md` for the full implementation detail — this entry exists here only to explain the nav placement.
 - ✅ **v0.5 Phase 3: Consolidated Action Center upcoming events — COMPLETE (2026-07-02).** No household-domain code changed — gateway-only read of the existing `GET /v1/calendar-events` endpoint. `ProjectionCalculationEngine.computeActionCenterAlerts()` calls `householdServiceClient.listCalendarEvents(memberProfileId, null, today, today+30days)` per household member (same 30-day lookahead as the existing per-profile `computeEventSummary` step, but looped across all members instead of just the caller), tagging each event with the member's `profile_id`/`full_name` in the `ACTION_CENTER_ALERTS_FAMILY.upcoming_events` payload. See `documents/domain-state/wealth.md` for the full cross-domain implementation detail.
+- ✅ **v0.6: Goal progress auto-refresh copy note — COMPLETE (2026-07-03).** One-line note added under the Goals page header ("Progress updates when you refresh the dashboard — new transactions aren't reflected here until then.") — no code/API change, purely explains the existing manual-refresh dependency that was previously silent.
 
 ## Completed in v0.3 Gateway Pass (G1–G4)
 

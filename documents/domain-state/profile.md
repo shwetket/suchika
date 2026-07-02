@@ -12,8 +12,8 @@ Give any agent or developer instant context on the profile domain — what's bui
 
 ---
 
-**Last updated:** 2026-07-01
-**Version:** v0.2 complete — UAT-ready; Epic 8 Phase 4 delivered
+**Last updated:** 2026-07-03
+**Version:** v0.2 complete — UAT-ready; Epic 8 Phase 4 delivered; v0.6 adapter/domain test coverage added
 **Port:** 8081
 
 ---
@@ -91,6 +91,8 @@ Base path: `/v1`
 - Pagination on profile list (v0.3)
 - Profile avatar/photo (v0.4 or later)
 - Admin authentication (v1.0)
+- ✅ **v0.6: `AdminResource` and `ProfileResource` HTTP adapter unit tests — COMPLETE (2026-07-03).** These had zero test coverage at any layer until a new ArchUnit rule (`ports_input_interfaces_must_be_referenced_by_a_test_class`, in `shared/`) was added and immediately flagged `AdminUseCase`/`ProfileUseCase` as unreferenced by any test class — the existing `AdminServiceTest`/`ProfileServiceTest` only ever referenced the concrete `*Service` implementation type, never the interface. Added `AdminResourceTest` (9 tests) and `ProfileResourceTest` (9 tests), both plain JUnit 5 unit tests with a stub use case, matching the `StatementUploadResourceTest` pattern.
+- ✅ **v0.6: `Profile` and `Admin` domain entity unit tests — COMPLETE (2026-07-03).** `ProfileTest` (builder round-trip, default `active=false`, setters) and `AdminTest` (null-safe `policySettings` handling — no-arg constructor, full constructor with null map, `setPolicySettings(null)` — all default to an empty map rather than storing null).
 
 ## Design Decisions (Epic 8 Phase 4)
 
