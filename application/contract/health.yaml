@@ -152,7 +152,9 @@ paths:
       tags: [Doctor Visits]
       operationId: listDoctorVisits
       summary: List doctor visits for a profile
-      description: Returns visits newest-first.
+      description: >
+        Returns visits newest-first, optionally filtered by from_date falling
+        within [from, to] (v0.6 UX item — date-range filter).
       parameters:
         - name: profile_id
           in: query
@@ -160,6 +162,20 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: from
+          in: query
+          required: false
+          description: Start date filter (inclusive) on the visit's from_date, format YYYY-MM-DD.
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: false
+          description: End date filter (inclusive) on the visit's from_date, format YYYY-MM-DD.
+          schema:
+            type: string
+            format: date
       responses:
         '200':
           description: Visits listed

@@ -39,12 +39,27 @@ class DoctorVisitResourceTest {
     void listVisits_returns200_withVisitList() {
         useCase.visitsToReturn = List.of(buildVisit());
 
-        Response response = resource.listVisits(PROFILE_ID);
+        Response response = resource.listVisits(PROFILE_ID, null, null);
 
         assertEquals(200, response.getStatus());
         ListDoctorVisitsResponse body = (ListDoctorVisitsResponse) response.getEntity();
         assertEquals(1, body.doctorVisits.size());
         assertEquals("Dr. Rao", body.doctorVisits.get(0).doctorName);
+    }
+
+    @Test
+    void listVisits_passesDateRangeThroughToUseCase() {
+        useCase.visitsToReturn = List.of(buildVisit());
+
+        resource.listVisits(PROFILE_ID, "2026-01-01", "2026-06-30");
+
+        assertEquals(LocalDate.of(2026, 1, 1), useCase.lastListFrom);
+        assertEquals(LocalDate.of(2026, 6, 30), useCase.lastListTo);
+    }
+
+    @Test
+    void listVisits_invalidFromDate_throwsBadRequest() {
+        assertThrows(BadRequestException.class, () -> resource.listVisits(PROFILE_ID, "not-a-date", null));
     }
 
     @Test
@@ -137,6 +152,8 @@ class DoctorVisitResourceTest {
         UUID lastUpdateId;
         UpdateDoctorVisitCommand lastUpdateCommand;
         UUID lastDeleteId;
+        LocalDate lastListFrom;
+        LocalDate lastListTo;
 
         @Override
         public DoctorVisit create(CreateDoctorVisitCommand command) {
@@ -150,7 +167,9 @@ class DoctorVisitResourceTest {
         }
 
         @Override
-        public List<DoctorVisit> listByProfile(UUID profileId) {
+        public List<DoctorVisit> listByProfile(UUID profileId, LocalDate from, LocalDate to) {
+            lastListFrom = from;
+            lastListTo = to;
             return visitsToReturn;
         }
 

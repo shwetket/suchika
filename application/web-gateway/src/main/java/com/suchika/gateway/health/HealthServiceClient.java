@@ -38,7 +38,10 @@ public interface HealthServiceClient {
 
     @GET
     @Path("/doctor-visits")
-    JsonNode listDoctorVisits(@QueryParam("profile_id") UUID profileId);
+    JsonNode listDoctorVisits(
+            @QueryParam("profile_id") UUID profileId,
+            @QueryParam("from") String from,
+            @QueryParam("to") String to);
 
     @POST
     @Path("/doctor-visits")

@@ -91,6 +91,34 @@ describe('DoctorVisits page', () => {
     });
   });
 
+  it('calls listDoctorVisits with null from/to when no date filter set', async () => {
+    listDoctorVisits.mockResolvedValue({ doctor_visits: [] });
+    render(<DoctorVisits />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+
+    await waitFor(() => {
+      expect(listDoctorVisits).toHaveBeenCalledWith('p1', null, null);
+    });
+  });
+
+  it('passes from/to date filters through to listDoctorVisits', async () => {
+    listDoctorVisits.mockResolvedValue({ doctor_visits: [] });
+    render(<DoctorVisits />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+    await waitFor(() => screen.getByLabelText('From date'));
+
+    fireEvent.change(screen.getByLabelText('From date'), { target: { value: '2026-01-01' } });
+    fireEvent.change(screen.getByLabelText('To date'), { target: { value: '2026-06-30' } });
+
+    await waitFor(() => {
+      expect(listDoctorVisits).toHaveBeenCalledWith('p1', '2026-01-01', '2026-06-30');
+    });
+  });
+
   it('shows error message on API failure', async () => {
     listDoctorVisits.mockRejectedValue(new Error('Server error'));
     render(<DoctorVisits />);
@@ -147,8 +175,7 @@ describe('DoctorVisits page', () => {
 
     fireEvent.click(screen.getByText('+ Log Visit'));
 
-    const dateInputs = document.querySelectorAll('input[type="date"]');
-    fireEvent.change(dateInputs[0], {
+    fireEvent.change(document.querySelector('input[name="from_date"]'), {
       target: { name: 'from_date', value: '2026-06-19' },
     });
 

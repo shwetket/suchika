@@ -63,8 +63,11 @@ public class HealthGatewayResource {
 
     @GET
     @Path("/doctor-visits")
-    public JsonNode listDoctorVisits(@QueryParam("profile_id") UUID profileId) {
-        return healthServiceClient.listDoctorVisits(profileId);
+    public JsonNode listDoctorVisits(
+            @QueryParam("profile_id") UUID profileId,
+            @QueryParam("from") String from,
+            @QueryParam("to") String to) {
+        return healthServiceClient.listDoctorVisits(profileId, from, to);
     }
 
     @POST

@@ -12,6 +12,7 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -27,10 +28,24 @@ public class DoctorVisitResource {
     }
 
     @GET
-    public Response listVisits(@QueryParam("profile_id") UUID profileId) {
-        List<DoctorVisitResponse> visits = useCase.listByProfile(profileId)
+    public Response listVisits(
+            @QueryParam("profile_id") UUID profileId,
+            @QueryParam("from") String fromParam,
+            @QueryParam("to") String toParam) {
+        LocalDate from = parseDate(fromParam, "from");
+        LocalDate to = parseDate(toParam, "to");
+        List<DoctorVisitResponse> visits = useCase.listByProfile(profileId, from, to)
                 .stream().map(DoctorVisitResponse::from).toList();
         return Response.ok(new ListDoctorVisitsResponse(visits)).build();
+    }
+
+    private LocalDate parseDate(String value, String paramName) {
+        if (value == null) return null;
+        try {
+            return LocalDate.parse(value);
+        } catch (Exception e) {
+            throw new BadRequestException("Invalid " + paramName + " date: " + value + " (expected yyyy-MM-dd)");
+        }
     }
 
     @POST

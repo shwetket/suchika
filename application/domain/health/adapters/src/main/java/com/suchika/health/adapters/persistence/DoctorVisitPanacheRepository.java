@@ -4,6 +4,7 @@ import com.suchika.health.domain.DoctorVisit;
 import com.suchika.health.ports.output.DoctorVisitRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -34,8 +35,23 @@ public class DoctorVisitPanacheRepository implements DoctorVisitRepository {
     }
 
     @Override
-    public List<DoctorVisit> findByProfileId(UUID profileId) {
-        return dao.find("profileId = ?1 order by fromDate desc", profileId)
+    public List<DoctorVisit> findByProfileId(UUID profileId, LocalDate from, LocalDate to) {
+        StringBuilder query = new StringBuilder("profileId = ?1");
+        List<Object> params = new java.util.ArrayList<>();
+        params.add(profileId);
+
+        int paramIdx = 2;
+        if (from != null) {
+            query.append(" and fromDate >= ?").append(paramIdx++);
+            params.add(from);
+        }
+        if (to != null) {
+            query.append(" and fromDate <= ?").append(paramIdx);
+            params.add(to);
+        }
+        query.append(" order by fromDate desc");
+
+        return dao.find(query.toString(), params.toArray())
                 .stream().map(DoctorVisitEntity::toDomain).toList();
     }
 
