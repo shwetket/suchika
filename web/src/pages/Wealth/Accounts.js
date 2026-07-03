@@ -599,7 +599,10 @@ export const Accounts = () => {
                 </p>
                 <div className="space-y-3">
                   <div className="flex flex-col gap-1">
-                    <label htmlFor="edit-loan-original-principal" className="text-sm font-medium text-gray-700">
+                    <label
+                      htmlFor="edit-loan-original-principal"
+                      className="text-sm font-medium text-gray-700"
+                    >
                       Original Principal (₹)
                     </label>
                     <input
@@ -613,7 +616,12 @@ export const Accounts = () => {
                     />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label htmlFor="edit-loan-start-date" className="text-sm font-medium text-gray-700">Loan Start Date</label>
+                    <label
+                      htmlFor="edit-loan-start-date"
+                      className="text-sm font-medium text-gray-700"
+                    >
+                      Loan Start Date
+                    </label>
                     <input
                       id="edit-loan-start-date"
                       name="loan_start_date"
@@ -624,7 +632,12 @@ export const Accounts = () => {
                     />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label htmlFor="edit-loan-tenure-months" className="text-sm font-medium text-gray-700">Tenure (months)</label>
+                    <label
+                      htmlFor="edit-loan-tenure-months"
+                      className="text-sm font-medium text-gray-700"
+                    >
+                      Tenure (months)
+                    </label>
                     <input
                       id="edit-loan-tenure-months"
                       name="loan_tenure_months"
@@ -638,7 +651,10 @@ export const Accounts = () => {
                   </div>
                   {savingsAccounts.length > 0 && (
                     <div className="flex flex-col gap-1">
-                      <label htmlFor="edit-linked-offset-account" className="text-sm font-medium text-gray-700">
+                      <label
+                        htmlFor="edit-linked-offset-account"
+                        className="text-sm font-medium text-gray-700"
+                      >
                         Linked Offset Account
                       </label>
                       <select

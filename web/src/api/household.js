@@ -33,7 +33,8 @@ export function listInventoryItems(profileId, sourcePlatform) {
 
 export const createInventoryItem = (data) => post(API_ENDPOINTS.INVENTORY_ITEMS, data);
 
-export const updateInventoryItem = (id, data) => put(`${API_ENDPOINTS.INVENTORY_ITEMS}/${id}`, data);
+export const updateInventoryItem = (id, data) =>
+  put(`${API_ENDPOINTS.INVENTORY_ITEMS}/${id}`, data);
 
 export const deleteInventoryItem = (id) => del(`${API_ENDPOINTS.INVENTORY_ITEMS}/${id}`);
 

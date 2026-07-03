@@ -48,7 +48,10 @@ function renderSetup() {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  useAuth.mockReturnValue({ user: { username: 'alice', role: 'admin' }, updateUser: mockUpdateUser });
+  useAuth.mockReturnValue({
+    user: { username: 'alice', role: 'admin' },
+    updateUser: mockUpdateUser,
+  });
 });
 
 describe('Setup wizard', () => {
@@ -107,7 +110,11 @@ describe('Setup wizard', () => {
       user: { username: 'alice', role: 'admin', admin_id: 'admin-1', profile_id: 'profile-1' },
       updateUser: mockUpdateUser,
     });
-    createAccount.mockResolvedValue({ account_id: 'acc-1', account_name: 'HDFC Savings', account_type: 'SAVINGS' });
+    createAccount.mockResolvedValue({
+      account_id: 'acc-1',
+      account_name: 'HDFC Savings',
+      account_type: 'SAVINGS',
+    });
     renderSetup();
 
     fireEvent.change(screen.getByPlaceholderText('e.g. SBI Savings'), {
@@ -118,10 +125,15 @@ describe('Setup wizard', () => {
     });
     fireEvent.click(screen.getByText('+ Add Account'));
 
-    await waitFor(() => expect(createAccount).toHaveBeenCalledWith('profile-1', expect.objectContaining({
-      account_name: 'HDFC Savings',
-      institution_name: 'HDFC Bank',
-    })));
+    await waitFor(() =>
+      expect(createAccount).toHaveBeenCalledWith(
+        'profile-1',
+        expect.objectContaining({
+          account_name: 'HDFC Savings',
+          institution_name: 'HDFC Bank',
+        })
+      )
+    );
     expect(await screen.findByText(/HDFC Savings/)).toBeInTheDocument();
     expect(updateAccountClassification).not.toHaveBeenCalled();
   });
@@ -131,7 +143,11 @@ describe('Setup wizard', () => {
       user: { username: 'alice', role: 'admin', admin_id: 'admin-1', profile_id: 'profile-1' },
       updateUser: mockUpdateUser,
     });
-    createAccount.mockResolvedValue({ account_id: 'acc-2', account_name: 'Home Loan', account_type: 'HOME_LOAN' });
+    createAccount.mockResolvedValue({
+      account_id: 'acc-2',
+      account_name: 'Home Loan',
+      account_type: 'HOME_LOAN',
+    });
     updateAccountClassification.mockResolvedValue({});
     renderSetup();
 

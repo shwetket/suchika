@@ -80,7 +80,13 @@ describe('ActionCenter page', () => {
     getDashboard.mockResolvedValue(
       snapshotWith({
         upcoming_events: [
-          { profile_id: 'p1', full_name: 'Ketan', id: 'e1', title: 'Dentist', start_date: '2026-07-10' },
+          {
+            profile_id: 'p1',
+            full_name: 'Ketan',
+            id: 'e1',
+            title: 'Dentist',
+            start_date: '2026-07-10',
+          },
         ],
         vehicle_compliance: [
           {

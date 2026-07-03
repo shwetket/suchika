@@ -434,7 +434,9 @@ function TransactionsTab({ accountId, profileId }) {
                 </div>
               </fieldset>
               <div className="flex flex-col gap-1">
-                <label htmlFor="add-txn-description" className="text-sm font-medium text-gray-700">Description</label>
+                <label htmlFor="add-txn-description" className="text-sm font-medium text-gray-700">
+                  Description
+                </label>
                 <input
                   id="add-txn-description"
                   name="description"

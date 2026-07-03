@@ -64,7 +64,9 @@ describe('Goals page', () => {
   it('shows a note that progress only updates on dashboard refresh', async () => {
     render(<Goals />);
     await waitFor(() => {
-      expect(screen.getByText(/progress updates when you refresh the dashboard/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/progress updates when you refresh the dashboard/i)
+      ).toBeInTheDocument();
     });
   });
 

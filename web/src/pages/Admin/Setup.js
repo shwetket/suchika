@@ -163,7 +163,8 @@ export const Setup = () => {
           account_name: accountForm.account_name.trim(),
           account_type: accountForm.account_type,
           institution_name: accountForm.institution_name.trim(),
-          opening_balance: accountForm.opening_balance === '' ? 0 : Number(accountForm.opening_balance),
+          opening_balance:
+            accountForm.opening_balance === '' ? 0 : Number(accountForm.opening_balance),
         });
         if (isLoanType) {
           const loanMeta = {};
@@ -259,7 +260,10 @@ export const Setup = () => {
       <StepIndicator step={step} />
 
       {step === 1 && (
-        <form onSubmit={handleIdentitySubmit} className="space-y-4 bg-white border border-gray-200 rounded-lg p-5">
+        <form
+          onSubmit={handleIdentitySubmit}
+          className="space-y-4 bg-white border border-gray-200 rounded-lg p-5"
+        >
           <Field label="Full Name" required>
             <input
               name="fullName"
@@ -280,7 +284,12 @@ export const Setup = () => {
             />
           </Field>
           <Field label="Blood Group">
-            <select name="bloodType" value={identity.bloodType} onChange={handleIdentityChange} className={inputClass}>
+            <select
+              name="bloodType"
+              value={identity.bloodType}
+              onChange={handleIdentityChange}
+              className={inputClass}
+            >
               <option value="">Select (optional)</option>
               {BLOOD_TYPES.map((bt) => (
                 <option key={bt} value={bt}>
@@ -290,7 +299,12 @@ export const Setup = () => {
             </select>
           </Field>
           <Field label="Gender">
-            <select name="gender" value={identity.gender} onChange={handleIdentityChange} className={inputClass}>
+            <select
+              name="gender"
+              value={identity.gender}
+              onChange={handleIdentityChange}
+              className={inputClass}
+            >
               <option value="">Select (optional)</option>
               {GENDERS.map((g) => (
                 <option key={g} value={g}>

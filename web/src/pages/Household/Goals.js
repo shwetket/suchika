@@ -359,8 +359,8 @@ export const Goals = () => {
           <h1 className="text-3xl font-bold text-gray-900">Financial Goals</h1>
           <p className="text-gray-500 mt-1">Track savings targets and progress</p>
           <p className="text-xs text-gray-400 mt-1">
-            Progress updates when you refresh the dashboard — new transactions aren&apos;t
-            reflected here until then.
+            Progress updates when you refresh the dashboard — new transactions aren&apos;t reflected
+            here until then.
           </p>
         </div>
         {selectedProfileId && (
