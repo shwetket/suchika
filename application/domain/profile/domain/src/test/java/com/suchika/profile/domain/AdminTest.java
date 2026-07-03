@@ -36,7 +36,8 @@ class AdminTest {
 
     @Test
     void fullConstructor_withNullPolicySettings_defaultsToEmptyMap() {
-        Admin admin = new Admin(UUID.randomUUID(), "Ketan", "ketan@example.com", true, Instant.now(), null);
+        Admin admin = new Admin(UUID.randomUUID(), "Ketan", "ketan@example.com", true,
+                Instant.parse("2026-01-01T00:00:00Z"), null);
 
         assertNotNull(admin.getPolicySettings());
         assertTrue(admin.getPolicySettings().isEmpty());

@@ -3,6 +3,7 @@ package com.suchika.household.adapters.service;
 import com.suchika.household.domain.InventoryItem;
 import com.suchika.household.domain.ItemUnit;
 import com.suchika.household.domain.SourcePlatform;
+import com.suchika.household.ports.input.UpdateInventoryItemCommand;
 import com.suchika.household.ports.output.InventoryItemRepository;
 import com.suchika.shared.exception.NotFoundException;
 import org.junit.jupiter.api.BeforeEach;
@@ -88,8 +89,8 @@ class InventoryItemServiceTest {
 
     @Test
     void update_notFound_throwsNotFoundException() {
-        assertThrows(NotFoundException.class, () -> service.update(UUID.randomUUID(), "New Name",
-                null, null, null, null, null, null));
+        assertThrows(NotFoundException.class, () -> service.update(UUID.randomUUID(),
+                new UpdateInventoryItemCommand("New Name", null, null, null, null, null, null)));
     }
 
     @Test
@@ -98,8 +99,8 @@ class InventoryItemServiceTest {
         InventoryItem created = service.create(profileId, "Milk", new BigDecimal("2"),
                 ItemUnit.L, SourcePlatform.INSTAMART, PURCHASE_DATE, "Dairy");
 
-        InventoryItem updated = service.update(created.getId(), "Whole Milk", null, null,
-                null, null, null, null);
+        InventoryItem updated = service.update(created.getId(),
+                new UpdateInventoryItemCommand("Whole Milk", null, null, null, null, null, null));
 
         assertEquals("Whole Milk", updated.getItemName());
         assertEquals(0, new BigDecimal("2").compareTo(updated.getQuantity()));
@@ -116,8 +117,8 @@ class InventoryItemServiceTest {
                 ItemUnit.L, SourcePlatform.INSTAMART, PURCHASE_DATE, "Dairy");
         assertEquals(false, created.isConsumed());
 
-        InventoryItem updated = service.update(created.getId(), null, null, null,
-                null, null, null, true);
+        InventoryItem updated = service.update(created.getId(),
+                new UpdateInventoryItemCommand(null, null, null, null, null, null, true));
 
         assertEquals(true, updated.isConsumed());
         // Untouched fields remain the same — is_consumed means "used in a calculation",

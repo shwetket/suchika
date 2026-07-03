@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.List;
 import java.util.UUID;
 
@@ -57,7 +58,7 @@ class VitalReadingResourceTest {
         RecordVitalReadingRequest request = new RecordVitalReadingRequest();
         request.profileId = PROFILE_ID;
         request.vitalType = "WEIGHT";
-        request.readingDate = LocalDate.of(2026, 6, 1);
+        request.readingDate = LocalDate.of(2026, Month.JUNE, 1);
         request.valuePrimary = BigDecimal.valueOf(70);
         request.unit = "kg";
         useCase.readingToReturn = buildReading();
@@ -124,7 +125,7 @@ class VitalReadingResourceTest {
                 .id(READING_ID)
                 .profileId(PROFILE_ID)
                 .vitalType(VitalType.WEIGHT)
-                .readingDate(LocalDate.of(2026, 6, 1))
+                .readingDate(LocalDate.of(2026, Month.JUNE, 1))
                 .valuePrimary(BigDecimal.valueOf(70))
                 .unit("kg")
                 .build();

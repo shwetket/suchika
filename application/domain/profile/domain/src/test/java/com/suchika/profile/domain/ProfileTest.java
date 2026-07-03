@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -15,7 +16,7 @@ class ProfileTest {
     void builder_setsAllFields() {
         UUID id = UUID.randomUUID();
         UUID adminId = UUID.randomUUID();
-        LocalDate dob = LocalDate.of(1990, 5, 20);
+        LocalDate dob = LocalDate.of(1990, Month.MAY, 20);
         Instant createdAt = Instant.parse("2026-01-01T00:00:00Z");
 
         Profile profile = Profile.builder()

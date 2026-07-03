@@ -15,6 +15,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.List;
 import java.util.UUID;
 
@@ -50,7 +51,7 @@ class ProfileResourceTest {
         CreateProfileRequest request = new CreateProfileRequest();
         request.adminId = ADMIN_ID;
         request.fullName = "Ketan";
-        request.dob = LocalDate.of(1990, 5, 20);
+        request.dob = LocalDate.of(1990, Month.MAY, 20);
         request.relationToAdmin = "SELF";
         useCase.profileToReturn = buildProfile();
 
@@ -66,7 +67,7 @@ class ProfileResourceTest {
     void createProfile_missingAdminId_throwsBadRequest() {
         CreateProfileRequest request = new CreateProfileRequest();
         request.fullName = "Ketan";
-        request.dob = LocalDate.of(1990, 5, 20);
+        request.dob = LocalDate.of(1990, Month.MAY, 20);
         request.relationToAdmin = "SELF";
         assertThrows(BadRequestException.class, () -> resource.createProfile(request));
     }
@@ -76,7 +77,7 @@ class ProfileResourceTest {
         CreateProfileRequest request = new CreateProfileRequest();
         request.adminId = ADMIN_ID;
         request.fullName = "Ketan";
-        request.dob = LocalDate.of(1990, 5, 20);
+        request.dob = LocalDate.of(1990, Month.MAY, 20);
         request.relationToAdmin = "NOT_A_RELATION";
         assertThrows(BadRequestException.class, () -> resource.createProfile(request));
     }
@@ -86,7 +87,7 @@ class ProfileResourceTest {
         CreateProfileRequest request = new CreateProfileRequest();
         request.adminId = ADMIN_ID;
         request.fullName = "Ketan";
-        request.dob = LocalDate.of(1990, 5, 20);
+        request.dob = LocalDate.of(1990, Month.MAY, 20);
         request.relationToAdmin = "SELF";
         request.bloodType = "NOT_A_BLOOD_TYPE";
         assertThrows(BadRequestException.class, () -> resource.createProfile(request));
@@ -133,7 +134,7 @@ class ProfileResourceTest {
                 .id(PROFILE_ID)
                 .adminId(ADMIN_ID)
                 .fullName("Ketan")
-                .dob(LocalDate.of(1990, 5, 20))
+                .dob(LocalDate.of(1990, Month.MAY, 20))
                 .relationToAdmin(RelationToAdmin.SELF)
                 .active(true)
                 .build();

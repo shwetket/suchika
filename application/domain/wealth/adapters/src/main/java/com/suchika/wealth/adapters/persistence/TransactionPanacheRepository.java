@@ -40,7 +40,7 @@ public class TransactionPanacheRepository implements TransactionRepository {
     @Override
     public List<Transaction> findByAccountId(UUID accountId, UUID profileId, LocalDate from, LocalDate to, TxnType txnType) {
         Filter filter = buildFilter(accountId, profileId, from, to, txnType);
-        return dao.find(filter.query(), filter.params())
+        return dao.find(filter.query(), filter.params().toArray())
                 .stream().map(TransactionEntity::toDomain).toList();
     }
 
@@ -48,7 +48,7 @@ public class TransactionPanacheRepository implements TransactionRepository {
     public List<Transaction> findByAccountId(UUID accountId, UUID profileId, LocalDate from, LocalDate to, TxnType txnType,
                                               int page, int size) {
         Filter filter = buildFilter(accountId, profileId, from, to, txnType);
-        return dao.find(filter.query(), filter.params())
+        return dao.find(filter.query(), filter.params().toArray())
                 .page(Page.of(page, size))
                 .list()
                 .stream().map(TransactionEntity::toDomain).toList();
@@ -57,7 +57,7 @@ public class TransactionPanacheRepository implements TransactionRepository {
     @Override
     public long countByAccountId(UUID accountId, UUID profileId, LocalDate from, LocalDate to, TxnType txnType) {
         Filter filter = buildFilter(accountId, profileId, from, to, txnType);
-        return dao.find(filter.query(), filter.params()).count();
+        return dao.find(filter.query(), filter.params().toArray()).count();
     }
 
     /**
@@ -90,10 +90,10 @@ public class TransactionPanacheRepository implements TransactionRepository {
         }
         query.append(" order by txnDate desc");
 
-        return new Filter(query.toString(), params.toArray());
+        return new Filter(query.toString(), params);
     }
 
-    private record Filter(String query, Object[] params) {
+    private record Filter(String query, List<Object> params) {
     }
 
     @Override

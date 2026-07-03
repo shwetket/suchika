@@ -14,6 +14,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.List;
 import java.util.UUID;
 
@@ -53,8 +54,8 @@ class DoctorVisitResourceTest {
 
         resource.listVisits(PROFILE_ID, "2026-01-01", "2026-06-30");
 
-        assertEquals(LocalDate.of(2026, 1, 1), useCase.lastListFrom);
-        assertEquals(LocalDate.of(2026, 6, 30), useCase.lastListTo);
+        assertEquals(LocalDate.of(2026, Month.JANUARY, 1), useCase.lastListFrom);
+        assertEquals(LocalDate.of(2026, Month.JUNE, 30), useCase.lastListTo);
     }
 
     @Test
@@ -66,7 +67,7 @@ class DoctorVisitResourceTest {
     void create_returns201_withCreatedVisit() {
         CreateDoctorVisitRequest request = new CreateDoctorVisitRequest();
         request.profileId = PROFILE_ID;
-        request.fromDate = LocalDate.of(2026, 6, 1);
+        request.fromDate = LocalDate.of(2026, Month.JUNE, 1);
         request.visitedDoctor = true;
         request.doctorName = "Dr. Rao";
         useCase.visitToReturn = buildVisit();
@@ -89,7 +90,7 @@ class DoctorVisitResourceTest {
     void create_visitedDoctorNull_defaultsToFalse() {
         CreateDoctorVisitRequest request = new CreateDoctorVisitRequest();
         request.profileId = PROFILE_ID;
-        request.fromDate = LocalDate.of(2026, 6, 1);
+        request.fromDate = LocalDate.of(2026, Month.JUNE, 1);
         useCase.visitToReturn = buildVisit();
 
         resource.create(request);
@@ -138,7 +139,7 @@ class DoctorVisitResourceTest {
         return DoctorVisit.builder()
                 .id(VISIT_ID)
                 .profileId(PROFILE_ID)
-                .fromDate(LocalDate.of(2026, 6, 1))
+                .fromDate(LocalDate.of(2026, Month.JUNE, 1))
                 .visitedDoctor(true)
                 .doctorName("Dr. Rao")
                 .build();

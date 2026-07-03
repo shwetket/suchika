@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -16,7 +17,7 @@ class VitalReadingTest {
     void builder_setsAllFields() {
         UUID id = UUID.randomUUID();
         UUID profileId = UUID.randomUUID();
-        LocalDate readingDate = LocalDate.of(2026, 6, 1);
+        LocalDate readingDate = LocalDate.of(2026, Month.JUNE, 1);
         Instant createdAt = Instant.parse("2026-06-01T10:00:00Z");
 
         VitalReading reading = VitalReading.builder()

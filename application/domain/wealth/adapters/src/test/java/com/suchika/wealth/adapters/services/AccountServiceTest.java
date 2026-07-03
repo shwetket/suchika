@@ -17,11 +17,14 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class AccountServiceTest {
+
+    private static final LocalDate FIXED_TXN_DATE = LocalDate.of(2026, Month.JUNE, 1);
 
     private AccountService service;
     private FakeAccountRepository repo;
@@ -345,12 +348,12 @@ class AccountServiceTest {
 
         void addCredit(UUID accountId, BigDecimal amount) {
             store.add(Transaction.builder().accountId(accountId).amount(amount)
-                    .txnType(TxnType.CREDIT).txnDate(LocalDate.now()).description("test credit").build());
+                    .txnType(TxnType.CREDIT).txnDate(FIXED_TXN_DATE).description("test credit").build());
         }
 
         void addDebit(UUID accountId, BigDecimal amount) {
             store.add(Transaction.builder().accountId(accountId).amount(amount)
-                    .txnType(TxnType.DEBIT).txnDate(LocalDate.now()).description("test debit").build());
+                    .txnType(TxnType.DEBIT).txnDate(FIXED_TXN_DATE).description("test debit").build());
         }
 
         @Override

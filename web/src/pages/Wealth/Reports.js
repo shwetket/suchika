@@ -145,11 +145,11 @@ export const Reports = () => {
             <SummaryCard label="Total Accounts" value={String(totalAccounts)} />
             <SummaryCard
               label="Net Balance"
-              value={netWorth !== null ? formatCurrency(netWorth) : 'Not calculated'}
+              value={netWorth === null ? 'Not calculated' : formatCurrency(netWorth)}
               subLabel={
-                netWorth !== null
-                  ? 'Opening balance + transaction history'
-                  : 'Click Refresh to calculate'
+                netWorth === null
+                  ? 'Click Refresh to calculate'
+                  : 'Opening balance + transaction history'
               }
             />
             <SummaryCard label="Active Accounts" value={String(activeAccounts)} />

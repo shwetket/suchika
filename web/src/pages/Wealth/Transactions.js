@@ -40,6 +40,13 @@ function truncate(text, max) {
   return text.length > max ? `${text.slice(0, max)}…` : text;
 }
 
+function txnTypeButtonClass(selectedType, buttonType) {
+  if (selectedType !== buttonType) return 'border-gray-300 text-gray-600';
+  return buttonType === 'DEBIT'
+    ? 'bg-red-100 border-red-400 text-red-700'
+    : 'bg-green-100 border-green-400 text-green-700';
+}
+
 function TxnTypeBadge({ type }) {
   const cls = type === 'CREDIT' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
   return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${cls}`}>{type}</span>;
@@ -381,10 +388,11 @@ function TransactionsTab({ accountId, profileId }) {
             </div>
             <form onSubmit={handleAddSubmit} className="p-5 space-y-4">
               <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-gray-700">
+                <label htmlFor="add-txn-date" className="text-sm font-medium text-gray-700">
                   Date <span className="text-red-500">*</span>
                 </label>
                 <input
+                  id="add-txn-date"
                   name="txn_date"
                   type="date"
                   value={addForm.txn_date}
@@ -393,10 +401,11 @@ function TransactionsTab({ accountId, profileId }) {
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-gray-700">
+                <label htmlFor="add-txn-amount" className="text-sm font-medium text-gray-700">
                   Amount (₹) <span className="text-red-500">*</span>
                 </label>
                 <input
+                  id="add-txn-amount"
                   name="amount"
                   type="number"
                   min="0.01"
@@ -407,26 +416,27 @@ function TransactionsTab({ accountId, profileId }) {
                   className={inputClass}
                 />
               </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-gray-700">
+              <fieldset className="flex flex-col gap-1 border-0 p-0 m-0">
+                <legend className="text-sm font-medium text-gray-700 p-0">
                   Type <span className="text-red-500">*</span>
-                </label>
+                </legend>
                 <div className="flex gap-2">
                   {['DEBIT', 'CREDIT'].map((t) => (
                     <button
                       key={t}
                       type="button"
                       onClick={() => setAddForm((p) => ({ ...p, txn_type: t }))}
-                      className={`flex-1 py-2 rounded text-sm font-medium border ${addForm.txn_type === t ? (t === 'DEBIT' ? 'bg-red-100 border-red-400 text-red-700' : 'bg-green-100 border-green-400 text-green-700') : 'border-gray-300 text-gray-600'}`}
+                      className={`flex-1 py-2 rounded text-sm font-medium border ${txnTypeButtonClass(addForm.txn_type, t)}`}
                     >
                       {t}
                     </button>
                   ))}
                 </div>
-              </div>
+              </fieldset>
               <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-gray-700">Description</label>
+                <label htmlFor="add-txn-description" className="text-sm font-medium text-gray-700">Description</label>
                 <input
+                  id="add-txn-description"
                   name="description"
                   type="text"
                   value={addForm.description}

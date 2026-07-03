@@ -4,6 +4,7 @@ import com.suchika.household.domain.InventoryItem;
 import com.suchika.household.domain.ItemUnit;
 import com.suchika.household.domain.SourcePlatform;
 import com.suchika.household.ports.input.InventoryItemUseCase;
+import com.suchika.household.ports.input.UpdateInventoryItemCommand;
 import com.suchika.shared.exception.NotFoundException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
@@ -23,6 +24,7 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 
@@ -201,7 +203,7 @@ class InventoryItemResourceTest {
                 .createdAt(Instant.EPOCH)
                 .build();
 
-        Mockito.when(inventoryItemUseCase.update(eq(ITEM_ID), any(), any(), any(), any(), any(), any(), any()))
+        Mockito.when(inventoryItemUseCase.update(eq(ITEM_ID), any(UpdateInventoryItemCommand.class)))
                 .thenReturn(updatedItem);
 
         String body = "{"
@@ -234,7 +236,8 @@ class InventoryItemResourceTest {
                 .createdAt(Instant.EPOCH)
                 .build();
 
-        Mockito.when(inventoryItemUseCase.update(eq(ITEM_ID), any(), any(), any(), any(), any(), any(), eq(true)))
+        Mockito.when(inventoryItemUseCase.update(eq(ITEM_ID),
+                        argThat(command -> Boolean.TRUE.equals(command.isConsumed()))))
                 .thenReturn(consumedItem);
 
         String body = "{\"is_consumed\":true}";
@@ -251,7 +254,7 @@ class InventoryItemResourceTest {
 
     @Test
     void updateInventoryItem_notFound_returns404() {
-        Mockito.when(inventoryItemUseCase.update(eq(ITEM_ID), any(), any(), any(), any(), any(), any(), any()))
+        Mockito.when(inventoryItemUseCase.update(eq(ITEM_ID), any(UpdateInventoryItemCommand.class)))
                 .thenThrow(new NotFoundException("inventory item not found"));
 
         String body = "{\"item_name\":\"Anything\"}";

@@ -241,14 +241,15 @@ class TransactionServiceTest {
     void create_negativeAmount_throwsBadRequest() {
         UUID accountId = UUID.randomUUID();
         CreateTransactionCommand cmd = new CreateTransactionCommand(
-                LocalDate.now(), new BigDecimal("-1"), TxnType.DEBIT, "");
+                LocalDate.of(2026, Month.JUNE, 1), new BigDecimal("-1"), TxnType.DEBIT, "");
         assertThrows(BadRequestException.class, () -> service.create(accountId, null, cmd));
     }
 
     @Test
     void create_nullTxnType_throwsBadRequest() {
         UUID accountId = UUID.randomUUID();
-        CreateTransactionCommand cmd = new CreateTransactionCommand(LocalDate.now(), new BigDecimal("100"), null, "");
+        CreateTransactionCommand cmd = new CreateTransactionCommand(
+                LocalDate.of(2026, Month.JUNE, 1), new BigDecimal("100"), null, "");
         assertThrows(BadRequestException.class, () -> service.create(accountId, null, cmd));
     }
 

@@ -67,6 +67,12 @@ function formatTimestamp(isoStr) {
   });
 }
 
+function validationStatusClass(status) {
+  if (status === 'PASS') return 'bg-green-50 text-green-700';
+  if (status === 'WARNING') return 'bg-yellow-50 text-yellow-700';
+  return 'bg-red-50 text-red-700';
+}
+
 function Spinner() {
   return (
     <svg
@@ -246,13 +252,7 @@ function SnapshotSummary({ snapshots }) {
       )}
       {validationPayload && (
         <div
-          className={`mt-3 rounded-lg px-4 py-2 text-sm ${
-            validationPayload.overall_status === 'PASS'
-              ? 'bg-green-50 text-green-700'
-              : validationPayload.overall_status === 'WARNING'
-                ? 'bg-yellow-50 text-yellow-700'
-                : 'bg-red-50 text-red-700'
-          }`}
+          className={`mt-3 rounded-lg px-4 py-2 text-sm ${validationStatusClass(validationPayload.overall_status)}`}
         >
           Data Quality: {validationPayload.overall_status}
           {validationPayload.warning_count > 0 &&

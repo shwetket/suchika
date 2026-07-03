@@ -7,6 +7,7 @@ import com.suchika.household.adapters.http.dto.UpdateInventoryItemRequest;
 import com.suchika.household.domain.ItemUnit;
 import com.suchika.household.domain.SourcePlatform;
 import com.suchika.household.ports.input.InventoryItemUseCase;
+import com.suchika.household.ports.input.UpdateInventoryItemCommand;
 import com.suchika.shared.exception.BadRequestException;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -75,8 +76,9 @@ public class InventoryItemResource {
     public InventoryItemDto update(@PathParam("id") UUID id, UpdateInventoryItemRequest request) {
         ItemUnit unit = parseItemUnit(request.unit);
         SourcePlatform platform = parseSourcePlatform(request.sourcePlatform);
-        return InventoryItemDto.from(useCase.update(id, request.itemName, request.quantity,
-                unit, platform, request.purchaseDate, request.category, request.isConsumed));
+        UpdateInventoryItemCommand command = new UpdateInventoryItemCommand(request.itemName, request.quantity,
+                unit, platform, request.purchaseDate, request.category, request.isConsumed);
+        return InventoryItemDto.from(useCase.update(id, command));
     }
 
     @DELETE

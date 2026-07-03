@@ -46,6 +46,19 @@ const EMPTY_EDIT = {
 const inputClass =
   'border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
 
+function buildLoanMetadataPatch(editForm) {
+  const loanMeta = {};
+  if (editForm.loan_original_principal) {
+    loanMeta.loan_original_principal = editForm.loan_original_principal;
+  }
+  if (editForm.loan_start_date) loanMeta.loan_start_date = editForm.loan_start_date;
+  if (editForm.loan_tenure_months) loanMeta.loan_tenure_months = editForm.loan_tenure_months;
+  if (editForm.linked_offset_account_id) {
+    loanMeta.linked_offset_account_id = editForm.linked_offset_account_id;
+  }
+  return loanMeta;
+}
+
 function formatCurrency(value) {
   if (value === null || value === undefined) return '—';
   return Number(value).toLocaleString('en-IN', {
@@ -404,14 +417,7 @@ export const Accounts = () => {
           is_active: editForm.is_active,
         });
         if (LOAN_TYPES.has(editingAccount.account_type)) {
-          const loanMeta = {};
-          if (editForm.loan_original_principal)
-            loanMeta.loan_original_principal = editForm.loan_original_principal;
-          if (editForm.loan_start_date) loanMeta.loan_start_date = editForm.loan_start_date;
-          if (editForm.loan_tenure_months)
-            loanMeta.loan_tenure_months = editForm.loan_tenure_months;
-          if (editForm.linked_offset_account_id)
-            loanMeta.linked_offset_account_id = editForm.linked_offset_account_id;
+          const loanMeta = buildLoanMetadataPatch(editForm);
           if (Object.keys(loanMeta).length > 0) {
             await updateAccountClassification(editingAccount.account_id, loanMeta);
           }
@@ -593,10 +599,11 @@ export const Accounts = () => {
                 </p>
                 <div className="space-y-3">
                   <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium text-gray-700">
+                    <label htmlFor="edit-loan-original-principal" className="text-sm font-medium text-gray-700">
                       Original Principal (₹)
                     </label>
                     <input
+                      id="edit-loan-original-principal"
                       name="loan_original_principal"
                       type="number"
                       value={editForm.loan_original_principal}
@@ -606,8 +613,9 @@ export const Accounts = () => {
                     />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium text-gray-700">Loan Start Date</label>
+                    <label htmlFor="edit-loan-start-date" className="text-sm font-medium text-gray-700">Loan Start Date</label>
                     <input
+                      id="edit-loan-start-date"
                       name="loan_start_date"
                       type="date"
                       value={editForm.loan_start_date}
@@ -616,8 +624,9 @@ export const Accounts = () => {
                     />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium text-gray-700">Tenure (months)</label>
+                    <label htmlFor="edit-loan-tenure-months" className="text-sm font-medium text-gray-700">Tenure (months)</label>
                     <input
+                      id="edit-loan-tenure-months"
                       name="loan_tenure_months"
                       type="number"
                       min="1"
@@ -629,10 +638,11 @@ export const Accounts = () => {
                   </div>
                   {savingsAccounts.length > 0 && (
                     <div className="flex flex-col gap-1">
-                      <label className="text-sm font-medium text-gray-700">
+                      <label htmlFor="edit-linked-offset-account" className="text-sm font-medium text-gray-700">
                         Linked Offset Account
                       </label>
                       <select
+                        id="edit-linked-offset-account"
                         name="linked_offset_account_id"
                         value={editForm.linked_offset_account_id}
                         onChange={handleEditChange}

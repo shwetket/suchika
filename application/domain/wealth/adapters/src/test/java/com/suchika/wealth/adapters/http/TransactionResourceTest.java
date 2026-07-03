@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.List;
 import java.util.UUID;
 
@@ -52,7 +53,7 @@ class TransactionResourceTest {
         assertEquals(1, body.transactions.size());
         assertEquals(1, body.totalSize);
         assertEquals(PROFILE_ID, useCase.lastListProfileId);
-        assertEquals(LocalDate.of(2026, 1, 1), useCase.lastListFrom);
+        assertEquals(LocalDate.of(2026, Month.JANUARY, 1), useCase.lastListFrom);
         assertEquals(TxnType.CREDIT, useCase.lastListTxnType);
     }
 
@@ -211,7 +212,7 @@ class TransactionResourceTest {
         return Transaction.builder()
                 .id(TXN_ID)
                 .accountId(ACCOUNT_ID)
-                .txnDate(LocalDate.of(2026, 2, 1))
+                .txnDate(LocalDate.of(2026, Month.FEBRUARY, 1))
                 .amount(BigDecimal.valueOf(500))
                 .txnType(TxnType.DEBIT)
                 .description("Groceries")
