@@ -60,3 +60,6 @@ web/src/api/generated.ts
 .temp/
 .claude/settings.local.json
 *.log
+web/test-results/*
+web/test-results
+web/test-results/.last-run.json

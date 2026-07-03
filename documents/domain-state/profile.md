@@ -109,3 +109,10 @@ Gateway proxy: `application/web-gateway/.../profile/ProfileGatewayResource.java`
 - Merge semantics: `PATCH /policy` merges provided keys into the existing map; null values in the request body skip overwriting the existing value; missing keys are preserved untouched.
 - `AdminUseCase.updatePolicySettings(UUID, Map<String,String>)` added to port interface; implemented in `AdminService`; exposed via `AdminResource` at `PATCH /v1/admins/{admin_id}/policy`.
 - `AdminResponse` now always includes `policy_settings` (empty map `{}` when none set).
+
+---
+
+## Integration Test Coverage — 2026-07-03 (QA pass)
+
+- ✅ **`SetupWizardIT` added** (`application/domain/profile/adapters/src/test/java/com/suchika/profile/adapters/http/SetupWizardIT.java`) — true `@QuarkusTest` + real Postgres integration test covering the full Setup Wizard backend flow in one test: `POST /v1/admins` -> `POST /v1/profiles` (relation SELF) -> `PATCH /v1/admins/{id}/policy`, using the real, DI-wired `AdminService`/`ProfileService` and real Panache repositories (not the stub use-case pattern `AdminResourceTest`/`ProfileResourceTest` use). Also covers the duplicate-SELF-profile -> 409 `ConflictException` path (`ProfileService.existsSelfProfile` check). Compile-verified clean (`./gradlew :application:domain:profile:adapters:compileTestJava`); **not executed** this session — see `documents/OpenQuestions.md` Q34 for why (the module's `%test` Flyway profile points at the same live shared dev Postgres the developer was manually testing against, and would TRUNCATE CASCADE via `R__seed_profile_test_data.sql` on startup).
+- Follows the direct-resource-construction convention already used by `ProfileResourceTest`/`AdminResourceTest` (construct the real `@Path` resource class by hand, call its methods directly) rather than RestAssured — this module has no `rest-assured` test dependency (see Q38).
