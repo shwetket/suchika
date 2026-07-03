@@ -104,11 +104,25 @@ export const Navigation = ({ theme, onToggleTheme }) => {
               </Link>
 
               <Link
+                to="/action-center"
+                className="text-indigo-100 hover:text-white text-sm font-medium"
+              >
+                Action Center
+              </Link>
+
+              <Link
                 to="/household/profiles"
                 className="text-indigo-100 hover:text-white text-sm font-medium"
               >
                 Profiles
               </Link>
+
+              <NavDropdown label="Household">
+                <DropdownLink to="/household/calendar">Calendar</DropdownLink>
+                <DropdownLink to="/household/inventory">Inventory</DropdownLink>
+                <DropdownLink to="/household/goals">Goals</DropdownLink>
+                <DropdownLink to="/household/vacation-planner">Vacation Planner</DropdownLink>
+              </NavDropdown>
 
               <NavDropdown label="Wealth">
                 <DropdownLink to="/wealth/accounts">Accounts</DropdownLink>
@@ -123,6 +137,7 @@ export const Navigation = ({ theme, onToggleTheme }) => {
 
               {hasRole('admin') && (
                 <NavDropdown label="Admin">
+                  <DropdownLink to="/admin/setup">Household Setup</DropdownLink>
                   <DropdownLink to="/admin/policy">Policy Settings</DropdownLink>
                 </NavDropdown>
               )}

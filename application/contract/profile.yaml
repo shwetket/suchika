@@ -165,13 +165,6 @@ paths:
       tags: [Household Profiles]
       summary: Create profile
       operationId: createProfile
-      parameters:
-        - name: admin_id
-          in: query
-          required: true
-          schema:
-            type: string
-            format: uuid
       requestBody:
         required: true
         content:
@@ -207,9 +200,12 @@ paths:
                 $ref: "#/components/schemas/ProfileResponse"
         "404":
           description: Not found
-    put:
+    patch:
       tags: [Household Profiles]
       summary: Update profile
+      description: >
+        Partial update. Only email_address, gender, blood_type, and is_active are
+        mutable — full_name, dob, and relation_to_admin are immutable after creation.
       operationId: updateProfile
       parameters:
         - name: id
@@ -323,20 +319,32 @@ components:
     ProfileResponse:
       type: object
       properties:
+        name:
+          type: string
+          example: "profiles/550e8400-e29b-41d4-a716-446655440000"
         profile_id:
           type: string
           format: uuid
         admin_id:
           type: string
           format: uuid
-        name:
+        full_name:
           type: string
-        relation:
-          type: string
-          enum: [SELF, SPOUSE, CHILD, PARENT, SIBLING, OTHER]
-        date_of_birth:
+        dob:
           type: string
           format: date
+        relation_to_admin:
+          type: string
+          enum: [SELF, SPOUSE, CHILD, PARENT, SIBLING, OTHER]
+        email_address:
+          type: string
+          format: email
+        gender:
+          type: string
+          enum: [MALE, FEMALE, OTHER, PREFER_NOT_TO_SAY]
+        blood_type:
+          type: string
+          enum: [A+, A-, B+, B-, AB+, AB-, O+, O-]
         is_active:
           type: boolean
         created_at:
@@ -353,27 +361,40 @@ components:
 
     CreateProfileRequest:
       type: object
-      required: [name, relation]
+      required: [admin_id, full_name, dob, relation_to_admin]
       properties:
-        name:
+        admin_id:
           type: string
-        relation:
+          format: uuid
+        full_name:
           type: string
-          enum: [SELF, SPOUSE, CHILD, PARENT, SIBLING, OTHER]
-        date_of_birth:
+        dob:
           type: string
           format: date
+        relation_to_admin:
+          type: string
+          enum: [SELF, SPOUSE, CHILD, PARENT, SIBLING, OTHER]
+        email_address:
+          type: string
+          format: email
+        gender:
+          type: string
+          enum: [MALE, FEMALE, OTHER, PREFER_NOT_TO_SAY]
+        blood_type:
+          type: string
+          enum: [A+, A-, B+, B-, AB+, AB-, O+, O-]
 
     UpdateProfileRequest:
       type: object
       properties:
-        name:
+        email_address:
           type: string
-        relation:
+          format: email
+        gender:
           type: string
-          enum: [SELF, SPOUSE, CHILD, PARENT, SIBLING, OTHER]
-        date_of_birth:
+          enum: [MALE, FEMALE, OTHER, PREFER_NOT_TO_SAY]
+        blood_type:
           type: string
-          format: date
+          enum: [A+, A-, B+, B-, AB+, AB-, O+, O-]
         is_active:
           type: boolean

@@ -2,6 +2,7 @@ package com.suchika.health.adapters.services;
 
 import com.suchika.health.domain.VitalReading;
 import com.suchika.health.domain.VitalType;
+import com.suchika.health.ports.input.UpdateVitalReadingCommand;
 import com.suchika.health.ports.input.VitalReadingUseCase;
 import com.suchika.health.ports.output.VitalReadingRepository;
 import com.suchika.shared.exception.BadRequestException;
@@ -58,6 +59,37 @@ public class VitalReadingService implements VitalReadingUseCase {
             throw new BadRequestException("profile_id is required");
         }
         return repository.findByProfileId(profileId, vitalType);
+    }
+
+    @Override
+    @Transactional
+    public VitalReading update(UUID id, UpdateVitalReadingCommand command) {
+        VitalReading existing = repository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Vital reading not found: " + id));
+
+        LocalDate readingDate = command.readingDate() != null ? command.readingDate() : existing.getReadingDate();
+        BigDecimal valuePrimary = command.valuePrimary() != null ? command.valuePrimary() : existing.getValuePrimary();
+        BigDecimal valueSecondary = command.valueSecondary() != null ? command.valueSecondary() : existing.getValueSecondary();
+        String unit = command.unit() != null ? command.unit() : existing.getUnit();
+        String notes = command.notes() != null ? command.notes() : existing.getNotes();
+
+        validate(existing.getProfileId(), existing.getVitalType(), readingDate, valuePrimary, valueSecondary, unit);
+
+        VitalReading updated = VitalReading.builder()
+                .id(existing.getId())
+                .profileId(existing.getProfileId())
+                .vitalType(existing.getVitalType())
+                .readingDate(readingDate)
+                .valuePrimary(valuePrimary)
+                .valueSecondary(valueSecondary)
+                .unit(unit)
+                .notes(notes)
+                .createdAt(existing.getCreatedAt())
+                .build();
+
+        VitalReading saved = repository.save(updated);
+        AppLogger.info("Updated vital reading %s", id);
+        return saved;
     }
 
     @Override

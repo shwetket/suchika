@@ -87,7 +87,7 @@ Modal.propTypes = {
 
 function expiryStatus(dateStr) {
   if (!dateStr) return null;
-  const days = Math.ceil((new Date(dateStr) - new Date()) / (1000 * 60 * 60 * 24));
+  const days = Math.ceil((new Date(dateStr).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
   if (days < 0) return { label: 'Expired', cls: 'text-red-600' };
   if (days <= 30) return { label: `Due in ${days}d`, cls: 'text-amber-600' };
   return { label: dateStr, cls: 'text-gray-600' };

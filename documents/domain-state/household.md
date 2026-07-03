@@ -12,8 +12,8 @@ Document the design and implementation status for the household domain (v0.3).
 
 ---
 
-**Last updated:** 2026-06-24
-**Version:** v0.3 — complete (backend + gateway + frontend)
+**Last updated:** 2026-07-03 (v0.6 — Goals page copy note)
+**Version:** v0.3 — complete (backend + gateway + frontend); v0.5 Phase 0/2 items in progress, see Open Issues / Backlog
 **Port:** 8084
 
 ---
@@ -86,6 +86,7 @@ Document the design and implementation status for the household domain (v0.3).
 | purchase_date | DATE | NOT NULL |
 | category | VARCHAR(50) | nullable |
 | metadata | JSONB | NOT NULL DEFAULT '{}' |
+| is_consumed | BOOLEAN | NOT NULL DEFAULT false (V4, v0.5 Phase 0) — means "used in a calculation," not "physically used up"; rows are never deleted or expired |
 | created_at | TIMESTAMPTZ | NOT NULL DEFAULT now() |
 
 ### `household.goal`
@@ -120,6 +121,7 @@ Base URL: `http://localhost:8084`
 | GET | /v1/inventory-items | List items (filter by source_platform, category) |
 | POST | /v1/inventory-items | Add item |
 | GET | /v1/inventory-items/{id} | Get single item |
+| PUT | /v1/inventory-items/{id} | Full update, including `is_consumed` toggle (v0.5 Phase 0) |
 | DELETE | /v1/inventory-items/{id} | Delete |
 | GET | /v1/goals | List goals (filter by status) |
 | POST | /v1/goals | Create goal |
@@ -168,6 +170,11 @@ Base URL: `http://localhost:8084`
 - Dashboard Refresh section uses `user.profile_id` from auth context; if auth token does not include `profile_id`, the refresh button stays disabled. Link profile_id into the auth response in a future iteration.
 - Task Tracking deferred to v0.4 — no `task` table exists yet. Will need `V4__tasks.sql` when scoped.
 - Inventory CSV import deferred to v0.4 — v0.3 is manual CRUD only.
+- ✅ **v0.5 Phase 0: `PUT /v1/inventory-items/{id}` endpoint + edit modal — COMPLETE (2026-07-02).** `InventoryItemResource.java` gained a `@PUT @Path("/{id}")` handler; `InventoryItemUseCase.update()` does a partial merge against the existing record. Edit modal added to `web/src/pages/Household/Inventory.js`.
+- ✅ **v0.5 Phase 0: `is_consumed BOOLEAN` flag on inventory items — COMPLETE (2026-07-02).** Q6 resolution — means "used in a calculation," not "used up"; no deletion, no expiry. `V4__inventory_item_consumed_flag.sql` added `is_consumed BOOLEAN NOT NULL DEFAULT false`; toggled via the same PUT endpoint above rather than a separate route.
+- ✅ **v0.5 Phase 2: Vacation Planner feature lives here in nav — COMPLETE (2026-07-02).** Route `/household/vacation-planner` (product owner decision, `OpenQuestions.md` Q27) — added via a new "Household" `NavDropdown` in `Navigation.js`, which also fixed a pre-existing gap (Calendar/Inventory/Goals had no nav links at all before this). The feature itself is implemented entirely in the gateway's new `com.suchika.gateway.vacationplanner` package and reads only wealth data (`WEALTH_LIQUIDITY_TIERS_FAMILY` snapshot + `physical_asset.metadata`) — it does **not** call `HouseholdServiceClient` or look at calendar events; trip dates are supplied directly by the user in the form, not derived from `household.calendar_event`. See `documents/domain-state/wealth.md` for the full implementation detail — this entry exists here only to explain the nav placement.
+- ✅ **v0.5 Phase 3: Consolidated Action Center upcoming events — COMPLETE (2026-07-02).** No household-domain code changed — gateway-only read of the existing `GET /v1/calendar-events` endpoint. `ProjectionCalculationEngine.computeActionCenterAlerts()` calls `householdServiceClient.listCalendarEvents(memberProfileId, null, today, today+30days)` per household member (same 30-day lookahead as the existing per-profile `computeEventSummary` step, but looped across all members instead of just the caller), tagging each event with the member's `profile_id`/`full_name` in the `ACTION_CENTER_ALERTS_FAMILY.upcoming_events` payload. See `documents/domain-state/wealth.md` for the full cross-domain implementation detail.
+- ✅ **v0.6: Goal progress auto-refresh copy note — COMPLETE (2026-07-03).** One-line note added under the Goals page header ("Progress updates when you refresh the dashboard — new transactions aren't reflected here until then.") — no code/API change, purely explains the existing manual-refresh dependency that was previously silent.
 
 ## Completed in v0.3 Gateway Pass (G1–G4)
 

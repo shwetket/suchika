@@ -15,6 +15,7 @@ public class InventoryItem {
     private final SourcePlatform sourcePlatform;
     private final LocalDate purchaseDate;
     private final String category;
+    private final boolean consumed;
     private final Instant createdAt;
 
     private InventoryItem(Builder builder) {
@@ -26,6 +27,7 @@ public class InventoryItem {
         this.sourcePlatform = builder.sourcePlatform;
         this.purchaseDate = builder.purchaseDate;
         this.category = builder.category;
+        this.consumed = builder.consumed;
         this.createdAt = builder.createdAt;
     }
 
@@ -55,6 +57,7 @@ public class InventoryItem {
                 .sourcePlatform(sourcePlatform)
                 .purchaseDate(purchaseDate)
                 .category(category)
+                .consumed(false)
                 .build();
     }
 
@@ -71,6 +74,7 @@ public class InventoryItem {
         private SourcePlatform sourcePlatform;
         private LocalDate purchaseDate;
         private String category;
+        private boolean consumed;
         private Instant createdAt;
 
         public Builder id(UUID id) { this.id = id; return this; }
@@ -81,6 +85,7 @@ public class InventoryItem {
         public Builder sourcePlatform(SourcePlatform sourcePlatform) { this.sourcePlatform = sourcePlatform; return this; }
         public Builder purchaseDate(LocalDate purchaseDate) { this.purchaseDate = purchaseDate; return this; }
         public Builder category(String category) { this.category = category; return this; }
+        public Builder consumed(boolean consumed) { this.consumed = consumed; return this; }
         public Builder createdAt(Instant createdAt) { this.createdAt = createdAt; return this; }
 
         public InventoryItem build() {
@@ -96,5 +101,6 @@ public class InventoryItem {
     public SourcePlatform getSourcePlatform() { return sourcePlatform; }
     public LocalDate getPurchaseDate() { return purchaseDate; }
     public String getCategory() { return category; }
+    public boolean isConsumed() { return consumed; }
     public Instant getCreatedAt() { return createdAt; }
 }

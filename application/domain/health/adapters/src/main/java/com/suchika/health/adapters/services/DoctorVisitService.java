@@ -56,11 +56,11 @@ public class DoctorVisitService implements DoctorVisitUseCase {
     }
 
     @Override
-    public List<DoctorVisit> listByProfile(UUID profileId) {
+    public List<DoctorVisit> listByProfile(UUID profileId, LocalDate from, LocalDate to) {
         if (profileId == null) {
             throw new BadRequestException("profile_id is required");
         }
-        return repository.findByProfileId(profileId);
+        return repository.findByProfileId(profileId, from, to);
     }
 
     @Override

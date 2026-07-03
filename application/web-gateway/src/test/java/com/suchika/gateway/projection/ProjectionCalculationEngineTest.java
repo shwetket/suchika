@@ -14,6 +14,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import java.time.LocalDate;
+import java.time.Month;
 import java.util.List;
 import java.util.UUID;
 
@@ -38,6 +40,7 @@ class ProjectionCalculationEngineTest {
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final UUID PROFILE_ID = UUID.fromString("00000000-0000-0000-0000-000000000099");
     private static final UUID ADMIN_ID = UUID.fromString("00000000-0000-0000-0000-0000000000aa");
+    private static final LocalDate FIXED_TODAY = LocalDate.of(2026, Month.JUNE, 15);
 
     @Mock
     WealthServiceClient wealthClient;
@@ -126,7 +129,7 @@ class ProjectionCalculationEngineTest {
         JsonNode payload = MAPPER.readTree(payloadCaptor.getValue());
 
         assertEquals(9999.0, payload.path("net_worth").asDouble(), 0.001);
-        verify(wealthClient).getAccountBalance(eq(accountId), eq(PROFILE_ID.toString()));
+        verify(wealthClient).getAccountBalance(accountId, PROFILE_ID.toString());
     }
 
     // ── computeVitalsSummary ─────────────────────────────────────────────────
@@ -347,10 +350,12 @@ class ProjectionCalculationEngineTest {
     // ── refreshAll ───────────────────────────────────────────────────────────
 
     @Test
-    void refreshAll_callsAllElevenComputeMethods() throws Exception {
+    void refreshAll_callsAllTwelveComputeMethods() throws Exception {
         // Stub all clients with empty-but-valid responses
         when(wealthClient.listAccounts(any(), any(), any()))
                 .thenReturn(buildEmptyAccountsResponse());
+        when(wealthClient.listPhysicalAssets(any(), any(), any()))
+                .thenReturn(MAPPER.readTree("{\"physical_assets\":[]}"));
         when(healthClient.listVitals(any(), any()))
                 .thenReturn(MAPPER.readTree("{\"vital_readings\":[]}"));
         when(householdClient.listCalendarEvents(any(), any(), any(), any()))
@@ -358,13 +363,13 @@ class ProjectionCalculationEngineTest {
         when(householdClient.listGoals(any(), any()))
                 .thenReturn(MAPPER.readTree("{\"goals\":[]}"));
         when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
-        when(profileClient.listProfiles(eq(ADMIN_ID), eq(true))).thenReturn(buildEmptyProfilesResponse());
+        when(profileClient.listProfiles(ADMIN_ID, true)).thenReturn(buildEmptyProfilesResponse());
         when(profileClient.getAdmin(ADMIN_ID)).thenReturn(buildAdminResponse(MAPPER.createObjectNode()));
         when(snapshotRepo.findByProfileId(PROFILE_ID)).thenReturn(List.of());
 
         engine.refreshAll(PROFILE_ID);
 
-        // All eleven SnapshotKey upserts must have fired (6 original + 3 Phase 3 + 2 Phase 4)
+        // All twelve SnapshotKey upserts must have fired (6 original + 3 Phase 3 + 2 Phase 4 + 1 Phase 3 v0.5)
         verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_NET_WORTH), anyString());
         verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_GOAL_PROGRESS), anyString());
         verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.HEALTH_VITALS_SUMMARY), anyString());
@@ -376,8 +381,9 @@ class ProjectionCalculationEngineTest {
         verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_GROWTH_PROJECTION_FAMILY), anyString());
         verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_FORMULA_GOALS_FAMILY), anyString());
         verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_VALIDATION_REPORT_FAMILY), anyString());
-        // Total: exactly 11 upsert calls
-        verify(snapshotRepo, times(11)).upsert(any(), anyString(), anyString());
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.ACTION_CENTER_ALERTS_FAMILY), anyString());
+        // Total: exactly 12 upsert calls
+        verify(snapshotRepo, times(12)).upsert(any(), anyString(), anyString());
     }
 
     @Test
@@ -394,7 +400,7 @@ class ProjectionCalculationEngineTest {
         when(householdClient.listGoals(any(), any()))
                 .thenReturn(MAPPER.readTree("{\"goals\":[]}"));
         when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
-        when(profileClient.listProfiles(eq(ADMIN_ID), eq(true))).thenReturn(buildEmptyProfilesResponse());
+        when(profileClient.listProfiles(ADMIN_ID, true)).thenReturn(buildEmptyProfilesResponse());
         when(snapshotRepo.findByProfileId(PROFILE_ID)).thenReturn(List.of());
 
         assertDoesNotThrow(() -> engine.refreshAll(PROFILE_ID));
@@ -415,7 +421,7 @@ class ProjectionCalculationEngineTest {
         UUID childProfileId = UUID.fromString("77777777-0000-0000-0000-000000000003");
 
         when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
-        when(profileClient.listProfiles(eq(ADMIN_ID), eq(true))).thenReturn(buildProfilesResponse(
+        when(profileClient.listProfiles(ADMIN_ID, true)).thenReturn(buildProfilesResponse(
                 new MemberEntry(PROFILE_ID, "Ketan", "SELF"),
                 new MemberEntry(spouseProfileId, "Shweta", "SPOUSE"),
                 new MemberEntry(childProfileId, "Gayan", "CHILD")
@@ -432,11 +438,11 @@ class ProjectionCalculationEngineTest {
         when(wealthClient.listAccounts(isNull(), eq(true), eq(childProfileId.toString())))
                 .thenReturn(buildAccountsResponse(childAccountId));
 
-        when(wealthClient.getAccountBalance(eq(selfAccountId), eq(PROFILE_ID.toString())))
+        when(wealthClient.getAccountBalance(selfAccountId, PROFILE_ID.toString()))
                 .thenReturn(balanceNode(selfAccountId, 100000.0));
-        when(wealthClient.getAccountBalance(eq(spouseAccountId), eq(spouseProfileId.toString())))
+        when(wealthClient.getAccountBalance(spouseAccountId, spouseProfileId.toString()))
                 .thenReturn(balanceNode(spouseAccountId, 50000.0));
-        when(wealthClient.getAccountBalance(eq(childAccountId), eq(childProfileId.toString())))
+        when(wealthClient.getAccountBalance(childAccountId, childProfileId.toString()))
                 .thenReturn(balanceNode(childAccountId, 5000.0));
 
         engine.computeFamilyNetWorth(PROFILE_ID);
@@ -463,14 +469,14 @@ class ProjectionCalculationEngineTest {
     void computeFamilyNetWorth_singleMemberHousehold_equalsOwnNetWorth() throws Exception {
         // Degenerate case: admin is the only active profile in the household.
         when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
-        when(profileClient.listProfiles(eq(ADMIN_ID), eq(true))).thenReturn(buildProfilesResponse(
+        when(profileClient.listProfiles(ADMIN_ID, true)).thenReturn(buildProfilesResponse(
                 new MemberEntry(PROFILE_ID, "Ketan", "SELF")
         ));
 
         UUID accountId = UUID.fromString("99999999-0000-0000-0000-000000000001");
         when(wealthClient.listAccounts(isNull(), eq(true), eq(PROFILE_ID.toString())))
                 .thenReturn(buildAccountsResponse(accountId));
-        when(wealthClient.getAccountBalance(eq(accountId), eq(PROFILE_ID.toString())))
+        when(wealthClient.getAccountBalance(accountId, PROFILE_ID.toString()))
                 .thenReturn(balanceNode(accountId, 42000.0));
 
         engine.computeFamilyNetWorth(PROFILE_ID);
@@ -486,7 +492,7 @@ class ProjectionCalculationEngineTest {
     @Test
     void computeFamilyNetWorth_noActiveMembers_storesZero() throws Exception {
         when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
-        when(profileClient.listProfiles(eq(ADMIN_ID), eq(true))).thenReturn(buildEmptyProfilesResponse());
+        when(profileClient.listProfiles(ADMIN_ID, true)).thenReturn(buildEmptyProfilesResponse());
 
         engine.computeFamilyNetWorth(PROFILE_ID);
 
@@ -668,6 +674,172 @@ class ProjectionCalculationEngineTest {
         assertEquals(0, payload.path("critical_count").asInt());
     }
 
+    // ── computeActionCenterAlerts (v0.5 Phase 3, Q30) ────────────────────────
+
+    @Test
+    void computeActionCenterAlerts_aggregatesUpcomingEventsAcrossMembers() throws Exception {
+        UUID spouseProfileId = UUID.fromString("99999999-0000-0000-0000-000000000002");
+        when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
+        when(profileClient.listProfiles(ADMIN_ID, true)).thenReturn(buildProfilesResponse(
+                new MemberEntry(PROFILE_ID, "Ketan", "SELF"),
+                new MemberEntry(spouseProfileId, "Shweta", "SPOUSE")
+        ));
+        when(householdClient.listCalendarEvents(eq(PROFILE_ID), isNull(), anyString(), anyString()))
+                .thenReturn(buildCalendarEventsResponse(2));
+        when(householdClient.listCalendarEvents(eq(spouseProfileId), isNull(), anyString(), anyString()))
+                .thenReturn(buildCalendarEventsResponse(1));
+        stubNoVehicles(PROFILE_ID);
+        stubNoVehicles(spouseProfileId);
+        stubNoVitals(PROFILE_ID);
+        stubNoVitals(spouseProfileId);
+
+        engine.computeActionCenterAlerts(PROFILE_ID, FIXED_TODAY);
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.ACTION_CENTER_ALERTS_FAMILY), payloadCaptor.capture());
+
+        JsonNode payload = MAPPER.readTree(payloadCaptor.getValue());
+        assertEquals(3, payload.path("upcoming_events").size());
+        assertEquals(2, payload.path("member_count").asInt());
+    }
+
+    @Test
+    void computeActionCenterAlerts_flagsVehicleExpiringWithinThirtyDays() throws Exception {
+        when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
+        when(profileClient.listProfiles(ADMIN_ID, true))
+                .thenReturn(buildProfilesResponse(new MemberEntry(PROFILE_ID, "Ketan", "SELF")));
+        when(householdClient.listCalendarEvents(eq(PROFILE_ID), isNull(), anyString(), anyString()))
+                .thenReturn(buildCalendarEventsResponse(0));
+        stubNoVitals(PROFILE_ID);
+
+        String nearExpiry = FIXED_TODAY.plusDays(10).toString();
+        when(wealthClient.listPhysicalAssets("VEHICLE", true, PROFILE_ID.toString()))
+                .thenReturn(buildPhysicalAssetsResponse("a1", "Tata Nexon", nearExpiry, null));
+
+        engine.computeActionCenterAlerts(PROFILE_ID, FIXED_TODAY);
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.ACTION_CENTER_ALERTS_FAMILY), payloadCaptor.capture());
+
+        JsonNode payload = MAPPER.readTree(payloadCaptor.getValue());
+        JsonNode compliance = payload.path("vehicle_compliance");
+        assertEquals(1, compliance.size());
+        assertEquals("Tata Nexon", compliance.get(0).path("asset_name").asText());
+        assertEquals("PUC_EXPIRED", compliance.get(0).path("issue_type").asText());
+        assertEquals("Ketan", compliance.get(0).path("full_name").asText());
+    }
+
+    @Test
+    void computeActionCenterAlerts_ignoresVehicleExpiringBeyondThirtyDays() throws Exception {
+        when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
+        when(profileClient.listProfiles(ADMIN_ID, true))
+                .thenReturn(buildProfilesResponse(new MemberEntry(PROFILE_ID, "Ketan", "SELF")));
+        when(householdClient.listCalendarEvents(eq(PROFILE_ID), isNull(), anyString(), anyString()))
+                .thenReturn(buildCalendarEventsResponse(0));
+        stubNoVitals(PROFILE_ID);
+
+        String farExpiry = FIXED_TODAY.plusDays(90).toString();
+        when(wealthClient.listPhysicalAssets("VEHICLE", true, PROFILE_ID.toString()))
+                .thenReturn(buildPhysicalAssetsResponse("a1", "Tata Nexon", farExpiry, farExpiry));
+
+        engine.computeActionCenterAlerts(PROFILE_ID, FIXED_TODAY);
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.ACTION_CENTER_ALERTS_FAMILY), payloadCaptor.capture());
+
+        assertTrue(MAPPER.readTree(payloadCaptor.getValue()).path("vehicle_compliance").isEmpty());
+    }
+
+    @Test
+    void computeActionCenterAlerts_flagsStreakGapWhenLastReadingOverThirtyDaysAgo() throws Exception {
+        when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
+        when(profileClient.listProfiles(ADMIN_ID, true))
+                .thenReturn(buildProfilesResponse(new MemberEntry(PROFILE_ID, "Ketan", "SELF")));
+        when(householdClient.listCalendarEvents(eq(PROFILE_ID), isNull(), anyString(), anyString()))
+                .thenReturn(buildCalendarEventsResponse(0));
+        stubNoVehicles(PROFILE_ID);
+
+        String staleDate = FIXED_TODAY.minusDays(45).toString();
+        when(healthClient.listVitals(eq(PROFILE_ID), isNull())).thenReturn(
+                buildVitalsResponse(new VitalEntry("WEIGHT", 70.0, 0.0, "kg", staleDate)));
+
+        engine.computeActionCenterAlerts(PROFILE_ID, FIXED_TODAY);
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.ACTION_CENTER_ALERTS_FAMILY), payloadCaptor.capture());
+
+        JsonNode gaps = MAPPER.readTree(payloadCaptor.getValue()).path("biometric_streak_gaps");
+        // 3 core vital types tracked (Q30); WEIGHT has a stale reading, the other two were never logged — all 3 gap.
+        assertEquals(3, gaps.size());
+        JsonNode weightGap = findGapByType(gaps, "WEIGHT");
+        assertEquals(45, weightGap.path("days_since_last_reading").asInt());
+        assertEquals(staleDate, weightGap.path("last_reading_date").asText());
+        JsonNode neverLoggedGap = findGapByType(gaps, "BLOOD_PRESSURE");
+        assertTrue(neverLoggedGap.path("last_reading_date").isNull());
+    }
+
+    @Test
+    void computeActionCenterAlerts_noStreakGapWhenAllCoreVitalsRecentlyLogged() throws Exception {
+        when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
+        when(profileClient.listProfiles(ADMIN_ID, true))
+                .thenReturn(buildProfilesResponse(new MemberEntry(PROFILE_ID, "Ketan", "SELF")));
+        when(householdClient.listCalendarEvents(eq(PROFILE_ID), isNull(), anyString(), anyString()))
+                .thenReturn(buildCalendarEventsResponse(0));
+        stubNoVehicles(PROFILE_ID);
+
+        String recentDate = FIXED_TODAY.minusDays(5).toString();
+        when(healthClient.listVitals(eq(PROFILE_ID), isNull())).thenReturn(buildVitalsResponse(
+                new VitalEntry("WEIGHT", 70.0, 0.0, "kg", recentDate),
+                new VitalEntry("BLOOD_PRESSURE", 120.0, 80.0, "mmHg", recentDate),
+                new VitalEntry("BLOOD_SUGAR_FASTING", 95.0, 0.0, "mg/dL", recentDate)
+        ));
+
+        engine.computeActionCenterAlerts(PROFILE_ID, FIXED_TODAY);
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.ACTION_CENTER_ALERTS_FAMILY), payloadCaptor.capture());
+
+        assertTrue(MAPPER.readTree(payloadCaptor.getValue()).path("biometric_streak_gaps").isEmpty());
+    }
+
+    private JsonNode findGapByType(JsonNode gaps, String vitalType) {
+        for (JsonNode gap : gaps) {
+            if (vitalType.equals(gap.path("vital_type").asText())) {
+                return gap;
+            }
+        }
+        throw new AssertionError("No gap entry found for vital type " + vitalType);
+    }
+
+    private void stubNoVehicles(UUID profileId) {
+        when(wealthClient.listPhysicalAssets("VEHICLE", true, profileId.toString()))
+                .thenReturn(MAPPER.createObjectNode().set("physical_assets", MAPPER.createArrayNode()));
+    }
+
+    private void stubNoVitals(UUID profileId) {
+        when(healthClient.listVitals(eq(profileId), isNull()))
+                .thenReturn(MAPPER.createObjectNode().set("vital_readings", MAPPER.createArrayNode()));
+    }
+
+    private JsonNode buildPhysicalAssetsResponse(String assetId, String assetName, String pucExpiry, String insuranceExpiry) {
+        ObjectNode root = MAPPER.createObjectNode();
+        ArrayNode assets = MAPPER.createArrayNode();
+        ObjectNode asset = MAPPER.createObjectNode();
+        asset.put("asset_id", assetId);
+        asset.put("asset_name", assetName);
+        ObjectNode metadata = MAPPER.createObjectNode();
+        if (pucExpiry != null) {
+            metadata.put("puc_expiry", pucExpiry);
+        }
+        if (insuranceExpiry != null) {
+            metadata.put("insurance_expiry", insuranceExpiry);
+        }
+        asset.set("metadata", metadata);
+        assets.add(asset);
+        root.set("physical_assets", assets);
+        return root;
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────
 
     private JsonNode buildAccountsResponse(UUID... accountIds) {
@@ -686,7 +858,7 @@ class ProjectionCalculationEngineTest {
         ObjectNode balance = MAPPER.createObjectNode();
         balance.put("account_id", accountId.toString());
         balance.put("current_balance", currentBalance);
-        when(wealthClient.getAccountBalance(eq(accountId), eq(PROFILE_ID.toString()))).thenReturn(balance);
+        when(wealthClient.getAccountBalance(accountId, PROFILE_ID.toString())).thenReturn(balance);
     }
 
     private JsonNode buildEmptyAccountsResponse() {
@@ -788,6 +960,6 @@ class ProjectionCalculationEngineTest {
     }
 
     private DashboardSnapshotDto buildSnapshotDto(String snapshotKey, String payloadJson) {
-        return new DashboardSnapshotDto(PROFILE_ID, snapshotKey, payloadJson, java.time.Instant.now());
+        return new DashboardSnapshotDto(PROFILE_ID, snapshotKey, payloadJson, java.time.Instant.parse("2026-06-15T00:00:00Z"));
     }
 }

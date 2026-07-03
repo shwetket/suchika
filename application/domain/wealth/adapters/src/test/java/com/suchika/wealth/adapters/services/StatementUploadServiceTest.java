@@ -271,6 +271,17 @@ class StatementUploadServiceTest {
         }
 
         @Override
+        public List<Transaction> findByAccountId(UUID accountId, UUID profileId, LocalDate from, LocalDate to, TxnType txnType,
+                                                   int page, int size) {
+            return findByAccountId(accountId, profileId, from, to, txnType);
+        }
+
+        @Override
+        public long countByAccountId(UUID accountId, UUID profileId, LocalDate from, LocalDate to, TxnType txnType) {
+            return findByAccountId(accountId, profileId, from, to, txnType).size();
+        }
+
+        @Override
         public boolean existsByDeduplicationKey(UUID accountId, UUID profileId, LocalDate txnDate, BigDecimal amount, TxnType txnType) {
             return saved.stream().anyMatch(t ->
                     accountId.equals(t.getAccountId())

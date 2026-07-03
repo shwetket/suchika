@@ -342,6 +342,8 @@ export const DoctorVisits = () => {
   const [visits, setVisits] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [filterFrom, setFilterFrom] = useState('');
+  const [filterTo, setFilterTo] = useState('');
 
   const [showAdd, setShowAdd] = useState(false);
   const [addForm, setAddForm] = useState(EMPTY_FORM);
@@ -367,14 +369,14 @@ export const DoctorVisits = () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await listDoctorVisits(selectedProfileId);
+      const data = await listDoctorVisits(selectedProfileId, filterFrom || null, filterTo || null);
       setVisits(data.doctor_visits ?? []);
     } catch (err) {
       setError(err.message || 'Failed to load visits');
     } finally {
       setLoading(false);
     }
-  }, [selectedProfileId]);
+  }, [selectedProfileId, filterFrom, filterTo]);
 
   useEffect(() => {
     loadVisits();
@@ -515,7 +517,7 @@ export const DoctorVisits = () => {
         )}
       </div>
 
-      <div className="mb-6">
+      <div className="mb-6 flex flex-wrap gap-3 items-center">
         <select
           value={selectedProfileId}
           onChange={(e) => setSelectedProfileId(e.target.value)}
@@ -528,6 +530,24 @@ export const DoctorVisits = () => {
             </option>
           ))}
         </select>
+        {selectedProfileId && (
+          <>
+            <input
+              type="date"
+              aria-label="From date"
+              value={filterFrom}
+              onChange={(e) => setFilterFrom(e.target.value)}
+              className={inputClass}
+            />
+            <input
+              type="date"
+              aria-label="To date"
+              value={filterTo}
+              onChange={(e) => setFilterTo(e.target.value)}
+              className={inputClass}
+            />
+          </>
+        )}
       </div>
 
       {!selectedProfileId && (

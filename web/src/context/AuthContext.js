@@ -39,6 +39,14 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('user');
   }, []);
 
+  const updateUser = useCallback((partial) => {
+    setUser((prev) => {
+      const next = { ...prev, ...partial };
+      localStorage.setItem('user', JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   const hasRole = useCallback(
     (requiredRole) => {
       if (!user) return requiredRole === 'public';
@@ -63,10 +71,11 @@ export const AuthProvider = ({ children }) => {
       loading,
       login,
       logout,
+      updateUser,
       hasRole,
       isAuthenticated: !!user,
     }),
-    [user, loading, login, logout, hasRole]
+    [user, loading, login, logout, updateUser, hasRole]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

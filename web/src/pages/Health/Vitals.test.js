@@ -9,11 +9,12 @@ jest.mock('../../api/profiles', () => ({
 jest.mock('../../api/health', () => ({
   listVitals: jest.fn(),
   recordVital: jest.fn(),
+  updateVital: jest.fn(),
   deleteVital: jest.fn(),
 }));
 
 const { listProfiles } = require('../../api/profiles');
-const { listVitals, recordVital } = require('../../api/health');
+const { listVitals, recordVital, updateVital } = require('../../api/health');
 
 const MOCK_PROFILES = [
   { profile_id: 'p1', full_name: 'Alice', is_active: true },
@@ -163,6 +164,72 @@ describe('Vitals page', () => {
 
     await waitFor(() => {
       expect(recordVital).toHaveBeenCalled();
+    });
+  });
+
+  it('"Edit" button opens modal pre-filled with existing values', async () => {
+    listVitals.mockResolvedValue({ vitals: MOCK_VITALS });
+    render(<Vitals />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+    await waitFor(() => screen.getAllByRole('button', { name: 'Edit' }));
+
+    const editButtons = screen.getAllByRole('button', { name: 'Edit' });
+    fireEvent.click(editButtons[0]);
+
+    expect(screen.getByRole('heading', { name: 'Edit Reading' })).toBeInTheDocument();
+    expect(screen.getByDisplayValue('72')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Morning reading')).toBeInTheDocument();
+  });
+
+  it('submits edit form and reloads vitals', async () => {
+    listVitals.mockResolvedValue({ vitals: MOCK_VITALS });
+    updateVital.mockResolvedValue({});
+    render(<Vitals />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+    await waitFor(() => screen.getAllByRole('button', { name: 'Edit' }));
+
+    const editButtons = screen.getAllByRole('button', { name: 'Edit' });
+    fireEvent.click(editButtons[0]);
+
+    const valueInput = screen.getByDisplayValue('72');
+    fireEvent.change(valueInput, { target: { name: 'value_primary', value: '71' } });
+
+    const submitBtn = screen
+      .getAllByRole('button', { name: /Save Changes/i })
+      .find((b) => b.type === 'submit');
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(updateVital).toHaveBeenCalledWith(
+        'v1',
+        expect.objectContaining({ value_primary: 71 })
+      );
+    });
+  });
+
+  it('shows error message when update fails', async () => {
+    listVitals.mockResolvedValue({ vitals: MOCK_VITALS });
+    updateVital.mockRejectedValue(new Error('Update failed'));
+    render(<Vitals />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+    await waitFor(() => screen.getAllByRole('button', { name: 'Edit' }));
+
+    const editButtons = screen.getAllByRole('button', { name: 'Edit' });
+    fireEvent.click(editButtons[0]);
+
+    const submitBtn = screen
+      .getAllByRole('button', { name: /Save Changes/i })
+      .find((b) => b.type === 'submit');
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('Update failed')).toBeInTheDocument();
     });
   });
 });

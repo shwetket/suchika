@@ -4,6 +4,7 @@ import com.suchika.household.domain.InventoryItem;
 import com.suchika.household.domain.ItemUnit;
 import com.suchika.household.domain.SourcePlatform;
 import com.suchika.household.ports.input.InventoryItemUseCase;
+import com.suchika.household.ports.input.UpdateInventoryItemCommand;
 import com.suchika.household.ports.output.InventoryItemRepository;
 import com.suchika.shared.exception.NotFoundException;
 import com.suchika.shared.logging.AppLogger;
@@ -47,6 +48,30 @@ public class InventoryItemService implements InventoryItemUseCase {
     public InventoryItem get(UUID id) {
         return repository.findById(id)
                 .orElseThrow(() -> new NotFoundException(ITEM_NOT_FOUND + id));
+    }
+
+    @Override
+    @Transactional
+    public InventoryItem update(UUID id, UpdateInventoryItemCommand command) {
+        InventoryItem existing = repository.findById(id)
+                .orElseThrow(() -> new NotFoundException(ITEM_NOT_FOUND + id));
+
+        InventoryItem updated = InventoryItem.builder()
+                .id(existing.getId())
+                .profileId(existing.getProfileId())
+                .itemName(command.itemName() != null ? command.itemName() : existing.getItemName())
+                .quantity(command.quantity() != null ? command.quantity() : existing.getQuantity())
+                .unit(command.unit() != null ? command.unit() : existing.getUnit())
+                .sourcePlatform(command.sourcePlatform() != null ? command.sourcePlatform() : existing.getSourcePlatform())
+                .purchaseDate(command.purchaseDate() != null ? command.purchaseDate() : existing.getPurchaseDate())
+                .category(command.category() != null ? command.category() : existing.getCategory())
+                .consumed(command.isConsumed() != null ? command.isConsumed() : existing.isConsumed())
+                .createdAt(existing.getCreatedAt())
+                .build();
+
+        InventoryItem saved = repository.save(updated);
+        AppLogger.info("Inventory item updated: %s", saved.getId());
+        return saved;
     }
 
     @Override

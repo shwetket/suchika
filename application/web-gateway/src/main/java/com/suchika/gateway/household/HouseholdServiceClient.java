@@ -57,6 +57,10 @@ public interface HouseholdServiceClient {
     @Path("/inventory-items/{id}")
     JsonNode getInventoryItem(@PathParam("id") UUID id);
 
+    @PUT
+    @Path("/inventory-items/{id}")
+    JsonNode updateInventoryItem(@PathParam("id") UUID id, JsonNode body);
+
     @DELETE
     @Path("/inventory-items/{id}")
     void deleteInventoryItem(@PathParam("id") UUID id);

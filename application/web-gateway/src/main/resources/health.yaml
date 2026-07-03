@@ -62,7 +62,7 @@ paths:
       summary: Record a biometric reading
       description: >
         Records a new reading. For BLOOD_PRESSURE, value_secondary (diastolic)
-        is required. Readings are immutable — delete and re-record to correct.
+        is required. Use PATCH /v1/vitals/{id} to correct a reading after logging.
       requestBody:
         required: true
         content:
@@ -101,6 +101,35 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+    patch:
+      tags: [Vital Readings]
+      operationId: updateVitalReading
+      summary: Update a vital reading
+      description: >
+        Only provided fields are updated. vital_type and profile_id are
+        immutable — delete and re-record to change either.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateVitalReadingRequest'
+      responses:
+        '200':
+          description: Reading updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VitalReading'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
     delete:
       tags: [Vital Readings]
       operationId: deleteVitalReading
@@ -123,7 +152,9 @@ paths:
       tags: [Doctor Visits]
       operationId: listDoctorVisits
       summary: List doctor visits for a profile
-      description: Returns visits newest-first.
+      description: >
+        Returns visits newest-first, optionally filtered by from_date falling
+        within [from, to] (v0.6 UX item — date-range filter).
       parameters:
         - name: profile_id
           in: query
@@ -131,6 +162,20 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: from
+          in: query
+          required: false
+          description: Start date filter (inclusive) on the visit's from_date, format YYYY-MM-DD.
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: false
+          description: End date filter (inclusive) on the visit's from_date, format YYYY-MM-DD.
+          schema:
+            type: string
+            format: date
       responses:
         '200':
           description: Visits listed
@@ -304,6 +349,28 @@ components:
           format: uuid
         vital_type:
           $ref: '#/components/schemas/VitalType'
+        reading_date:
+          type: string
+          format: date
+        value_primary:
+          type: number
+          format: double
+          exclusiveMinimum: 0
+        value_secondary:
+          type: number
+          format: double
+          nullable: true
+        unit:
+          type: string
+          maxLength: 20
+        notes:
+          type: string
+          nullable: true
+
+    UpdateVitalReadingRequest:
+      type: object
+      description: All fields optional. Only provided fields are updated. vital_type is immutable.
+      properties:
         reading_date:
           type: string
           format: date

@@ -5,7 +5,7 @@
 | **Type** | Reference — ADR Log |
 | **Audience** | All developers |
 | **Status** | Active |
-| **Last updated** | 2026-06-30 (ADR-017 added) |
+| **Last updated** | 2026-07-03 (ADR-019 added) |
 
 ## Objective
 
@@ -38,6 +38,8 @@ Record every significant architectural decision made for this project, along wit
 | [ADR-015](#adr-015-uploadresult-as-a-ports-layer-return-type) | UploadResult as a Ports-Layer Return Type | Accepted — 2026-06-29 |
 | [ADR-016](#adr-016-joint-account-ownership-via-designated-profile_id--metadata-attribution) | Joint Account Ownership via Designated `profile_id` + Metadata Attribution | Accepted — 2026-06-30 |
 | [ADR-017](#adr-017-household-level-dashboard-aggregation) | Household-Level Dashboard Aggregation | Accepted — 2026-06-30 |
+| [ADR-018](#adr-018-react-query-for-frontend-server-state) | React Query for Frontend Server State | Accepted — 2026-07-02 |
+| [ADR-019](#adr-019-profileid-as-a-plain-field-on-domain-entities-adr-006-addendum) | `profileId` as a Plain Field on Domain Entities (ADR-006 addendum) | Accepted — 2026-06-30, documented 2026-07-03 |
 
 ---
 
@@ -374,3 +376,62 @@ The joint Kotak account (ADR-016: designated `profile_id` = Shweta, `metadata.jo
 **Impact on Epic 8 phases:** See `documents/EPIC8_IMPLEMENTATION_PLAN.md` (revised 2026-06-30) — the family-rollup aggregation step is added to Phase 1 as a thin wrapper around the per-account balance fix already in progress; it does not replace or invalidate that work. Phases 3-4 (EMI tracking, goals, validation) reuse the same aggregation mechanism (`listProfiles(admin_id)` + loop + sum-with-nested-breakdown) rather than needing a redesign.
 
 **Schema impact:** None. No new table, no new column, no new migration. `projections.dashboard_snapshot` keeps its existing `(profile_id, snapshot_key)` primary key shape — only new `snapshot_key` string constants are added in `SnapshotKey.java`.
+
+---
+
+## ADR-018: React Query for Frontend Server State
+
+**Status:** Accepted — decided 2026-07-02 (product owner)
+
+**Decision:** Adopt React Query (`@tanstack/react-query`) as the standard mechanism for all server-state data fetching, caching, and refetching in the frontend. Existing `useState`/`useReducer` local component state stays for pure UI state (form inputs, modal open/closed, filter selections). The existing Context API stays for auth/global state (current user, role, active profile). No Redux, no Zustand.
+
+**Context:** PROP-005 asked how the frontend should manage state as cross-domain views (Vacation Planner, Consolidated Action Center) grow beyond what ad-hoc `useEffect` + `useState` data-fetching can comfortably support. Three options were on the table: React Query + local state (Option A), Redux Toolkit (Option B), Zustand (Option C).
+
+**Rationale:**
+- The app is overwhelmingly server-data-driven — almost every page's state originates from a domain/gateway REST call, not from complex client-only interaction state. React Query is purpose-built for exactly this shape of app.
+- Avoids Redux Toolkit's boilerplate (actions, slices, selectors) for a problem that is fundamentally "fetch, cache, invalidate, refetch" — not general-purpose global state.
+- Avoids introducing a second general-state library (Zustand) alongside the Context API already in use for auth — one pattern for server state (React Query) and one pattern for global UI/auth state (Context) is simpler to teach and review than three overlapping systems.
+- Directly unblocks the Consolidated Action Center (v0.5 Phase 3): it aggregates alerts from all three domains in one view and needs shared, de-duplicated server-state fetching/caching across pages — a first-class React Query use case (shared query keys, background refetch, no manual cache-busting logic).
+- Vacation Planner (v0.5 Phase 2) can adopt the same pattern from the start rather than needing a rewrite once Phase 3 begins.
+
+**Scope of adoption:** New pages (Vacation Planner, Consolidated Action Center) build on React Query from day one. Existing pages are migrated opportunistically — no forced big-bang rewrite of already-working pages.
+
+**Rejected alternatives:**
+- **Redux Toolkit:** predictable and has good devtools, but the app has no significant client-only global state beyond auth (already served by Context) — Redux's ceremony isn't justified here.
+- **Zustand:** minimal boilerplate, but doesn't solve caching/refetching/invalidation the way React Query does natively; would still need a separate data-fetching layer on top, effectively reinventing React Query.
+
+**Impact:** `web/package.json` gains `@tanstack/react-query` (or `react-query` per whichever major version the team lands on) as a new dependency. A `QueryClientProvider` is added once at the app root (`web/src/App.js` or equivalent). No backend change.
+
+---
+
+## ADR-019: `profileId` as a Plain Field on Domain Entities (ADR-006 addendum)
+
+**Status:** Accepted — decided 2026-06-30 (product owner, Q1), documented 2026-07-03 (v0.6 testing-foundation backlog item)
+
+**Decision:** Domain entities are permitted to hold `profileId` as a plain `UUID` field, set via their builder/factory at creation time. This is a deliberate, accepted deviation from ADR-006's stricter wording ("domain entities never store or reason about it") — not an oversight to be fixed.
+
+**Context:** ADR-006 states the `profile_id` filter belongs only in the adapter layer; domain entities should be unaware of it. In practice, seven domain entities across three domains already store `profileId` directly:
+
+| Domain | Entities |
+|---|---|
+| wealth | `Account`, `PhysicalAsset` |
+| health | `VitalReading`, `DoctorVisit` |
+| household | `CalendarEvent`, `Goal`, `InventoryItem` |
+
+This was flagged during the v0.4 architect review (Q1): "the current `CalendarEvent` domain entity holds a `profileId` field, set in `CalendarEventService.create()` by passing `profileId` into the domain factory method... The same pattern may apply to other domains" — confirmed here to be all of them except `Transaction` (which is scoped transitively via its parent `Account`) and the `profile` domain's own `Profile`/`Admin` entities (where `profileId`/`adminId` are identity fields, not a tenancy filter, so ADR-006 doesn't apply to them at all).
+
+**Options considered (Q1):**
+- **A (chosen):** Keep `profileId` in domain entities as a plain `UUID` field — accept as a pragmatic trade-off, document it, leave ArchUnit rules as-is.
+- **B (rejected):** Remove `profileId` from domain entities entirely; pass it as an explicit parameter to every persistence adapter method instead. Tighten ADR-006's wording to match. Add an ArchUnit rule flagging `UUID` fields named `profileId` in `..domain..` packages.
+
+**Rationale for A over B:**
+- The isolation guarantee ADR-006 actually cares about — every DB *query* filters by `profile_id` in the adapter layer — is unaffected either way. Whether the entity also happens to carry the same value as a field is orthogonal to whether the repository query predicate includes it.
+- Option B is architecturally purer but adds real boilerplate (threading `profileId` as a second parameter through every persistence method call site) for a benefit that is largely aesthetic at this project's current scale (single admin, no auth yet, no adversarial multi-tenant pressure).
+- Retrofitting seven already-working, already-tested entities carries real regression risk for a purity improvement with no corresponding bug fix behind it — not a good trade at v0.5/v0.6 scope.
+- Matches this project's stated philosophy (`CLAUDE.md`): don't design for hypothetical future requirements; a pragmatic trade-off documented today beats a defensive abstraction with no current payoff.
+
+**What this ADR does NOT change:**
+- ADR-006's core rule stands: every adapter-layer DB query must still filter by `profile_id` explicitly. `profileId` living on the entity is a convenience for the domain layer's own use (e.g., a factory method validating a business rule that happens to need the owning profile); it must never be treated as a substitute for the adapter-layer query filter.
+- No ArchUnit rule is added to flag or ban this pattern (Option B's proposed rule is explicitly not adopted).
+
+**Revisit trigger:** If a future ArchUnit rule needs to verify `profile_id` presence in adapter query predicates (flagged as a v1.0 item, tracked in `ROADMAP.md`), that rule should inspect the adapter/repository layer directly — it should not use "does the domain entity have a `profileId` field" as a signal, since this ADR establishes that the two are intentionally decoupled.

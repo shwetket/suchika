@@ -90,10 +90,11 @@ public/
 
 ## 4. State Management
 
-- Use Context API for global state (auth, user).
-- Use `useState` for local component state.
+- **Server state** (anything fetched from the gateway): use React Query (`@tanstack/react-query`). See ADR-018. `App.js` provides a single app-lifetime `QueryClient` via `QueryClientProvider`. `Dashboard.js` is the reference pattern — `useQuery` for reads, `useMutation` + `queryClient.setQueryData` for writes that should update the cache in place.
+- **Global UI/auth state**: Context API (`AuthProvider`).
+- **Local component state**: `useState`.
 - Keep prop count under 5; use Context if more is needed.
-- Do not use Redux, Zustand, or other state libraries (see PROP-005 for the open decision).
+- Do not use Redux or Zustand (ADR-018 resolved PROP-005 in favor of React Query).
 
 ---
 

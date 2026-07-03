@@ -455,5 +455,40 @@ class DomainRulesTest {
             .allowEmptyShould(true)
             .check(allClasses);
     }
+
+    /**
+     * Every use-case interface in ports.input must be referenced by at least one
+     * test class — either a stub implementation in a resource test, or a direct
+     * reference in a service test.
+     *
+     * <p>Rationale: v0.6 testing-foundation gap (re-scoped from the original
+     * "unit tests for all domain use cases" milestone item). Enforces that every
+     * use-case contract has some test coverage rather than being silently
+     * unexercised. A "reference" is any ArchUnit-tracked dependency (implements,
+     * field type, method parameter, etc.) from a class whose simple name ends in
+     * Test or IT — service tests that only reference the concrete *Service class
+     * (never the interface type itself) do not count, by design: that gap is
+     * exactly what this rule exists to catch.
+     */
+    @Test
+    void ports_input_interfaces_must_be_referenced_by_a_test_class() {
+        classes()
+            .that().resideInAPackage("..ports.input..")
+            .and().areInterfaces()
+            .should(new com.tngtech.archunit.lang.ArchCondition<com.tngtech.archunit.core.domain.JavaClass>("be referenced by at least one test class") {
+                @Override
+                public void check(com.tngtech.archunit.core.domain.JavaClass portInterface, com.tngtech.archunit.lang.ConditionEvents events) {
+                    boolean referencedByTest = portInterface.getDirectDependenciesToSelf().stream()
+                        .map(com.tngtech.archunit.core.domain.Dependency::getOriginClass)
+                        .anyMatch(origin -> origin.getSimpleName().endsWith("Test") || origin.getSimpleName().endsWith("IT"));
+                    if (!referencedByTest) {
+                        events.add(com.tngtech.archunit.lang.SimpleConditionEvent.violated(portInterface,
+                            "Use-case interface " + portInterface.getName() + " is not referenced by any test class"));
+                    }
+                }
+            })
+            .allowEmptyShould(true)
+            .check(allClasses);
+    }
 }
 

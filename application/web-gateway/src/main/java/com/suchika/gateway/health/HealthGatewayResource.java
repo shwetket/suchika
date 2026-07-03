@@ -48,6 +48,12 @@ public class HealthGatewayResource {
         return healthServiceClient.getVital(id);
     }
 
+    @PATCH
+    @Path("/vitals/{id}")
+    public JsonNode updateVital(@PathParam("id") UUID id, JsonNode body) {
+        return healthServiceClient.updateVital(id, body);
+    }
+
     @DELETE
     @Path("/vitals/{id}")
     public Response deleteVital(@PathParam("id") UUID id) {
@@ -57,8 +63,11 @@ public class HealthGatewayResource {
 
     @GET
     @Path("/doctor-visits")
-    public JsonNode listDoctorVisits(@QueryParam("profile_id") UUID profileId) {
-        return healthServiceClient.listDoctorVisits(profileId);
+    public JsonNode listDoctorVisits(
+            @QueryParam("profile_id") UUID profileId,
+            @QueryParam("from") String from,
+            @QueryParam("to") String to) {
+        return healthServiceClient.listDoctorVisits(profileId, from, to);
     }
 
     @POST

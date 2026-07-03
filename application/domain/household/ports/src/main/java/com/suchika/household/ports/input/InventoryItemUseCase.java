@@ -19,5 +19,7 @@ public interface InventoryItemUseCase {
 
     InventoryItem get(UUID id);
 
+    InventoryItem update(UUID id, UpdateInventoryItemCommand command);
+
     void delete(UUID id);
 }

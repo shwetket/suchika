@@ -48,6 +48,9 @@ public class InventoryItemEntity extends PanacheEntityBase {
     @Column(name = "category", length = 50)
     public String category;
 
+    @Column(name = "is_consumed", nullable = false)
+    public boolean isConsumed;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "metadata", columnDefinition = "jsonb")
     public String metadata = "{}";
@@ -71,6 +74,7 @@ public class InventoryItemEntity extends PanacheEntityBase {
         e.sourcePlatform = item.getSourcePlatform() != null ? item.getSourcePlatform().name() : null;
         e.purchaseDate = item.getPurchaseDate();
         e.category = item.getCategory();
+        e.isConsumed = item.isConsumed();
         e.createdAt = item.getCreatedAt();
         return e;
     }
@@ -85,6 +89,7 @@ public class InventoryItemEntity extends PanacheEntityBase {
                 .sourcePlatform(sourcePlatform != null ? SourcePlatform.valueOf(sourcePlatform) : null)
                 .purchaseDate(purchaseDate)
                 .category(category)
+                .consumed(isConsumed)
                 .createdAt(createdAt)
                 .build();
     }

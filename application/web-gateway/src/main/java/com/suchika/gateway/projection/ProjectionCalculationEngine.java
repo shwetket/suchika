@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.suchika.gateway.health.HealthServiceClient;
 import com.suchika.gateway.household.HouseholdServiceClient;
 import com.suchika.gateway.profile.ProfileServiceClient;
+import com.suchika.gateway.wealth.ExpiryDateUtil;
 import com.suchika.gateway.wealth.WealthServiceClient;
 import com.suchika.shared.logging.AppLogger;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -16,6 +17,7 @@ import org.eclipse.microprofile.rest.client.inject.RestClient;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -73,6 +75,26 @@ public class ProjectionCalculationEngine {
     private static final String TOTAL_MONTHLY_EMI_FIELD = "total_monthly_emi";
     private static final String TIER_LIQUID = "LIQUID";
     private static final String TIER_SEMI_LIQUID = "SEMI_LIQUID";
+
+    // Phase 3 (v0.5) — Consolidated Action Center field name constants
+    private static final String ASSET_ID_FIELD = "asset_id";
+    private static final String ASSET_NAME_FIELD = "asset_name";
+    private static final String PHYSICAL_ASSETS_FIELD = "physical_assets";
+    private static final String VEHICLE_ASSET_TYPE = "VEHICLE";
+    private static final String VITAL_READINGS_FIELD = "vital_readings";
+    private static final String EVENTS_FIELD = "calendar_events";
+    private static final String UPCOMING_EVENTS_FIELD = "upcoming_events";
+    private static final String VEHICLE_COMPLIANCE_FIELD = "vehicle_compliance";
+    private static final String BIOMETRIC_STREAK_GAPS_FIELD = "biometric_streak_gaps";
+    private static final String LAST_READING_DATE_FIELD = "last_reading_date";
+    private static final String READING_DATE_FIELD = "reading_date";
+    private static final String TITLE_FIELD = "title";
+    private static final String START_DATE_FIELD = "start_date";
+    private static final int STREAK_GAP_THRESHOLD_DAYS = 30;
+    private static final int ACTION_CENTER_EVENT_LOOKAHEAD_DAYS = 30;
+    private static final List<String> STREAK_TRACKED_VITAL_TYPES =
+            List.of("WEIGHT", "BLOOD_PRESSURE", "BLOOD_SUGAR_FASTING");
+
     private static final double DEFAULT_DEBT_CROSSOVER_THRESHOLD = 50.0;
     private static final double DEFAULT_MONTHLY_BUDGET_CAP = 0.0;
     private static final double DEFAULT_FREEDOM_RUNWAY_MONTHS = 6.0;
@@ -131,6 +153,7 @@ public class ProjectionCalculationEngine {
      * 9  computeGrowthProjection      — WEALTH_GROWTH_PROJECTION_FAMILY
      * 10 computeFormulaGoals          — WEALTH_FORMULA_GOALS_FAMILY
      * 11 computeValidation            — WEALTH_VALIDATION_REPORT_FAMILY
+     * 12 computeActionCenterAlerts    — ACTION_CENTER_ALERTS_FAMILY
      */
     public DashboardResponse refreshAll(UUID profileId) {
         AppLogger.info("ProjectionEngine: refreshing all snapshots for profile %s", profileId);
@@ -145,6 +168,8 @@ public class ProjectionCalculationEngine {
         runStep("computeGrowthProjection", profileId, this::computeGrowthProjection);
         runStep("computeFormulaGoals", profileId, this::computeFormulaGoals);
         runStep("computeValidation", profileId, this::computeValidation);
+        runStep("computeActionCenterAlerts", profileId,
+                id -> computeActionCenterAlerts(id, LocalDate.now(ZoneId.of("Asia/Kolkata"))));
         return new DashboardResponse(snapshotRepository.findByProfileId(profileId));
     }
 
@@ -252,7 +277,7 @@ public class ProjectionCalculationEngine {
 
     void computeVitalsSummary(UUID profileId) {
         JsonNode vitalsResponse = healthServiceClient.listVitals(profileId, null);
-        JsonNode vitalsArray = vitalsResponse.path("vital_readings");
+        JsonNode vitalsArray = vitalsResponse.path(VITAL_READINGS_FIELD);
 
         // Keep only the latest reading per vital_type (readings assumed newest-first)
         java.util.Map<String, JsonNode> latestByType = new java.util.LinkedHashMap<>();
@@ -272,7 +297,7 @@ public class ProjectionCalculationEngine {
             entry.put("value_primary", vital.path("value_primary").asDouble(0.0));
             entry.put("value_secondary", vital.path("value_secondary").asDouble(0.0));
             entry.put("unit", vital.path("unit").asText(""));
-            entry.put("reading_date", vital.path("reading_date").asText(""));
+            entry.put(READING_DATE_FIELD, vital.path(READING_DATE_FIELD).asText(""));
             vitalsPayload.add(entry);
         }
 
@@ -290,7 +315,7 @@ public class ProjectionCalculationEngine {
 
         JsonNode eventsResponse = householdServiceClient.listCalendarEvents(
                 profileId, null, today, thirtyDaysAhead);
-        JsonNode eventsArray = eventsResponse.path("calendar_events");
+        JsonNode eventsArray = eventsResponse.path(EVENTS_FIELD);
 
         ArrayNode eventsPayload = MAPPER.createArrayNode();
         int upcomingCount = 0;
@@ -298,8 +323,8 @@ public class ProjectionCalculationEngine {
             for (JsonNode event : eventsArray) {
                 ObjectNode entry = MAPPER.createObjectNode();
                 entry.put("id", event.path("id").asText(""));
-                entry.put("title", event.path("title").asText(""));
-                entry.put("start_date", event.path("start_date").asText(""));
+                entry.put(TITLE_FIELD, event.path(TITLE_FIELD).asText(""));
+                entry.put(START_DATE_FIELD, event.path(START_DATE_FIELD).asText(""));
                 eventsPayload.add(entry);
                 upcomingCount++;
             }
@@ -824,9 +849,9 @@ public class ProjectionCalculationEngine {
 
     /**
      * Epic 8 Phase 4 — validation gate (Use Case 8.4). Runs four checks against
-     * existing Phase 3 snapshot payloads. Each check produces PASS, WARNING, or
-     * CRITICAL. Overall status = CRITICAL if any check is CRITICAL, WARNING if any
-     * check is WARNING, PASS if all PASS.
+     * existing Phase 3 snapshot payloads. Each check currently produces PASS or
+     * WARNING; CRITICAL is a reserved severity (see Q16) not yet emitted by any
+     * check. Overall status = WARNING if any check is WARNING, PASS if all PASS.
      *
      * <p>Check 1 — Category Resolution: are all accounts categorised?
      * Check 2 — Missing Growth Rate: do investment accounts have a configured rate?
@@ -834,8 +859,9 @@ public class ProjectionCalculationEngine {
      * Check 4 — Budget Cap Set: is monthly_budget_cap configured in policy settings?
      *
      * <p>Per Q16 resolution: CRITICAL does not block other snapshots — runStep isolation
-     * handles that. The validation engine just produces its own PASS/WARNING/CRITICAL
-     * result; what the dashboard shows for a CRITICAL key is a frontend concern.
+     * handles that. If a future check introduces CRITICAL, the validation engine
+     * would produce it here; what the dashboard shows for a CRITICAL key is a
+     * frontend concern.
      */
     void computeValidation(UUID profileId) {
         UUID adminId = resolveAdminId(profileId);
@@ -849,7 +875,6 @@ public class ProjectionCalculationEngine {
         ArrayNode checksArray = MAPPER.createArrayNode();
         int passCount = 0;
         int warningCount = 0;
-        int criticalCount = 0;
 
         // Check 1 — Category Resolution
         JsonNode categoryPayload = snapshots.getOrDefault(SnapshotKey.WEALTH_CATEGORY_VALIDATION, MAPPER.createObjectNode());
@@ -928,21 +953,16 @@ public class ProjectionCalculationEngine {
             passCount++;
         }
 
-        String overallStatus;
-        if (criticalCount > 0) {
-            overallStatus = "CRITICAL";
-        } else if (warningCount > 0) {
-            overallStatus = STATUS_WARNING;
-        } else {
-            overallStatus = STATUS_PASS;
-        }
+        String overallStatus = warningCount > 0 ? STATUS_WARNING : STATUS_PASS;
 
         ObjectNode payload = MAPPER.createObjectNode();
         payload.set(CHECKS_FIELD, checksArray);
         payload.put(OVERALL_STATUS_FIELD, overallStatus);
         payload.put("pass_count", passCount);
         payload.put("warning_count", warningCount);
-        payload.put("critical_count", criticalCount);
+        // "critical_count" is a reserved contract field (per OpenQuestions.md Q16) — no current
+        // check escalates to CRITICAL, so it is always 0 until a future check introduces one.
+        payload.put("critical_count", 0);
         snapshotRepository.upsert(profileId, SnapshotKey.WEALTH_VALIDATION_REPORT_FAMILY, payload.toString());
     }
 
@@ -975,6 +995,171 @@ public class ProjectionCalculationEngine {
             }
         }
         return false;
+    }
+
+    // ── ACTION_CENTER_ALERTS_FAMILY (v0.5 Phase 3, OpenQuestions.md Q30) ──────
+
+    /**
+     * Consolidated Action Center — a single read-only alert feed across all three
+     * domains, aggregated per household member (per Q30: upcoming events and
+     * biometric streak gaps are evaluated per-profile, matching ADR-017's rule
+     * that vitals/events stay per-person and are never summed; only the vehicle
+     * compliance list and the overall payload are gathered into one family view).
+     *
+     * <p>Three alert types (Q30 resolution):
+     * <ul>
+     *   <li>Upcoming calendar events — same 30-day lookahead window as
+     *       {@link #computeEventSummary(UUID)}, evaluated per member.</li>
+     *   <li>Vehicle compliance deadlines — PUC/insurance expiry within the next
+     *       30 days or already expired, reusing {@link ExpiryDateUtil} (the same
+     *       helper the Vacation Planner uses for the identical JSONB parsing).</li>
+     *   <li>Biometric streak gaps — WEIGHT, BLOOD_PRESSURE, BLOOD_SUGAR_FASTING
+     *       (Q30's "core 3") with no reading in the last 30 days. A vital type
+     *       with zero readings ever is also flagged (treated as an infinite gap)
+     *       rather than silently skipped — matches the "honest gap reporting"
+     *       precedent set by computeCategoryValidation in Phase 1.</li>
+     * </ul>
+     */
+    void computeActionCenterAlerts(UUID profileId, LocalDate today) {
+        UUID adminId = resolveAdminId(profileId);
+        if (adminId == null) {
+            return;
+        }
+        JsonNode membersArray = profileServiceClient.listProfiles(adminId, true).path(PROFILES_FIELD);
+
+        String todayText = today.toString();
+        String lookaheadText = today.plusDays(ACTION_CENTER_EVENT_LOOKAHEAD_DAYS).toString();
+
+        ArrayNode upcomingEvents = MAPPER.createArrayNode();
+        ArrayNode vehicleCompliance = MAPPER.createArrayNode();
+        ArrayNode streakGaps = MAPPER.createArrayNode();
+        int memberCount = 0;
+
+        for (JsonNode member : membersArray) {
+            String memberProfileIdText = member.path(PROFILE_ID_FIELD).asText("");
+            if (memberProfileIdText.isEmpty()) {
+                continue;
+            }
+            UUID memberProfileId = UUID.fromString(memberProfileIdText);
+            String memberName = member.path(FULL_NAME_FIELD).asText("");
+
+            addUpcomingEventsForMember(memberProfileId, memberName, todayText, lookaheadText, upcomingEvents);
+            addVehicleComplianceForMember(memberProfileId, memberName, today, vehicleCompliance);
+            addStreakGapsForMember(memberProfileId, memberName, today, streakGaps);
+            memberCount++;
+        }
+
+        ObjectNode payload = MAPPER.createObjectNode();
+        payload.set(UPCOMING_EVENTS_FIELD, upcomingEvents);
+        payload.set(VEHICLE_COMPLIANCE_FIELD, vehicleCompliance);
+        payload.set(BIOMETRIC_STREAK_GAPS_FIELD, streakGaps);
+        payload.put(MEMBER_COUNT_FIELD, memberCount);
+        snapshotRepository.upsert(profileId, SnapshotKey.ACTION_CENTER_ALERTS_FAMILY, payload.toString());
+    }
+
+    private void addUpcomingEventsForMember(
+            UUID memberProfileId, String memberName, String today, String lookaheadText, ArrayNode upcomingEvents) {
+        JsonNode eventsResponse = householdServiceClient.listCalendarEvents(
+                memberProfileId, null, today, lookaheadText);
+        JsonNode eventsArray = eventsResponse.path(EVENTS_FIELD);
+        if (!eventsArray.isArray()) {
+            return;
+        }
+        for (JsonNode event : eventsArray) {
+            ObjectNode entry = MAPPER.createObjectNode();
+            entry.put(PROFILE_ID_FIELD, memberProfileId.toString());
+            entry.put(FULL_NAME_FIELD, memberName);
+            entry.put("id", event.path("id").asText(""));
+            entry.put(TITLE_FIELD, event.path(TITLE_FIELD).asText(""));
+            entry.put(START_DATE_FIELD, event.path(START_DATE_FIELD).asText(""));
+            upcomingEvents.add(entry);
+        }
+    }
+
+    private void addVehicleComplianceForMember(
+            UUID memberProfileId, String memberName, LocalDate today, ArrayNode vehicleCompliance) {
+        JsonNode assetsResponse = wealthServiceClient.listPhysicalAssets(
+                VEHICLE_ASSET_TYPE, true, memberProfileId.toString());
+        JsonNode assetsArray = assetsResponse.path(PHYSICAL_ASSETS_FIELD);
+        if (!assetsArray.isArray()) {
+            return;
+        }
+        LocalDate warningThreshold = today.plusDays(ACTION_CENTER_EVENT_LOOKAHEAD_DAYS);
+        for (JsonNode asset : assetsArray) {
+            addComplianceIssueIfDueBy(asset, memberProfileId, memberName, "puc_expiry", "PUC", warningThreshold, vehicleCompliance);
+            addComplianceIssueIfDueBy(asset, memberProfileId, memberName, "insurance_expiry", "INSURANCE", warningThreshold, vehicleCompliance);
+        }
+    }
+
+    private void addComplianceIssueIfDueBy(
+            JsonNode asset, UUID memberProfileId, String memberName, String metadataKey, String issueLabel,
+            LocalDate warningThreshold, ArrayNode vehicleCompliance) {
+        LocalDate expiryDate = ExpiryDateUtil.parse(asset.path(METADATA_FIELD), metadataKey);
+        if (expiryDate == null || expiryDate.isAfter(warningThreshold)) {
+            return;
+        }
+        ObjectNode issue = MAPPER.createObjectNode();
+        issue.put(PROFILE_ID_FIELD, memberProfileId.toString());
+        issue.put(FULL_NAME_FIELD, memberName);
+        issue.put(ASSET_ID_FIELD, asset.path(ASSET_ID_FIELD).asText(""));
+        issue.put(ASSET_NAME_FIELD, asset.path(ASSET_NAME_FIELD).asText(""));
+        issue.put("issue_type", issueLabel + "_EXPIRED");
+        issue.put("expiry_date", asset.path(METADATA_FIELD).path(metadataKey).asText(""));
+        vehicleCompliance.add(issue);
+    }
+
+    private void addStreakGapsForMember(UUID memberProfileId, String memberName, LocalDate today, ArrayNode streakGaps) {
+        JsonNode vitalsResponse = healthServiceClient.listVitals(memberProfileId, null);
+        JsonNode vitalsArray = vitalsResponse.path(VITAL_READINGS_FIELD);
+
+        java.util.Map<String, String> latestReadingDateByType = new java.util.HashMap<>();
+        if (vitalsArray.isArray()) {
+            for (JsonNode vital : vitalsArray) {
+                String vitalType = vital.path(VITAL_TYPE_KEY).asText("");
+                String readingDate = vital.path(READING_DATE_FIELD).asText("");
+                // Same newest-first assumption as computeVitalsSummary — only the first date seen per type is kept
+                latestReadingDateByType.putIfAbsent(vitalType, readingDate);
+            }
+        }
+
+        for (String vitalType : STREAK_TRACKED_VITAL_TYPES) {
+            String lastReadingDateText = latestReadingDateByType.get(vitalType);
+            addStreakGapIfOverdue(memberProfileId, memberName, vitalType, lastReadingDateText, today, streakGaps);
+        }
+    }
+
+    private void addStreakGapIfOverdue(
+            UUID memberProfileId, String memberName, String vitalType, String lastReadingDateText,
+            LocalDate today, ArrayNode streakGaps) {
+        LocalDate lastReadingDate = null;
+        if (lastReadingDateText != null && !lastReadingDateText.isBlank()) {
+            try {
+                lastReadingDate = LocalDate.parse(lastReadingDateText);
+            } catch (java.time.format.DateTimeParseException e) {
+                AppLogger.info("ActionCenter: unparseable reading_date '%s' for profile %s, treating as no reading",
+                        lastReadingDateText, memberProfileId);
+            }
+        }
+
+        long daysSinceLastReading = lastReadingDate == null
+                ? Long.MAX_VALUE
+                : java.time.temporal.ChronoUnit.DAYS.between(lastReadingDate, today);
+        if (daysSinceLastReading < STREAK_GAP_THRESHOLD_DAYS) {
+            return;
+        }
+
+        // NOTE: `lastReadingDate == null ? null : (int) x` (not `(Integer) null`) is
+        // required here — mixing a boxed-cast null with a primitive int branch makes
+        // the ternary apply binary numeric promotion and unbox the null, throwing NPE.
+        Integer daysSinceLastReadingBoxed = lastReadingDate == null ? null : (int) daysSinceLastReading;
+
+        ObjectNode gap = MAPPER.createObjectNode();
+        gap.put(PROFILE_ID_FIELD, memberProfileId.toString());
+        gap.put(FULL_NAME_FIELD, memberName);
+        gap.put(VITAL_TYPE_KEY, vitalType);
+        gap.put(LAST_READING_DATE_FIELD, lastReadingDate == null ? null : lastReadingDateText);
+        gap.put("days_since_last_reading", daysSinceLastReadingBoxed);
+        streakGaps.add(gap);
     }
 
     // ── snapshot read helpers (Phase 4) ──────────────────────────────────────

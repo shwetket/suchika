@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React from 'react';
 import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../hooks/useAuth';
 import { getDashboard, refreshProjections } from '../../api/household';
 
@@ -64,6 +65,12 @@ function formatTimestamp(isoStr) {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+function validationStatusClass(status) {
+  if (status === 'PASS') return 'bg-green-50 text-green-700';
+  if (status === 'WARNING') return 'bg-yellow-50 text-yellow-700';
+  return 'bg-red-50 text-red-700';
 }
 
 function Spinner() {
@@ -245,13 +252,7 @@ function SnapshotSummary({ snapshots }) {
       )}
       {validationPayload && (
         <div
-          className={`mt-3 rounded-lg px-4 py-2 text-sm ${
-            validationPayload.overall_status === 'PASS'
-              ? 'bg-green-50 text-green-700'
-              : validationPayload.overall_status === 'WARNING'
-                ? 'bg-yellow-50 text-yellow-700'
-                : 'bg-red-50 text-red-700'
-          }`}
+          className={`mt-3 rounded-lg px-4 py-2 text-sm ${validationStatusClass(validationPayload.overall_status)}`}
         >
           Data Quality: {validationPayload.overall_status}
           {validationPayload.warning_count > 0 &&
@@ -283,39 +284,32 @@ SnapshotSummary.defaultProps = {
 
 export const Dashboard = () => {
   const { user } = useAuth();
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [snapshots, setSnapshots] = useState(null);
-  const [refreshError, setRefreshError] = useState(null);
-
+  const queryClient = useQueryClient();
   const profileId = user?.profile_id ?? null;
 
-  const loadDashboard = useCallback(async () => {
-    if (!profileId) return;
-    try {
-      const data = await getDashboard(profileId);
-      setSnapshots(data?.snapshots ?? []);
-    } catch {
-      setSnapshots([]);
-    }
-  }, [profileId]);
+  const dashboardQuery = useQuery({
+    queryKey: ['dashboard', profileId],
+    queryFn: () => getDashboard(profileId),
+    enabled: Boolean(profileId),
+  });
 
-  useEffect(() => {
-    loadDashboard();
-  }, [loadDashboard]);
+  const refreshMutation = useMutation({
+    mutationFn: () => refreshProjections(profileId),
+    onSuccess: (data) => {
+      queryClient.setQueryData(['dashboard', profileId], data);
+    },
+  });
 
-  const handleRefresh = useCallback(async () => {
+  const snapshots = dashboardQuery.data?.snapshots ?? [];
+  const isRefreshing = refreshMutation.isPending;
+  const refreshError = refreshMutation.isError
+    ? refreshMutation.error?.message || 'Refresh failed'
+    : null;
+
+  const handleRefresh = () => {
     if (!profileId || isRefreshing) return;
-    setIsRefreshing(true);
-    setRefreshError(null);
-    try {
-      const data = await refreshProjections(profileId);
-      setSnapshots(data?.snapshots ?? []);
-    } catch (err) {
-      setRefreshError(err.message || 'Refresh failed');
-    } finally {
-      setIsRefreshing(false);
-    }
-  }, [profileId, isRefreshing]);
+    refreshMutation.mutate();
+  };
 
   return (
     <div className="p-6 max-w-4xl mx-auto">

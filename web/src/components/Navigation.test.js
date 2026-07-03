@@ -51,6 +51,32 @@ describe('Navigation', () => {
     expect(screen.getByRole('link', { name: 'Profiles' })).toBeInTheDocument();
   });
 
+  it('shows Action Center link when authenticated', () => {
+    renderNav({
+      user: { username: 'alice', role: 'user' },
+      logout: jest.fn(),
+      isAuthenticated: true,
+    });
+    expect(screen.getByRole('link', { name: 'Action Center' })).toHaveAttribute(
+      'href',
+      '/action-center'
+    );
+  });
+
+  it('shows Household dropdown with correct links when authenticated', () => {
+    renderNav({
+      user: { username: 'alice', role: 'user' },
+      logout: jest.fn(),
+      isAuthenticated: true,
+    });
+    const householdBtn = screen.getByRole('button', { name: /household/i });
+    fireEvent.click(householdBtn);
+    expect(screen.getByRole('link', { name: 'Calendar' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Inventory' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Goals' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Vacation Planner' })).toBeInTheDocument();
+  });
+
   it('shows Wealth dropdown with correct links when authenticated', () => {
     renderNav({
       user: { username: 'alice', role: 'user' },

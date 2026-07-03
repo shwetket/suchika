@@ -289,6 +289,12 @@ paths:
       summary: List transactions for an account
       parameters:
         - $ref: '#/components/parameters/AccountId'
+        - name: profile_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
         - name: from
           in: query
           required: false
@@ -306,6 +312,21 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/TxnType'
+        - name: page
+          in: query
+          required: false
+          description: 0-indexed page number. Defaults to 0.
+          schema:
+            type: integer
+            minimum: 0
+        - name: size
+          in: query
+          required: false
+          description: Page size. Defaults to 50, max 200.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
       responses:
         '200':
           description: Transactions listed
@@ -313,6 +334,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListTransactionsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -1105,6 +1128,16 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Transaction'
+        total_size:
+          type: integer
+          format: int64
+          description: Total count matching the filter across all pages (v0.6 pagination).
+        page:
+          type: integer
+          description: Present only on the paginated GET list endpoint, not the bulk-category-update response.
+        size:
+          type: integer
+          description: Present only on the paginated GET list endpoint, not the bulk-category-update response.
 
     CreateTransactionRequest:
       type: object

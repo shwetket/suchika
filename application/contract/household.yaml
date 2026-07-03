@@ -244,6 +244,37 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+    put:
+      tags: [Inventory Items]
+      operationId: updateInventoryItem
+      summary: Update an inventory item
+      description: >
+        Full edit of an inventory item's fields. Also used to toggle is_consumed —
+        which marks the record as "used in a calculation," not "physically used up."
+        Items are never deleted or expired by this endpoint; all history is retained
+        for year-over-year tracking. Only provided fields are updated.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateInventoryItemRequest'
+      responses:
+        '200':
+          description: Item updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
     delete:
       tags: [Inventory Items]
       operationId: deleteInventoryItem
@@ -626,6 +657,13 @@ components:
           type: string
           maxLength: 50
           nullable: true
+        is_consumed:
+          type: boolean
+          default: false
+          description: >
+            True once this record has been successfully used in a calculation
+            (e.g. supply/spend analytics). Does NOT mean the physical item was
+            used up — inventory rows are never deleted or expired.
         created_at:
           type: string
           format: date-time
@@ -662,6 +700,33 @@ components:
           type: string
           maxLength: 50
           nullable: true
+
+    UpdateInventoryItemRequest:
+      type: object
+      description: >
+        All fields optional. Only provided fields are updated. is_consumed toggles
+        the "used in a calculation" marker — see InventoryItem.is_consumed.
+      properties:
+        item_name:
+          type: string
+          maxLength: 200
+        quantity:
+          type: number
+          format: double
+          exclusiveMinimum: 0
+        unit:
+          $ref: '#/components/schemas/ItemUnit'
+        source_platform:
+          $ref: '#/components/schemas/SourcePlatform'
+        purchase_date:
+          type: string
+          format: date
+        category:
+          type: string
+          maxLength: 50
+          nullable: true
+        is_consumed:
+          type: boolean
 
     ListInventoryItemsResponse:
       type: object

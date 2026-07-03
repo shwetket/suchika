@@ -17,4 +17,6 @@ public interface ProfileRepository {
     boolean existsById(UUID id);
 
     long countActiveByAdminId(UUID adminId);
+
+    boolean existsSelfProfile(UUID adminId);
 }

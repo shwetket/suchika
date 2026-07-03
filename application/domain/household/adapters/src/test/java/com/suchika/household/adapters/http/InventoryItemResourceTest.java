@@ -4,6 +4,7 @@ import com.suchika.household.domain.InventoryItem;
 import com.suchika.household.domain.ItemUnit;
 import com.suchika.household.domain.SourcePlatform;
 import com.suchika.household.ports.input.InventoryItemUseCase;
+import com.suchika.household.ports.input.UpdateInventoryItemCommand;
 import com.suchika.shared.exception.NotFoundException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
@@ -23,6 +24,7 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 
@@ -185,5 +187,83 @@ class InventoryItemResourceTest {
                 .when().delete("/v1/inventory-items/" + ITEM_ID)
                 .then()
                 .statusCode(204);
+    }
+
+    @Test
+    void updateInventoryItem_returns200() {
+        InventoryItem updatedItem = InventoryItem.builder()
+                .id(ITEM_ID)
+                .profileId(PROFILE_ID)
+                .itemName("Basmati Rice Premium")
+                .quantity(new BigDecimal("6.0"))
+                .unit(ItemUnit.KG)
+                .sourcePlatform(SourcePlatform.BLINKIT)
+                .purchaseDate(LocalDate.of(2026, Month.JUNE, 1))
+                .category("Grains")
+                .createdAt(Instant.EPOCH)
+                .build();
+
+        Mockito.when(inventoryItemUseCase.update(eq(ITEM_ID), any(UpdateInventoryItemCommand.class)))
+                .thenReturn(updatedItem);
+
+        String body = "{"
+                + "\"item_name\":\"Basmati Rice Premium\","
+                + "\"quantity\":6.0"
+                + "}";
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(body)
+                .when().put("/v1/inventory-items/" + ITEM_ID)
+                .then()
+                .statusCode(200)
+                .body("id", is(ITEM_ID.toString()))
+                .body("item_name", is("Basmati Rice Premium"));
+    }
+
+    @Test
+    void updateInventoryItem_toggleIsConsumed_returns200() {
+        InventoryItem consumedItem = InventoryItem.builder()
+                .id(ITEM_ID)
+                .profileId(PROFILE_ID)
+                .itemName("Basmati Rice")
+                .quantity(new BigDecimal("5.0"))
+                .unit(ItemUnit.KG)
+                .sourcePlatform(SourcePlatform.BLINKIT)
+                .purchaseDate(LocalDate.of(2026, Month.JUNE, 1))
+                .category("Grains")
+                .consumed(true)
+                .createdAt(Instant.EPOCH)
+                .build();
+
+        Mockito.when(inventoryItemUseCase.update(eq(ITEM_ID),
+                        argThat(command -> Boolean.TRUE.equals(command.isConsumed()))))
+                .thenReturn(consumedItem);
+
+        String body = "{\"is_consumed\":true}";
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(body)
+                .when().put("/v1/inventory-items/" + ITEM_ID)
+                .then()
+                .statusCode(200)
+                .body("id", is(ITEM_ID.toString()))
+                .body("is_consumed", is(true));
+    }
+
+    @Test
+    void updateInventoryItem_notFound_returns404() {
+        Mockito.when(inventoryItemUseCase.update(eq(ITEM_ID), any(UpdateInventoryItemCommand.class)))
+                .thenThrow(new NotFoundException("inventory item not found"));
+
+        String body = "{\"item_name\":\"Anything\"}";
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(body)
+                .when().put("/v1/inventory-items/" + ITEM_ID)
+                .then()
+                .statusCode(404);
     }
 }

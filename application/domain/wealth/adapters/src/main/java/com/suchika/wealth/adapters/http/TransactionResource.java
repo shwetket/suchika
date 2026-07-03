@@ -9,6 +9,7 @@ import com.suchika.wealth.adapters.http.dto.UpdateTransactionCategoryRequest;
 import com.suchika.wealth.domain.ExpenseCategory;
 import com.suchika.wealth.domain.TxnType;
 import com.suchika.wealth.ports.input.CreateTransactionCommand;
+import com.suchika.wealth.ports.input.PagedTransactions;
 import com.suchika.wealth.ports.input.TransactionUseCase;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -23,6 +24,9 @@ import java.util.UUID;
 @Consumes(MediaType.APPLICATION_JSON)
 public class TransactionResource {
 
+    private static final int DEFAULT_PAGE_SIZE = 50;
+    private static final int MAX_PAGE_SIZE = 200;
+
     private final TransactionUseCase useCase;
 
     public TransactionResource(TransactionUseCase useCase) {
@@ -32,17 +36,22 @@ public class TransactionResource {
     @GET
     public Response listTransactions(
             @PathParam("account_id") UUID accountId,
+            @QueryParam("profile_id") UUID profileId,
             @QueryParam("from") String fromParam,
             @QueryParam("to") String toParam,
-            @QueryParam("txn_type") String txnTypeParam) {
+            @QueryParam("txn_type") String txnTypeParam,
+            @QueryParam("page") Integer pageParam,
+            @QueryParam("size") Integer sizeParam) {
 
         LocalDate from = parseDate(fromParam, "from");
         LocalDate to = parseDate(toParam, "to");
         TxnType txnType = parseTxnType(txnTypeParam);
+        int page = parsePage(pageParam);
+        int size = parseSize(sizeParam);
 
-        List<TransactionResponse> transactions = useCase.listByAccount(accountId, from, to, txnType)
-                .stream().map(TransactionResponse::from).toList();
-        return Response.ok(new ListTransactionsResponse(transactions)).build();
+        PagedTransactions result = useCase.listByAccountPaginated(accountId, profileId, from, to, txnType, page, size);
+        List<TransactionResponse> transactions = result.transactions().stream().map(TransactionResponse::from).toList();
+        return Response.ok(new ListTransactionsResponse(transactions, result.totalCount(), page, size)).build();
     }
 
     @POST
@@ -117,5 +126,21 @@ public class TransactionResource {
         } catch (IllegalArgumentException e) {
             throw new BadRequestException("Invalid txn_type: " + value + " (expected CREDIT or DEBIT)");
         }
+    }
+
+    private int parsePage(Integer pageParam) {
+        int page = pageParam != null ? pageParam : 0;
+        if (page < 0) {
+            throw new BadRequestException("page must be >= 0");
+        }
+        return page;
+    }
+
+    private int parseSize(Integer sizeParam) {
+        int size = sizeParam != null ? sizeParam : DEFAULT_PAGE_SIZE;
+        if (size < 1 || size > MAX_PAGE_SIZE) {
+            throw new BadRequestException("size must be between 1 and " + MAX_PAGE_SIZE);
+        }
+        return size;
     }
 }

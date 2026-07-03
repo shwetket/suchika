@@ -45,6 +45,18 @@ class ProfileGatewayResourceTest {
                 .thenReturn("{\"profile_id\":\"11111111-0000-0000-0000-000000000000\","
                         + "\"full_name\":\"E2E Member\"}");
         when(profileServiceClient.createProfile(any())).thenReturn(mockCreate);
+
+        Response mockCreateAdmin = mock(Response.class);
+        when(mockCreateAdmin.getStatus()).thenReturn(201);
+        when(mockCreateAdmin.readEntity(String.class))
+                .thenReturn("{\"admin_id\":\"22222222-0000-0000-0000-000000000000\","
+                        + "\"display_name\":\"E2E Admin\"}");
+        when(profileServiceClient.createAdmin(any())).thenReturn(mockCreateAdmin);
+
+        when(profileServiceClient.updatePolicySettings(any(), any()))
+                .thenReturn(mapper.readTree(
+                        "{\"admin_id\":\"00000000-0000-0000-0000-000000000001\","
+                        + "\"policy_settings\":{\"setup_completed\":\"true\"}}"));
     }
 
     @Test
@@ -85,5 +97,34 @@ class ProfileGatewayResourceTest {
                 .statusCode(201)
                 .body("profile_id", notNullValue())
                 .body("full_name", is("E2E Member"));
+    }
+
+    @Test
+    void testCreateAdmin() {
+        String adminJson = "{\"display_name\":\"E2E Admin\",\"email_address\":\"e2e@test.com\"}";
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(adminJson)
+                .when()
+                .post("/v1/admins")
+                .then()
+                .statusCode(201)
+                .body("admin_id", notNullValue())
+                .body("display_name", is("E2E Admin"));
+    }
+
+    @Test
+    void testUpdatePolicySettings() {
+        String policyJson = "{\"policy_settings\":{\"setup_completed\":\"true\"}}";
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(policyJson)
+                .when()
+                .patch("/v1/admins/00000000-0000-0000-0000-000000000001/policy")
+                .then()
+                .statusCode(200)
+                .body("policy_settings.setup_completed", is("true"));
     }
 }

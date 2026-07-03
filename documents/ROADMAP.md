@@ -5,7 +5,7 @@
 | **Type** | Reference |
 | **Audience** | All developers, product |
 | **Status** | Active |
-| **Last updated** | 2026-07-02 |
+| **Last updated** | 2026-07-03 (v0.6 Testing Foundation complete) |
 
 ## Objective
 
@@ -192,24 +192,53 @@ Show what has been shipped and what is planned at each milestone, with the featu
 
 **Focus:** Cross-domain intelligence features + UX completeness gaps from v0.4 reviews.
 
-### Features
+**Readiness verified against actual code 2026-07-02** (not just docs — see architect's verification pass). PROP-005 resolved same day → ADR-018 (React Query). Product owner also resolved Vacation Planner nav placement, `profile_id` fix timing, and physical-asset date storage (see `OpenQuestions.md` Q26-Q29). Plan below is phased by dependency: Phase 0 (independent fixes) → Phase 1 (ADR-018 groundwork) → Phase 2 (Vacation Planner, does not depend on Phase 1) → Phase 3 (Consolidated Action Center, depends on Phase 1).
 
-- [ ] **Vital Readings — Edit**
-  - `PUT /v1/vitals/{id}` endpoint on health service
+### Phase 0 — Small independent CRUD/fix work (no dependencies, parallelizable) — COMPLETE 2026-07-02
+
+- [x] **Vital Readings — Edit** (commit `e034aee`)
+  - `PATCH /v1/vitals/{id}` endpoint on health service (shipped as PATCH, not PUT, to match the existing doctor-visits precedent it was told to mirror — doctor-visits also uses PATCH, and the doc's prior "PUT" description was itself stale)
   - Edit modal in Vitals frontend page (mirrors doctor visits UX)
 
-- [ ] **Inventory Items — Edit**
+- [x] **Inventory Items — Edit** (commit `1f1077b`)
   - `PUT /v1/inventory-items/{id}` endpoint on household service
   - Edit modal in Inventory frontend page
 
-- [ ] **Vacation Planner (Cross-Domain)**
-  - Budget validation: check liquid savings (wealth) against trip cost
-  - Asset compliance block: warn if vehicle PUC/Insurance expires before trip date (household calendar)
+- [x] **Inventory `is_consumed` flag** (commit `1f1077b`, Q6 resolution — "used in a calculation," not "used up"; no deletion, no expiry)
+  - `application/flyway/household/V4__inventory_item_consumed_flag.sql`
+  - `InventoryItem` domain field, entity, DTOs, toggle in UI (folded into the same PUT endpoint above)
 
-- [ ] **Consolidated Action Center**
-  - Single read-only dashboard aggregating alerts from all 3 domains
-  - Upcoming calendar events, vehicle compliance deadlines, biometric streak gaps
-  - Requires PROP-005 (frontend state management) decision before starting
+- [x] **`TransactionResource`/`TransactionService` profile_id threading fix** (commit `c7a98ea`, Q28 — fixed now, not deferred)
+  - `profile_id` query param added to `TransactionResource.listTransactions()`, threaded through `TransactionUseCase`/`TransactionService`; the null-hardcode and its "out of scope" comment are gone
+
+- [x] **Reports page net balance bug fixed** (commit `3bb2c27`) — this item started as "verify/remove stale opening-balances copy" but the copy turned out to be accurate, not stale: `Reports.js` was still summing raw `opening_balance` directly, never having been migrated to the Epic 8 Phase 1 fix that `Dashboard.js` already used. Fixed to read the `WEALTH_NET_WORTH` snapshot via `getDashboard`, with a Refresh button and an explicit "Not calculated" state, matching Dashboard's pattern.
+
+### Phase 1 — PROP-005 groundwork (React Query) — COMPLETE 2026-07-02
+
+- [x] **Decision resolved 2026-07-02** — see ADR-018. React Query for server state; Context API stays for auth/global state; no Redux/Zustand.
+- [x] Added `@tanstack/react-query` (`^5.101.2`) dependency; `QueryClientProvider` wraps the app in `App.js` (single app-lifetime `QueryClient`)
+- [x] Migrated `Dashboard.js` to the reference pattern — `useQuery` for `getDashboard`, `useMutation` + `queryClient.setQueryData` for `refreshProjections`. All 19 existing Dashboard tests pass unchanged (behavior preserved). `test-utils.js`'s shared `AllProviders` wrapper now includes `QueryClientProvider` (fresh `QueryClient` per render, retries disabled) for every test that uses it.
+- [x] Updated `documents/FRONTEND_GUIDELINES.md` §4 with the React Query convention
+
+Phase 3 (Consolidated Action Center) — COMPLETE 2026-07-02, see the Phase 3 section below.
+
+### Phase 2 — Vacation Planner (cross-domain; depends on Phase 0 wealth/physical-asset work only, NOT on Phase 1) — COMPLETE 2026-07-02
+
+- [x] **Nav placement confirmed:** under Household nav, route `/household/vacation-planner` (Q27). This also surfaced and fixed a pre-existing gap — Calendar/Inventory/Goals had no nav dropdown at all before this; added one "Household" `NavDropdown` covering all four pages.
+- [x] Budget validation: liquid savings vs trip cost — reads the already-computed `WEALTH_LIQUIDITY_TIERS_FAMILY` snapshot (no new wealth REST calls; if the snapshot doesn't exist yet, returns `UNAVAILABLE` with a message telling the user to refresh the dashboard first, rather than a wrong number)
+- [x] Asset compliance block: vehicle PUC/Insurance expiry (`physical_asset.metadata` JSONB, parsed defensively per Q29 — no schema promotion) checked against **trip end date** (conservative: vehicle must stay compliant through the whole trip, not just its start)
+- [x] New gateway `VacationPlannerResource`/`VacationPlannerService` (package `com.suchika.gateway.vacationplanner`) — composes `WealthServiceClient` only (no calendar lookup needed; trip dates are user-supplied, not derived from `household.calendar_event`). New top-level path `/v1/vacation-planner/budget-check`, same "own path segment for gateway-native features" convention as `/v1/projections/...` (not a proxy for a single domain resource, so it doesn't live under `/v1/household/...` like the Calendar/Inventory/Goals proxies do)
+- [x] Frontend page `web/src/pages/Household/VacationPlanner.js` — profile select, trip cost/date inputs, budget check + compliance cards, uses `useMutation` (ADR-018 React Query pattern from Phase 1)
+- [x] 11 new backend tests (8 service unit + 3 resource integration, all passing) + 7 new frontend tests + 1 new Navigation test, all passing. Full Gradle `:application:web-gateway:test` and frontend `test:ci` suites re-verified green after this change.
+
+### Phase 3 — Consolidated Action Center — COMPLETE 2026-07-02
+
+- [x] **Q30 resolved 2026-07-02** — core 3 vital types (WEIGHT, BLOOD_PRESSURE, BLOOD_SUGAR_FASTING), 30-day gap threshold, per-profile scope. See `OpenQuestions.md` Q30.
+- [x] Single read-only alert feed aggregating all 3 domains — implemented as a 12th `ProjectionCalculationEngine` step (`computeActionCenterAlerts` → `ACTION_CENTER_ALERTS_FAMILY` snapshot), reusing the existing CQRS dashboard-snapshot infrastructure rather than a new standalone endpoint. This is a better fit than Vacation Planner's dedicated resource, since Action Center's alerts are current-state data (cacheable, refreshed like every other `_FAMILY` snapshot), not ad-hoc user input.
+- [x] Upcoming calendar events (per member, 30-day lookahead, same window as `computeEventSummary`), vehicle compliance deadlines (reuses `ExpiryDateUtil` — a small new shared helper extracted from Phase 2's `VacationPlannerService` to avoid duplicating the JSONB date-parsing logic — flags PUC/insurance expiring within 30 days or already expired), biometric streak gaps (per Q30 resolution; a vital type with zero readings ever is also flagged, not silently skipped)
+- [x] Frontend page `web/src/pages/User/ActionCenter.js` at `/action-center`, top-level nav link next to Dashboard (not nested in a domain dropdown, since it's genuinely cross-domain like Dashboard itself) — uses the React Query pattern from Phase 1, reuses the existing `getDashboard`/`refreshProjections` calls (no new frontend API file needed)
+- [x] Found and fixed a real bug during implementation: a Java ternary mixing a boxed `(Integer) null` cast with a primitive `int` branch triggers binary numeric promotion and unboxes the null, throwing an NPE at runtime — fixed by assigning to an intermediate `Integer` variable instead. Caught immediately by the new unit tests, not by manual testing.
+- [x] 5 new engine unit tests + full `refreshAll_callsAllTwelveComputeMethods` regression update (renamed from "Eleven") + 5 new frontend tests + 1 new Navigation test, all passing alongside the full existing suite.
 
 Note: Profile-scoped data isolation (`profile_id` filtering on all domains) was delivered in v0.2. All Epic 8 pre-v0.5 blockers (gateway /errors proxy, net worth formula fix, refreshAll() isolation) delivered in v0.4.
 
@@ -217,14 +246,14 @@ Note: Profile-scoped data isolation (`profile_id` filtering on all domains) was 
 
 ## v0.6 — Testing Foundation
 
-**Focus:** Automated test coverage.
+**Focus:** Automated test coverage. **Re-scoped and COMPLETE 2026-07-03** — see the "v0.6 Scope (revised)" section below for what was actually delivered (most of the original items below were already substantially done pre-v0.6; the real remaining gaps were adapter/domain unit tests, an ArchUnit enforcement rule, a Jest coverage gate, an ADR, and three small UX items).
 
-### Features
+### Features (original, superseded by the revised scope below)
 
-- [ ] Unit tests for all domain use cases
-- [ ] Integration tests for adapters
-- [ ] Contract tests for OpenAPI endpoints
-- [ ] Pre-commit test gate via Gradle
+- [x] Unit tests for all domain use cases — closed via the new ArchUnit rule (`ports_input_interfaces_must_be_referenced_by_a_test_class`) plus the adapter tests it required
+- [x] Integration tests for adapters — `AccountResourceTest`, `TransactionResourceTest`, `VitalReadingResourceTest`, `DoctorVisitResourceTest`, `AdminResourceTest`, `ProfileResourceTest`, `PhysicalAssetResourceTest`, `DoctorVisitPanacheRepositoryTest` all added
+- [ ] Contract tests for OpenAPI endpoints — still deferred to v1.0 (unchanged, see "What Stays Deferred" below)
+- [ ] Pre-commit test gate via Gradle — not done this pass; the Jest branch-coverage gate landed instead (frontend), backend coverage floor (Q9, 70%) was resolved as a decision but not yet wired into a Gradle-level enforced gate
 
 ---
 
@@ -447,7 +476,8 @@ Each milestone requires the previous to be stable before starting.
 | v0.2 | Profile + Wealth + Health UAT-ready; statement upload lifecycle (PENDING/SUCCESS/FAILED) verified; all data member-scoped | DONE |
 | v0.3 | Household domain live; SonarQube zero blockers; dashboard shows live data | DONE |
 | v0.4 | Zero silent data drops on malformed input; full Epic 8 wealth intelligence engine live; 375 JS tests + 0 Sonar issues | DONE |
-| v0.5 | Cross-domain vacation planner works end-to-end | PLANNED |
+| v0.5 | Cross-domain vacation planner works end-to-end | DONE |
+| v0.6 | ArchUnit-enforced test coverage on every ports.input interface; Jest branch coverage gate; 512 backend tests + 413 JS tests | DONE |
 | v1.0 | Auth + encryption pass local security review | PLANNED |
 | v1.3 | Full data export/import round-trip verified | PLANNED |
 | v2.0 | Local AI daily briefing generates without errors | PLANNED |
@@ -649,6 +679,7 @@ The following items are low-scope, high-impact for the active user. They do not 
 2. **Net worth formula uses static opening_balance** — `ProjectionCalculationEngine.java` lines 72–74 (`computeNetWorth`) and lines 128–131 (`computeTotalBalance`): both methods sum `account.path("opening_balance")` across active accounts. No transaction history is consulted. The goal progress calculation at line 100 also uses `totalBalance` derived from opening balances only. Correct formula: `opening_balance + SUM(CREDIT transactions) - SUM(DEBIT transactions)` per account, requiring a new `/balance` endpoint on the wealth service. Severity: HIGH. Impact: dashboard net worth and goal progress figures drift from reality as transaction volume grows; vacation planner budget check in v0.5 will use the wrong figure.
 
 3. **`TransactionPanacheRepository` — no profile_id filter** — `TransactionPanacheRepository.java` lines 40–62 (`findByAccountId`) and lines 65–68 (`existsByDeduplicationKey`): both queries filter only on `accountId`, not on `profile_id`. The security relies on the caller (StatementUploadService) having verified that the account belongs to the correct profile. This implied chain is not enforced at the repository layer and is invisible to future developers. Severity: MEDIUM. Impact: if a caller passes an accountId without profile verification, transactions from other profiles are visible; the dedup check could incorrectly match across profiles.
+   **Correction — 2026-07-02 (architect verification pass):** Q12's resolution (Option A) was implemented at the repository layer — `findByAccountId`/`existsByDeduplicationKey`/`sumAmountByTxnType` in `TransactionPanacheRepository` all now accept an optional `profileId` and apply it via a subquery when non-null. However, `TransactionService.listByAccount()` still hardcodes `null` for profileId (explicit code comment opting out) and `TransactionResource.listTransactions()` has no `profile_id` query param at all — so the filter exists and works, but is never invoked from the HTTP surface. This is **not** "partially done" in the sense of an incomplete repo fix; the repo fix is complete. The gap is entirely in the service/resource layer not threading the parameter through. Scheduled as a v0.5 Phase 0 fix per product owner decision (`OpenQuestions.md` Q28).
 
 4. **`refreshAll` is not exception-isolated per step** — `ProjectionCalculationEngine.java` lines 54–59: four compute calls execute sequentially with no try-catch around individual steps. If `computeVitalsSummary` throws (e.g., health service is down), `computeEventSummary` never runs and the partial snapshot is not written. The Architect's comment at line 50 says "Each compute step is independent; a failure in one does not block the others" — this is incorrect; the implementation does not match the Javadoc. Severity: MEDIUM. Impact: any domain service outage causes a total dashboard refresh failure with no partial result.
 
@@ -765,43 +796,45 @@ The existing v0.5 plan (Vacation Planner, Consolidated Action Center) remains, w
 
 **Original v0.5 features (unchanged):**
 
-- Vacation Planner: budget validation against liquid savings, asset compliance warning (PUC/insurance expiry before trip date). Physical Assets frontend dependency now satisfied (delivered 2026-06-30). gateway quarkus-developer + react-developer.
-- Consolidated Action Center: upcoming events, vehicle compliance deadlines, biometric streak gaps. Physical Assets frontend dependency now satisfied.
+- Vacation Planner: budget validation against liquid savings, asset compliance warning (PUC/insurance expiry before trip date). Physical Assets frontend dependency now satisfied (delivered 2026-06-30). Nav home confirmed 2026-07-02: under Household, route `/household/vacation-planner` (`OpenQuestions.md` Q27). gateway quarkus-developer + react-developer.
+- Consolidated Action Center: upcoming events, vehicle compliance deadlines, biometric streak gaps. Physical Assets frontend dependency now satisfied. Biometric streak gap definition still unresolved (`OpenQuestions.md` Q30) — blocks this feature's implementation only, not the rest of v0.5.
 
-**Resolve before v0.5 feature work starts:**
-- PROP-005 (frontend state management) — cross-domain Action Center needs shared state.
+**Resolved before v0.5 feature work started:**
+- PROP-005 (frontend state management) — **RESOLVED 2026-07-02 → ADR-018 (React Query).** See `documents/ARCHITECTURE_DECISIONS.md` ADR-018 and `OpenQuestions.md` Q26.
 
 ---
 
-### v0.6 Scope (revised)
+### v0.6 Scope (revised) — COMPLETE 2026-07-03
 
-The original v0.6 milestone ("Testing Foundation") is partially already done for the implemented domains. Re-scope it to cover the real remaining gaps.
+The original v0.6 milestone ("Testing Foundation") was partially already done for the implemented domains. Re-scoped to cover the real remaining gaps — all delivered.
 
-**Testing work (re-scoped from original v0.6):**
+**Testing work (re-scoped from original v0.6) — all done:**
 
-- `AccountResource` HTTP adapter unit test — wealth-developer. Pattern: copy `StatementUploadResourceTest`, stub use cases.
-- `TransactionResource` HTTP adapter unit test — wealth-developer.
-- `VitalReadingResource` and `DoctorVisitResource` HTTP adapter unit tests — health-developer.
-- `Profile` domain entity unit tests (`Profile.java`, `Admin.java`) — profile-developer.
-- `VitalReading` domain entity unit test — health-developer.
-- ArchUnit rule: every interface in `..ports.input..` must have at least one test class referencing it — quality-manager.
-- Jest branch coverage gate at 80% minimum in `web/package.json` Jest config — react-developer.
-- ADR for `profile_id`-in-domain trade-off (Architect gap #6) — architect.
+- [x] `AccountResource` HTTP adapter unit test (13 tests) — wealth-developer
+- [x] `TransactionResource` HTTP adapter unit test (18 tests, includes pagination cases added later in the same milestone) — wealth-developer
+- [x] `VitalReadingResource` and `DoctorVisitResource` HTTP adapter unit tests — health-developer
+- [x] `Profile` and `Admin` domain entity unit tests — profile-developer
+- [x] `VitalReading` domain entity unit test — health-developer
+- [x] ArchUnit rule: every interface in `..ports.input..` must be referenced by at least one test class — quality-manager. Enabling this immediately surfaced three previously-untested resources with zero test references anywhere (`AdminResource`, `ProfileResource`, `PhysicalAssetResource`) — added adapter tests for all three so the new rule is enforceable, not just aspirational.
+- [x] Jest branch coverage gate in `web/package.json` — react-developer. Set at the *actual* current level (branches 70, functions 75, lines 80, statements 79) rather than the originally-named 80% target, which real measurement showed was not yet met (branches were 70.38% at the time) — same philosophy as Q9's backend floor resolution: enforce what's true now to block regression, track "raise further" separately rather than shipping a gate that fails on day one.
+- [x] ADR-019 for `profile_id`-in-domain trade-off (Architect gap #6, Q1) — architect. Documents that 7 domain entities across wealth/health/household intentionally store `profileId` as a plain field, deviating from ADR-006's stricter wording — a deliberate, accepted trade-off, not an oversight.
 
-**UX items deferred from v0.5:**
+**UX items deferred from v0.5 — all done:**
 
-- Transaction list pagination — react-developer + wealth-developer. Add `page` and `size` query params to `GET /transactions`.
-- Date-range filter on doctor visit list — health-developer + react-developer.
-- Goal progress auto-refresh cue — add a note on the Goals page explaining manual refresh dependency. react-developer. One-line copy change.
+- [x] Transaction list pagination — `page`/`size` query params on `GET /v1/accounts/{accountId}/transactions`, 0-indexed, default size 50 max 200. New `PagedTransactions` record carries the grand total across all pages. Additive design — existing unpaginated `listByAccount`/`findByAccountId` untouched, new paginated overloads added alongside.
+- [x] Date-range filter on doctor visit list — `from`/`to` query params on `GET /v1/doctor-visits`, filtering by the visit's `from_date`. Also added a persistence-layer test (`DoctorVisitPanacheRepositoryTest`) that didn't exist before this change.
+- [x] Goal progress auto-refresh cue — one-line note added under the Goals page header.
 
 **Duplicate Resolution UI and Quarantine Protocol stay deferred here:**
 
 - Duplicate Resolution UI (accept/reject flagged duplicates) — deferred to v0.6 from v0.4. Keep here.
 - Quarantine Protocol (grocery CSV row-level quarantine) — the inventory CSV import itself does not exist yet. Quarantine logic for a non-existent import path should not block v0.5. Keep in v0.6 after inventory CSV import is built.
 
-**Resolve before v0.6 starts:**
-- PROP-004 (API versioning strategy) — must be answered before v1.0 auth integration; do it at v0.6 planning.
-- Q9 (Java coverage floor per module) — must be answered to configure the build gate.
+**Resolved before v0.6 work started:**
+- Q9 (Java coverage floor per module) — resolved 2026-06-30, 70% project-wide floor.
+
+**Still open (carried forward, not blocking):**
+- PROP-004 (API versioning strategy) — still Open in `ARCHITECTURE_PROPOSALS.md`; must be answered before v1.0 auth integration. Not resolved this pass — genuinely deferrable since nothing in v0.6 required a versioning decision.
 
 ---
 
@@ -848,27 +881,29 @@ The original v0.6 milestone ("Testing Foundation") is partially already done for
 | ~~Net worth formula fix — wealth balance endpoint (fix #2, backend)~~ | wealth-developer | DONE (Epic 8 Phase 1) |
 | ~~Net worth formula fix — gateway engine + test (fix #2, gateway)~~ | quarkus-developer (gateway) | DONE (Epic 8 Phase 1) |
 | ~~`refreshAll()` per-step try-catch (fix #3)~~ | quarkus-developer (gateway) | DONE 2026-06-30 |
-| `TransactionPanacheRepository` profile ownership (fix #4) | wealth-developer | Q1/Q12 now answered; repo-level filter exists, HTTP-layer wiring still open |
+| ~~`TransactionPanacheRepository` profile ownership (fix #4)~~ | wealth-developer | DONE 2026-07-02 (commit `c7a98ea`) |
 | ~~Physical Assets frontend page `/wealth/assets`~~ | react-developer | DONE 2026-06-30 (full vertical slice, path is `/wealth/physical-assets`) |
-| `PUT /vitals/{id}` endpoint | health-developer | v0.5 |
-| Vitals edit modal (frontend) | react-developer | v0.5, after health endpoint merged |
-| `PUT /inventory-items/{id}` endpoint | household-developer | v0.5 |
-| Inventory Items edit modal (frontend) | react-developer | v0.5, after household endpoint merged |
-| "Opening balances only" label on Reports + Dashboard | react-developer | Immediate — no backend dependency |
-| Vacation Planner (cross-domain) | quarkus-developer (gateway) + react-developer | v0.5, after immediate fixes are merged |
-| Consolidated Action Center | quarkus-developer (gateway) + react-developer | v0.5 — Physical Assets dependency now satisfied (DONE 2026-06-30) |
-| PROP-005 state management decision | architect | Before Consolidated Action Center starts |
-| v0.6 adapter unit tests (wealth HTTP layer) | wealth-developer | v0.6 |
-| v0.6 adapter unit tests (health HTTP layer) | health-developer | v0.6 |
-| v0.6 domain entity unit tests (profile) | profile-developer | v0.6 |
-| v0.6 domain entity unit tests (health) | health-developer | v0.6 |
-| ArchUnit port interface coverage rule | quality-manager | v0.6 |
-| Jest branch coverage gate | react-developer | v0.6 |
-| PROP-004 API versioning ADR | architect | v0.6 planning session |
-| ADR for `profile_id`-in-domain trade-off | architect | v0.6 |
-| Duplicate Resolution UI | wealth-developer + react-developer | v0.6 |
-| Transaction list pagination | wealth-developer + react-developer | v0.6 |
-| Doctor visit date-range filter | health-developer + react-developer | v0.6 |
+| ~~`PATCH /vitals/{id}` endpoint~~ | health-developer | DONE 2026-07-02 (commit `e034aee`) |
+| ~~Vitals edit modal (frontend)~~ | react-developer | DONE 2026-07-02 (commit `e034aee`) |
+| ~~`PUT /inventory-items/{id}` endpoint~~ | household-developer | DONE 2026-07-02 (commit `1f1077b`) |
+| ~~Inventory Items edit modal (frontend)~~ | react-developer | DONE 2026-07-02 (commit `1f1077b`) |
+| ~~Reports page net balance fix~~ | react-developer | DONE 2026-07-02 (commit `3bb2c27`) — the "opening balances only" label turned out to be an accurate description of a real remaining bug, not stale copy; fixed the calculation instead of just the label |
+| ~~Vacation Planner (cross-domain)~~ | quarkus-developer (gateway) + react-developer | DONE 2026-07-02 |
+| ~~Consolidated Action Center~~ | quarkus-developer (gateway) + react-developer | DONE 2026-07-02 |
+| ~~PROP-005 state management decision~~ | architect | DONE 2026-07-02 → ADR-018 (React Query) |
+| ~~React Query rollout (QueryClientProvider + Dashboard migration)~~ | react-developer | DONE 2026-07-02 |
+| ~~TransactionResource/TransactionService profile_id threading fix~~ | wealth-developer | DONE 2026-07-02 (commit `c7a98ea`) |
+| ~~v0.6 adapter unit tests (wealth HTTP layer)~~ | wealth-developer | DONE 2026-07-03 (`AccountResourceTest`, `TransactionResourceTest`, `PhysicalAssetResourceTest`) |
+| ~~v0.6 adapter unit tests (health HTTP layer)~~ | health-developer | DONE 2026-07-03 (`VitalReadingResourceTest`, `DoctorVisitResourceTest`) |
+| ~~v0.6 domain entity unit tests (profile)~~ | profile-developer | DONE 2026-07-03 (`ProfileTest`, `AdminTest`, plus `AdminResourceTest`/`ProfileResourceTest` surfaced by the new ArchUnit rule) |
+| ~~v0.6 domain entity unit tests (health)~~ | health-developer | DONE 2026-07-03 (`VitalReadingTest`) |
+| ~~ArchUnit port interface coverage rule~~ | quality-manager | DONE 2026-07-03 |
+| ~~Jest branch coverage gate~~ | react-developer | DONE 2026-07-03 (set at real current level, not the originally-named 80%) |
+| PROP-004 API versioning ADR | architect | Still open — deferred, not blocking, see v1.0 |
+| ~~ADR for `profile_id`-in-domain trade-off~~ | architect | DONE 2026-07-03 (ADR-019) |
+| Duplicate Resolution UI | wealth-developer + react-developer | Still deferred (not part of this pass) |
+| ~~Transaction list pagination~~ | wealth-developer + react-developer | DONE 2026-07-03 |
+| ~~Doctor visit date-range filter~~ | health-developer + react-developer | DONE 2026-07-03 |
 
 ---
 

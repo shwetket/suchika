@@ -115,6 +115,32 @@ class VitalReadingPanacheRepositoryTest {
     }
 
     @Test
+    void save_withExistingId_updatesReadingInPlace() {
+        VitalReading saved = repository.save(reading(LocalDate.of(2026, Month.AUGUST, 1), VitalType.WEIGHT,
+                new BigDecimal("75.0"), null, "kg"));
+
+        VitalReading updated = VitalReading.builder()
+                .id(saved.getId())
+                .profileId(saved.getProfileId())
+                .vitalType(saved.getVitalType())
+                .readingDate(saved.getReadingDate())
+                .valuePrimary(new BigDecimal("74.2"))
+                .valueSecondary(null)
+                .unit("kg")
+                .notes("adjusted")
+                .createdAt(saved.getCreatedAt())
+                .build();
+
+        VitalReading result = repository.save(updated);
+
+        assertEquals(saved.getId(), result.getId());
+        Optional<VitalReading> found = repository.findById(saved.getId());
+        assertTrue(found.isPresent());
+        assertEquals(0, new BigDecimal("74.2").compareTo(found.get().getValuePrimary()));
+        assertEquals("adjusted", found.get().getNotes());
+    }
+
+    @Test
     void save_withSecondaryValue_roundTrips() {
         VitalReading saved = repository.save(reading(LocalDate.of(2026, Month.JULY, 1), VitalType.BLOOD_PRESSURE,
                 new BigDecimal("118.0"), new BigDecimal("76.0"), "mmHg"));

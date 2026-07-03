@@ -79,23 +79,29 @@ describe('deactivateAccount', () => {
 });
 
 describe('listTransactions', () => {
-  it('builds URL with all filters', () => {
+  it('builds URL with all filters including profile_id', () => {
     get.mockResolvedValue({ transactions: [] });
-    listTransactions('acc-123', '2025-01-01', '2025-01-31', 'CREDIT');
+    listTransactions('acc-123', 'profile-1', '2025-01-01', '2025-01-31', 'CREDIT');
     expect(get).toHaveBeenCalledWith(
-      '/v1/accounts/acc-123/transactions?from=2025-01-01&to=2025-01-31&txn_type=CREDIT'
+      '/v1/accounts/acc-123/transactions?profile_id=profile-1&from=2025-01-01&to=2025-01-31&txn_type=CREDIT'
     );
   });
 
   it('omits txn_type when ALL', () => {
     get.mockResolvedValue({ transactions: [] });
-    listTransactions('acc-123', null, null, 'ALL');
+    listTransactions('acc-123', null, null, null, 'ALL');
     expect(get).toHaveBeenCalledWith('/v1/accounts/acc-123/transactions');
   });
 
   it('omits null date params', () => {
     get.mockResolvedValue({ transactions: [] });
-    listTransactions('acc-123', null, null, 'DEBIT');
+    listTransactions('acc-123', null, null, null, 'DEBIT');
+    expect(get).toHaveBeenCalledWith('/v1/accounts/acc-123/transactions?txn_type=DEBIT');
+  });
+
+  it('omits profile_id when not provided', () => {
+    get.mockResolvedValue({ transactions: [] });
+    listTransactions('acc-123', undefined, null, null, 'DEBIT');
     expect(get).toHaveBeenCalledWith('/v1/accounts/acc-123/transactions?txn_type=DEBIT');
   });
 });

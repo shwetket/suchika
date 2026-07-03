@@ -43,6 +43,9 @@ export const API_ENDPOINTS = {
   PROJECTIONS_REFRESH: '/v1/projections/refresh',
   PROJECTIONS_DASHBOARD: '/v1/projections/dashboard',
 
+  // Vacation Planner (gateway-native cross-domain compute)
+  VACATION_PLANNER_BUDGET_CHECK: '/v1/vacation-planner/budget-check',
+
   // Health domain
   VITALS: '/v1/vitals',
   DOCTOR_VISITS: '/v1/doctor-visits',
@@ -70,6 +73,7 @@ export const ROUTE_PATHS = {
   HOUSEHOLD_CALENDAR: '/household/calendar',
   HOUSEHOLD_INVENTORY: '/household/inventory',
   HOUSEHOLD_GOALS: '/household/goals',
+  HOUSEHOLD_VACATION_PLANNER: '/household/vacation-planner',
 
   HEALTH_VITALS: '/health/vitals',
   HEALTH_DOCTORS: '/health/doctors',

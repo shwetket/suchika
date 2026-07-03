@@ -34,9 +34,9 @@
 
 
 CREATE TABLE projections.dashboard_snapshot (
-    profile_id     UUID          NOT NULL,
-    snapshot_key   VARCHAR2(100) NOT NULL,
-    payload        JSONB         NOT NULL,
+    profile_id     UUID         NOT NULL,
+    snapshot_key   VARCHAR(100) NOT NULL,
+    payload        JSONB        NOT NULL,
     calculated_at  TIMESTAMPTZ   NOT NULL DEFAULT now(),
 
     -- Composite PK: one snapshot per (person, snapshot type).

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { listProfiles } from '../../api/profiles';
-import { deleteVital, listVitals, recordVital } from '../../api/health';
+import { deleteVital, listVitals, recordVital, updateVital } from '../../api/health';
 
 const VITAL_TYPES = [
   'WEIGHT',
@@ -105,7 +105,7 @@ Field.propTypes = {
 
 Field.defaultProps = { required: false };
 
-function VitalRow({ vital, onDelete }) {
+function VitalRow({ vital, onEdit, onDelete }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const valueDisplay =
@@ -141,13 +141,22 @@ function VitalRow({ vital, onDelete }) {
             </button>
           </div>
         ) : (
-          <button
-            type="button"
-            onClick={() => setConfirmDelete(true)}
-            className="px-2 py-1 border border-red-400 text-red-500 rounded text-xs hover:bg-red-50"
-          >
-            Delete
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => onEdit(vital)}
+              className="px-2 py-1 border border-blue-500 text-blue-600 rounded text-xs hover:bg-blue-50"
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmDelete(true)}
+              className="px-2 py-1 border border-red-400 text-red-500 rounded text-xs hover:bg-red-50"
+            >
+              Delete
+            </button>
+          </div>
         )}
       </td>
     </tr>
@@ -164,6 +173,7 @@ VitalRow.propTypes = {
     unit: PropTypes.string,
     notes: PropTypes.string,
   }).isRequired,
+  onEdit: PropTypes.func.isRequired,
   onDelete: PropTypes.func.isRequired,
 };
 
@@ -179,6 +189,11 @@ export const Vitals = () => {
   const [addForm, setAddForm] = useState(EMPTY_FORM);
   const [addError, setAddError] = useState(null);
   const [addSaving, setAddSaving] = useState(false);
+
+  const [editingVital, setEditingVital] = useState(null);
+  const [editForm, setEditForm] = useState(EMPTY_FORM);
+  const [editError, setEditError] = useState(null);
+  const [editSaving, setEditSaving] = useState(false);
 
   useEffect(() => {
     listProfiles(null, null)
@@ -270,7 +285,62 @@ export const Vitals = () => {
     [loadVitals]
   );
 
+  const handleEditOpen = useCallback((vital) => {
+    setEditingVital(vital);
+    setEditForm({
+      vital_type: vital.vital_type,
+      reading_date: vital.reading_date,
+      value_primary: String(vital.value_primary),
+      value_secondary:
+        vital.value_secondary !== null && vital.value_secondary !== undefined
+          ? String(vital.value_secondary)
+          : '',
+      unit: vital.unit ?? '',
+      notes: vital.notes ?? '',
+    });
+    setEditError(null);
+  }, []);
+
+  const handleEditChange = useCallback((e) => {
+    const { name, value } = e.target;
+    setEditForm((prev) => ({ ...prev, [name]: value }));
+  }, []);
+
+  const handleEditSubmit = useCallback(
+    async (e) => {
+      e.preventDefault();
+      if (!editForm.reading_date) {
+        setEditError('Reading date is required');
+        return;
+      }
+      if (editForm.value_primary === '') {
+        setEditError('Value is required');
+        return;
+      }
+      setEditSaving(true);
+      setEditError(null);
+      try {
+        await updateVital(editingVital.id, {
+          reading_date: editForm.reading_date,
+          value_primary: Number(editForm.value_primary),
+          value_secondary:
+            editForm.value_secondary === '' ? null : Number(editForm.value_secondary),
+          unit: editForm.unit || null,
+          notes: editForm.notes || null,
+        });
+        setEditingVital(null);
+        await loadVitals();
+      } catch (err) {
+        setEditError(err.message || 'Failed to update reading');
+      } finally {
+        setEditSaving(false);
+      }
+    },
+    [editingVital, editForm, loadVitals]
+  );
+
   const isBloodPressure = addForm.vital_type === 'BLOOD_PRESSURE';
+  const isEditBloodPressure = editForm.vital_type === 'BLOOD_PRESSURE';
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -371,7 +441,12 @@ export const Vitals = () => {
                 </thead>
                 <tbody className="bg-white">
                   {vitals.map((v) => (
-                    <VitalRow key={v.id} vital={v} onDelete={handleDelete} />
+                    <VitalRow
+                      key={v.id}
+                      vital={v}
+                      onEdit={handleEditOpen}
+                      onDelete={handleDelete}
+                    />
                   ))}
                 </tbody>
               </table>
@@ -471,6 +546,96 @@ export const Vitals = () => {
                 className="px-4 py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
               >
                 {addSaving ? 'Saving...' : 'Log Reading'}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {editingVital && (
+        <Modal title="Edit Reading" onClose={() => setEditingVital(null)}>
+          <form onSubmit={handleEditSubmit} className="space-y-4">
+            <Field label="Vital Type">
+              <input
+                type="text"
+                value={formatVitalType(editForm.vital_type)}
+                disabled
+                className={`${inputClass} bg-gray-100 text-gray-500`}
+              />
+            </Field>
+
+            <Field label="Reading Date" required>
+              <input
+                name="reading_date"
+                type="date"
+                value={editForm.reading_date}
+                onChange={handleEditChange}
+                className={inputClass}
+              />
+            </Field>
+
+            <Field label="Value" required>
+              <input
+                name="value_primary"
+                type="number"
+                value={editForm.value_primary}
+                onChange={handleEditChange}
+                placeholder="e.g. 72"
+                className={inputClass}
+              />
+            </Field>
+
+            {isEditBloodPressure && (
+              <Field label="Diastolic">
+                <input
+                  name="value_secondary"
+                  type="number"
+                  value={editForm.value_secondary}
+                  onChange={handleEditChange}
+                  placeholder="e.g. 80"
+                  className={inputClass}
+                />
+              </Field>
+            )}
+
+            <Field label="Unit">
+              <input
+                name="unit"
+                type="text"
+                value={editForm.unit}
+                onChange={handleEditChange}
+                placeholder="e.g. kg"
+                className={inputClass}
+              />
+            </Field>
+
+            <Field label="Notes">
+              <textarea
+                name="notes"
+                value={editForm.notes}
+                onChange={handleEditChange}
+                placeholder="Optional notes"
+                rows={3}
+                className={inputClass}
+              />
+            </Field>
+
+            {editError && <p className="text-red-600 text-sm">{editError}</p>}
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setEditingVital(null)}
+                className="px-4 py-2 border border-gray-300 rounded text-sm text-gray-600 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={editSaving}
+                className="px-4 py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+              >
+                {editSaving ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
           </form>

@@ -112,7 +112,20 @@ class DoctorVisitServiceTest {
 
     @Test
     void listByProfile_rejects_null_profile_id() {
-        assertThrows(BadRequestException.class, () -> service.listByProfile(null));
+        assertThrows(BadRequestException.class, () -> service.listByProfile(null, null, null));
+    }
+
+    @Test
+    void listByProfile_passesDateRangeThroughToRepo() {
+        UUID profileId = UUID.randomUUID();
+        LocalDate from = LocalDate.of(2026, Month.JANUARY, 1);
+        LocalDate to = LocalDate.of(2026, Month.JUNE, 30);
+
+        service.listByProfile(profileId, from, to);
+
+        assertEquals(profileId, repository.lastProfileId);
+        assertEquals(from, repository.lastFrom);
+        assertEquals(to, repository.lastTo);
     }
 
     @Test
@@ -141,6 +154,9 @@ class DoctorVisitServiceTest {
     static class StubDoctorVisitRepository implements DoctorVisitRepository {
 
         private final Map<UUID, DoctorVisit> store = new LinkedHashMap<>();
+        UUID lastProfileId;
+        LocalDate lastFrom;
+        LocalDate lastTo;
 
         @Override
         public DoctorVisit save(DoctorVisit visit) {
@@ -165,9 +181,14 @@ class DoctorVisitServiceTest {
         }
 
         @Override
-        public List<DoctorVisit> findByProfileId(UUID profileId) {
+        public List<DoctorVisit> findByProfileId(UUID profileId, LocalDate from, LocalDate to) {
+            lastProfileId = profileId;
+            lastFrom = from;
+            lastTo = to;
             return store.values().stream()
                     .filter(v -> v.getProfileId().equals(profileId))
+                    .filter(v -> from == null || !v.getFromDate().isBefore(from))
+                    .filter(v -> to == null || !v.getFromDate().isAfter(to))
                     .toList();
         }
 

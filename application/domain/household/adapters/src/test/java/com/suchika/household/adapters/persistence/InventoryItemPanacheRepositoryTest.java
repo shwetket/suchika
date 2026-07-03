@@ -214,6 +214,39 @@ class InventoryItemPanacheRepositoryTest {
         assertEquals("Baking", result.getCategory());
     }
 
+    @Test
+    void save_defaultsIsConsumedToFalse() {
+        InventoryItem saved = repository.save(item("Tea Leaves", new BigDecimal("0.250"),
+                ItemUnit.KG, SourcePlatform.MANUAL, LocalDate.of(2026, Month.AUGUST, 5), "Beverages"));
+
+        assertFalse(saved.isConsumed());
+        assertFalse(repository.findById(saved.getId()).orElseThrow().isConsumed());
+    }
+
+    @Test
+    void save_update_toggleIsConsumedTrue_persists() {
+        InventoryItem saved = repository.save(item("Coffee", new BigDecimal("0.500"),
+                ItemUnit.KG, SourcePlatform.MANUAL, LocalDate.of(2026, Month.AUGUST, 6), "Beverages"));
+
+        InventoryItem updated = InventoryItem.builder()
+                .id(saved.getId())
+                .profileId(SEED_PROFILE_ID)
+                .itemName(saved.getItemName())
+                .quantity(saved.getQuantity())
+                .unit(saved.getUnit())
+                .sourcePlatform(saved.getSourcePlatform())
+                .purchaseDate(saved.getPurchaseDate())
+                .category(saved.getCategory())
+                .consumed(true)
+                .createdAt(saved.getCreatedAt())
+                .build();
+
+        InventoryItem result = repository.save(updated);
+
+        assertTrue(result.isConsumed());
+        assertTrue(repository.findById(saved.getId()).orElseThrow().isConsumed());
+    }
+
     // --- delete ---
 
     @Test

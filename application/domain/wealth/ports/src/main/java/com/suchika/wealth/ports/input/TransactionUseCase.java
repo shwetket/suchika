@@ -10,7 +10,21 @@ import java.util.UUID;
 
 public interface TransactionUseCase {
 
-    List<Transaction> listByAccount(UUID accountId, LocalDate from, LocalDate to, TxnType txnType);
+    /**
+     * Lists transactions for an account, optionally scoped to profileId (ADR-006).
+     * When profileId is non-null, the adapter filters out transactions whose
+     * account does not belong to that profile — closes the v0.5 Phase 0 data
+     * isolation gap where this call site previously hardcoded profileId to null.
+     */
+    List<Transaction> listByAccount(UUID accountId, UUID profileId, LocalDate from, LocalDate to, TxnType txnType);
+
+    /**
+     * Paginated variant of {@link #listByAccount} — v0.6 UX item (transaction list
+     * pagination). {@code page} is 0-indexed. Used by the HTTP list endpoint;
+     * {@link #listByAccount} stays as-is for any caller that wants the full list.
+     */
+    PagedTransactions listByAccountPaginated(UUID accountId, UUID profileId, LocalDate from, LocalDate to,
+                                              TxnType txnType, int page, int size);
 
     /**
      * Creates a single manually-entered transaction (Q7). The transaction is saved

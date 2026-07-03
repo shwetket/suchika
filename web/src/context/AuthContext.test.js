@@ -74,6 +74,27 @@ describe('AuthContext', () => {
     expect(localStorage.getItem('user')).toBeNull();
   });
 
+  it('updateUser() merges partial fields into user state and localStorage', async () => {
+    const storedUser = { username: 'alice', role: 'admin', token: 'tok' };
+    localStorage.setItem('user', JSON.stringify(storedUser));
+    const { result } = renderHook(() => React.useContext(AuthContext), { wrapper });
+    await act(async () => {});
+
+    act(() => {
+      result.current.updateUser({ admin_id: 'admin-1', profile_id: 'profile-1' });
+    });
+
+    expect(result.current.user).toMatchObject({
+      username: 'alice',
+      role: 'admin',
+      admin_id: 'admin-1',
+      profile_id: 'profile-1',
+    });
+    const stored = JSON.parse(localStorage.getItem('user'));
+    expect(stored.admin_id).toBe('admin-1');
+    expect(stored.profile_id).toBe('profile-1');
+  });
+
   describe('hasRole()', () => {
     it('returns true for public when user is null', async () => {
       const { result } = renderHook(() => React.useContext(AuthContext), { wrapper });

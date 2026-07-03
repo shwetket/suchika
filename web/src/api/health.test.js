@@ -6,6 +6,7 @@ import {
   listVitals,
   recordVital,
   updateDoctorVisit,
+  updateVital,
 } from './health';
 
 jest.mock('./client', () => ({
@@ -51,6 +52,15 @@ describe('recordVital', () => {
     };
     recordVital(data);
     expect(post).toHaveBeenCalledWith('/v1/vitals', data);
+  });
+});
+
+describe('updateVital', () => {
+  it('calls patch with correct path and body', () => {
+    patch.mockResolvedValue({});
+    const data = { value_primary: 71.0, notes: 'Corrected reading' };
+    updateVital('vital-123', data);
+    expect(patch).toHaveBeenCalledWith('/v1/vitals/vital-123', data);
   });
 });
 

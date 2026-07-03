@@ -44,7 +44,7 @@ class TransactionServiceTest {
                 .build();
         repo.store.add(txn);
 
-        List<Transaction> result = service.listByAccount(accountId, from, to, TxnType.CREDIT);
+        List<Transaction> result = service.listByAccount(accountId, null, from, to, TxnType.CREDIT);
 
         assertEquals(1, result.size());
         assertEquals(txn.getId(), result.get(0).getId());
@@ -58,12 +58,55 @@ class TransactionServiceTest {
     void listByAccount_nullFilters_passThroughToRepo() {
         UUID accountId = UUID.randomUUID();
 
-        service.listByAccount(accountId, null, null, null);
+        service.listByAccount(accountId, null, null, null, null);
 
         assertEquals(accountId, repo.lastAccountId);
         assertNull(repo.lastFrom);
         assertNull(repo.lastTo);
         assertNull(repo.lastTxnType);
+    }
+
+    // ---- v0.5 Phase 0: profile_id scoping (ADR-006) ----
+
+    @Test
+    void listByAccount_passesProfileIdThroughToRepo() {
+        UUID accountId = UUID.randomUUID();
+        UUID profileId = UUID.randomUUID();
+
+        service.listByAccount(accountId, profileId, null, null, null);
+
+        assertEquals(profileId, repo.lastProfileId);
+    }
+
+    @Test
+    void listByAccount_profileFilter_excludesTransactionsOnDifferentProfilesAccount() {
+        // Proves the service layer threads profileId all the way to the repository,
+        // which is the layer where the actual cross-profile exclusion happens
+        // (ADR-006 — filtering lives in adapters/, never in domain/). The fake here
+        // mirrors the real TransactionPanacheRepository's subquery semantics: when a
+        // non-null profileId is passed that doesn't own the account, zero rows return.
+        UUID accountId = UUID.randomUUID();
+        UUID ownerProfileId = UUID.randomUUID();
+        UUID otherProfileId = UUID.randomUUID();
+        repo.accountOwnerProfileId = ownerProfileId;
+
+        Transaction txn = Transaction.builder()
+                .id(UUID.randomUUID())
+                .accountId(accountId)
+                .txnDate(LocalDate.of(2026, Month.JUNE, 1))
+                .amount(new BigDecimal("999.00"))
+                .txnType(TxnType.DEBIT)
+                .description("Owner's transaction")
+                .build();
+        repo.store.add(txn);
+
+        List<Transaction> asOwner = service.listByAccount(accountId, ownerProfileId, null, null, null);
+        assertEquals(1, asOwner.size(), "Owner profile should see the transaction on their own account");
+
+        List<Transaction> asOtherProfile = service.listByAccount(accountId, otherProfileId, null, null, null);
+        assertTrue(asOtherProfile.isEmpty(),
+                "A different profile_id must not see transactions on an account it does not own, "
+                        + "even though the accountId matched");
     }
 
     @Test
@@ -198,15 +241,54 @@ class TransactionServiceTest {
     void create_negativeAmount_throwsBadRequest() {
         UUID accountId = UUID.randomUUID();
         CreateTransactionCommand cmd = new CreateTransactionCommand(
-                LocalDate.now(), new BigDecimal("-1"), TxnType.DEBIT, "");
+                LocalDate.of(2026, Month.JUNE, 1), new BigDecimal("-1"), TxnType.DEBIT, "");
         assertThrows(BadRequestException.class, () -> service.create(accountId, null, cmd));
     }
 
     @Test
     void create_nullTxnType_throwsBadRequest() {
         UUID accountId = UUID.randomUUID();
-        CreateTransactionCommand cmd = new CreateTransactionCommand(LocalDate.now(), new BigDecimal("100"), null, "");
+        CreateTransactionCommand cmd = new CreateTransactionCommand(
+                LocalDate.of(2026, Month.JUNE, 1), new BigDecimal("100"), null, "");
         assertThrows(BadRequestException.class, () -> service.create(accountId, null, cmd));
+    }
+
+    // ---- v0.6 UX: transaction list pagination ----
+
+    @Test
+    void listByAccountPaginated_returnsRequestedPageAndTotalCount() {
+        UUID accountId = UUID.randomUUID();
+        for (int i = 0; i < 5; i++) {
+            repo.store.add(Transaction.builder()
+                    .id(UUID.randomUUID())
+                    .accountId(accountId)
+                    .txnDate(LocalDate.of(2026, Month.JANUARY, 1 + i))
+                    .amount(BigDecimal.TEN)
+                    .txnType(TxnType.DEBIT)
+                    .description("txn " + i)
+                    .build());
+        }
+
+        com.suchika.wealth.ports.input.PagedTransactions result =
+                service.listByAccountPaginated(accountId, null, null, null, null, 1, 2);
+
+        assertEquals(2, result.transactions().size());
+        assertEquals(5, result.totalCount());
+        assertEquals(1, repo.lastPage);
+        assertEquals(2, repo.lastSize);
+    }
+
+    @Test
+    void listByAccountPaginated_passesProfileIdAndFiltersThroughToRepo() {
+        UUID accountId = UUID.randomUUID();
+        UUID profileId = UUID.randomUUID();
+        LocalDate from = LocalDate.of(2026, Month.JANUARY, 1);
+
+        service.listByAccountPaginated(accountId, profileId, from, null, TxnType.CREDIT, 0, 10);
+
+        assertEquals(profileId, repo.lastProfileId);
+        assertEquals(from, repo.lastFrom);
+        assertEquals(TxnType.CREDIT, repo.lastTxnType);
     }
 
     // ---- Fake repository ----
@@ -214,9 +296,18 @@ class TransactionServiceTest {
     static class FakeTransactionRepository implements TransactionRepository {
         final List<Transaction> store = new ArrayList<>();
         UUID lastAccountId;
+        UUID lastProfileId;
         LocalDate lastFrom;
         LocalDate lastTo;
         TxnType lastTxnType;
+
+        /**
+         * Simulates the account's owning profile_id, mirroring the real
+         * TransactionPanacheRepository's "accountId in (select ... where profileId = ?)"
+         * subquery filter: when non-null and it doesn't match the profileId argument,
+         * findByAccountId returns no rows for that account.
+         */
+        UUID accountOwnerProfileId;
 
         @Override
         public Transaction save(Transaction transaction) {
@@ -242,18 +333,41 @@ class TransactionServiceTest {
             return store.stream().filter(t -> id.equals(t.getId())).findFirst();
         }
 
+        Integer lastPage;
+        Integer lastSize;
+
         @Override
         public List<Transaction> findByAccountId(UUID accountId, UUID profileId, LocalDate from, LocalDate to, TxnType txnType) {
             this.lastAccountId = accountId;
+            this.lastProfileId = profileId;
             this.lastFrom = from;
             this.lastTo = to;
             this.lastTxnType = txnType;
+            if (profileId != null && accountOwnerProfileId != null && !profileId.equals(accountOwnerProfileId)) {
+                return List.of();
+            }
             return store.stream()
                     .filter(t -> accountId.equals(t.getAccountId()))
                     .filter(t -> from == null || !t.getTxnDate().isBefore(from))
                     .filter(t -> to == null || !t.getTxnDate().isAfter(to))
                     .filter(t -> txnType == null || txnType.equals(t.getTxnType()))
                     .toList();
+        }
+
+        @Override
+        public List<Transaction> findByAccountId(UUID accountId, UUID profileId, LocalDate from, LocalDate to, TxnType txnType,
+                                                   int page, int size) {
+            this.lastPage = page;
+            this.lastSize = size;
+            List<Transaction> all = findByAccountId(accountId, profileId, from, to, txnType);
+            int start = Math.min(page * size, all.size());
+            int end = Math.min(start + size, all.size());
+            return all.subList(start, end);
+        }
+
+        @Override
+        public long countByAccountId(UUID accountId, UUID profileId, LocalDate from, LocalDate to, TxnType txnType) {
+            return findByAccountId(accountId, profileId, from, to, txnType).size();
         }
 
         @Override

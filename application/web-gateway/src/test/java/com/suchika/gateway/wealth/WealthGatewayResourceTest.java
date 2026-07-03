@@ -41,7 +41,7 @@ class WealthGatewayResourceTest {
                 .thenReturn("{\"account_id\":\"aaa00000-0000-0000-0000-000000000000\"}");
         when(wealthServiceClient.createAccount(any(), any())).thenReturn(mockCreate);
 
-        when(wealthServiceClient.listTransactions(any(), any(), any(), any()))
+        when(wealthServiceClient.listTransactions(any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(mapper.readTree("{\"transactions\":[]}"));
 
         when(wealthServiceClient.listUploads(any()))
