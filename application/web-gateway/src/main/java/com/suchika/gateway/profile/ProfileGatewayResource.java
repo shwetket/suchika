@@ -28,6 +28,24 @@ public class ProfileGatewayResource {
         return profileServiceClient.listAdmins();
     }
 
+    @POST
+    @Path("/admins")
+    public Response createAdmin(JsonNode body) {
+        AppLogger.info("Gateway: creating admin");
+        try (Response upstream = profileServiceClient.createAdmin(body)) {
+            return Response.status(upstream.getStatus())
+                    .entity(upstream.readEntity(String.class))
+                    .type(MediaType.APPLICATION_JSON)
+                    .build();
+        }
+    }
+
+    @PATCH
+    @Path("/admins/{adminId}/policy")
+    public JsonNode updatePolicySettings(@PathParam("adminId") UUID adminId, JsonNode body) {
+        return profileServiceClient.updatePolicySettings(adminId, body);
+    }
+
     @GET
     @Path("/profiles")
     public JsonNode listProfiles(

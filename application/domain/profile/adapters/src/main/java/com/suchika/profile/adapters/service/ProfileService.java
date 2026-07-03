@@ -7,6 +7,7 @@ import com.suchika.profile.domain.RelationToAdmin;
 import com.suchika.profile.ports.input.ProfileUseCase;
 import com.suchika.profile.ports.output.AdminRepository;
 import com.suchika.profile.ports.output.ProfileRepository;
+import com.suchika.shared.exception.ConflictException;
 import com.suchika.shared.exception.NotFoundException;
 import com.suchika.shared.logging.AppLogger;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -37,6 +38,10 @@ public class ProfileService implements ProfileUseCase {
                                  Gender gender, BloodType bloodType) {
         adminRepository.findById(adminId)
             .orElseThrow(() -> new NotFoundException(ADMIN_NOT_FOUND + adminId));
+
+        if (relationToAdmin == RelationToAdmin.SELF && profileRepository.existsSelfProfile(adminId)) {
+            throw new ConflictException("Admin already has a profile marked as SELF");
+        }
 
         Profile profile = new Profile();
         profile.setAdminId(adminId);

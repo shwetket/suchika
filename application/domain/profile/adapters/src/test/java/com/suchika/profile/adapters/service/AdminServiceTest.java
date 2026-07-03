@@ -252,5 +252,10 @@ class AdminServiceTest {
                 .filter(p -> adminId.equals(p.getAdminId()) && p.isActive())
                 .count();
         }
+
+        @Override
+        public boolean existsSelfProfile(UUID adminId) {
+            return false;
+        }
     }
 }
