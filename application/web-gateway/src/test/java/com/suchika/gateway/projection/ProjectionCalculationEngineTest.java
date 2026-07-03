@@ -14,6 +14,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import java.time.LocalDate;
+import java.time.Month;
 import java.util.List;
 import java.util.UUID;
 
@@ -38,6 +40,7 @@ class ProjectionCalculationEngineTest {
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final UUID PROFILE_ID = UUID.fromString("00000000-0000-0000-0000-000000000099");
     private static final UUID ADMIN_ID = UUID.fromString("00000000-0000-0000-0000-0000000000aa");
+    private static final LocalDate FIXED_TODAY = LocalDate.of(2026, Month.JUNE, 15);
 
     @Mock
     WealthServiceClient wealthClient;
@@ -126,7 +129,7 @@ class ProjectionCalculationEngineTest {
         JsonNode payload = MAPPER.readTree(payloadCaptor.getValue());
 
         assertEquals(9999.0, payload.path("net_worth").asDouble(), 0.001);
-        verify(wealthClient).getAccountBalance(eq(accountId), eq(PROFILE_ID.toString()));
+        verify(wealthClient).getAccountBalance(accountId, PROFILE_ID.toString());
     }
 
     // ── computeVitalsSummary ─────────────────────────────────────────────────
@@ -360,7 +363,7 @@ class ProjectionCalculationEngineTest {
         when(householdClient.listGoals(any(), any()))
                 .thenReturn(MAPPER.readTree("{\"goals\":[]}"));
         when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
-        when(profileClient.listProfiles(eq(ADMIN_ID), eq(true))).thenReturn(buildEmptyProfilesResponse());
+        when(profileClient.listProfiles(ADMIN_ID, true)).thenReturn(buildEmptyProfilesResponse());
         when(profileClient.getAdmin(ADMIN_ID)).thenReturn(buildAdminResponse(MAPPER.createObjectNode()));
         when(snapshotRepo.findByProfileId(PROFILE_ID)).thenReturn(List.of());
 
@@ -397,7 +400,7 @@ class ProjectionCalculationEngineTest {
         when(householdClient.listGoals(any(), any()))
                 .thenReturn(MAPPER.readTree("{\"goals\":[]}"));
         when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
-        when(profileClient.listProfiles(eq(ADMIN_ID), eq(true))).thenReturn(buildEmptyProfilesResponse());
+        when(profileClient.listProfiles(ADMIN_ID, true)).thenReturn(buildEmptyProfilesResponse());
         when(snapshotRepo.findByProfileId(PROFILE_ID)).thenReturn(List.of());
 
         assertDoesNotThrow(() -> engine.refreshAll(PROFILE_ID));
@@ -418,7 +421,7 @@ class ProjectionCalculationEngineTest {
         UUID childProfileId = UUID.fromString("77777777-0000-0000-0000-000000000003");
 
         when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
-        when(profileClient.listProfiles(eq(ADMIN_ID), eq(true))).thenReturn(buildProfilesResponse(
+        when(profileClient.listProfiles(ADMIN_ID, true)).thenReturn(buildProfilesResponse(
                 new MemberEntry(PROFILE_ID, "Ketan", "SELF"),
                 new MemberEntry(spouseProfileId, "Shweta", "SPOUSE"),
                 new MemberEntry(childProfileId, "Gayan", "CHILD")
@@ -435,11 +438,11 @@ class ProjectionCalculationEngineTest {
         when(wealthClient.listAccounts(isNull(), eq(true), eq(childProfileId.toString())))
                 .thenReturn(buildAccountsResponse(childAccountId));
 
-        when(wealthClient.getAccountBalance(eq(selfAccountId), eq(PROFILE_ID.toString())))
+        when(wealthClient.getAccountBalance(selfAccountId, PROFILE_ID.toString()))
                 .thenReturn(balanceNode(selfAccountId, 100000.0));
-        when(wealthClient.getAccountBalance(eq(spouseAccountId), eq(spouseProfileId.toString())))
+        when(wealthClient.getAccountBalance(spouseAccountId, spouseProfileId.toString()))
                 .thenReturn(balanceNode(spouseAccountId, 50000.0));
-        when(wealthClient.getAccountBalance(eq(childAccountId), eq(childProfileId.toString())))
+        when(wealthClient.getAccountBalance(childAccountId, childProfileId.toString()))
                 .thenReturn(balanceNode(childAccountId, 5000.0));
 
         engine.computeFamilyNetWorth(PROFILE_ID);
@@ -466,14 +469,14 @@ class ProjectionCalculationEngineTest {
     void computeFamilyNetWorth_singleMemberHousehold_equalsOwnNetWorth() throws Exception {
         // Degenerate case: admin is the only active profile in the household.
         when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
-        when(profileClient.listProfiles(eq(ADMIN_ID), eq(true))).thenReturn(buildProfilesResponse(
+        when(profileClient.listProfiles(ADMIN_ID, true)).thenReturn(buildProfilesResponse(
                 new MemberEntry(PROFILE_ID, "Ketan", "SELF")
         ));
 
         UUID accountId = UUID.fromString("99999999-0000-0000-0000-000000000001");
         when(wealthClient.listAccounts(isNull(), eq(true), eq(PROFILE_ID.toString())))
                 .thenReturn(buildAccountsResponse(accountId));
-        when(wealthClient.getAccountBalance(eq(accountId), eq(PROFILE_ID.toString())))
+        when(wealthClient.getAccountBalance(accountId, PROFILE_ID.toString()))
                 .thenReturn(balanceNode(accountId, 42000.0));
 
         engine.computeFamilyNetWorth(PROFILE_ID);
@@ -489,7 +492,7 @@ class ProjectionCalculationEngineTest {
     @Test
     void computeFamilyNetWorth_noActiveMembers_storesZero() throws Exception {
         when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
-        when(profileClient.listProfiles(eq(ADMIN_ID), eq(true))).thenReturn(buildEmptyProfilesResponse());
+        when(profileClient.listProfiles(ADMIN_ID, true)).thenReturn(buildEmptyProfilesResponse());
 
         engine.computeFamilyNetWorth(PROFILE_ID);
 
@@ -677,7 +680,7 @@ class ProjectionCalculationEngineTest {
     void computeActionCenterAlerts_aggregatesUpcomingEventsAcrossMembers() throws Exception {
         UUID spouseProfileId = UUID.fromString("99999999-0000-0000-0000-000000000002");
         when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
-        when(profileClient.listProfiles(eq(ADMIN_ID), eq(true))).thenReturn(buildProfilesResponse(
+        when(profileClient.listProfiles(ADMIN_ID, true)).thenReturn(buildProfilesResponse(
                 new MemberEntry(PROFILE_ID, "Ketan", "SELF"),
                 new MemberEntry(spouseProfileId, "Shweta", "SPOUSE")
         ));
@@ -690,7 +693,7 @@ class ProjectionCalculationEngineTest {
         stubNoVitals(PROFILE_ID);
         stubNoVitals(spouseProfileId);
 
-        engine.computeActionCenterAlerts(PROFILE_ID);
+        engine.computeActionCenterAlerts(PROFILE_ID, FIXED_TODAY);
 
         ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
         verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.ACTION_CENTER_ALERTS_FAMILY), payloadCaptor.capture());
@@ -703,17 +706,17 @@ class ProjectionCalculationEngineTest {
     @Test
     void computeActionCenterAlerts_flagsVehicleExpiringWithinThirtyDays() throws Exception {
         when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
-        when(profileClient.listProfiles(eq(ADMIN_ID), eq(true)))
+        when(profileClient.listProfiles(ADMIN_ID, true))
                 .thenReturn(buildProfilesResponse(new MemberEntry(PROFILE_ID, "Ketan", "SELF")));
         when(householdClient.listCalendarEvents(eq(PROFILE_ID), isNull(), anyString(), anyString()))
                 .thenReturn(buildCalendarEventsResponse(0));
         stubNoVitals(PROFILE_ID);
 
-        String nearExpiry = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Kolkata")).plusDays(10).toString();
-        when(wealthClient.listPhysicalAssets(eq("VEHICLE"), eq(true), eq(PROFILE_ID.toString())))
+        String nearExpiry = FIXED_TODAY.plusDays(10).toString();
+        when(wealthClient.listPhysicalAssets("VEHICLE", true, PROFILE_ID.toString()))
                 .thenReturn(buildPhysicalAssetsResponse("a1", "Tata Nexon", nearExpiry, null));
 
-        engine.computeActionCenterAlerts(PROFILE_ID);
+        engine.computeActionCenterAlerts(PROFILE_ID, FIXED_TODAY);
 
         ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
         verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.ACTION_CENTER_ALERTS_FAMILY), payloadCaptor.capture());
@@ -729,17 +732,17 @@ class ProjectionCalculationEngineTest {
     @Test
     void computeActionCenterAlerts_ignoresVehicleExpiringBeyondThirtyDays() throws Exception {
         when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
-        when(profileClient.listProfiles(eq(ADMIN_ID), eq(true)))
+        when(profileClient.listProfiles(ADMIN_ID, true))
                 .thenReturn(buildProfilesResponse(new MemberEntry(PROFILE_ID, "Ketan", "SELF")));
         when(householdClient.listCalendarEvents(eq(PROFILE_ID), isNull(), anyString(), anyString()))
                 .thenReturn(buildCalendarEventsResponse(0));
         stubNoVitals(PROFILE_ID);
 
-        String farExpiry = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Kolkata")).plusDays(90).toString();
-        when(wealthClient.listPhysicalAssets(eq("VEHICLE"), eq(true), eq(PROFILE_ID.toString())))
+        String farExpiry = FIXED_TODAY.plusDays(90).toString();
+        when(wealthClient.listPhysicalAssets("VEHICLE", true, PROFILE_ID.toString()))
                 .thenReturn(buildPhysicalAssetsResponse("a1", "Tata Nexon", farExpiry, farExpiry));
 
-        engine.computeActionCenterAlerts(PROFILE_ID);
+        engine.computeActionCenterAlerts(PROFILE_ID, FIXED_TODAY);
 
         ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
         verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.ACTION_CENTER_ALERTS_FAMILY), payloadCaptor.capture());
@@ -750,17 +753,17 @@ class ProjectionCalculationEngineTest {
     @Test
     void computeActionCenterAlerts_flagsStreakGapWhenLastReadingOverThirtyDaysAgo() throws Exception {
         when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
-        when(profileClient.listProfiles(eq(ADMIN_ID), eq(true)))
+        when(profileClient.listProfiles(ADMIN_ID, true))
                 .thenReturn(buildProfilesResponse(new MemberEntry(PROFILE_ID, "Ketan", "SELF")));
         when(householdClient.listCalendarEvents(eq(PROFILE_ID), isNull(), anyString(), anyString()))
                 .thenReturn(buildCalendarEventsResponse(0));
         stubNoVehicles(PROFILE_ID);
 
-        String staleDate = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Kolkata")).minusDays(45).toString();
+        String staleDate = FIXED_TODAY.minusDays(45).toString();
         when(healthClient.listVitals(eq(PROFILE_ID), isNull())).thenReturn(
                 buildVitalsResponse(new VitalEntry("WEIGHT", 70.0, 0.0, "kg", staleDate)));
 
-        engine.computeActionCenterAlerts(PROFILE_ID);
+        engine.computeActionCenterAlerts(PROFILE_ID, FIXED_TODAY);
 
         ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
         verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.ACTION_CENTER_ALERTS_FAMILY), payloadCaptor.capture());
@@ -778,20 +781,20 @@ class ProjectionCalculationEngineTest {
     @Test
     void computeActionCenterAlerts_noStreakGapWhenAllCoreVitalsRecentlyLogged() throws Exception {
         when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
-        when(profileClient.listProfiles(eq(ADMIN_ID), eq(true)))
+        when(profileClient.listProfiles(ADMIN_ID, true))
                 .thenReturn(buildProfilesResponse(new MemberEntry(PROFILE_ID, "Ketan", "SELF")));
         when(householdClient.listCalendarEvents(eq(PROFILE_ID), isNull(), anyString(), anyString()))
                 .thenReturn(buildCalendarEventsResponse(0));
         stubNoVehicles(PROFILE_ID);
 
-        String recentDate = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Kolkata")).minusDays(5).toString();
+        String recentDate = FIXED_TODAY.minusDays(5).toString();
         when(healthClient.listVitals(eq(PROFILE_ID), isNull())).thenReturn(buildVitalsResponse(
                 new VitalEntry("WEIGHT", 70.0, 0.0, "kg", recentDate),
                 new VitalEntry("BLOOD_PRESSURE", 120.0, 80.0, "mmHg", recentDate),
                 new VitalEntry("BLOOD_SUGAR_FASTING", 95.0, 0.0, "mg/dL", recentDate)
         ));
 
-        engine.computeActionCenterAlerts(PROFILE_ID);
+        engine.computeActionCenterAlerts(PROFILE_ID, FIXED_TODAY);
 
         ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
         verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.ACTION_CENTER_ALERTS_FAMILY), payloadCaptor.capture());
@@ -809,7 +812,7 @@ class ProjectionCalculationEngineTest {
     }
 
     private void stubNoVehicles(UUID profileId) {
-        when(wealthClient.listPhysicalAssets(eq("VEHICLE"), eq(true), eq(profileId.toString())))
+        when(wealthClient.listPhysicalAssets("VEHICLE", true, profileId.toString()))
                 .thenReturn(MAPPER.createObjectNode().set("physical_assets", MAPPER.createArrayNode()));
     }
 
@@ -855,7 +858,7 @@ class ProjectionCalculationEngineTest {
         ObjectNode balance = MAPPER.createObjectNode();
         balance.put("account_id", accountId.toString());
         balance.put("current_balance", currentBalance);
-        when(wealthClient.getAccountBalance(eq(accountId), eq(PROFILE_ID.toString()))).thenReturn(balance);
+        when(wealthClient.getAccountBalance(accountId, PROFILE_ID.toString())).thenReturn(balance);
     }
 
     private JsonNode buildEmptyAccountsResponse() {
@@ -957,6 +960,6 @@ class ProjectionCalculationEngineTest {
     }
 
     private DashboardSnapshotDto buildSnapshotDto(String snapshotKey, String payloadJson) {
-        return new DashboardSnapshotDto(PROFILE_ID, snapshotKey, payloadJson, java.time.Instant.now());
+        return new DashboardSnapshotDto(PROFILE_ID, snapshotKey, payloadJson, java.time.Instant.parse("2026-06-15T00:00:00Z"));
     }
 }

@@ -137,6 +137,7 @@ export const Navigation = ({ theme, onToggleTheme }) => {
 
               {hasRole('admin') && (
                 <NavDropdown label="Admin">
+                  <DropdownLink to="/admin/setup">Household Setup</DropdownLink>
                   <DropdownLink to="/admin/policy">Policy Settings</DropdownLink>
                 </NavDropdown>
               )}

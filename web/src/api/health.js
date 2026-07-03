@@ -16,9 +16,11 @@ export const updateVital = (id, data) => patch(`${API_ENDPOINTS.VITALS}/${id}`, 
 
 export const deleteVital = (id) => del(`${API_ENDPOINTS.VITALS}/${id}`);
 
-export function listDoctorVisits(profileId) {
+export function listDoctorVisits(profileId, from, to) {
   const params = new URLSearchParams();
   if (profileId !== null && profileId !== undefined) params.append('profile_id', profileId);
+  if (from !== null && from !== undefined) params.append('from', from);
+  if (to !== null && to !== undefined) params.append('to', to);
   const query = params.toString();
   const url = query ? `${API_ENDPOINTS.DOCTOR_VISITS}?${query}` : API_ENDPOINTS.DOCTOR_VISITS;
   return get(url);

@@ -3,6 +3,7 @@ package com.suchika.wealth.adapters.persistence;
 import com.suchika.wealth.domain.Transaction;
 import com.suchika.wealth.domain.TxnType;
 import com.suchika.wealth.ports.output.TransactionRepository;
+import io.quarkus.panache.common.Page;
 import jakarta.enterprise.context.ApplicationScoped;
 
 import java.math.BigDecimal;
@@ -38,6 +39,33 @@ public class TransactionPanacheRepository implements TransactionRepository {
 
     @Override
     public List<Transaction> findByAccountId(UUID accountId, UUID profileId, LocalDate from, LocalDate to, TxnType txnType) {
+        Filter filter = buildFilter(accountId, profileId, from, to, txnType);
+        return dao.find(filter.query(), filter.params().toArray())
+                .stream().map(TransactionEntity::toDomain).toList();
+    }
+
+    @Override
+    public List<Transaction> findByAccountId(UUID accountId, UUID profileId, LocalDate from, LocalDate to, TxnType txnType,
+                                              int page, int size) {
+        Filter filter = buildFilter(accountId, profileId, from, to, txnType);
+        return dao.find(filter.query(), filter.params().toArray())
+                .page(Page.of(page, size))
+                .list()
+                .stream().map(TransactionEntity::toDomain).toList();
+    }
+
+    @Override
+    public long countByAccountId(UUID accountId, UUID profileId, LocalDate from, LocalDate to, TxnType txnType) {
+        Filter filter = buildFilter(accountId, profileId, from, to, txnType);
+        return dao.find(filter.query(), filter.params().toArray()).count();
+    }
+
+    /**
+     * Shared predicate builder for {@code findByAccountId} (both variants) and
+     * {@code countByAccountId} — keeps the filter logic in exactly one place
+     * (Sonar CPD) now that there are three call sites needing the same predicate.
+     */
+    private Filter buildFilter(UUID accountId, UUID profileId, LocalDate from, LocalDate to, TxnType txnType) {
         StringBuilder query = new StringBuilder("accountId = ?1");
         List<Object> params = new java.util.ArrayList<>();
         params.add(accountId);
@@ -62,8 +90,10 @@ public class TransactionPanacheRepository implements TransactionRepository {
         }
         query.append(" order by txnDate desc");
 
-        return dao.find(query.toString(), params.toArray())
-                .stream().map(TransactionEntity::toDomain).toList();
+        return new Filter(query.toString(), params);
+    }
+
+    private record Filter(String query, List<Object> params) {
     }
 
     @Override

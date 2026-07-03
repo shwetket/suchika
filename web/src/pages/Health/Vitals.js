@@ -441,7 +441,12 @@ export const Vitals = () => {
                 </thead>
                 <tbody className="bg-white">
                   {vitals.map((v) => (
-                    <VitalRow key={v.id} vital={v} onEdit={handleEditOpen} onDelete={handleDelete} />
+                    <VitalRow
+                      key={v.id}
+                      vital={v}
+                      onEdit={handleEditOpen}
+                      onDelete={handleDelete}
+                    />
                   ))}
                 </tbody>
               </table>

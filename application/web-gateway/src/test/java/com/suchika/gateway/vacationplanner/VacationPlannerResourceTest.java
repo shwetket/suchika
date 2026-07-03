@@ -43,7 +43,7 @@ class VacationPlannerResourceTest {
                         PROFILE_ID,
                         SnapshotKey.WEALTH_LIQUIDITY_TIERS_FAMILY,
                         "{\"tiers\":{\"LIQUID\":100000},\"total\":100000}",
-                        Instant.now())));
+                        Instant.parse("2026-06-15T00:00:00Z"))));
     }
 
     @Test

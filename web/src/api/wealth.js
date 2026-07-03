@@ -36,13 +36,15 @@ export function createTransaction(accountId, profileId, data) {
   return post(url, data);
 }
 
-export function listTransactions(accountId, profileId, from, to, txnType) {
+export function listTransactions(accountId, profileId, from, to, txnType, page, size) {
   const params = new URLSearchParams();
   if (profileId !== null && profileId !== undefined) params.append('profile_id', profileId);
   if (from !== null && from !== undefined) params.append('from', from);
   if (to !== null && to !== undefined) params.append('to', to);
   if (txnType !== null && txnType !== undefined && txnType !== 'ALL')
     params.append('txn_type', txnType);
+  if (page !== null && page !== undefined) params.append('page', page);
+  if (size !== null && size !== undefined) params.append('size', size);
   const query = params.toString();
   const base = `${API_ENDPOINTS.ACCOUNTS}/${accountId}/transactions`;
   return get(query ? `${base}?${query}` : base);

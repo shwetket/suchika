@@ -33,7 +33,8 @@ function AlertSection({ title, items, emptyText, renderItem }) {
   return (
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
       <h2 className="text-base font-semibold text-gray-900 mb-3">
-        {title} {items.length > 0 && <span className="text-sm text-gray-400">({items.length})</span>}
+        {title}{' '}
+        {items.length > 0 && <span className="text-sm text-gray-400">({items.length})</span>}
       </h2>
       {items.length === 0 ? (
         <p className="text-sm text-gray-400">{emptyText}</p>
@@ -98,7 +99,8 @@ export const ActionCenter = () => {
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Action Center</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Alerts across the household — upcoming events, vehicle compliance, and health tracking gaps.
+            Alerts across the household — upcoming events, vehicle compliance, and health tracking
+            gaps.
           </p>
         </div>
         <button
@@ -131,7 +133,10 @@ export const ActionCenter = () => {
             renderItem={(event) => (
               <>
                 <span className="font-medium text-gray-800">{event.title}</span>
-                <span className="text-gray-500"> — {event.full_name}, {event.start_date}</span>
+                <span className="text-gray-500">
+                  {' '}
+                  — {event.full_name}, {event.start_date}
+                </span>
               </>
             )}
           />
@@ -145,7 +150,10 @@ export const ActionCenter = () => {
                 <span className="font-medium text-yellow-700">
                   {issue.asset_name}: {issue.issue_type.replace('_', ' ')}
                 </span>
-                <span className="text-gray-500"> — {issue.full_name}, expires {issue.expiry_date}</span>
+                <span className="text-gray-500">
+                  {' '}
+                  — {issue.full_name}, expires {issue.expiry_date}
+                </span>
               </>
             )}
           />

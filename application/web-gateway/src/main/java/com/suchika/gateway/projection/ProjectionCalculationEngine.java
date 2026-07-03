@@ -87,6 +87,9 @@ public class ProjectionCalculationEngine {
     private static final String VEHICLE_COMPLIANCE_FIELD = "vehicle_compliance";
     private static final String BIOMETRIC_STREAK_GAPS_FIELD = "biometric_streak_gaps";
     private static final String LAST_READING_DATE_FIELD = "last_reading_date";
+    private static final String READING_DATE_FIELD = "reading_date";
+    private static final String TITLE_FIELD = "title";
+    private static final String START_DATE_FIELD = "start_date";
     private static final int STREAK_GAP_THRESHOLD_DAYS = 30;
     private static final int ACTION_CENTER_EVENT_LOOKAHEAD_DAYS = 30;
     private static final List<String> STREAK_TRACKED_VITAL_TYPES =
@@ -165,7 +168,8 @@ public class ProjectionCalculationEngine {
         runStep("computeGrowthProjection", profileId, this::computeGrowthProjection);
         runStep("computeFormulaGoals", profileId, this::computeFormulaGoals);
         runStep("computeValidation", profileId, this::computeValidation);
-        runStep("computeActionCenterAlerts", profileId, this::computeActionCenterAlerts);
+        runStep("computeActionCenterAlerts", profileId,
+                id -> computeActionCenterAlerts(id, LocalDate.now(ZoneId.of("Asia/Kolkata"))));
         return new DashboardResponse(snapshotRepository.findByProfileId(profileId));
     }
 
@@ -273,7 +277,7 @@ public class ProjectionCalculationEngine {
 
     void computeVitalsSummary(UUID profileId) {
         JsonNode vitalsResponse = healthServiceClient.listVitals(profileId, null);
-        JsonNode vitalsArray = vitalsResponse.path("vital_readings");
+        JsonNode vitalsArray = vitalsResponse.path(VITAL_READINGS_FIELD);
 
         // Keep only the latest reading per vital_type (readings assumed newest-first)
         java.util.Map<String, JsonNode> latestByType = new java.util.LinkedHashMap<>();
@@ -293,7 +297,7 @@ public class ProjectionCalculationEngine {
             entry.put("value_primary", vital.path("value_primary").asDouble(0.0));
             entry.put("value_secondary", vital.path("value_secondary").asDouble(0.0));
             entry.put("unit", vital.path("unit").asText(""));
-            entry.put("reading_date", vital.path("reading_date").asText(""));
+            entry.put(READING_DATE_FIELD, vital.path(READING_DATE_FIELD).asText(""));
             vitalsPayload.add(entry);
         }
 
@@ -311,7 +315,7 @@ public class ProjectionCalculationEngine {
 
         JsonNode eventsResponse = householdServiceClient.listCalendarEvents(
                 profileId, null, today, thirtyDaysAhead);
-        JsonNode eventsArray = eventsResponse.path("calendar_events");
+        JsonNode eventsArray = eventsResponse.path(EVENTS_FIELD);
 
         ArrayNode eventsPayload = MAPPER.createArrayNode();
         int upcomingCount = 0;
@@ -319,8 +323,8 @@ public class ProjectionCalculationEngine {
             for (JsonNode event : eventsArray) {
                 ObjectNode entry = MAPPER.createObjectNode();
                 entry.put("id", event.path("id").asText(""));
-                entry.put("title", event.path("title").asText(""));
-                entry.put("start_date", event.path("start_date").asText(""));
+                entry.put(TITLE_FIELD, event.path(TITLE_FIELD).asText(""));
+                entry.put(START_DATE_FIELD, event.path(START_DATE_FIELD).asText(""));
                 eventsPayload.add(entry);
                 upcomingCount++;
             }
@@ -845,9 +849,9 @@ public class ProjectionCalculationEngine {
 
     /**
      * Epic 8 Phase 4 — validation gate (Use Case 8.4). Runs four checks against
-     * existing Phase 3 snapshot payloads. Each check produces PASS, WARNING, or
-     * CRITICAL. Overall status = CRITICAL if any check is CRITICAL, WARNING if any
-     * check is WARNING, PASS if all PASS.
+     * existing Phase 3 snapshot payloads. Each check currently produces PASS or
+     * WARNING; CRITICAL is a reserved severity (see Q16) not yet emitted by any
+     * check. Overall status = WARNING if any check is WARNING, PASS if all PASS.
      *
      * <p>Check 1 — Category Resolution: are all accounts categorised?
      * Check 2 — Missing Growth Rate: do investment accounts have a configured rate?
@@ -855,8 +859,9 @@ public class ProjectionCalculationEngine {
      * Check 4 — Budget Cap Set: is monthly_budget_cap configured in policy settings?
      *
      * <p>Per Q16 resolution: CRITICAL does not block other snapshots — runStep isolation
-     * handles that. The validation engine just produces its own PASS/WARNING/CRITICAL
-     * result; what the dashboard shows for a CRITICAL key is a frontend concern.
+     * handles that. If a future check introduces CRITICAL, the validation engine
+     * would produce it here; what the dashboard shows for a CRITICAL key is a
+     * frontend concern.
      */
     void computeValidation(UUID profileId) {
         UUID adminId = resolveAdminId(profileId);
@@ -870,7 +875,6 @@ public class ProjectionCalculationEngine {
         ArrayNode checksArray = MAPPER.createArrayNode();
         int passCount = 0;
         int warningCount = 0;
-        int criticalCount = 0;
 
         // Check 1 — Category Resolution
         JsonNode categoryPayload = snapshots.getOrDefault(SnapshotKey.WEALTH_CATEGORY_VALIDATION, MAPPER.createObjectNode());
@@ -949,21 +953,16 @@ public class ProjectionCalculationEngine {
             passCount++;
         }
 
-        String overallStatus;
-        if (criticalCount > 0) {
-            overallStatus = "CRITICAL";
-        } else if (warningCount > 0) {
-            overallStatus = STATUS_WARNING;
-        } else {
-            overallStatus = STATUS_PASS;
-        }
+        String overallStatus = warningCount > 0 ? STATUS_WARNING : STATUS_PASS;
 
         ObjectNode payload = MAPPER.createObjectNode();
         payload.set(CHECKS_FIELD, checksArray);
         payload.put(OVERALL_STATUS_FIELD, overallStatus);
         payload.put("pass_count", passCount);
         payload.put("warning_count", warningCount);
-        payload.put("critical_count", criticalCount);
+        // "critical_count" is a reserved contract field (per OpenQuestions.md Q16) — no current
+        // check escalates to CRITICAL, so it is always 0 until a future check introduces one.
+        payload.put("critical_count", 0);
         snapshotRepository.upsert(profileId, SnapshotKey.WEALTH_VALIDATION_REPORT_FAMILY, payload.toString());
     }
 
@@ -1021,14 +1020,13 @@ public class ProjectionCalculationEngine {
      *       precedent set by computeCategoryValidation in Phase 1.</li>
      * </ul>
      */
-    void computeActionCenterAlerts(UUID profileId) {
+    void computeActionCenterAlerts(UUID profileId, LocalDate today) {
         UUID adminId = resolveAdminId(profileId);
         if (adminId == null) {
             return;
         }
         JsonNode membersArray = profileServiceClient.listProfiles(adminId, true).path(PROFILES_FIELD);
 
-        LocalDate today = LocalDate.now(ZoneId.of("Asia/Kolkata"));
         String todayText = today.toString();
         String lookaheadText = today.plusDays(ACTION_CENTER_EVENT_LOOKAHEAD_DAYS).toString();
 
@@ -1072,8 +1070,8 @@ public class ProjectionCalculationEngine {
             entry.put(PROFILE_ID_FIELD, memberProfileId.toString());
             entry.put(FULL_NAME_FIELD, memberName);
             entry.put("id", event.path("id").asText(""));
-            entry.put("title", event.path("title").asText(""));
-            entry.put("start_date", event.path("start_date").asText(""));
+            entry.put(TITLE_FIELD, event.path(TITLE_FIELD).asText(""));
+            entry.put(START_DATE_FIELD, event.path(START_DATE_FIELD).asText(""));
             upcomingEvents.add(entry);
         }
     }
@@ -1118,9 +1116,8 @@ public class ProjectionCalculationEngine {
         if (vitalsArray.isArray()) {
             for (JsonNode vital : vitalsArray) {
                 String vitalType = vital.path(VITAL_TYPE_KEY).asText("");
-                String readingDate = vital.path("reading_date").asText("");
-                // Readings are assumed newest-first (same assumption as computeVitalsSummary);
-                // only the first (latest) date seen per type is kept.
+                String readingDate = vital.path(READING_DATE_FIELD).asText("");
+                // Same newest-first assumption as computeVitalsSummary — only the first date seen per type is kept
                 latestReadingDateByType.putIfAbsent(vitalType, readingDate);
             }
         }

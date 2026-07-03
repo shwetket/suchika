@@ -154,6 +154,52 @@ class TransactionPanacheRepositoryTest {
         assertFalse(repository.existsByDeduplicationKey(accountId, null, txnDate, amount, TxnType.CREDIT));
     }
 
+    // ---- v0.6 UX: transaction list pagination ----
+
+    @Test
+    void findByAccountId_paginated_returnsRequestedPageOrderedNewestFirst() {
+        UUID accountId = saveAccount();
+        UUID uploadId = saveUpload(accountId);
+        for (int day = 1; day <= 5; day++) {
+            repository.save(transaction(accountId, uploadId, LocalDate.of(2026, Month.MARCH, day),
+                    new BigDecimal("10.00"), TxnType.DEBIT, "Txn day " + day));
+        }
+
+        List<Transaction> firstPage = repository.findByAccountId(accountId, null, null, null, null, 0, 2);
+        List<Transaction> secondPage = repository.findByAccountId(accountId, null, null, null, null, 1, 2);
+
+        assertEquals(2, firstPage.size());
+        assertEquals(2, secondPage.size());
+        assertEquals("Txn day 5", firstPage.get(0).getDescription());
+        assertEquals("Txn day 3", secondPage.get(0).getDescription());
+    }
+
+    @Test
+    void countByAccountId_returnsTotalMatchingFilterIgnoringPage() {
+        UUID accountId = saveAccount();
+        UUID uploadId = saveUpload(accountId);
+        for (int day = 1; day <= 5; day++) {
+            repository.save(transaction(accountId, uploadId, LocalDate.of(2026, Month.MARCH, day),
+                    new BigDecimal("10.00"), TxnType.DEBIT, "Txn day " + day));
+        }
+
+        long total = repository.countByAccountId(accountId, null, null, null, null);
+
+        assertEquals(5, total);
+    }
+
+    @Test
+    void countByAccountId_appliesSameFiltersAsFindByAccountId() {
+        UUID accountId = saveAccount();
+        UUID uploadId = saveUpload(accountId);
+        repository.save(transaction(accountId, uploadId, LocalDate.of(2026, Month.MAY, 1),
+                new BigDecimal("5000.00"), TxnType.CREDIT, "Salary"));
+        repository.save(transaction(accountId, uploadId, LocalDate.of(2026, Month.MAY, 5),
+                new BigDecimal("200.00"), TxnType.DEBIT, "ATM withdrawal"));
+
+        assertEquals(1, repository.countByAccountId(accountId, null, null, null, TxnType.CREDIT));
+    }
+
     // ---- Bug 4 fix: profile_id scoping (ADR-006) ----
 
     @Test

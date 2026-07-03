@@ -19,6 +19,14 @@ public interface TransactionUseCase {
     List<Transaction> listByAccount(UUID accountId, UUID profileId, LocalDate from, LocalDate to, TxnType txnType);
 
     /**
+     * Paginated variant of {@link #listByAccount} — v0.6 UX item (transaction list
+     * pagination). {@code page} is 0-indexed. Used by the HTTP list endpoint;
+     * {@link #listByAccount} stays as-is for any caller that wants the full list.
+     */
+    PagedTransactions listByAccountPaginated(UUID accountId, UUID profileId, LocalDate from, LocalDate to,
+                                              TxnType txnType, int page, int size);
+
+    /**
      * Creates a single manually-entered transaction (Q7). The transaction is saved
      * with metadata.source = "MANUAL" so it stays distinguishable from CSV-imported
      * rows for future analysis. No dedup check — manual entries are always intentional.

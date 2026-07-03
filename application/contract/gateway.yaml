@@ -314,6 +314,21 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/TransactionType'
+        - name: page
+          in: query
+          required: false
+          description: 0-indexed page number. Defaults to 0.
+          schema:
+            type: integer
+            minimum: 0
+        - name: size
+          in: query
+          required: false
+          description: Page size. Defaults to 50, max 200.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
       responses:
         '200':
           description: OK
@@ -321,6 +336,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListTransactionsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
@@ -1147,6 +1164,241 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  # ============================================================
+  # HOUSEHOLD PROFILES (admins + profiles, proxied from the profile service)
+  # ============================================================
+
+  /v1/admins:
+
+    get:
+      tags: [Household Profiles]
+      operationId: listAdmins
+      summary: List all admins
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListAdminsResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags: [Household Profiles]
+      operationId: createAdmin
+      summary: Create an admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAdminRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/admins/{adminId}:
+
+    get:
+      tags: [Household Profiles]
+      operationId: getAdmin
+      summary: Get an admin by id
+      parameters:
+        - name: adminId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/admins/{adminId}/policy:
+
+    patch:
+      tags: [Household Profiles]
+      operationId: updateAdminPolicySettings
+      summary: Merge household policy settings (includes the one-time setup_completed flag)
+      description: >
+        Merges the provided keys into the admin's existing policy_settings map.
+        Keys with a null value are ignored (existing value is preserved).
+      parameters:
+        - name: adminId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAdminPolicyRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/profiles:
+
+    get:
+      tags: [Household Profiles]
+      operationId: listProfiles
+      summary: List profiles scoped to an admin
+      parameters:
+        - name: admin_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: is_active
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListProfilesResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags: [Household Profiles]
+      operationId: createProfile
+      summary: Create a household member profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProfileRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/profiles/{profileId}:
+
+    get:
+      tags: [Household Profiles]
+      operationId: getProfile
+      summary: Get a profile by id
+      parameters:
+        - name: profileId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    patch:
+      tags: [Household Profiles]
+      operationId: updateProfile
+      summary: Update a profile
+      description: >
+        Partial update. Only email_address, gender, blood_type, and is_active
+        are mutable — full_name, dob, relation_to_admin, admin_id are immutable.
+      parameters:
+        - name: profileId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags: [Household Profiles]
+      operationId: deactivateProfile
+      summary: Deactivate a profile (soft delete)
+      parameters:
+        - name: profileId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: No content
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
 components:
 
   parameters:
@@ -1197,6 +1449,152 @@ components:
         format: uuid
 
   schemas:
+
+    # ----------------------------------------------------------
+    # HOUSEHOLD PROFILES DTOs
+    # ----------------------------------------------------------
+
+    AdminResponse:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "admins/550e8400-e29b-41d4-a716-446655440000"
+        admin_id:
+          type: string
+          format: uuid
+        display_name:
+          type: string
+        email_address:
+          type: string
+          format: email
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        policy_settings:
+          type: object
+          additionalProperties:
+            type: string
+          description: >
+            Household-level policy thresholds plus the one-time setup_completed
+            flag. All keys optional.
+
+    ListAdminsResponse:
+      type: object
+      properties:
+        admins:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminResponse'
+
+    CreateAdminRequest:
+      type: object
+      required: [display_name]
+      properties:
+        display_name:
+          type: string
+          maxLength: 150
+        email_address:
+          type: string
+          format: email
+
+    UpdateAdminPolicyRequest:
+      type: object
+      required: [policy_settings]
+      properties:
+        policy_settings:
+          type: object
+          additionalProperties:
+            type: string
+            nullable: true
+          description: >
+            Keys to merge into the existing policy_settings map.
+            A null value for a key leaves the existing value unchanged.
+
+    ProfileResponse:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "profiles/550e8400-e29b-41d4-a716-446655440000"
+        profile_id:
+          type: string
+          format: uuid
+        admin_id:
+          type: string
+          format: uuid
+        full_name:
+          type: string
+        dob:
+          type: string
+          format: date
+        relation_to_admin:
+          type: string
+          enum: [SELF, SPOUSE, CHILD, PARENT, SIBLING, OTHER]
+        email_address:
+          type: string
+          format: email
+        gender:
+          type: string
+          enum: [MALE, FEMALE, OTHER, PREFER_NOT_TO_SAY]
+        blood_type:
+          type: string
+          enum: [A+, A-, B+, B-, AB+, AB-, O+, O-]
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    ListProfilesResponse:
+      type: object
+      properties:
+        profiles:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProfileResponse'
+
+    CreateProfileRequest:
+      type: object
+      required: [admin_id, full_name, dob, relation_to_admin]
+      properties:
+        admin_id:
+          type: string
+          format: uuid
+        full_name:
+          type: string
+        dob:
+          type: string
+          format: date
+        relation_to_admin:
+          type: string
+          enum: [SELF, SPOUSE, CHILD, PARENT, SIBLING, OTHER]
+        email_address:
+          type: string
+          format: email
+        gender:
+          type: string
+          enum: [MALE, FEMALE, OTHER, PREFER_NOT_TO_SAY]
+        blood_type:
+          type: string
+          enum: [A+, A-, B+, B-, AB+, AB-, O+, O-]
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        email_address:
+          type: string
+          format: email
+        gender:
+          type: string
+          enum: [MALE, FEMALE, OTHER, PREFER_NOT_TO_SAY]
+        blood_type:
+          type: string
+          enum: [A+, A-, B+, B-, AB+, AB-, O+, O-]
+        is_active:
+          type: boolean
 
     # ----------------------------------------------------------
     # PROJECTION DTOs
@@ -1683,6 +2081,13 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/TransactionResponse'
+        total_size:
+          type: integer
+          format: int64
+        page:
+          type: integer
+        size:
+          type: integer
 
     ExpenseCategory:
       type: string

@@ -40,7 +40,15 @@ public interface ProfileServiceClient {
     @Path("/admins")
     JsonNode listAdmins();
 
+    @POST
+    @Path("/admins")
+    Response createAdmin(JsonNode body);
+
     @GET
     @Path("/admins/{adminId}")
     JsonNode getAdmin(@PathParam("adminId") UUID adminId);
+
+    @PATCH
+    @Path("/admins/{adminId}/policy")
+    JsonNode updatePolicySettings(@PathParam("adminId") UUID adminId, JsonNode body);
 }

@@ -3,6 +3,7 @@ package com.suchika.profile.adapters.service;
 import com.suchika.profile.domain.*;
 import com.suchika.profile.ports.output.AdminRepository;
 import com.suchika.profile.ports.output.ProfileRepository;
+import com.suchika.shared.exception.ConflictException;
 import com.suchika.shared.exception.NotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -71,6 +72,29 @@ class ProfileServiceTest {
         assertNull(result.getEmailAddress());
         assertNull(result.getGender());
         assertNull(result.getBloodType());
+    }
+
+    @Test
+    void createProfile_secondSelfProfileForSameAdmin_throwsConflictException() {
+        UUID adminId = seedAdmin();
+        service.createProfile(adminId, "Ketan", LocalDate.of(1988, Month.MARCH, 15),
+            RelationToAdmin.SELF, null, null, null);
+
+        assertThrows(ConflictException.class, () ->
+            service.createProfile(adminId, "Ketan Duplicate", LocalDate.of(1990, Month.JANUARY, 1),
+                RelationToAdmin.SELF, null, null, null));
+    }
+
+    @Test
+    void createProfile_secondNonSelfProfileForSameAdmin_succeeds() {
+        UUID adminId = seedAdmin();
+        service.createProfile(adminId, "Ketan", LocalDate.of(1988, Month.MARCH, 15),
+            RelationToAdmin.SELF, null, null, null);
+
+        Profile spouse = service.createProfile(adminId, "Shweta", LocalDate.of(1990, Month.JANUARY, 1),
+            RelationToAdmin.SPOUSE, null, null, null);
+
+        assertNotNull(spouse.getId());
     }
 
     @Test
@@ -211,6 +235,12 @@ class ProfileServiceTest {
             return store.values().stream()
                 .filter(p -> adminId.equals(p.getAdminId()) && p.isActive())
                 .count();
+        }
+
+        @Override
+        public boolean existsSelfProfile(UUID adminId) {
+            return store.values().stream()
+                .anyMatch(p -> adminId.equals(p.getAdminId()) && p.getRelationToAdmin() == RelationToAdmin.SELF);
         }
     }
 }

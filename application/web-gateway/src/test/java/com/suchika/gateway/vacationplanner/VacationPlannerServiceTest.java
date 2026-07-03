@@ -14,6 +14,7 @@ import org.mockito.MockitoAnnotations;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.List;
 import java.util.UUID;
 
@@ -66,13 +67,13 @@ class VacationPlannerServiceTest {
                         PROFILE_ID,
                         SnapshotKey.WEALTH_LIQUIDITY_TIERS_FAMILY,
                         "{\"tiers\":{\"LIQUID\":" + liquid + "},\"total\":" + liquid + "}",
-                        Instant.now())));
+                        Instant.parse("2026-06-15T00:00:00Z"))));
     }
 
     @Test
     void checkBudget_throwsWhenProfileIdMissing() {
         VacationPlannerRequest request = new VacationPlannerRequest();
-        request.tripEndDate = LocalDate.of(2026, 8, 10);
+        request.tripEndDate = LocalDate.of(2026, Month.AUGUST, 10);
         assertThrows(BadRequestException.class, () -> service.checkBudget(null, request));
     }
 
@@ -87,7 +88,7 @@ class VacationPlannerServiceTest {
         when(snapshotRepository.findByProfileId(PROFILE_ID)).thenReturn(List.of());
         VacationPlannerRequest request = new VacationPlannerRequest();
         request.tripCost = 50000;
-        request.tripEndDate = LocalDate.of(2026, 8, 10);
+        request.tripEndDate = LocalDate.of(2026, Month.AUGUST, 10);
 
         JsonNode result = service.checkBudget(PROFILE_ID, request);
 
@@ -99,7 +100,7 @@ class VacationPlannerServiceTest {
         seedLiquidityTiers(100000);
         VacationPlannerRequest request = new VacationPlannerRequest();
         request.tripCost = 50000;
-        request.tripEndDate = LocalDate.of(2026, 8, 10);
+        request.tripEndDate = LocalDate.of(2026, Month.AUGUST, 10);
 
         JsonNode result = service.checkBudget(PROFILE_ID, request);
 
@@ -114,7 +115,7 @@ class VacationPlannerServiceTest {
         seedLiquidityTiers(20000);
         VacationPlannerRequest request = new VacationPlannerRequest();
         request.tripCost = 50000;
-        request.tripEndDate = LocalDate.of(2026, 8, 10);
+        request.tripEndDate = LocalDate.of(2026, Month.AUGUST, 10);
 
         JsonNode result = service.checkBudget(PROFILE_ID, request);
 
@@ -132,7 +133,7 @@ class VacationPlannerServiceTest {
 
         VacationPlannerRequest request = new VacationPlannerRequest();
         request.tripCost = 1000;
-        request.tripEndDate = LocalDate.of(2026, 8, 10);
+        request.tripEndDate = LocalDate.of(2026, Month.AUGUST, 10);
 
         JsonNode result = service.checkBudget(PROFILE_ID, request);
 
@@ -153,7 +154,7 @@ class VacationPlannerServiceTest {
 
         VacationPlannerRequest request = new VacationPlannerRequest();
         request.tripCost = 1000;
-        request.tripEndDate = LocalDate.of(2026, 8, 10);
+        request.tripEndDate = LocalDate.of(2026, Month.AUGUST, 10);
 
         JsonNode result = service.checkBudget(PROFILE_ID, request);
 
@@ -170,7 +171,7 @@ class VacationPlannerServiceTest {
 
         VacationPlannerRequest request = new VacationPlannerRequest();
         request.tripCost = 1000;
-        request.tripEndDate = LocalDate.of(2026, 8, 10);
+        request.tripEndDate = LocalDate.of(2026, Month.AUGUST, 10);
 
         JsonNode result = service.checkBudget(PROFILE_ID, request);
 

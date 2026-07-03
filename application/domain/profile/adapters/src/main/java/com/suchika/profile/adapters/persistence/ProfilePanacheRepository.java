@@ -58,4 +58,9 @@ public class ProfilePanacheRepository implements ProfileRepository {
     public long countActiveByAdminId(UUID adminId) {
         return dao.count("adminId = ?1 and active = true", adminId);
     }
+
+    @Override
+    public boolean existsSelfProfile(UUID adminId) {
+        return dao.count("adminId = ?1 and relationToAdmin = ?2", adminId, "SELF") > 0;
+    }
 }

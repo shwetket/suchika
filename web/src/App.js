@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './context/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { SetupGate } from './components/SetupGate';
 import { Navigation } from './components/Navigation';
 
 // Public Pages
@@ -17,6 +18,7 @@ import { ActionCenter } from './pages/User/ActionCenter';
 
 // Admin Pages
 import { PolicySettings } from './pages/Admin/PolicySettings';
+import { Setup as AdminSetup } from './pages/Admin/Setup';
 
 import {
   Accounts as WealthAccounts,
@@ -89,7 +91,9 @@ function App() {
               path="/dashboard"
               element={
                 <ProtectedRoute requiredRole="user">
-                  <Dashboard />
+                  <SetupGate>
+                    <Dashboard />
+                  </SetupGate>
                 </ProtectedRoute>
               }
             />
@@ -205,6 +209,14 @@ function App() {
             />
 
             {/* Admin Routes */}
+            <Route
+              path="/admin/setup"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <AdminSetup />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/admin/policy"
               element={

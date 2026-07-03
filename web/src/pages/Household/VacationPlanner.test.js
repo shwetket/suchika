@@ -71,7 +71,12 @@ describe('VacationPlanner page', () => {
 
   it('shows WARNING with shortfall when liquid savings are insufficient', async () => {
     checkVacationBudget.mockResolvedValue({
-      budget_check: { status: 'WARNING', liquid_savings: 20000, trip_cost: 50000, shortfall: 30000 },
+      budget_check: {
+        status: 'WARNING',
+        liquid_savings: 20000,
+        trip_cost: 50000,
+        shortfall: 30000,
+      },
       asset_compliance: { status: 'PASS', issues: [] },
     });
     renderPlanner();

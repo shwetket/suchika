@@ -5,7 +5,7 @@
 | **Type** | Reference |
 | **Audience** | AI agents, new developers |
 | **Status** | Active |
-| **Last updated** | 2026-07-02 |
+| **Last updated** | 2026-07-03 |
 
 ## Objective
 
@@ -31,19 +31,28 @@ Hexagonal Architecture (Ports & Adapters). Single PostgreSQL database (`app_db`)
 
 ---
 
-## Current Version: v0.5 — Complete (2026-07-02)
+## Current Version: v0.6 — Complete (2026-07-03)
 
 | Domain | Backend | Frontend | Status |
 |---|---|---|---|
-| Profile | ✅ | ✅ | Complete — policy settings added (Epic 8 Ph4) |
-| Wealth | ✅ | ✅ | Complete — full Epic 8 engine (Phases 1–4) + v0.5 fixes |
-| Health | ✅ | ✅ | Complete — vitals edit added in v0.5 |
-| Household | ✅ | ✅ | Complete — v0.3 + v0.5 inventory edit/is_consumed |
+| Profile | ✅ | ✅ | Complete — policy settings (Epic 8 Ph4); v0.6 adapter/domain tests added |
+| Wealth | ✅ | ✅ | Complete — full Epic 8 engine + v0.5 fixes + v0.6 transaction pagination |
+| Health | ✅ | ✅ | Complete — v0.5 vitals edit + v0.6 doctor visit date-range filter |
+| Household | ✅ | ✅ | Complete — v0.3 + v0.5 inventory edit/is_consumed + v0.6 Goals copy note |
 | web-gateway | ✅ | — | 12 CQRS projection steps live (Action Center added in v0.5) |
 
-**Next milestone: v0.6** — Testing Foundation, re-scoped (see ROADMAP.md — most original v0.6 items are already done; remaining gaps are contract tests and branch coverage).
+**Next milestone: v0.7** — not yet planned; see `ROADMAP.md` for the full future-milestone list (v1.0 Security & Persistence is next after any v0.7 gap-filling).
 
-Quality gates (v0.5): all Gradle tests green (web-gateway 64 tests), ArchUnit clean, React Query adopted (ADR-018). 406 JS tests, 30 gateway projection tests.
+Quality gates (v0.6): all Gradle tests green (512 backend tests total), ArchUnit clean including a new port-interface test-coverage rule, Jest branch coverage gate enforced (branches 70%, lines 80%). 413 JS tests, 30 gateway projection tests.
+
+**v0.6 key additions (Testing Foundation, re-scoped, all complete):**
+
+- New ArchUnit rule enforcing every `ports.input` use-case interface is referenced by at least one test class — immediately surfaced and closed 3 previously-zero-coverage resources (`AdminResource`, `ProfileResource`, `PhysicalAssetResource`)
+- HTTP adapter unit tests: `AccountResource`, `TransactionResource`, `VitalReadingResource`, `DoctorVisitResource`, `AdminResource`, `ProfileResource`, `PhysicalAssetResource`
+- Domain entity unit tests: `Profile`, `Admin`, `VitalReading`
+- Jest branch coverage gate (real current level: branches 70%, functions 75%, lines 80%, statements 79% — not the aspirational 80% branch figure originally named, which measurement showed wasn't met yet)
+- ADR-019: documents `profileId`-as-domain-field as a deliberate ADR-006 trade-off (7 entities across wealth/health/household)
+- UX: transaction list pagination (`page`/`size` on `GET /transactions`), doctor visit date-range filter (`from`/`to` on `GET /doctor-visits`), Goals page auto-refresh copy note
 
 **v0.5 key additions (Phases 0-3, all complete):**
 
