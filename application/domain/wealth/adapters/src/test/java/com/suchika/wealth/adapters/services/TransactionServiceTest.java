@@ -382,5 +382,10 @@ class TransactionServiceTest {
                     .map(Transaction::getAmount)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
         }
+
+        @Override
+        public void deleteByUploadId(UUID uploadId) {
+            store.removeIf(t -> uploadId.equals(t.getUploadId()));
+        }
     }
 }

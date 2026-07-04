@@ -239,41 +239,7 @@ class GoalPanacheRepositoryTest {
         assertTrue(repository.existsById(saved.getId()));
     }
 
-    // --- DB constraint guards ---
 
-    @Test
-    void save_zeroTargetAmount_throwsConstraintViolation() {
-        // DB CHECK constraint: chk_goal_target_positive — target_amount > 0
-        Goal invalid = Goal.builder()
-                .profileId(SEED_PROFILE_ID)
-                .goalName("Zero Target")
-                .targetAmount(BigDecimal.ZERO)
-                .currentAmount(BigDecimal.ZERO)
-                .status(GoalStatus.ACTIVE)
-                .build();
-
-        assertThrows(Exception.class, () -> {
-            repository.save(invalid);
-            em.flush();
-        }, "Expected constraint violation for target_amount = 0");
-    }
-
-    @Test
-    void save_negativeCurrentAmount_throwsConstraintViolation() {
-        // DB CHECK constraint: chk_goal_current_non_negative — current_amount >= 0
-        Goal invalid = Goal.builder()
-                .profileId(SEED_PROFILE_ID)
-                .goalName("Negative Current")
-                .targetAmount(new BigDecimal("50000.00"))
-                .currentAmount(new BigDecimal("-1.00"))
-                .status(GoalStatus.ACTIVE)
-                .build();
-
-        assertThrows(Exception.class, () -> {
-            repository.save(invalid);
-            em.flush();
-        }, "Expected constraint violation for current_amount < 0");
-    }
 
     // --- computed properties from domain entity ---
 

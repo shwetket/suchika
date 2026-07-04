@@ -106,6 +106,7 @@ public class StatementUploadService implements StatementUploadUseCase {
     public void rollbackUpload(UUID uploadId) {
         uploadRepo.findById(uploadId)
                 .orElseThrow(() -> new NotFoundException(UPLOAD_NOT_FOUND + uploadId));
+        txnRepo.deleteByUploadId(uploadId);
         uploadRepo.delete(uploadId);
         AppLogger.info("Upload %s rolled back — all child transactions removed", uploadId);
     }

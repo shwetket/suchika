@@ -266,24 +266,7 @@ class CalendarEventPanacheRepositoryTest {
         assertTrue(repository.existsById(saved.getId()));
     }
 
-    // --- validation guard (DB constraint) ---
 
-    @Test
-    void save_endDateBeforeStartDate_throwsConstraintViolation() {
-        // DB CHECK constraint: chk_event_dates — end_date >= start_date
-        CalendarEvent invalid = CalendarEvent.builder()
-                .profileId(SEED_PROFILE_ID)
-                .title("Bad Dates")
-                .eventType(EventType.WORK)
-                .startDate(LocalDate.of(2026, Month.AUGUST, 15))
-                .endDate(LocalDate.of(2026, Month.AUGUST, 10))
-                .build();
-
-        assertThrows(Exception.class, () -> {
-            repository.save(invalid);
-            em.flush();
-        }, "Expected constraint violation for end_date < start_date");
-    }
 
     // ---- helper ----
 

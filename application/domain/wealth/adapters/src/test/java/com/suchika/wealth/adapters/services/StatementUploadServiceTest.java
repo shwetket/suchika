@@ -297,6 +297,11 @@ class StatementUploadServiceTest {
                     .map(Transaction::getAmount)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
         }
+
+        @Override
+        public void deleteByUploadId(UUID uploadId) {
+            saved.removeIf(t -> uploadId.equals(t.getUploadId()));
+        }
     }
 
     static class FakeAccountRepo implements AccountRepository {
