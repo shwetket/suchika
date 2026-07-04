@@ -12,6 +12,8 @@ import com.suchika.profile.ports.output.ProfileRepository;
 import com.suchika.shared.exception.ConflictException;
 import io.quarkus.test.TestTransaction;
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.junit.QuarkusTestProfile;
+import io.quarkus.test.junit.TestProfile;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.core.Response;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,8 +44,16 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
  * Runs in a transaction that is rolled back on completion (@TestTransaction).
  */
 @QuarkusTest
+@TestProfile(SetupWizardIT.DatabaseIntegrationProfile.class)
 @TestTransaction
 class SetupWizardIT {
+
+    public static class DatabaseIntegrationProfile implements QuarkusTestProfile {
+        @Override
+        public String getConfigProfile() {
+            return "integration-test";
+        }
+    }
 
     @Inject
     AdminRepository adminRepository;
