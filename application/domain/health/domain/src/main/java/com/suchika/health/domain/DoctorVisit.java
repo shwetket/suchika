@@ -38,6 +38,31 @@ public class DoctorVisit {
         this.createdAt = builder.createdAt;
     }
 
+    public static DoctorVisit create(UUID profileId, LocalDate fromDate, LocalDate toDate,
+                                      boolean visitedDoctor, String doctorName, String hospitalName,
+                                      String speciality, String symptoms, String diagnosis,
+                                      String notes, LocalDate followUpDate) {
+        if (fromDate != null && toDate != null && toDate.isBefore(fromDate)) {
+            throw new IllegalArgumentException("to_date must not be before from_date");
+        }
+        if (visitedDoctor && (doctorName == null || doctorName.isBlank())) {
+            throw new IllegalArgumentException("doctor_name is required when visited_doctor is true");
+        }
+        return new Builder()
+                .profileId(profileId)
+                .fromDate(fromDate)
+                .toDate(toDate)
+                .visitedDoctor(visitedDoctor)
+                .doctorName(doctorName)
+                .hospitalName(hospitalName)
+                .speciality(speciality)
+                .symptoms(symptoms)
+                .diagnosis(diagnosis)
+                .notes(notes)
+                .followUpDate(followUpDate)
+                .build();
+    }
+
     public static Builder builder() { return new Builder(); }
 
     public static final class Builder {

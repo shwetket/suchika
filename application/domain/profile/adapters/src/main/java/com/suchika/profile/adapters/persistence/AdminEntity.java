@@ -26,7 +26,7 @@ public class AdminEntity extends PanacheEntityBase {
     @Column(columnDefinition = "uuid")
     public UUID id;
 
-    @Column(name = "display_name", nullable = false, length = 150)
+    @Column(name = "display_name", nullable = false, length = 50)
     public String displayName;
 
     @Column(name = "email_address", length = 255)

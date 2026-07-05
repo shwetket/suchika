@@ -30,19 +30,9 @@ public class DoctorVisitService implements DoctorVisitUseCase {
         validateCreate(command.profileId(), command.fromDate(), command.toDate(),
                 command.visitedDoctor(), command.doctorName());
 
-        DoctorVisit visit = DoctorVisit.builder()
-                .profileId(command.profileId())
-                .fromDate(command.fromDate())
-                .toDate(command.toDate())
-                .visitedDoctor(command.visitedDoctor())
-                .doctorName(command.doctorName())
-                .hospitalName(command.hospitalName())
-                .speciality(command.speciality())
-                .symptoms(command.symptoms())
-                .diagnosis(command.diagnosis())
-                .notes(command.notes())
-                .followUpDate(command.followUpDate())
-                .build();
+        DoctorVisit visit = DoctorVisit.create(command.profileId(), command.fromDate(), command.toDate(),
+                command.visitedDoctor(), command.doctorName(), command.hospitalName(), command.speciality(),
+                command.symptoms(), command.diagnosis(), command.notes(), command.followUpDate());
 
         DoctorVisit saved = repository.save(visit);
         AppLogger.info("Created doctor visit for profile %s on %s", command.profileId(), command.fromDate());

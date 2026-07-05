@@ -12,7 +12,7 @@ Document the design and implementation status for the household domain (v0.3).
 
 ---
 
-**Last updated:** 2026-07-03 (v0.6 — Goals page copy note)
+**Last updated:** 2026-07-05 (Flyway consolidation FK fix + `Goal.updateCurrentAmount` validation gap)
 **Version:** v0.3 — complete (backend + gateway + frontend); v0.5 Phase 0/2 items in progress, see Open Issues / Backlog
 **Port:** 8084
 
@@ -23,7 +23,7 @@ Document the design and implementation status for the household domain (v0.3).
 | Component | Status | Notes |
 |---|---|---|
 | OpenAPI contract | ✅ | `application/contract/household.yaml` — complete |
-| Flyway migrations V1–V3 | ✅ | calendar_event, inventory_item, goal; enum CHECK constraints removed in V3 |
+| Flyway migration | ✅ | `V1__init_household_consolidated.sql` (2026-07-04/05, replaces the former V1–V4 series in place per Q31/Q32 product-owner approval) — calendar_event, inventory_item, goal. All CHECK constraints removed (enum discriminators *and* business-rule checks, e.g. `end_date >= start_date`, `quantity > 0`, `target_amount > 0`, `current_amount >= 0`); FKs to `profile.profile(id)` kept per Q31 resolution ("remove CHECK, keep FKs"). Requires a manual local dev-DB reset (`db-reset.ps1`) since this overwrote a previously-committed V1 — accepted, ephemeral pre-v1.0 consequence. |
 | Domain entities + enums | ✅ | CalendarEvent, InventoryItem, Goal + 4 enums |
 | Ports (input + output) | ✅ | 3 use cases + 3 repository interfaces |
 | JPA entities + DAOs | ✅ | CalendarEventEntity, InventoryItemEntity, GoalEntity + Panache DAOs |
@@ -65,9 +65,9 @@ Document the design and implementation status for the household domain (v0.3).
 | id | UUID | PK, DEFAULT gen_random_uuid() |
 | profile_id | UUID | FK → profile.profile(id) ON DELETE RESTRICT |
 | title | VARCHAR(200) | NOT NULL |
-| event_type | VARCHAR(50) | NOT NULL (validated at API layer — no DB CHECK after V3) |
+| event_type | VARCHAR(50) | NOT NULL (validated at API layer only — no DB CHECK) |
 | start_date | DATE | NOT NULL |
-| end_date | DATE | nullable; CHECK end_date >= start_date |
+| end_date | DATE | nullable; `end_date >= start_date` enforced only in `CalendarEvent.create()` (domain layer) — no DB CHECK since the V1 consolidation |
 | location | VARCHAR(200) | nullable |
 | notes | TEXT | nullable |
 | metadata | JSONB | NOT NULL DEFAULT '{}' |
@@ -80,7 +80,7 @@ Document the design and implementation status for the household domain (v0.3).
 | id | UUID | PK, DEFAULT gen_random_uuid() |
 | profile_id | UUID | FK → profile.profile(id) ON DELETE RESTRICT |
 | item_name | VARCHAR(200) | NOT NULL |
-| quantity | NUMERIC(10,3) | NOT NULL; CHECK quantity > 0 |
+| quantity | NUMERIC(10,3) | NOT NULL; `quantity > 0` enforced only in the domain layer — no DB CHECK since the V1 consolidation |
 | unit | VARCHAR(20) | NOT NULL (validated at API layer) |
 | source_platform | VARCHAR(50) | NOT NULL (validated at API layer) |
 | purchase_date | DATE | NOT NULL |
@@ -96,8 +96,8 @@ Document the design and implementation status for the household domain (v0.3).
 | id | UUID | PK, DEFAULT gen_random_uuid() |
 | profile_id | UUID | FK → profile.profile(id) ON DELETE RESTRICT |
 | goal_name | VARCHAR(200) | NOT NULL |
-| target_amount | NUMERIC(19,2) | NOT NULL; CHECK target_amount > 0 |
-| current_amount | NUMERIC(19,2) | NOT NULL DEFAULT 0.00; CHECK current_amount >= 0 |
+| target_amount | NUMERIC(19,2) | NOT NULL; `target_amount > 0` enforced in `Goal.create()` (domain layer) — no DB CHECK since the V1 consolidation |
+| current_amount | NUMERIC(19,2) | NOT NULL DEFAULT 0.00; `current_amount >= 0` enforced in `GoalService.updateCurrentAmount()` (adapter/service layer, throws `BadRequestException`) — no DB CHECK since the V1 consolidation. This was a validation gap found by architect review (2026-07-05): the CHECK was dropped from the consolidated migration with no code replacement, since `updateCurrentAmount()` builds the updated `Goal` directly via `Goal.builder()` and bypasses `Goal.create()`'s validation entirely. Fixed by adding an explicit guard at the top of the service method. |
 | monthly_saving | NUMERIC(19,2) | nullable |
 | target_date | DATE | nullable |
 | status | VARCHAR(20) | NOT NULL DEFAULT 'ACTIVE' (validated at API layer) |
@@ -154,9 +154,9 @@ Base URL: `http://localhost:8084`
 ## Key Design Decisions
 
 - Startup order: profile must run first (Flyway migrations reference `profile.profile`).
-- Event types, source platforms, units, goal status are VARCHAR — no DB CHECK after V3 migration. Enforced at OpenAPI contract + Java enum layer only.
-- `end_date >= start_date` kept as DB CHECK constraint (structural invariant, not a discriminator).
-- `quantity > 0`, `target_amount > 0`, `current_amount >= 0` kept as DB CHECK constraints (data integrity).
+- Event types, source platforms, units, goal status are VARCHAR — no DB CHECK. Enforced at OpenAPI contract + Java enum layer only.
+- **Revised 2026-07-05 (supersedes prior guidance):** `end_date >= start_date`, `quantity > 0`, `target_amount > 0`, `current_amount >= 0` are **no longer DB CHECK constraints** — all CHECK constraints (enum and business-rule alike) were dropped in the `V1__init_household_consolidated.sql` rewrite per the product owner's Q31/Q44/Q45 resolutions (`documents/OpenQuestions.md`). FKs to `profile.profile(id)` were kept (Q31: "remove CHECK, keep FKs") — an architect review on 2026-07-05 found the consolidation had silently dropped all three FKs too; restored verbatim from the pre-consolidation `V1__init_household.sql`/`V2__goals.sql`.
+- Business-rule validation for these four rules now lives entirely in code: `end_date >= start_date` and `quantity > 0` and `target_amount > 0` are enforced in the respective domain factory methods (`CalendarEvent.create()`, `InventoryItem.create()`, `Goal.create()`), which already existed and needed no change. `current_amount >= 0` had no code equivalent at all (a real gap, since `GoalService.updateCurrentAmount()` never goes through `Goal.create()`) — fixed by adding an explicit `amount == null || amount.compareTo(BigDecimal.ZERO) < 0` guard at the top of `GoalService.updateCurrentAmount()`, throwing `BadRequestException`. This deliberately does not follow the domain-layer-`IllegalArgumentException` pattern used by the `*.create()` factories: `ApplicationExceptionMapper` only maps `ApplicationException` subtypes, so a raw `IllegalArgumentException` thrown from a service method would surface as an unmapped 500, not a 400. `BadRequestException` matches the existing, already-tested convention for use-case-level guards in this exact class (`GoalService` already throws `NotFoundException` the same way) and in `GoalResource` (null/format checks). The OpenAPI contract already documents `minimum: 0` on `UpdateGoalCurrentAmountRequest.current_amount` — only the Java-layer enforcement was missing.
 - Conflict detection is warning-only — creation is not blocked. `CalendarEventResponse` includes `conflicting_events` list.
 - `progressPercent()` and `daysToCompletion()` are computed by the domain `Goal` entity and included in `GoalDto`.
 - `current_amount` on goals is updated by the web-gateway projection engine via `PUT /v1/goals/{id}/current-amount`.
@@ -167,6 +167,7 @@ Base URL: `http://localhost:8084`
 
 ## Open Issues / Remaining Work
 
+- 🔲 **Local dev DB blocked on `flyway_schema_history` mismatch (2026-07-05).** After the FK-restoration fix to `V1__init_household_consolidated.sql`, `./gradlew :application:domain:household:adapters:test` fails 5 of its DB-backed tests (`GoalPanacheRepositoryTest`, `CalendarEventPanacheRepositoryTest`, `InventoryItemPanacheRepositoryTest`, `InventoryItemCreateUpdateIT`, plus one cascading `CalendarEventResourceTest` failure) with `FlywayValidateException`. Root cause: the local shared `app_db`'s `flyway_schema_history` still has the checksum/description of the pre-consolidation household migrations (V1–V4); the rewritten `V1__init_household_consolidated.sql` is a different migration under the same version number, so Flyway's validate step rejects it on startup. This is the accepted, known consequence of the Q32-approved in-place V1 overwrite — fixed by a `scripts/db-reset.ps1 -Force` (drop+recreate `app_db`) followed by re-establishing `profile` schema/seed data before household's tests (household's own Flyway config does not run profile's migrations). **Not performed this session** — `app_db` is a single shared local Postgres instance and other domain agents (health/wealth/profile consolidation work) were concurrently active in the same session; the auto-mode permission classifier correctly blocked an unattended destructive `DROP DATABASE` against a shared resource. Needs an explicit human (or coordinated multi-agent) go-ahead before the reset runs, then a re-run of `./gradlew :application:domain:household:domain:test :application:domain:household:adapters:test` to confirm green. The domain-layer suite (pure JUnit, no DB) already passes 100% independent of this blocker, and the two code fixes above (FK restoration, `updateCurrentAmount` guard) are covered by new/existing unit tests that ran successfully in the `domain` module and via the mocked-repository `GoalServiceTest`.
 - Dashboard Refresh section uses `user.profile_id` from auth context; if auth token does not include `profile_id`, the refresh button stays disabled. Link profile_id into the auth response in a future iteration.
 - Task Tracking deferred to v0.4 — no `task` table exists yet. Will need `V4__tasks.sql` when scoped.
 - Inventory CSV import deferred to v0.4 — v0.3 is manual CRUD only.

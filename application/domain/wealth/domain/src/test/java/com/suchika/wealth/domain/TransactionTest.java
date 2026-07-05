@@ -73,6 +73,52 @@ class TransactionTest {
     }
 
     @Test
+    void create_validAmount_buildsTransaction() {
+        UUID accountId = UUID.randomUUID();
+        UUID uploadId = UUID.randomUUID();
+        LocalDate txnDate = LocalDate.of(2026, Month.MARCH, 1);
+        BigDecimal amount = new BigDecimal("250.50");
+        Map<String, String> metadata = Map.of("source", "MANUAL");
+
+        Transaction txn = Transaction.create(accountId, uploadId, txnDate, amount,
+                TxnType.DEBIT, "ATM withdrawal", metadata);
+
+        assertEquals(accountId, txn.getAccountId());
+        assertEquals(uploadId, txn.getUploadId());
+        assertEquals(txnDate, txn.getTxnDate());
+        assertEquals(0, amount.compareTo(txn.getAmount()));
+        assertEquals(TxnType.DEBIT, txn.getTxnType());
+        assertEquals("ATM withdrawal", txn.getDescription());
+        assertEquals(metadata, txn.getMetadata());
+        assertNull(txn.getId());
+        assertNull(txn.getCreatedAt());
+    }
+
+    @Test
+    void create_zeroAmount_isAllowed() {
+        Transaction txn = Transaction.create(UUID.randomUUID(), null,
+                LocalDate.of(2026, Month.MARCH, 1), BigDecimal.ZERO, TxnType.CREDIT, "Zero-value entry", null);
+
+        assertEquals(0, BigDecimal.ZERO.compareTo(txn.getAmount()));
+    }
+
+    @Test
+    void create_negativeAmount_throwsIllegalArgumentException() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                Transaction.create(UUID.randomUUID(), null, LocalDate.of(2026, Month.MARCH, 1),
+                        new BigDecimal("-1"), TxnType.DEBIT, "Invalid", null));
+
+        assertTrue(ex.getMessage().contains("amount"));
+    }
+
+    @Test
+    void create_nullAmount_throwsIllegalArgumentException() {
+        assertThrows(IllegalArgumentException.class, () ->
+                Transaction.create(UUID.randomUUID(), null, LocalDate.of(2026, Month.MARCH, 1),
+                        null, TxnType.DEBIT, "Invalid", null));
+    }
+
+    @Test
     void txnType_creditAndDebitEnumValuesExist() {
         assertNotNull(TxnType.CREDIT);
         assertNotNull(TxnType.DEBIT);

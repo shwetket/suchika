@@ -9,7 +9,11 @@ CREATE TABLE household.calendar_event (
     notes       TEXT,
     metadata    JSONB        NOT NULL DEFAULT '{}'::jsonb,
     created_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    CONSTRAINT pk_calendar_event PRIMARY KEY (id)
+    CONSTRAINT pk_calendar_event PRIMARY KEY (id),
+    CONSTRAINT fk_event_profile
+        FOREIGN KEY (profile_id)
+        REFERENCES profile.profile(id)
+        ON DELETE RESTRICT
 );
 
 CREATE TABLE household.inventory_item (
@@ -24,7 +28,11 @@ CREATE TABLE household.inventory_item (
     metadata        JSONB         NOT NULL DEFAULT '{}'::jsonb,
     is_consumed     BOOLEAN       NOT NULL DEFAULT FALSE,
     created_at      TIMESTAMPTZ   NOT NULL DEFAULT now(),
-    CONSTRAINT pk_inventory_item PRIMARY KEY (id)
+    CONSTRAINT pk_inventory_item PRIMARY KEY (id),
+    CONSTRAINT fk_item_profile
+        FOREIGN KEY (profile_id)
+        REFERENCES profile.profile(id)
+        ON DELETE RESTRICT
 );
 
 CREATE TABLE household.goal (
@@ -38,5 +46,9 @@ CREATE TABLE household.goal (
     status         VARCHAR(20),
     notes          TEXT,
     created_at     TIMESTAMPTZ   NOT NULL DEFAULT now(),
-    CONSTRAINT pk_goal PRIMARY KEY (id)
+    CONSTRAINT pk_goal PRIMARY KEY (id),
+    CONSTRAINT fk_goal_profile
+        FOREIGN KEY (profile_id)
+        REFERENCES profile.profile(id)
+        ON DELETE RESTRICT
 );

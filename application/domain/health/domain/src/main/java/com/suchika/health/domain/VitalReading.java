@@ -31,6 +31,26 @@ public class VitalReading {
         this.createdAt = builder.createdAt;
     }
 
+    public static VitalReading create(UUID profileId, VitalType vitalType, LocalDate readingDate,
+                                       BigDecimal valuePrimary, BigDecimal valueSecondary,
+                                       String unit, String notes) {
+        if (valuePrimary == null || valuePrimary.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("value_primary must be greater than 0");
+        }
+        if (vitalType == VitalType.BLOOD_PRESSURE && valueSecondary == null) {
+            throw new IllegalArgumentException("value_secondary is required for BLOOD_PRESSURE readings");
+        }
+        return new Builder()
+                .profileId(profileId)
+                .vitalType(vitalType)
+                .readingDate(readingDate)
+                .valuePrimary(valuePrimary)
+                .valueSecondary(valueSecondary)
+                .unit(unit)
+                .notes(notes)
+                .build();
+    }
+
     public static Builder builder() { return new Builder(); }
 
     public static final class Builder {

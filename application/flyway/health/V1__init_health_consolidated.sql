@@ -9,7 +9,11 @@ CREATE TABLE health.vital_reading (
     notes           TEXT,
     metadata        JSONB         NOT NULL DEFAULT '{}'::jsonb,
     created_at      TIMESTAMPTZ   NOT NULL DEFAULT now(),
-    CONSTRAINT pk_vital_reading PRIMARY KEY (id)
+    CONSTRAINT pk_vital_reading PRIMARY KEY (id),
+    CONSTRAINT fk_vital_profile
+        FOREIGN KEY (profile_id)
+        REFERENCES profile.profile(id)
+        ON DELETE RESTRICT
 );
 
 CREATE TABLE health.doctor_visit (
@@ -27,5 +31,9 @@ CREATE TABLE health.doctor_visit (
     follow_up_date DATE,
     metadata       JSONB        NOT NULL DEFAULT '{}'::jsonb,
     created_at     TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    CONSTRAINT pk_doctor_visit PRIMARY KEY (id)
+    CONSTRAINT pk_doctor_visit PRIMARY KEY (id),
+    CONSTRAINT fk_visit_profile
+        FOREIGN KEY (profile_id)
+        REFERENCES profile.profile(id)
+        ON DELETE RESTRICT
 );

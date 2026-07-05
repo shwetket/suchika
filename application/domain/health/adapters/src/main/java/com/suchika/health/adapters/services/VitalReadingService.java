@@ -32,15 +32,8 @@ public class VitalReadingService implements VitalReadingUseCase {
                                String unit, String notes) {
         validate(profileId, vitalType, readingDate, valuePrimary, valueSecondary, unit);
 
-        VitalReading reading = VitalReading.builder()
-                .profileId(profileId)
-                .vitalType(vitalType)
-                .readingDate(readingDate)
-                .valuePrimary(valuePrimary)
-                .valueSecondary(valueSecondary)
-                .unit(unit)
-                .notes(notes)
-                .build();
+        VitalReading reading = VitalReading.create(profileId, vitalType, readingDate,
+                valuePrimary, valueSecondary, unit, notes);
 
         VitalReading saved = repository.save(reading);
         AppLogger.info("Recorded vital reading %s for profile %s on %s", vitalType, profileId, readingDate);

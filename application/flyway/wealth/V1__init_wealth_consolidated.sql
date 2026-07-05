@@ -1,8 +1,8 @@
 CREATE TABLE wealth.account (
     id               UUID         NOT NULL DEFAULT gen_random_uuid(),
     profile_id       UUID,
-    institution_name VARCHAR(200) NOT NULL,
-    account_name     VARCHAR(200) NOT NULL,
+    institution_name VARCHAR(50)  NOT NULL,
+    account_name     VARCHAR(50)  NOT NULL,
     account_type     VARCHAR(50)  NOT NULL,
     currency         VARCHAR(10)  NOT NULL DEFAULT 'INR',
     is_active        BOOLEAN      NOT NULL DEFAULT TRUE,
@@ -12,7 +12,11 @@ CREATE TABLE wealth.account (
     interest_rate    NUMERIC(7,4),
     emi_amount       NUMERIC(19,4),
     metadata         JSONB        NOT NULL DEFAULT '{}'::jsonb,
-    CONSTRAINT pk_account PRIMARY KEY (id)
+    CONSTRAINT pk_account PRIMARY KEY (id),
+    CONSTRAINT fk_account_profile
+        FOREIGN KEY (profile_id)
+        REFERENCES profile.profile(id)
+        ON DELETE RESTRICT
 );
 
 CREATE TABLE wealth.statement_upload (
@@ -21,7 +25,9 @@ CREATE TABLE wealth.statement_upload (
     file_name   VARCHAR(255) NOT NULL,
     upload_date TIMESTAMPTZ  NOT NULL DEFAULT now(),
     status      VARCHAR(20),
-    CONSTRAINT pk_statement_upload PRIMARY KEY (id)
+    CONSTRAINT pk_statement_upload PRIMARY KEY (id),
+    CONSTRAINT fk_upload_account
+        FOREIGN KEY (account_id) REFERENCES wealth.account(id)
 );
 
 CREATE TABLE wealth.upload_error_log (
@@ -44,13 +50,20 @@ CREATE TABLE wealth.transaction (
     description TEXT          NOT NULL,
     metadata    JSONB         NOT NULL DEFAULT '{}'::jsonb,
     created_at  TIMESTAMPTZ   NOT NULL DEFAULT now(),
-    CONSTRAINT pk_transaction PRIMARY KEY (id)
+    CONSTRAINT pk_transaction PRIMARY KEY (id),
+    CONSTRAINT fk_txn_account
+        FOREIGN KEY (account_id) REFERENCES wealth.account(id),
+    CONSTRAINT fk_txn_upload
+        FOREIGN KEY (upload_id) REFERENCES wealth.statement_upload(id)
+        ON DELETE CASCADE,
+    CONSTRAINT uq_transaction_dedup
+        UNIQUE (account_id, txn_date, amount, txn_type, description)
 );
 
 CREATE TABLE wealth.physical_asset (
     id                  UUID         NOT NULL DEFAULT gen_random_uuid(),
     profile_id          UUID         NOT NULL,
-    asset_name          VARCHAR(200) NOT NULL,
+    asset_name          VARCHAR(50)  NOT NULL,
     asset_type          VARCHAR(50)  NOT NULL,
     make                VARCHAR(100),
     model               VARCHAR(100),
@@ -59,5 +72,11 @@ CREATE TABLE wealth.physical_asset (
     metadata            JSONB        NOT NULL DEFAULT '{}'::jsonb,
     is_active           BOOLEAN      NOT NULL DEFAULT TRUE,
     created_at          TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    CONSTRAINT pk_physical_asset PRIMARY KEY (id)
+    CONSTRAINT pk_physical_asset PRIMARY KEY (id),
+    CONSTRAINT uq_registration_number
+        UNIQUE (registration_number),
+    CONSTRAINT fk_physical_asset_profile
+        FOREIGN KEY (profile_id)
+        REFERENCES profile.profile(id)
+        ON DELETE RESTRICT
 );
