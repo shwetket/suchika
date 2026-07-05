@@ -4,7 +4,10 @@ import com.suchika.wealth.domain.Account;
 import com.suchika.wealth.domain.AccountType;
 import com.suchika.wealth.ports.output.AccountRepository;
 import io.quarkus.test.TestTransaction;
+import io.quarkus.test.TestTransaction;
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.junit.QuarkusTestProfile;
+import io.quarkus.test.junit.TestProfile;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
@@ -22,8 +25,16 @@ import static org.junit.jupiter.api.Assertions.*;
  * Each test runs in a transaction that is rolled back on completion.
  */
 @QuarkusTest
+@TestProfile(AccountPanacheRepositoryTest.DatabaseIntegrationProfile.class)
 @TestTransaction
 class AccountPanacheRepositoryTest {
+
+    public static class DatabaseIntegrationProfile implements QuarkusTestProfile {
+        @Override
+        public String getConfigProfile() {
+            return "integration-test";
+        }
+    }
 
     @Inject
     AccountRepository repository;
