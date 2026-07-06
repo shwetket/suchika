@@ -5,7 +5,7 @@
 | **Type** | Decision Log |
 | **Audience** | Product owner (Ketan) |
 | **Status** | Active |
-| **Last updated** | 2026-07-02 (Q26-Q30 all resolved) |
+| **Last updated** | 2026-07-05 (Q31-Q53 all resolved 2026-07-04; Q54 added) |
 
 ## Purpose
 
@@ -340,6 +340,18 @@ The domain contract mirrors under `application/web-gateway/src/main/resources/*.
 
 *Original question, preserved for context:*
 Phase 4 of the plan (`profile.yaml`) is not a pure refactor — `profile.yaml` currently has bare `description`-only error responses with no schema at all, so adopting `shared.yaml`'s `Error` there is additive (first time this contract declares a typed error body), not behavior-neutral. Should this ship as part of the same consolidation initiative, or be split into its own PR/ADR so consolidation PRs 1/2/3/5 stay honestly zero-behavior-change while Phase 4 gets reviewed under an explicit-sign-off bar? Recommend splitting; product owner should confirm before Phase 4 is scheduled.
+
+---
+
+## Architect Review — Contract Consolidation Reconciliation — 2026-07-05
+
+*Context: raised while reconciling `documents/contract-consolidation-plan.md` against Q49-Q53's actual resolutions (all resolved 2026-07-04, plan not yet executed). Q50's resolution mandates unifying pagination but doesn't pick a winning shape — that's a genuine new gap, not something the original plan or Q50 already answered.*
+
+**Q54.** Q50 resolved "every domain must use the same shared pagination" — but three shapes currently exist in the codebase: (a) `shared.yaml`'s token-based `page_size`/`page_token` (AIP-158, unused by any domain yet), (b) `wealth.yaml`'s near-identical local copy of (a), used by `listAccounts`/`listPhysicalAssets`, (c) `wealth.yaml`'s v0.6 `listTransactions` endpoint using 0-indexed integer `page`/`size` — a different paradigm, already shipped and presumably already consumed by the frontend Transactions page. Which shape wins project-wide?
+*Options:*
+A) Token-based `page_size`/`page_token` (AIP-158) wins everywhere — `listTransactions` must migrate off `page`/`size`, a breaking change to an already-shipped v0.6 endpoint and its frontend caller (`Transactions.js` pagination controls).
+B) Integer `page`/`size` wins everywhere — `listAccounts`/`listPhysicalAssets` migrate to it instead; `shared.yaml`'s existing `PageSize`/`PageToken` components are deleted/redefined as integer-based, a breaking change to whichever endpoint's frontend caller currently expects an opaque token.
+C) Keep both shapes, but make each a named shared component (`shared.yaml` gets both `TokenPagination` and `OffsetPagination` parameter groups) — every domain picks one of the two *shared* shapes rather than inventing a third. Satisfies "every domain must use the same shared [components]" literally without forcing a breaking change on the one already-shipped endpoint. Recommended default if not answered before Phase 3 of the contract-consolidation plan, since it's the only option with zero breaking changes — but flagging since Q50's literal wording ("the same shared pagination," singular) may have intended A or B specifically.
 
 ---
 

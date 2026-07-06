@@ -44,9 +44,10 @@ class VitalReadingTest {
 
     @Test
     void create_bloodPressureWithoutSecondaryValue_throwsIllegalArgumentException() {
+        BigDecimal primary = new BigDecimal("120");
         assertThrows(IllegalArgumentException.class, () ->
                 VitalReading.create(PROFILE_ID, VitalType.BLOOD_PRESSURE, READING_DATE,
-                        new BigDecimal("120"), null, "mmHg", null));
+                        primary, null, "mmHg", null));
     }
 
     @Test
@@ -58,9 +59,10 @@ class VitalReadingTest {
 
     @Test
     void create_negativeValuePrimary_throwsIllegalArgumentException() {
+        BigDecimal negative = new BigDecimal("-1");
         assertThrows(IllegalArgumentException.class, () ->
                 VitalReading.create(PROFILE_ID, VitalType.WEIGHT, READING_DATE,
-                        new BigDecimal("-1"), null, "kg", null));
+                        negative, null, "kg", null));
     }
 
     @Test

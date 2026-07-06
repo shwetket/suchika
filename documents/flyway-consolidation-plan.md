@@ -1,11 +1,26 @@
-# Flyway Consolidation Plan — Phased (Planning Only, Not Executed)
+# Flyway Consolidation Plan — Phased (Executed, Reconciled Against Final Resolutions)
 
 | | |
 |---|---|
-| **Type** | Plan — Not Yet Executed |
+| **Type** | Plan — Executed |
 | **Audience** | Product owner, architect, all domain developers |
-| **Status** | Draft — awaiting product owner confirmation on Q31/Q32 before Step 4 moves from plan to execution |
-| **Last updated** | 2026-07-03 |
+| **Status** | **Executed 2026-07-05.** All 5 domains' consolidated V1 scripts are live; `app_db` was fully reset and every domain's adapter test suite passes against it. See reconciliation note below — the shipped result differs from this plan's own draft recommendations in three places. |
+| **Last updated** | 2026-07-05 (reconciliation note added; see ADR-020) |
+
+## Reconciliation Note (2026-07-05) — read this before trusting any table below
+
+This plan was drafted 2026-07-03 under a working assumption ("no FK, no CHECK, no UNIQUE at all"). The product owner's actual resolutions, logged 2026-07-04, **reversed three of this plan's draft positions**:
+
+| Plan drafted (below) | Actually resolved (`OpenQuestions.md`) | Shipped state (verified 2026-07-05) |
+|---|---|---|
+| No FK constraints anywhere (Section 2) | **Q31: keep FK for referential integrity** | All 5 domains' consolidated V1 scripts have FK constraints restored (`fk_account_profile`, `fk_vital_profile`, `fk_event_profile`, `fk_snapshot_profile`, etc.) |
+| `uq_transaction_dedup`/`uq_admin_email` dropped (Q46 in this doc) | **Q46: keep UNIQUE constraints** | Both UNIQUE constraints present in shipped SQL |
+| "Entity name" columns → `VARCHAR(200)` (this plan's own Q47 resolution, Phase 4) | **Q44: VARCHAR(50)** for name columns project-wide | All name columns (`account_name`, `institution_name`, `asset_name`, `display_name`, `full_name`) are `VARCHAR(50)` |
+| CHECK constraints dropped, Q45 mitigation "recommended, not yet verified" | **Q45: verify domain-layer enforcement before dropping** | Verified and added this session: `Transaction.create()` (amount≥0), `VitalReading.create()` (value_primary>0, BP-secondary-required), `DoctorVisit.create()` (to_date≥from_date, doctor_name-required), `GoalService` (current_amount≥0) |
+
+**Do not use the Phase 1-5 before/after tables below as current truth for VARCHAR widths, FK presence, or UNIQUE presence** — they reflect the pre-resolution draft. For current schema truth, read the actual files in `application/flyway/{domain}/V1__init_*_consolidated.sql` or `documents/domain-state/<domain>.md`. This plan's tables remain useful for: the naming-inconsistency audit (Phase 0.2), the Q33 root-vs-child `profileId` rule (Phase 0.3, unaffected by the FK/UNIQUE reversal), and the phase ordering/verification methodology (still valid).
+
+Full decision record: `documents/ARCHITECTURE_DECISIONS.md` ADR-020.
 
 ## Scope and Ground Rules (read first)
 

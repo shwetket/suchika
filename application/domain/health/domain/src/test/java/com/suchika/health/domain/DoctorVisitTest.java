@@ -22,9 +22,9 @@ class DoctorVisitTest {
 
     @Test
     void create_visitedDoctor_happyPath_returnsVisitWithAllFields() {
-        DoctorVisit visit = DoctorVisit.create(PROFILE_ID, TODAY, TOMORROW, true,
-                "Dr. Sharma", "Apollo", "General Medicine",
-                "Fever", "Viral infection", "Rest advised", TOMORROW);
+        DoctorVisit visit = DoctorVisit.create(PROFILE_ID, TODAY, TOMORROW, true, "Dr. Sharma",
+                new DoctorVisit.VisitDetails("Apollo", "General Medicine",
+                        "Fever", "Viral infection", "Rest advised", TOMORROW));
 
         assertNotNull(visit);
         assertEquals(PROFILE_ID, visit.getProfileId());
@@ -37,8 +37,8 @@ class DoctorVisitTest {
 
     @Test
     void create_illnessWithoutVisit_doctorNameNotRequired() {
-        DoctorVisit visit = DoctorVisit.create(PROFILE_ID, TODAY, null, false,
-                null, null, null, "Fever", null, null, null);
+        DoctorVisit visit = DoctorVisit.create(PROFILE_ID, TODAY, null, false, null,
+                new DoctorVisit.VisitDetails(null, null, "Fever", null, null, null));
 
         assertFalse(visit.isVisitedDoctor());
         assertNull(visit.getDoctorName());
@@ -46,16 +46,16 @@ class DoctorVisitTest {
 
     @Test
     void create_singleDayVisit_toDateNull_succeeds() {
-        DoctorVisit visit = DoctorVisit.create(PROFILE_ID, TODAY, null, true,
-                "Dr. Sharma", null, null, null, null, null, null);
+        DoctorVisit visit = DoctorVisit.create(PROFILE_ID, TODAY, null, true, "Dr. Sharma",
+                DoctorVisit.VisitDetails.empty());
 
         assertNull(visit.getToDate());
     }
 
     @Test
     void create_toDateEqualToFromDate_succeeds() {
-        DoctorVisit visit = DoctorVisit.create(PROFILE_ID, TODAY, TODAY, true,
-                "Dr. Sharma", null, null, null, null, null, null);
+        DoctorVisit visit = DoctorVisit.create(PROFILE_ID, TODAY, TODAY, true, "Dr. Sharma",
+                DoctorVisit.VisitDetails.empty());
 
         assertEquals(TODAY, visit.getFromDate());
         assertEquals(TODAY, visit.getToDate());
@@ -63,22 +63,22 @@ class DoctorVisitTest {
 
     @Test
     void create_toDateBeforeFromDate_throwsIllegalArgumentException() {
+        DoctorVisit.VisitDetails details = DoctorVisit.VisitDetails.empty();
         assertThrows(IllegalArgumentException.class, () ->
-                DoctorVisit.create(PROFILE_ID, TODAY, YESTERDAY, false,
-                        null, null, null, null, null, null, null));
+                DoctorVisit.create(PROFILE_ID, TODAY, YESTERDAY, false, null, details));
     }
 
     @Test
     void create_visitedDoctorTrueWithNullDoctorName_throwsIllegalArgumentException() {
+        DoctorVisit.VisitDetails details = DoctorVisit.VisitDetails.empty();
         assertThrows(IllegalArgumentException.class, () ->
-                DoctorVisit.create(PROFILE_ID, TODAY, null, true,
-                        null, null, null, null, null, null, null));
+                DoctorVisit.create(PROFILE_ID, TODAY, null, true, null, details));
     }
 
     @Test
     void create_visitedDoctorTrueWithBlankDoctorName_throwsIllegalArgumentException() {
+        DoctorVisit.VisitDetails details = DoctorVisit.VisitDetails.empty();
         assertThrows(IllegalArgumentException.class, () ->
-                DoctorVisit.create(PROFILE_ID, TODAY, null, true,
-                        "   ", null, null, null, null, null, null));
+                DoctorVisit.create(PROFILE_ID, TODAY, null, true, "   ", details));
     }
 }

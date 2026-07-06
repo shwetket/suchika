@@ -4,7 +4,6 @@ import com.suchika.wealth.domain.Account;
 import com.suchika.wealth.domain.AccountType;
 import com.suchika.wealth.ports.output.AccountRepository;
 import io.quarkus.test.TestTransaction;
-import io.quarkus.test.TestTransaction;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.QuarkusTestProfile;
 import io.quarkus.test.junit.TestProfile;

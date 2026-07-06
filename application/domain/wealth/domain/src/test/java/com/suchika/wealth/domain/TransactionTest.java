@@ -104,18 +104,21 @@ class TransactionTest {
 
     @Test
     void create_negativeAmount_throwsIllegalArgumentException() {
+        UUID accountId = UUID.randomUUID();
+        LocalDate txnDate = LocalDate.of(2026, Month.MARCH, 1);
+        BigDecimal negative = new BigDecimal("-1");
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
-                Transaction.create(UUID.randomUUID(), null, LocalDate.of(2026, Month.MARCH, 1),
-                        new BigDecimal("-1"), TxnType.DEBIT, "Invalid", null));
+                Transaction.create(accountId, null, txnDate, negative, TxnType.DEBIT, "Invalid", null));
 
         assertTrue(ex.getMessage().contains("amount"));
     }
 
     @Test
     void create_nullAmount_throwsIllegalArgumentException() {
+        UUID accountId = UUID.randomUUID();
+        LocalDate txnDate = LocalDate.of(2026, Month.MARCH, 1);
         assertThrows(IllegalArgumentException.class, () ->
-                Transaction.create(UUID.randomUUID(), null, LocalDate.of(2026, Month.MARCH, 1),
-                        null, TxnType.DEBIT, "Invalid", null));
+                Transaction.create(accountId, null, txnDate, null, TxnType.DEBIT, "Invalid", null));
     }
 
     @Test
