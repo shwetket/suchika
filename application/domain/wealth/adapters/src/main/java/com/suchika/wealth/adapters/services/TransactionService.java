@@ -101,14 +101,8 @@ public class TransactionService implements TransactionUseCase {
         Map<String, String> metadata = new HashMap<>();
         metadata.put("source", "MANUAL");
 
-        Transaction txn = Transaction.builder()
-                .accountId(accountId)
-                .txnDate(command.txnDate())
-                .amount(command.amount())
-                .txnType(command.txnType())
-                .description(command.description() != null ? command.description() : "")
-                .metadata(metadata)
-                .build();
+        Transaction txn = Transaction.create(accountId, null, command.txnDate(), command.amount(),
+                command.txnType(), command.description() != null ? command.description() : "", metadata);
 
         Transaction saved = repository.save(txn);
         AppLogger.info("Manual transaction created: %s for account %s", saved.getId(), accountId);

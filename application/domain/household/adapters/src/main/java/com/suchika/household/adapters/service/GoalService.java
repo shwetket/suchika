@@ -4,6 +4,7 @@ import com.suchika.household.domain.Goal;
 import com.suchika.household.domain.GoalStatus;
 import com.suchika.household.ports.input.GoalUseCase;
 import com.suchika.household.ports.output.GoalRepository;
+import com.suchika.shared.exception.BadRequestException;
 import com.suchika.shared.exception.NotFoundException;
 import com.suchika.shared.logging.AppLogger;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -83,6 +84,9 @@ public class GoalService implements GoalUseCase {
     @Override
     @Transactional
     public Goal updateCurrentAmount(UUID id, BigDecimal amount) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) < 0) {
+            throw new BadRequestException("current_amount must not be negative");
+        }
         Goal existing = repository.findById(id)
                 .orElseThrow(() -> new NotFoundException(GOAL_NOT_FOUND + id));
 

@@ -9,6 +9,8 @@ import com.suchika.shared.exception.BadRequestException;
 import com.suchika.shared.exception.NotFoundException;
 import io.quarkus.test.TestTransaction;
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.junit.QuarkusTestProfile;
+import io.quarkus.test.junit.TestProfile;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.core.Response;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,8 +40,16 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
  * Runs in a transaction that is rolled back on completion (@TestTransaction).
  */
 @QuarkusTest
+@TestProfile(VitalReadingCreateUpdateIT.DatabaseIntegrationProfile.class)
 @TestTransaction
 class VitalReadingCreateUpdateIT {
+
+    public static class DatabaseIntegrationProfile implements QuarkusTestProfile {
+        @Override
+        public String getConfigProfile() {
+            return "integration-test";
+        }
+    }
 
     // Seeded in R__seed_profile_test_data.sql — guaranteed to exist when profile service has run
     private static final UUID SEED_PROFILE_ID = UUID.fromString("00000000-0000-0000-0000-000000000002");

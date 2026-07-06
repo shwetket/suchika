@@ -12,7 +12,7 @@ Give any agent or developer instant context on the health domain — vital readi
 
 ---
 
-**Last updated:** 2026-07-03 (v0.6 — adapter/domain test coverage + doctor visit date-range filter)
+**Last updated:** 2026-07-05 (Flyway consolidation architect-review fix — FKs restored, domain-layer validation added)
 **Version:** v0.2 complete — UAT-ready; v0.5 Phase 0 vitals edit endpoint added
 **Port:** 8083
 
@@ -42,7 +42,7 @@ Give any agent or developer instant context on the health domain — vital readi
 
 Vital types (VARCHAR, no SQL ENUM): `WEIGHT`, `HEIGHT`, `BLOOD_PRESSURE`, `BLOOD_SUGAR_FASTING`, `BLOOD_SUGAR_PP`, `HEART_RATE`, `TEMPERATURE`, `OXYGEN_SATURATION`, `BMI`, `WAIST_CIRCUMFERENCE`
 
-DB constraint rule: `visited_doctor = TRUE → doctor_name NOT NULL` (enforced in DB as a CHECK constraint — this is a **business-rule check**, not a discriminator enum, so it belongs in DB).
+**Post-Q31/Q32 consolidation (2026-07-05):** `application/flyway/health/V1__init_health_consolidated.sql` now defines only PK + FK constraints — `fk_vital_profile` (`vital_reading.profile_id → profile.profile(id)`, `ON DELETE RESTRICT`) and `fk_visit_profile` (`doctor_visit.profile_id → profile.profile(id)`, `ON DELETE RESTRICT`). **No CHECK constraints remain in the DB** — `chk_vital_type`, `chk_bp_secondary_value`, `chk_primary_positive`, `chk_visit_dates`, and `chk_doctor_name_required` (all present in the old pre-consolidation `V1__init_health.sql`/`V2__remove_enum_constraints.sql`) were dropped and are **not** replacements at the DB level. The business-rule ones (not the enum one, already covered by the OpenAPI/Java enum) are now enforced in the domain layer instead — see Key Design Decisions below. `visited_doctor = TRUE → doctor_name NOT NULL` is therefore enforced in application code only, not by DB CHECK, as of this change.
 
 ---
 
@@ -81,8 +81,9 @@ Gateway proxy: `application/web-gateway/src/main/java/com/suchika/gateway/health
 ## Key Design Decisions
 
 - Blood pressure is stored as a single numeric value (mean arterial pressure or systolic) — the specific format is defined in the OpenAPI contract.
-- `doctor_name` NOT NULL constraint only applies when `visited_doctor = TRUE` — this is a DB CHECK constraint (business rule), not removed.
+- `doctor_name` NOT NULL constraint only applies when `visited_doctor = TRUE` — **as of 2026-07-05 this is enforced in the domain layer (`DoctorVisit.create()`), not a DB CHECK constraint** (the DB CHECK was dropped in the Flyway consolidation per Q31; see below).
 - No Google Fit tokens stored — v1.0 will add manual sync with short-lived tokens only.
+- **Domain-layer validation added 2026-07-05** (`VitalReading.create(...)`, `DoctorVisit.create(...)`, static factories matching the `CalendarEvent.create()`/`Goal.create()`/`InventoryItem.create()` pattern used in the household domain — throws `IllegalArgumentException`): `VitalReading.create()` enforces `value_primary > 0` (always) and `value_secondary` required when `vital_type == BLOOD_PRESSURE`; `DoctorVisit.create()` enforces `to_date >= from_date` (when `to_date` present) and `doctor_name` required (non-blank) when `visited_doctor == true`. These are the direct domain-layer replacements for the DB CHECK constraints (`chk_primary_positive`, `chk_bp_secondary_value`, `chk_visit_dates`, `chk_doctor_name_required`) dropped from `V1__init_health_consolidated.sql`. `VitalReadingService.recordReading()` and `DoctorVisitService.create()` were rewired to construct via these factories instead of the raw `Builder` — safe because each service's existing `validate()`/`validateCreate()` private method (throwing `BadRequestException`, unchanged) already runs first and enforces the same rules, so the new `IllegalArgumentException` path is defense-in-depth only and never fires on the existing HTTP-facing call paths; all pre-existing `BadRequestException`-asserting tests continue to pass unchanged. `update()` paths on both services were left using `Builder` directly (unchanged) — they already re-validate via the same private `validate()` methods before persisting, matching the equivalent pattern in the household domain (`CalendarEventService.update()` also uses `Builder`, not `create()`, for merged-state reconstruction).
 
 ---
 
@@ -105,6 +106,19 @@ Gateway proxy: `application/web-gateway/src/main/java/com/suchika/gateway/health
 - Gateway: `HealthServiceClient.updateVital` + `HealthGatewayResource.updateVital` added, proxying `JsonNode` exactly like `updateDoctorVisit`.
 - **Frontend:** `web/src/api/health.js` gained `updateVital(id, data)` (PATCH). `web/src/pages/Health/Vitals.js` gained an edit modal — Edit button per row (next to Delete), pre-filled form, `vital_type` shown read-only (disabled input) since it's immutable, Blood Pressure diastolic field conditionally shown, save/cancel/error states — mirrors `DoctorVisits.js` edit-modal UX exactly.
 - **Tests added:** `VitalReadingServiceTest` (update_partial_fields, update_rejects_zero_value_primary, update_throws_not_found_for_unknown_id), `VitalReadingPanacheRepositoryTest` (save_withExistingId_updatesReadingInPlace, Testcontainers), `HealthGatewayResourceTest` (testUpdateVital), `Vitals.test.js` (edit modal opens pre-filled, submits and reloads, shows error on failure), `health.test.js` (updateVital calls PATCH with correct path/body).
+
+---
+
+## Flyway Consolidation Architect-Review Fix — 2026-07-05
+
+Architect review of the Flyway consolidation on the `quesitons` branch found that `V1__init_health_consolidated.sql` had silently dropped **both FK constraints** (`fk_vital_profile`, `fk_visit_profile`) — not just the CHECK constraints Q31 approved removing — and that no domain-layer validation existed to replace the dropped business-rule CHECK constraints (`chk_primary_positive`, `chk_bp_secondary_value`, `chk_visit_dates`, `chk_doctor_name_required`), a live correctness regression (nothing stopped invalid data). Per Q31's resolution ("Remove CHECK constraints, but keep FKs for referential integrity"), fixed both issues in place (Q32 pre-approved editing the consolidated V1 file directly, pre-release):
+
+- ✅ **FKs restored** — `fk_vital_profile` and `fk_visit_profile` added back verbatim (from `git show main:application/flyway/health/V1__init_health.sql`) to `V1__init_health_consolidated.sql`. No CHECK constraints re-added (enum or business-rule) — those stay removed per policy.
+- ✅ **Domain-layer validation added** — `VitalReading.create(...)` and `DoctorVisit.create(...)` static factories (see Key Design Decisions above) now enforce the two business rules per entity that the dropped CHECK constraints used to guard. `VitalReadingService.recordReading()`/`DoctorVisitService.create()` rewired to use them.
+- ✅ **Tests added:** `VitalReadingTest` gained 5 new `create()` test methods (happy path, BP-with-secondary, BP-missing-secondary throws, zero/negative/null `value_primary` throws). New file `DoctorVisitTest.java` (domain layer, didn't exist before) added with 7 tests covering `create()` happy paths and both validation rules.
+- ✅ **Local dev DB reset performed** (the accepted Q32 consequence of editing a committed V1 in place): editing the migration file changed its checksum, so the local `app_db`'s `health.flyway_schema_history` row for version 1 no longer matched, causing `FlywayValidateException` on adapter test runs (3 failed, 12 skipped). Fixed by dropping the three `health`-schema tables owned by `app_user` (`health.vital_reading`, `health.doctor_visit`, `health.flyway_schema_history` — connecting as `app_user`, not the Postgres superuser, was sufficient since `app_user` owns these tables even though it didn't create the schema itself) and letting Flyway re-apply `V1__init_health_consolidated.sql` fresh on the next test run. Only the `health` schema was touched — `profile`/`wealth`/`household` schemas and data were left intact.
+- ✅ **Test results (verified, not assumed):** `:application:domain:health:domain:test` → **BUILD SUCCESSFUL**, 16 tests, 0 failures. `:application:domain:health:adapters:test` → **BUILD SUCCESSFUL**, 59 tests, 0 failures, 0 errors, 0 skipped (was 3 failed + 12 skipped before the DB reset, all via `FlywayValidateException`, none related to the validation logic itself).
+- Per Q48 (create a `scripts/reset-local-db.ps1`/`.sh` helper for this exact scenario, owned by the `devops` agent) — not built in this session; this was a one-off manual reset scoped to the `health` schema only, done via `psql -U app_user -d app_db`.
 
 ---
 

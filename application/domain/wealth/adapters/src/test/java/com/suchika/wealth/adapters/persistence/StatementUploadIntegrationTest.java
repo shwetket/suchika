@@ -8,6 +8,8 @@ import com.suchika.wealth.ports.output.TransactionRepository;
 import com.suchika.wealth.ports.output.UploadErrorLogRepository;
 import io.quarkus.test.TestTransaction;
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.junit.QuarkusTestProfile;
+import io.quarkus.test.junit.TestProfile;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
@@ -26,8 +28,16 @@ import static org.junit.jupiter.api.Assertions.*;
  * Each test runs in a @TestTransaction that rolls back on completion.
  */
 @QuarkusTest
+@TestProfile(StatementUploadIntegrationTest.DatabaseIntegrationProfile.class)
 @TestTransaction
 class StatementUploadIntegrationTest {
+
+    public static class DatabaseIntegrationProfile implements QuarkusTestProfile {
+        @Override
+        public String getConfigProfile() {
+            return "integration-test";
+        }
+    }
 
     private static final UUID SEEDED_ACCOUNT_ID = UUID.fromString("f3b90000-0000-0000-0000-000000000000");
 

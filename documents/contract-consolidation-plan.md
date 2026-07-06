@@ -2,10 +2,22 @@
 
 | | |
 |---|---|
-| **Type** | Plan (not yet executed) |
+| **Type** | Plan — approved, not yet executed |
 | **Audience** | Architect, backend developers |
-| **Status** | Draft — awaiting confirmation on Q49-Q53 before execution |
-| **Last updated** | 2026-07-03 |
+| **Status** | **Q49-Q53 all resolved 2026-07-04 — ready to execute.** No file under `application/contract/` has been touched yet; `application/contract/shared.yaml` does not exist. See resolution deltas below before starting Phase 0. |
+| **Last updated** | 2026-07-05 (resolution deltas added) |
+
+## Resolution Deltas (2026-07-05) — read before executing Phase 0
+
+| This plan asked | Resolved | Effect on the plan as drafted |
+|---|---|---|
+| Q49: 3 profile_id param variants (path-required, query-optional, query-required) — or standardize required-ness first? | **Standardize profile_id as required across all domains first** | **Simplifies to 2 variants, not 3** — drop the query-*optional* variant entirely. `wealth`/`gateway` list endpoints that today accept `profile_id` as `required: false` must become `required: true`. This is a real API behavior change, not pure contract tidying — confirm no existing caller omits `profile_id` on those endpoints before Phase 3/5 (grep `web/src/api/` call sites for `listAccounts`/`listPhysicalAssets`/gateway equivalents). |
+| Q50: leave wealth's `listTransactions` `page`/`size` int-pagination as a documented exception? | **No — every domain must use the same shared pagination** | Plan's Phase 3 verification step ("confirm this is out of scope") is now wrong — it's in scope. **New question raised: Q54 below** — the resolution says "unify," not which shape wins (token-based `page_size`/`page_token` vs. `listTransactions`'s 0-indexed `page`/`size`). Do not guess; this changes `listTransactions`'s wire format either way. |
+| Q51: verify `openapi-typescript` external multi-file `$ref` behavior before Phase 1 | **Yes — do the spike first** | Not yet done. Blocks Phase 0 sign-off — run the scratch test (temp copy of `gateway.yaml`, one endpoint converted, diff generated types) before touching any real contract file. |
+| Q52: automate canonical→mirror sync? | **No — keep manual sync, out of scope** | Plan's existing assumption (manual sync per PR) stands as-is. No change needed. |
+| Q53: split profile.yaml's additive error-schema fix into its own PR? | **No — ship it as part of this consolidation** | Phase 4 stays in this initiative; still flag it in the PR description as behavior-additive (first typed error body for that contract), per the plan's own Section 5 item 1. |
+
+Full decision record: `documents/OpenQuestions.md` Q49-Q54.
 
 ## Objective
 

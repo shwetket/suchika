@@ -24,7 +24,7 @@ public class ProfileEntity extends PanacheEntityBase {
     @Column(name = "admin_id", columnDefinition = "uuid")
     public UUID adminId;
 
-    @Column(name = "full_name", nullable = false, length = 150)
+    @Column(name = "full_name", nullable = false, length = 50)
     public String fullName;
 
     @Column(name = "dob", nullable = false)

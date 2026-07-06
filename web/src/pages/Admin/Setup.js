@@ -53,16 +53,16 @@ function StepIndicator({ step }) {
         const num = idx + 1;
         const active = step === num;
         const done = step > num;
+        let stepClass = 'bg-gray-100 text-gray-500';
+        if (active) {
+          stepClass = 'bg-blue-600 text-white';
+        } else if (done) {
+          stepClass = 'bg-green-100 text-green-700';
+        }
         return (
           <div
             key={label}
-            className={`flex-1 text-center py-2 rounded text-sm font-medium ${
-              active
-                ? 'bg-blue-600 text-white'
-                : done
-                  ? 'bg-green-100 text-green-700'
-                  : 'bg-gray-100 text-gray-500'
-            }`}
+            className={`flex-1 text-center py-2 rounded text-sm font-medium ${stepClass}`}
           >
             {num}. {label}
           </div>

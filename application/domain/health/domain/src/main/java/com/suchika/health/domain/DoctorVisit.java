@@ -38,6 +38,54 @@ public class DoctorVisit {
         this.createdAt = builder.createdAt;
     }
 
+    public static DoctorVisit create(UUID profileId, LocalDate fromDate, LocalDate toDate,
+                                      boolean visitedDoctor, String doctorName, VisitDetails details) {
+        if (fromDate != null && toDate != null && toDate.isBefore(fromDate)) {
+            throw new IllegalArgumentException("to_date must not be before from_date");
+        }
+        if (visitedDoctor && (doctorName == null || doctorName.isBlank())) {
+            throw new IllegalArgumentException("doctor_name is required when visited_doctor is true");
+        }
+        VisitDetails d = details != null ? details : VisitDetails.empty();
+        return new Builder()
+                .profileId(profileId)
+                .fromDate(fromDate)
+                .toDate(toDate)
+                .visitedDoctor(visitedDoctor)
+                .doctorName(doctorName)
+                .hospitalName(d.hospitalName)
+                .speciality(d.speciality)
+                .symptoms(d.symptoms)
+                .diagnosis(d.diagnosis)
+                .notes(d.notes)
+                .followUpDate(d.followUpDate)
+                .build();
+    }
+
+    /** Groups the narrative/optional fields that carry no create()-time validation rule. */
+    public static final class VisitDetails {
+        private final String hospitalName;
+        private final String speciality;
+        private final String symptoms;
+        private final String diagnosis;
+        private final String notes;
+        private final LocalDate followUpDate;
+
+        public VisitDetails(String hospitalName, String speciality, String symptoms,
+                             String diagnosis, String notes, LocalDate followUpDate) {
+            this.hospitalName = hospitalName;
+            this.speciality = speciality;
+            this.symptoms = symptoms;
+            this.diagnosis = diagnosis;
+            this.notes = notes;
+            this.followUpDate = followUpDate;
+        }
+
+        public static VisitDetails empty() {
+            return new VisitDetails(null, null, null, null, null, null);
+        }
+    }
+
     public static Builder builder() { return new Builder(); }
 
     public static final class Builder {

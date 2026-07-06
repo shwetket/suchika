@@ -3,6 +3,7 @@ package com.suchika.household.adapters.service;
 import com.suchika.household.domain.Goal;
 import com.suchika.household.domain.GoalStatus;
 import com.suchika.household.ports.output.GoalRepository;
+import com.suchika.shared.exception.BadRequestException;
 import com.suchika.shared.exception.NotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -107,6 +108,26 @@ class GoalServiceTest {
     void updateCurrentAmount_notFound_throwsNotFoundException() {
         assertThrows(NotFoundException.class, () ->
                 service.updateCurrentAmount(UUID.randomUUID(), new BigDecimal("1000")));
+    }
+
+    @Test
+    void updateCurrentAmount_negativeAmount_throwsBadRequestException() {
+        UUID profileId = UUID.randomUUID();
+        Goal created = service.create(profileId, "Investment", new BigDecimal("1000000"),
+                new BigDecimal("50000"), null, null);
+
+        assertThrows(BadRequestException.class, () ->
+                service.updateCurrentAmount(created.getId(), new BigDecimal("-1")));
+    }
+
+    @Test
+    void updateCurrentAmount_nullAmount_throwsBadRequestException() {
+        UUID profileId = UUID.randomUUID();
+        Goal created = service.create(profileId, "Investment", new BigDecimal("1000000"),
+                new BigDecimal("50000"), null, null);
+
+        assertThrows(BadRequestException.class, () ->
+                service.updateCurrentAmount(created.getId(), null));
     }
 
     @Test

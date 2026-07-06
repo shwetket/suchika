@@ -286,7 +286,7 @@ components:
       properties:
         display_name:
           type: string
-          maxLength: 150
+          maxLength: 50
         email_address:
           type: string
           format: email
@@ -296,7 +296,7 @@ components:
       properties:
         display_name:
           type: string
-          maxLength: 150
+          maxLength: 50
         email_address:
           type: string
           format: email

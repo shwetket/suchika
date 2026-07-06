@@ -128,4 +128,9 @@ public class TransactionPanacheRepository implements TransactionRepository {
         }
         return query.getSingleResult();
     }
+
+    @Override
+    public void deleteByUploadId(UUID uploadId) {
+        dao.delete("uploadId", uploadId);
+    }
 }

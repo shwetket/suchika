@@ -7,6 +7,8 @@ import com.suchika.wealth.ports.output.StatementUploadRepository;
 import com.suchika.wealth.domain.StatementUpload;
 import io.quarkus.test.TestTransaction;
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.junit.QuarkusTestProfile;
+import io.quarkus.test.junit.TestProfile;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
@@ -21,8 +23,16 @@ import static org.junit.jupiter.api.Assertions.*;
  * Each test creates its own statement_upload row (FK anchor) within the test transaction.
  */
 @QuarkusTest
+@TestProfile(UploadErrorLogPanacheRepositoryTest.DatabaseIntegrationProfile.class)
 @TestTransaction
 class UploadErrorLogPanacheRepositoryTest {
+
+    public static class DatabaseIntegrationProfile implements QuarkusTestProfile {
+        @Override
+        public String getConfigProfile() {
+            return "integration-test";
+        }
+    }
 
     @Inject
     UploadErrorLogRepository errorLogRepo;

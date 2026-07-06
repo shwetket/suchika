@@ -73,19 +73,27 @@ jobs:
           cache: gradle
       - name: Make Gradle wrapper executable
         run: chmod +x ./gradlew
-      - name: Bootstrap database and apply profile schema
+      - name: Bootstrap database
         if: ${{ matrix.needs-postgres }}
         env:
           PGPASSWORD: local_dev_only
         run: |
           psql -h localhost -U postgres -c "CREATE DATABASE app_db;"
           psql -h localhost -U postgres -d app_db -f application/flyway/00_bootstrap.sql
-          # Profile schema must exist before health/wealth/household migrations run —
-          # all three have FK REFERENCES profile.profile. Profile adapter tests are
-          # plain JUnit (no @QuarkusTest), so Quarkus/Flyway never runs for them.
+      - name: Apply profile schema (wealth/health/household only)
+        # These three domains' migrations have FK REFERENCES profile.profile, so it must
+        # exist before their own Gradle test task runs Flyway. Each matrix job gets its own
+        # isolated Postgres container, so this is applied independently per job.
+        # NOT run for the profile job itself: SetupWizardIT (@QuarkusTest) runs profile's
+        # own Flyway migration for real — pre-applying it here via raw psql first would
+        # bypass flyway_schema_history and make Flyway refuse to start ("Found non-empty
+        # schema(s) profile but no schema history table").
+        if: ${{ matrix.needs-postgres && matrix.domain != 'profile' }}
+        env:
+          PGPASSWORD: local_dev_only
+        run: |
           psql -h localhost -U app_user -d app_db \
-            -f application/flyway/profile/V1__init_profile.sql \
-            -f application/flyway/profile/V2__add_admin_table.sql \
+            -f application/flyway/profile/V1__init_profile_consolidated.sql \
             -f application/flyway/test-seed/profile/R__seed_profile_test_data.sql
       - name: Run backend tests for ${{ matrix.domain }}
         run: ./gradlew --no-daemon ${{ matrix.tasks }}

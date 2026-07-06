@@ -116,11 +116,12 @@ The calculation engine lives in `web-gateway` (the BFF), which has read access t
 
 **Domain layer:** `domain/` must have zero framework dependencies. No `@Inject`, no JPA annotations (`jakarta.persistence.*`), no HTTP types. Enforced by ArchUnit in `shared/src/test/java/.../DomainRulesTest.java` — read that file before writing new classes; it documents the full dependency rules including cross-domain isolation and logging requirements.
 
-**Flyway:** Never edit a committed migration — create a new versioned file. `00_bootstrap.sql` is manual-only (Flyway does not run it).
+**Flyway:** Never edit a committed migration — create a new versioned file. `00_bootstrap.sql` is manual-only (Flyway does not run it). Exception: each domain's Flyway history was consolidated into a single `V1__init_<domain>_consolidated.sql` (2026-07-04/05, product-owner-approved override of this rule for the pre-release consolidation only — requires a manual dev DB reset, `DROP SCHEMA ... CASCADE` + re-migrate). This exception does not reopen the rule generally — once consolidated, V1 is committed again and the normal "never edit" rule resumes.
 
-**DB constraint philosophy — two categories:**
-- **Keep in DB** (structural invariants enforced everywhere, including direct DB access): NOT NULL, PK, FK, UNIQUE, and business-rule checks like `amount >= 0`, `end_date >= start_date`, `visited_doctor = TRUE → doctor_name NOT NULL`.
-- **Do NOT add to DB** (enum discriminators — values that form a list of allowed strings): account types, event types, vital types, relation values, status codes, platform names. These are enforced at the OpenAPI contract (enum on the schema) and Java enum + `@Valid` annotation. Adding a new value requires only a contract + code change — no Flyway migration needed.
+**DB constraint philosophy — two categories (revised 2026-07-05, supersedes the prior CHECK-constraint guidance):**
+- **Keep in DB** (structural invariants enforced everywhere, including direct DB access): NOT NULL, PK, FK, UNIQUE.
+- **Do NOT add to DB — no CHECK constraints of any kind**, not just enum discriminators. This now also covers business-rule checks previously kept in DB (`amount >= 0`, `end_date >= start_date`, `visited_doctor = TRUE → doctor_name NOT NULL`, `target_amount > 0`, `current_amount >= 0`, etc.). All of these move to the domain layer (a validating static factory method, e.g. `Goal.create(...)`, throwing `IllegalArgumentException`) plus the OpenAPI contract where applicable. Adding or changing a rule requires only a domain/contract + code change — no Flyway migration needed.
+- **VARCHAR name columns are capped at `VARCHAR(50)`** (e.g. `account_name`, `institution_name`, `asset_name`, `display_name`, `full_name`) — a project-wide standard, not per-domain judgment calls.
 
 **No SQL ENUMs ever.** Use plain `VARCHAR` with no CHECK constraint for discriminator columns.
 

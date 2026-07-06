@@ -278,23 +278,7 @@ class InventoryItemPanacheRepositoryTest {
 
     // --- DB constraint guard ---
 
-    @Test
-    void save_zeroQuantity_throwsConstraintViolation() {
-        // DB CHECK constraint: chk_quantity_positive — quantity > 0
-        InventoryItem invalid = InventoryItem.builder()
-                .profileId(SEED_PROFILE_ID)
-                .itemName("Zero Qty Item")
-                .quantity(new BigDecimal("0.000"))
-                .unit(ItemUnit.KG)
-                .sourcePlatform(SourcePlatform.MANUAL)
-                .purchaseDate(LocalDate.of(2026, Month.AUGUST, 1))
-                .build();
 
-        assertThrows(Exception.class, () -> {
-            repository.save(invalid);
-            em.flush();
-        }, "Expected constraint violation for quantity = 0");
-    }
 
     // ---- helper ----
 

@@ -12,6 +12,8 @@ dependencies {
     // REST endpoints (server-side)
     implementation("io.quarkus:quarkus-rest")
     implementation("io.quarkus:quarkus-rest-jackson")
+    implementation("io.quarkus:quarkus-vertx-http")
+    implementation("io.quarkus:quarkus-smallrye-openapi")
 
     // REST client (calls downstream domain services)
     implementation("io.quarkus:quarkus-rest-client-jackson")

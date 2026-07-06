@@ -5,7 +5,7 @@
 | **Type** | Reference — ADR Log |
 | **Audience** | All developers |
 | **Status** | Active |
-| **Last updated** | 2026-07-03 (ADR-019 added) |
+| **Last updated** | 2026-07-05 (ADR-020 added) |
 
 ## Objective
 
@@ -40,6 +40,7 @@ Record every significant architectural decision made for this project, along wit
 | [ADR-017](#adr-017-household-level-dashboard-aggregation) | Household-Level Dashboard Aggregation | Accepted — 2026-06-30 |
 | [ADR-018](#adr-018-react-query-for-frontend-server-state) | React Query for Frontend Server State | Accepted — 2026-07-02 |
 | [ADR-019](#adr-019-profileid-as-a-plain-field-on-domain-entities-adr-006-addendum) | `profileId` as a Plain Field on Domain Entities (ADR-006 addendum) | Accepted — 2026-06-30, documented 2026-07-03 |
+| [ADR-020](#adr-020-flyway-consolidation--db-constraint-policy-keep-fkuniquepknot-null-drop-check-only) | Flyway Consolidation & DB Constraint Policy: Keep FK/UNIQUE/PK/NOT NULL, Drop CHECK Only | Accepted — 2026-07-05 |
 
 ---
 
@@ -435,3 +436,38 @@ This was flagged during the v0.4 architect review (Q1): "the current `CalendarEv
 - No ArchUnit rule is added to flag or ban this pattern (Option B's proposed rule is explicitly not adopted).
 
 **Revisit trigger:** If a future ArchUnit rule needs to verify `profile_id` presence in adapter query predicates (flagged as a v1.0 item, tracked in `ROADMAP.md`), that rule should inspect the adapter/repository layer directly — it should not use "does the domain entity have a `profileId` field" as a signal, since this ADR establishes that the two are intentionally decoupled.
+
+---
+
+## ADR-020: Flyway Consolidation & DB Constraint Policy: Keep FK/UNIQUE/PK/NOT NULL, Drop CHECK Only
+
+**Status:** Accepted — decided 2026-07-04 (product owner, Q31/Q44-Q46), executed 2026-07-05
+
+**Decision:** Each domain's Flyway migration chain (V1...Vn) is collapsed into one `V1__init_<domain>_consolidated.sql` file, in-place-edited (a one-time exception to "never edit a committed migration," scoped to this consolidation only — normal rule resumes once V1 is committed again). DB-level constraint policy going forward:
+
+- **Keep in DB:** `NOT NULL`, `PRIMARY KEY`, `FOREIGN KEY`, `UNIQUE`.
+- **Drop from DB:** `CHECK` constraints — both enum-discriminator CHECKs (already redundant with contract-layer enum validation, ADR-010) and business-rule CHECKs (`amount >= 0`, `value_primary > 0`, date-range checks, `target_amount > 0`, conditional-field rules like "BLOOD_PRESSURE requires value_secondary"). These move to the domain layer as validating static factory methods (`Transaction.create()`, `VitalReading.create()`, `DoctorVisit.create()`, etc.) throwing `IllegalArgumentException`, plus the OpenAPI contract where applicable.
+- **VARCHAR name columns capped at `VARCHAR(50)`** project-wide (`account_name`, `institution_name`, `asset_name`, `display_name`, `full_name`) — a standard, not a per-domain judgment call.
+- **profileId placement (Q33):** direct `profile_id` column only on each domain's root/primary aggregate table. Child/detail tables unambiguously owned by exactly one already-scoped parent row (`wealth.transaction` via `account_id`, `wealth.statement_upload` via `account_id`, `wealth.upload_error_log` via `upload_id`) do not get their own copy — extends ADR-019's domain-entity-layer reasoning to the schema layer.
+
+**Context:** `documents/flyway-consolidation-plan.md` (2026-07-03) drafted this consolidation under an initial instruction to drop FK and CHECK constraints entirely, and UNIQUE along with them. The product owner's actual resolution (`OpenQuestions.md` Q31, Q44, Q46 — 2026-07-04) reversed the FK/UNIQUE removal specifically, while confirming CHECK removal. Rationale for the reversal: FK/UNIQUE catch real bugs (orphaned `profile_id` rows, duplicate natural keys) at zero runtime cost, for free, regardless of application-layer bugs — a materially different risk profile than enum CHECKs, which were already fully redundant with contract validation. CHECK removal for business rules was conditioned on verified-equivalent domain-layer enforcement first (Q45) — this was audited and closed this session (see table below).
+
+**Q45 verification (business-rule CHECK → domain-layer equivalent), confirmed 2026-07-05:**
+
+| Dropped CHECK | Domain-layer replacement |
+|---|---|
+| `wealth.transaction` `amount >= 0` | `Transaction.create()` throws `IllegalArgumentException` |
+| `health.vital_reading` `value_primary > 0`, BP-secondary-required | `VitalReading.create()` |
+| `health.doctor_visit` `to_date >= from_date`, doctor-name-required-when-visited | `DoctorVisit.create()` |
+| `household.goal` `target_amount > 0` | Pre-existing `Goal.create()` (established convention before this consolidation) |
+| `household.goal` `current_amount >= 0` | `GoalService.updateCurrentAmount()` guard (added this session) |
+| `household.calendar_event` `end_date >= start_date` | Pre-existing `CalendarEvent.create()` |
+| `household.inventory_item` `quantity > 0` | Pre-existing `InventoryItem.create()` |
+
+**Execution verification:** Full local `app_db` reset (`scripts/db-reset.ps1`) + fresh migration of all 5 consolidated V1 scripts + full adapter test suite across profile, wealth, health, household, projections — all green, 2026-07-05.
+
+**Rationale for CHECK-only removal (vs. the plan's original FK+CHECK+UNIQUE removal):** Adding a new discriminator or business rule now requires only a domain/contract change, no Flyway migration — the original goal. But referential integrity and natural-key uniqueness are structural invariants worth keeping at the DB layer as a last line of defense; recreating them at the application layer (existence-check REST calls for cross-service FKs, pre-insert uniqueness checks) trades a free, atomic DB guarantee for a slower, non-atomic, easy-to-forget application-layer approximation with real gaps (multi-step delete atomicity, network-call coupling for cross-service checks). Not a good trade at this project's scale.
+
+**Rejected alternative:** Drop FK/UNIQUE too (the plan's original draft direction) — rejected per the reasoning above; see `documents/flyway-consolidation-plan.md` Section 2 for the full accepted-risk table that was drafted for this alternative before it was overridden.
+
+**Supersedes:** The DB constraint philosophy previously documented in `CLAUDE.md` prior to 2026-07-05 (which additionally allowed business-rule CHECKs like `amount >= 0` to stay in the DB). This ADR's policy is now the one recorded in `CLAUDE.md`'s "DB constraint philosophy" section.

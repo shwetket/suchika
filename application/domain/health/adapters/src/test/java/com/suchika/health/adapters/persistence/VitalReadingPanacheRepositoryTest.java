@@ -5,6 +5,8 @@ import com.suchika.health.domain.VitalType;
 import com.suchika.health.ports.output.VitalReadingRepository;
 import io.quarkus.test.TestTransaction;
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.junit.QuarkusTestProfile;
+import io.quarkus.test.junit.TestProfile;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
@@ -23,8 +25,16 @@ import static org.junit.jupiter.api.Assertions.*;
  * Each test runs in a transaction that is rolled back on completion.
  */
 @QuarkusTest
+@TestProfile(VitalReadingPanacheRepositoryTest.DatabaseIntegrationProfile.class)
 @TestTransaction
 class VitalReadingPanacheRepositoryTest {
+
+    public static class DatabaseIntegrationProfile implements QuarkusTestProfile {
+        @Override
+        public String getConfigProfile() {
+            return "integration-test";
+        }
+    }
 
     // Seeded in R__seed_health_test_data.sql — guaranteed to exist when profile service has run
     private static final UUID SEED_PROFILE_ID = UUID.fromString("00000000-0000-0000-0000-000000000002");

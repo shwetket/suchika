@@ -12,7 +12,7 @@ Give any agent or developer instant context on the profile domain — what's bui
 
 ---
 
-**Last updated:** 2026-07-03
+**Last updated:** 2026-07-05
 **Version:** v0.2 complete — UAT-ready; Epic 8 Phase 4 delivered; v0.6 adapter/domain test coverage added; Setup Wizard + gateway/contract fixes added
 **Port:** 8081
 
@@ -36,12 +36,14 @@ Give any agent or developer instant context on the profile domain — what's bui
 
 | Table | Key Columns |
 |---|---|
-| `admin` | `id UUID PK`, `display_name VARCHAR(150)`, `email_address VARCHAR`, `is_active BOOLEAN`, `created_at TIMESTAMPTZ`, `policy_settings JSONB NOT NULL DEFAULT '{}'` |
-| `profile` | `id UUID PK`, `admin_id UUID FK→admin.id`, `full_name VARCHAR(150)`, `dob DATE`, `relation_to_admin VARCHAR(30)`, `email_address VARCHAR`, `gender VARCHAR(30)`, `blood_type VARCHAR(10)`, `is_active BOOLEAN` |
+| `admin` | `id UUID PK`, `display_name VARCHAR(50)`, `email_address VARCHAR`, `is_active BOOLEAN`, `created_at TIMESTAMPTZ`, `policy_settings JSONB NOT NULL DEFAULT '{}'`, `UNIQUE (email_address)` (`uq_admin_email`) |
+| `profile` | `id UUID PK`, `admin_id UUID FK→admin.id ON DELETE RESTRICT` (`fk_profile_admin`), `full_name VARCHAR(50)`, `dob DATE`, `relation_to_admin VARCHAR(30)`, `email_address VARCHAR`, `gender VARCHAR(30)`, `blood_type VARCHAR(10)`, `is_active BOOLEAN`; partial unique index `uq_admin_self_profile ON profile(admin_id) WHERE relation_to_admin = 'SELF'` |
 
 Relation values (VARCHAR, no SQL ENUM): `SELF`, `SPOUSE`, `CHILD`, `PARENT`, `SIBLING`, `OTHER`
 
 Every other domain's tables hold `profile_id UUID REFERENCES profile.profile(id)`. No reverse FK from profile to other domains.
+
+**2026-07-05 — Flyway consolidation bug fix.** `application/flyway/profile/V1__init_profile_consolidated.sql` (the single-file replacement for the old V1-V3 profile migrations) had silently dropped `fk_profile_admin`, `uq_admin_email`, and `uq_admin_self_profile`, and had widened `display_name`/`full_name` to `VARCHAR(150)` instead of narrowing to `VARCHAR(50)` — contradicting already-resolved product-owner decisions (`documents/OpenQuestions.md` Q31, Q44, Q46). Fixed in place (Q32 already approved overwriting the consolidated V1 pre-release). CHECK constraints (`chk_profile_relation`, `chk_profile_gender`, `chk_profile_blood_type`) were correctly left out — that removal is intentional per the same migration history, not a regression.
 
 ---
 
@@ -116,3 +118,9 @@ Gateway proxy: `application/web-gateway/.../profile/ProfileGatewayResource.java`
 
 - ✅ **`SetupWizardIT` added** (`application/domain/profile/adapters/src/test/java/com/suchika/profile/adapters/http/SetupWizardIT.java`) — true `@QuarkusTest` + real Postgres integration test covering the full Setup Wizard backend flow in one test: `POST /v1/admins` -> `POST /v1/profiles` (relation SELF) -> `PATCH /v1/admins/{id}/policy`, using the real, DI-wired `AdminService`/`ProfileService` and real Panache repositories (not the stub use-case pattern `AdminResourceTest`/`ProfileResourceTest` use). Also covers the duplicate-SELF-profile -> 409 `ConflictException` path (`ProfileService.existsSelfProfile` check). Compile-verified clean (`./gradlew :application:domain:profile:adapters:compileTestJava`); **not executed** this session — see `documents/OpenQuestions.md` Q34 for why (the module's `%test` Flyway profile points at the same live shared dev Postgres the developer was manually testing against, and would TRUNCATE CASCADE via `R__seed_profile_test_data.sql` on startup).
 - Follows the direct-resource-construction convention already used by `ProfileResourceTest`/`AdminResourceTest` (construct the real `@Path` resource class by hand, call its methods directly) rather than RestAssured — this module has no `rest-assured` test dependency (see Q38).
+
+## Flyway Consolidation Fix — 2026-07-05
+
+- ✅ **Migration bug fix** (`application/flyway/profile/V1__init_profile_consolidated.sql`): restored `fk_profile_admin` (profile.profile.admin_id → profile.admin.id, `ON DELETE RESTRICT`), `uq_admin_email` (table `UNIQUE` on admin.email_address), and `uq_admin_self_profile` (partial unique index, one SELF profile per admin); narrowed `admin.display_name` and `profile.full_name` from the wrongly-widened `VARCHAR(150)` to the resolved `VARCHAR(50)` (Q44). CHECK constraints intentionally not restored (already-accepted enum-to-contract policy, Q31/V2 history).
+- ✅ **Fallout fix (discovered, not in the original bug report):** `ProfileEntity.fullName` and `AdminEntity.displayName` (`application/domain/profile/adapters/src/main/java/com/suchika/profile/adapters/persistence/`) had `@Column(length = 150)`, and `application/contract/profile.yaml`'s `CreateAdminRequest`/`UpdateAdminRequest.display_name` had `maxLength: 150`. Left at 150 after narrowing the DB column to 50, this would have failed Hibernate schema validation at startup (`quarkus.hibernate-orm.database.generation=validate` in `application.properties` — a real boot-breaking mismatch, not just a style issue). Narrowed both to 50 to match. Note: `application/contract/profile.yaml` has no `maxLength` on `full_name` at all (pre-existing gap, unrelated to this fix — left alone), and the web-gateway's mirror (`application/web-gateway/src/main/resources/profile.yaml`) still has stale `maxLength: 150` on both `display_name` and `full_name` (4 occurrences) — pre-existing drift, same category as the already-documented stale `gateway.yaml` mirror; deferred, not fixed here.
+- **Test results:** `:application:domain:profile:domain:test` — 13/13 pass (`AdminTest`, `BloodTypeTest`, `ProfileTest`). `:application:domain:profile:adapters:test` — 47/49 pass; `SetupWizardIT` (2 tests) failed to boot with `FlywayValidateException: Migration checksum mismatch for migration version 1` — **expected**, not a regression: editing an already-applied V1 migration in place invalidates its recorded checksum on whatever local Postgres previously ran the old content, and Q32 already accepted "requires manual dev DB resets" as the consequence of in-place V1 edits during this consolidation. Run `db-reset` (or `db-reset -Force`) then restart profile to clear it — not performed here since it also wipes wealth/health/household schemas in the shared local `app_db`, out of scope for a profile-only fix.

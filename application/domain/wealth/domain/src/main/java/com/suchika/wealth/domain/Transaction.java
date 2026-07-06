@@ -32,6 +32,29 @@ public class Transaction {
         this.createdAt = builder.createdAt;
     }
 
+    /**
+     * Factory for newly-created transactions. Validates {@code amount} since the
+     * DB-level {@code CHECK (amount >= 0)} constraint was removed in the Flyway
+     * consolidation (business-rule CHECKs moved to the application layer per
+     * documents/OpenQuestions.md Q31/Q45). Direction is carried by {@code txnType},
+     * never by the sign of amount — amounts are always stored non-negative.
+     */
+    public static Transaction create(UUID accountId, UUID uploadId, LocalDate txnDate, BigDecimal amount,
+                                      TxnType txnType, String description, Map<String, String> metadata) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("amount must not be null and must be >= 0");
+        }
+        return new Builder()
+                .accountId(accountId)
+                .uploadId(uploadId)
+                .txnDate(txnDate)
+                .amount(amount)
+                .txnType(txnType)
+                .description(description)
+                .metadata(metadata)
+                .build();
+    }
+
     public static Builder builder() { return new Builder(); }
 
     public static final class Builder {

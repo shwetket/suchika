@@ -40,4 +40,6 @@ public interface TransactionRepository {
      * Returns BigDecimal.ZERO when there are no matching rows.
      */
     BigDecimal sumAmountByTxnType(UUID accountId, UUID profileId, TxnType txnType);
+
+    void deleteByUploadId(UUID uploadId);
 }
