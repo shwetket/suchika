@@ -23,6 +23,9 @@ import java.util.UUID;
 @Consumes(MediaType.APPLICATION_JSON)
 public class VitalReadingResource {
 
+    private static final int DEFAULT_PAGE_SIZE = 50;
+    private static final int MAX_PAGE_SIZE = 200;
+
     private final VitalReadingUseCase useCase;
 
     public VitalReadingResource(VitalReadingUseCase useCase) {
@@ -37,12 +40,28 @@ public class VitalReadingResource {
             @QueryParam("size") Integer sizeParam) {
 
         VitalType vitalType = parseVitalType(vitalTypeParam);
-        int page = ResourceUtils.parsePage(pageParam);
-        int size = ResourceUtils.parseSize(sizeParam);
+        int page = parsePage(pageParam);
+        int size = parseSize(sizeParam);
 
         PagedVitalReadings result = useCase.listByProfilePaginated(profileId, vitalType, page, size);
         List<VitalReadingResponse> readings = result.readings().stream().map(VitalReadingResponse::from).toList();
         return Response.ok(new ListVitalReadingsResponse(readings, result.totalCount(), page, size)).build();
+    }
+
+    private int parsePage(Integer pageParam) {
+        int page = pageParam != null ? pageParam : 0;
+        if (page < 0) {
+            throw new BadRequestException("page must be >= 0");
+        }
+        return page;
+    }
+
+    private int parseSize(Integer sizeParam) {
+        int size = sizeParam != null ? sizeParam : DEFAULT_PAGE_SIZE;
+        if (size < 1 || size > MAX_PAGE_SIZE) {
+            throw new BadRequestException("size must be between 1 and " + MAX_PAGE_SIZE);
+        }
+        return size;
     }
 
 

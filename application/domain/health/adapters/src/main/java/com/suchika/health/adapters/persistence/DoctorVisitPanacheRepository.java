@@ -38,14 +38,14 @@ public class DoctorVisitPanacheRepository implements DoctorVisitRepository {
 
     @Override
     public List<DoctorVisit> findByProfileId(UUID profileId, LocalDate from, LocalDate to) {
-        PanacheQueryFilter filter = buildFilter(profileId, from, to);
+        Filter filter = buildFilter(profileId, from, to);
         return dao.find(filter.query(), filter.params().toArray())
                 .stream().map(DoctorVisitEntity::toDomain).toList();
     }
 
     @Override
     public List<DoctorVisit> findByProfileId(UUID profileId, LocalDate from, LocalDate to, int page, int size) {
-        PanacheQueryFilter filter = buildFilter(profileId, from, to);
+        Filter filter = buildFilter(profileId, from, to);
         return dao.find(filter.query(), filter.params().toArray())
                 .page(Page.of(page, size))
                 .list()
@@ -54,7 +54,7 @@ public class DoctorVisitPanacheRepository implements DoctorVisitRepository {
 
     @Override
     public long countByProfileId(UUID profileId, LocalDate from, LocalDate to) {
-        PanacheQueryFilter filter = buildFilter(profileId, from, to);
+        Filter filter = buildFilter(profileId, from, to);
         return dao.find(filter.query(), filter.params().toArray()).count();
     }
 
@@ -63,7 +63,7 @@ public class DoctorVisitPanacheRepository implements DoctorVisitRepository {
      * {@code countByProfileId} — keeps the filter logic in exactly one place
      * (Sonar CPD) now that there are three call sites needing the same predicate.
      */
-    private PanacheQueryFilter buildFilter(UUID profileId, LocalDate from, LocalDate to) {
+    private Filter buildFilter(UUID profileId, LocalDate from, LocalDate to) {
         StringBuilder query = new StringBuilder("profileId = ?1");
         List<Object> params = new java.util.ArrayList<>();
         params.add(profileId);
@@ -79,7 +79,10 @@ public class DoctorVisitPanacheRepository implements DoctorVisitRepository {
         }
         query.append(" order by fromDate desc");
 
-        return new PanacheQueryFilter(query.toString(), params);
+        return new Filter(query.toString(), params);
+    }
+
+    private record Filter(String query, List<Object> params) {
     }
 
     @Override
