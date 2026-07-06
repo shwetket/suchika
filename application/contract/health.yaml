@@ -39,6 +39,8 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/VitalType'
+        - $ref: './shared.yaml#/components/parameters/Page'
+        - $ref: './shared.yaml#/components/parameters/Size'
       responses:
         '200':
           description: Readings returned newest-first
@@ -166,6 +168,8 @@ paths:
           schema:
             type: string
             format: date
+        - $ref: './shared.yaml#/components/parameters/Page'
+        - $ref: './shared.yaml#/components/parameters/Size'
       responses:
         '200':
           description: Visits listed
@@ -388,6 +392,13 @@ components:
             $ref: '#/components/schemas/VitalReading'
         total_size:
           type: integer
+          description: Total count matching the filter across all pages.
+        page:
+          type: integer
+          description: Present only on the paginated GET list endpoint.
+        size:
+          type: integer
+          description: Present only on the paginated GET list endpoint.
 
     DoctorVisit:
       type: object
@@ -523,3 +534,10 @@ components:
             $ref: '#/components/schemas/DoctorVisit'
         total_size:
           type: integer
+          description: Total count matching the filter across all pages.
+        page:
+          type: integer
+          description: Present only on the paginated GET list endpoint.
+        size:
+          type: integer
+          description: Present only on the paginated GET list endpoint.

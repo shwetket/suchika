@@ -20,6 +20,19 @@ public interface DoctorVisitRepository {
      */
     List<DoctorVisit> findByProfileId(UUID profileId, LocalDate from, LocalDate to);
 
+    /**
+     * Paginated variant of {@link #findByProfileId} — pre-v1.0 pagination pass (Q54).
+     * {@code page} is 0-indexed. Same filter predicate as the unpaginated method;
+     * use {@link #countByProfileId} for the total matching count.
+     */
+    List<DoctorVisit> findByProfileId(UUID profileId, LocalDate from, LocalDate to, int page, int size);
+
+    /**
+     * Total count of visits matching the same filter predicate as
+     * {@link #findByProfileId}, ignoring pagination — used to compute total pages.
+     */
+    long countByProfileId(UUID profileId, LocalDate from, LocalDate to);
+
     void deleteById(UUID id);
 
     boolean existsById(UUID id);

@@ -2,6 +2,7 @@ package com.suchika.health.adapters.persistence;
 
 import com.suchika.health.domain.DoctorVisit;
 import com.suchika.health.ports.output.DoctorVisitRepository;
+import io.quarkus.panache.common.Page;
 import jakarta.enterprise.context.ApplicationScoped;
 
 import java.time.LocalDate;
@@ -36,6 +37,32 @@ public class DoctorVisitPanacheRepository implements DoctorVisitRepository {
 
     @Override
     public List<DoctorVisit> findByProfileId(UUID profileId, LocalDate from, LocalDate to) {
+        Filter filter = buildFilter(profileId, from, to);
+        return dao.find(filter.query(), filter.params().toArray())
+                .stream().map(DoctorVisitEntity::toDomain).toList();
+    }
+
+    @Override
+    public List<DoctorVisit> findByProfileId(UUID profileId, LocalDate from, LocalDate to, int page, int size) {
+        Filter filter = buildFilter(profileId, from, to);
+        return dao.find(filter.query(), filter.params().toArray())
+                .page(Page.of(page, size))
+                .list()
+                .stream().map(DoctorVisitEntity::toDomain).toList();
+    }
+
+    @Override
+    public long countByProfileId(UUID profileId, LocalDate from, LocalDate to) {
+        Filter filter = buildFilter(profileId, from, to);
+        return dao.find(filter.query(), filter.params().toArray()).count();
+    }
+
+    /**
+     * Shared predicate builder for {@code findByProfileId} (both variants) and
+     * {@code countByProfileId} — keeps the filter logic in exactly one place
+     * (Sonar CPD) now that there are three call sites needing the same predicate.
+     */
+    private Filter buildFilter(UUID profileId, LocalDate from, LocalDate to) {
         StringBuilder query = new StringBuilder("profileId = ?1");
         List<Object> params = new java.util.ArrayList<>();
         params.add(profileId);
@@ -51,8 +78,10 @@ public class DoctorVisitPanacheRepository implements DoctorVisitRepository {
         }
         query.append(" order by fromDate desc");
 
-        return dao.find(query.toString(), params.toArray())
-                .stream().map(DoctorVisitEntity::toDomain).toList();
+        return new Filter(query.toString(), params);
+    }
+
+    private record Filter(String query, List<Object> params) {
     }
 
     @Override

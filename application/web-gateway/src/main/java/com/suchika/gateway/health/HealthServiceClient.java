@@ -18,7 +18,9 @@ public interface HealthServiceClient {
     @Path("/vitals")
     JsonNode listVitals(
             @QueryParam("profile_id") UUID profileId,
-            @QueryParam("vital_type") String vitalType);
+            @QueryParam("vital_type") String vitalType,
+            @QueryParam("page") Integer page,
+            @QueryParam("size") Integer size);
 
     @POST
     @Path("/vitals")
@@ -41,7 +43,9 @@ public interface HealthServiceClient {
     JsonNode listDoctorVisits(
             @QueryParam("profile_id") UUID profileId,
             @QueryParam("from") String from,
-            @QueryParam("to") String to);
+            @QueryParam("to") String to,
+            @QueryParam("page") Integer page,
+            @QueryParam("size") Integer size);
 
     @POST
     @Path("/doctor-visits")

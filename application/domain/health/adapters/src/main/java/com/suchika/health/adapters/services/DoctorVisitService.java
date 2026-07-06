@@ -3,6 +3,7 @@ package com.suchika.health.adapters.services;
 import com.suchika.health.domain.DoctorVisit;
 import com.suchika.health.ports.input.CreateDoctorVisitCommand;
 import com.suchika.health.ports.input.DoctorVisitUseCase;
+import com.suchika.health.ports.input.PagedDoctorVisits;
 import com.suchika.health.ports.input.UpdateDoctorVisitCommand;
 import com.suchika.health.ports.output.DoctorVisitRepository;
 import com.suchika.shared.exception.BadRequestException;
@@ -52,6 +53,16 @@ public class DoctorVisitService implements DoctorVisitUseCase {
             throw new BadRequestException("profile_id is required");
         }
         return repository.findByProfileId(profileId, from, to);
+    }
+
+    @Override
+    public PagedDoctorVisits listByProfilePaginated(UUID profileId, LocalDate from, LocalDate to, int page, int size) {
+        if (profileId == null) {
+            throw new BadRequestException("profile_id is required");
+        }
+        List<DoctorVisit> visits = repository.findByProfileId(profileId, from, to, page, size);
+        long totalCount = repository.countByProfileId(profileId, from, to);
+        return new PagedDoctorVisits(visits, totalCount);
     }
 
     @Override

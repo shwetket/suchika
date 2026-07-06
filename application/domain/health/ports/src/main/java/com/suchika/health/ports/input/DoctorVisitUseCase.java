@@ -19,6 +19,13 @@ public interface DoctorVisitUseCase {
      */
     List<DoctorVisit> listByProfile(UUID profileId, LocalDate from, LocalDate to);
 
+    /**
+     * Paginated variant of {@link #listByProfile} — pre-v1.0 pagination pass (Q54).
+     * {@code page} is 0-indexed. Used by the HTTP list endpoint; {@link #listByProfile}
+     * stays as-is for any caller that wants the full list.
+     */
+    PagedDoctorVisits listByProfilePaginated(UUID profileId, LocalDate from, LocalDate to, int page, int size);
+
     DoctorVisit update(UUID id, UpdateDoctorVisitCommand command);
 
     void delete(UUID id);

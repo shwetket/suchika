@@ -6,6 +6,7 @@ import com.suchika.health.adapters.http.dto.ListDoctorVisitsResponse;
 import com.suchika.health.adapters.http.dto.UpdateDoctorVisitRequest;
 import com.suchika.health.ports.input.CreateDoctorVisitCommand;
 import com.suchika.health.ports.input.DoctorVisitUseCase;
+import com.suchika.health.ports.input.PagedDoctorVisits;
 import com.suchika.health.ports.input.UpdateDoctorVisitCommand;
 import com.suchika.shared.exception.BadRequestException;
 import jakarta.ws.rs.*;
@@ -21,6 +22,9 @@ import java.util.UUID;
 @Consumes(MediaType.APPLICATION_JSON)
 public class DoctorVisitResource {
 
+    private static final int DEFAULT_PAGE_SIZE = 50;
+    private static final int MAX_PAGE_SIZE = 200;
+
     private final DoctorVisitUseCase useCase;
 
     public DoctorVisitResource(DoctorVisitUseCase useCase) {
@@ -31,12 +35,17 @@ public class DoctorVisitResource {
     public Response listVisits(
             @QueryParam("profile_id") UUID profileId,
             @QueryParam("from") String fromParam,
-            @QueryParam("to") String toParam) {
+            @QueryParam("to") String toParam,
+            @QueryParam("page") Integer pageParam,
+            @QueryParam("size") Integer sizeParam) {
         LocalDate from = parseDate(fromParam, "from");
         LocalDate to = parseDate(toParam, "to");
-        List<DoctorVisitResponse> visits = useCase.listByProfile(profileId, from, to)
-                .stream().map(DoctorVisitResponse::from).toList();
-        return Response.ok(new ListDoctorVisitsResponse(visits)).build();
+        int page = parsePage(pageParam);
+        int size = parseSize(sizeParam);
+
+        PagedDoctorVisits result = useCase.listByProfilePaginated(profileId, from, to, page, size);
+        List<DoctorVisitResponse> visits = result.visits().stream().map(DoctorVisitResponse::from).toList();
+        return Response.ok(new ListDoctorVisitsResponse(visits, result.totalCount(), page, size)).build();
     }
 
     private LocalDate parseDate(String value, String paramName) {
@@ -46,6 +55,22 @@ public class DoctorVisitResource {
         } catch (Exception e) {
             throw new BadRequestException("Invalid " + paramName + " date: " + value + " (expected yyyy-MM-dd)");
         }
+    }
+
+    private int parsePage(Integer pageParam) {
+        int page = pageParam != null ? pageParam : 0;
+        if (page < 0) {
+            throw new BadRequestException("page must be >= 0");
+        }
+        return page;
+    }
+
+    private int parseSize(Integer sizeParam) {
+        int size = sizeParam != null ? sizeParam : DEFAULT_PAGE_SIZE;
+        if (size < 1 || size > MAX_PAGE_SIZE) {
+            throw new BadRequestException("size must be between 1 and " + MAX_PAGE_SIZE);
+        }
+        return size;
     }
 
     @POST
