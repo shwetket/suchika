@@ -145,6 +145,38 @@ paths:
         '500':
           $ref: './shared.yaml#/components/responses/InternalError'
 
+  /v1/admins/{admin_id}/policy:
+
+    patch:
+      tags: [Admins]
+      summary: Merge household policy settings
+      description: >
+        Merges the provided keys into the admin's existing policy_settings map.
+        Keys with a null value are ignored (existing value is preserved).
+        Omitted keys are also preserved. Only provided non-null values are applied.
+      operationId: updateAdminPolicySettings
+      parameters:
+        - $ref: '#/components/parameters/AdminId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAdminPolicyRequest'
+      responses:
+        '200':
+          description: OK — updated admin with merged policy_settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
   # ============================================================
   # PROFILES
   # ============================================================
@@ -379,6 +411,14 @@ components:
           type: string
           format: date-time
           readOnly: true
+        policy_settings:
+          type: object
+          additionalProperties:
+            type: string
+          description: >
+            Household-level policy thresholds. All keys optional.
+            Known keys: monthly_budget_cap, debt_crossover_threshold_percent,
+            freedom_runway_months, insurance_multiple, year_one_annual_target.
 
     CreateAdminRequest:
       type: object
@@ -388,7 +428,7 @@ components:
         display_name:
           type: string
           minLength: 1
-          maxLength: 150
+          maxLength: 50
           example: "Ketan"
         email_address:
           type: string
@@ -403,13 +443,26 @@ components:
         display_name:
           type: string
           minLength: 1
-          maxLength: 150
+          maxLength: 50
         email_address:
           type: string
           format: email
           nullable: true
         is_active:
           type: boolean
+
+    UpdateAdminPolicyRequest:
+      type: object
+      required: [policy_settings]
+      properties:
+        policy_settings:
+          type: object
+          additionalProperties:
+            type: string
+            nullable: true
+          description: >
+            Keys to merge into the existing policy_settings map.
+            A null value for a key leaves the existing value unchanged.
 
     ListAdminsResponse:
       type: object
@@ -459,7 +512,7 @@ components:
         full_name:
           type: string
           minLength: 1
-          maxLength: 150
+          maxLength: 50
           example: "Ketan Verma"
         dob:
           type: string
@@ -502,7 +555,7 @@ components:
         full_name:
           type: string
           minLength: 1
-          maxLength: 150
+          maxLength: 50
           example: "Ketan Verma"
         dob:
           type: string

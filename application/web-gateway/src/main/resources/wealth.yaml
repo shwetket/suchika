@@ -36,8 +36,8 @@ paths:
         Supports filtering by account_type and is_active.
         Follows AIP-132 (Standard List) and AIP-158 (Pagination).
       parameters:
-        - $ref: '#/components/parameters/PageSize'
-        - $ref: '#/components/parameters/PageToken'
+        - $ref: './shared.yaml#/components/parameters/PageSize'
+        - $ref: './shared.yaml#/components/parameters/PageToken'
         - name: account_type
           in: query
           required: false
@@ -48,12 +48,7 @@ paths:
           required: false
           schema:
             type: boolean
-        - name: profile_id
-          in: query
-          required: false
-          schema:
-            type: string
-            format: uuid
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
       responses:
         '200':
           description: Successfully listed accounts
@@ -62,9 +57,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/ListAccountsResponse'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: './shared.yaml#/components/responses/BadRequest'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
     post:
       tags: [Accounts]
@@ -75,12 +70,7 @@ paths:
         Follows AIP-133 (Standard Create).
         The name field must be unique per institution.
       parameters:
-        - name: profile_id
-          in: query
-          required: false
-          schema:
-            type: string
-            format: uuid
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
       requestBody:
         required: true
         content:
@@ -95,11 +85,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/Account'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: './shared.yaml#/components/responses/BadRequest'
         '409':
-          $ref: '#/components/responses/Conflict'
+          $ref: './shared.yaml#/components/responses/Conflict'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
   /v1/accounts/{account_id}/uploads:
 
@@ -123,11 +113,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/StatementUploadResponse'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: './shared.yaml#/components/responses/BadRequest'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
     get:
       tags: [Uploads]
@@ -143,7 +133,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ListUploadsResponse'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
   /v1/accounts/{account_id}/uploads/{upload_id}:
 
@@ -158,9 +148,9 @@ paths:
         '204':
           description: Upload rolled back
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
   /v1/accounts/{account_id}/uploads/{upload_id}/errors:
 
@@ -181,9 +171,9 @@ paths:
                 items:
                   $ref: '#/components/schemas/UploadErrorLogResponse'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
   /v1/accounts/{account_id}/balance:
 
@@ -197,12 +187,7 @@ paths:
         alone is only the snapshot recorded at account creation, not the running balance.
       parameters:
         - $ref: '#/components/parameters/AccountId'
-        - name: profile_id
-          in: query
-          required: false
-          schema:
-            type: string
-            format: uuid
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
       responses:
         '200':
           description: Computed account balance
@@ -211,9 +196,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/AccountBalance'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
   /v1/accounts/{account_id}/classification:
 
@@ -242,11 +227,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/Account'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: './shared.yaml#/components/responses/BadRequest'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
   /v1/accounts/{account_id}/amortization:
 
@@ -261,12 +246,7 @@ paths:
         loan_start_date, original_tenure_months). Epic 8 Phase 3.
       parameters:
         - $ref: '#/components/parameters/AccountId'
-        - name: profile_id
-          in: query
-          required: false
-          schema:
-            type: string
-            format: uuid
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
       responses:
         '200':
           description: Amortization summary as of today
@@ -275,11 +255,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/AmortizationSummaryResponse'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: './shared.yaml#/components/responses/BadRequest'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
   /v1/accounts/{account_id}/transactions:
 
@@ -289,12 +269,7 @@ paths:
       summary: List transactions for an account
       parameters:
         - $ref: '#/components/parameters/AccountId'
-        - name: profile_id
-          in: query
-          required: false
-          schema:
-            type: string
-            format: uuid
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
         - name: from
           in: query
           required: false
@@ -335,9 +310,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/ListTransactionsResponse'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: './shared.yaml#/components/responses/BadRequest'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
     post:
       tags: [Transactions]
@@ -349,12 +324,7 @@ paths:
         CSV-imported rows. No dedup check — manual entries are always intentional.
       parameters:
         - $ref: '#/components/parameters/AccountId'
-        - name: profile_id
-          in: query
-          required: false
-          schema:
-            type: string
-            format: uuid
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
       requestBody:
         required: true
         content:
@@ -369,9 +339,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/Transaction'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: './shared.yaml#/components/responses/BadRequest'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
   /v1/accounts/{account_id}/transactions/{txn_id}:
 
@@ -390,9 +360,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/Transaction'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
   /v1/accounts/{account_id}/transactions/{txn_id}/category:
 
@@ -420,11 +390,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/Transaction'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: './shared.yaml#/components/responses/BadRequest'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
   /v1/accounts/{account_id}/transactions/category:
 
@@ -451,11 +421,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/ListTransactionsResponse'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: './shared.yaml#/components/responses/BadRequest'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
   /v1/accounts/{account_id}:
 
@@ -476,9 +446,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/Account'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
     patch:
       tags: [Accounts]
@@ -505,11 +475,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/Account'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: './shared.yaml#/components/responses/BadRequest'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
     delete:
       tags: [Accounts]
@@ -525,11 +495,11 @@ paths:
         '204':
           description: Account deactivated successfully
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '409':
-          $ref: '#/components/responses/Conflict'
+          $ref: './shared.yaml#/components/responses/Conflict'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
   /v1/physical-assets:
 
@@ -551,12 +521,7 @@ paths:
           required: false
           schema:
             type: boolean
-        - name: profile_id
-          in: query
-          required: false
-          schema:
-            type: string
-            format: uuid
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
       responses:
         '200':
           description: Successfully listed physical assets
@@ -565,9 +530,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/ListPhysicalAssetsResponse'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: './shared.yaml#/components/responses/BadRequest'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
     post:
       tags: [PhysicalAssets]
@@ -577,12 +542,7 @@ paths:
         Creates a new physical asset. Follows AIP-133 (Standard Create).
         registration_number must be unique across all assets.
       parameters:
-        - name: profile_id
-          in: query
-          required: false
-          schema:
-            type: string
-            format: uuid
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
       requestBody:
         required: true
         content:
@@ -597,11 +557,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/PhysicalAsset'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: './shared.yaml#/components/responses/BadRequest'
         '409':
-          $ref: '#/components/responses/Conflict'
+          $ref: './shared.yaml#/components/responses/Conflict'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
   /v1/physical-assets/{asset_id}:
 
@@ -620,9 +580,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/PhysicalAsset'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
     patch:
       tags: [PhysicalAssets]
@@ -649,11 +609,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/PhysicalAsset'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: './shared.yaml#/components/responses/BadRequest'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
     delete:
       tags: [PhysicalAssets]
@@ -668,9 +628,9 @@ paths:
         '204':
           description: Physical asset deactivated successfully
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
 components:
 
@@ -712,29 +672,6 @@ components:
       schema:
         type: string
         format: uuid
-
-    PageSize:
-      name: page_size
-      in: query
-      required: false
-      description: >
-        Maximum number of items to return.
-        Follows AIP-158. Defaults to 20, maximum 100.
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 100
-        default: 20
-
-    PageToken:
-      name: page_token
-      in: query
-      required: false
-      description: >
-        Token from previous response next_page_token.
-        Omit for first page.
-      schema:
-        type: string
 
   schemas:
 
@@ -873,6 +810,8 @@ components:
         institution_name:
           type: string
           example: "HDFC Bank"
+        currency:
+          $ref: './shared.yaml#/components/schemas/Currency'
         opening_balance:
           type: number
           format: double
@@ -942,6 +881,8 @@ components:
           minLength: 1
           maxLength: 100
           example: "HDFC Bank"
+        currency:
+          $ref: './shared.yaml#/components/schemas/Currency'
         opening_balance:
           type: number
           format: double
@@ -1305,86 +1246,3 @@ components:
           type: integer
           description: Total number of physical assets matching the filter
 
-    Error:
-      type: object
-      description: >
-        Standard error response. Follows AIP-193 and
-        Google error model structure.
-      required:
-        - code
-        - message
-        - status
-      properties:
-        code:
-          type: integer
-          description: HTTP status code
-          example: 404
-        status:
-          type: string
-          description: Error status string
-          example: "NOT_FOUND"
-        message:
-          type: string
-          description: Human readable error message
-          example: "Account a1b2c3d4 not found"
-        details:
-          type: array
-          description: Additional error details
-          items:
-            type: object
-            properties:
-              field:
-                type: string
-                example: "account_name"
-              issue:
-                type: string
-                example: "must not be blank"
-
-  responses:
-
-    BadRequest:
-      description: Request validation failed
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-          example:
-            code: 400
-            status: "INVALID_ARGUMENT"
-            message: "Request validation failed"
-            details:
-              - field: "account_name"
-                issue: "must not be blank"
-
-    NotFound:
-      description: Resource not found
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-          example:
-            code: 404
-            status: "NOT_FOUND"
-            message: "Account not found"
-
-    Conflict:
-      description: Resource already exists or has conflicting state
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-          example:
-            code: 409
-            status: "ALREADY_EXISTS"
-            message: "Account with this name already exists"
-
-    InternalError:
-      description: Unexpected server error
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-          example:
-            code: 500
-            status: "INTERNAL"
-            message: "An unexpected error occurred"

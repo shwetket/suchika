@@ -8,6 +8,7 @@ public record CreateAccountCommand(
         String accountName,
         AccountType accountType,
         String institutionName,
+        String currency,
         BigDecimal openingBalance,
         BigDecimal creditLimit,
         BigDecimal interestRate,

@@ -57,6 +57,7 @@ public class AccountService implements AccountUseCase {
                 .accountName(command.accountName())
                 .accountType(command.accountType())
                 .institutionName(command.institutionName())
+                .currency(command.currency() != null && !command.currency().isBlank() ? command.currency() : "INR")
                 .openingBalance(command.openingBalance() != null ? command.openingBalance() : BigDecimal.ZERO)
                 .creditLimit(command.creditLimit())
                 .interestRate(command.interestRate())

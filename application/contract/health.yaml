@@ -33,12 +33,7 @@ paths:
         order (newest first). Optionally filter by vital_type.
         Covers v0.2 Use Case 2.1 — Time-Series Ledger.
       parameters:
-        - name: profile_id
-          in: query
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
         - name: vital_type
           in: query
           required: false
@@ -52,9 +47,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/ListVitalReadingsResponse'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: './shared.yaml#/components/responses/BadRequest'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
     post:
       tags: [Vital Readings]
@@ -77,9 +72,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/VitalReading'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: './shared.yaml#/components/responses/BadRequest'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
   /v1/vitals/{id}:
 
@@ -97,9 +92,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/VitalReading'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
     patch:
       tags: [Vital Readings]
@@ -124,11 +119,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/VitalReading'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: './shared.yaml#/components/responses/BadRequest'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
     delete:
       tags: [Vital Readings]
@@ -140,9 +135,9 @@ paths:
         '204':
           description: Reading deleted
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
   # ── Doctor Visits ─────────────────────────────────────────────────────────────
 
@@ -156,12 +151,7 @@ paths:
         Returns visits newest-first, optionally filtered by from_date falling
         within [from, to] (v0.6 UX item — date-range filter).
       parameters:
-        - name: profile_id
-          in: query
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
         - name: from
           in: query
           required: false
@@ -184,9 +174,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/ListDoctorVisitsResponse'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: './shared.yaml#/components/responses/BadRequest'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
     post:
       tags: [Doctor Visits]
@@ -206,9 +196,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/DoctorVisit'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: './shared.yaml#/components/responses/BadRequest'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
   /v1/doctor-visits/{id}:
 
@@ -226,9 +216,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/DoctorVisit'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
     patch:
       tags: [Doctor Visits]
@@ -251,11 +241,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/DoctorVisit'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: './shared.yaml#/components/responses/BadRequest'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
     delete:
       tags: [Doctor Visits]
@@ -267,9 +257,9 @@ paths:
         '204':
           description: Visit deleted
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
 components:
 
@@ -533,46 +523,3 @@ components:
             $ref: '#/components/schemas/DoctorVisit'
         total_size:
           type: integer
-
-    Error:
-      type: object
-      required: [code, message, status]
-      properties:
-        code:
-          type: integer
-        status:
-          type: string
-        message:
-          type: string
-        details:
-          type: array
-          items:
-            type: object
-            properties:
-              field:
-                type: string
-              issue:
-                type: string
-
-  responses:
-
-    BadRequest:
-      description: Request validation failed
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-
-    NotFound:
-      description: Resource not found
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-
-    InternalError:
-      description: Unexpected server error
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'

@@ -34,12 +34,7 @@ paths:
         Returns events for the given profile_id ordered by start_date descending.
         Optionally filter by date range or event_type.
       parameters:
-        - name: profile_id
-          in: query
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
         - name: event_type
           in: query
           required: false
@@ -67,9 +62,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/ListCalendarEventsResponse'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: './shared.yaml#/components/responses/BadRequest'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
     post:
       tags: [Calendar Events]
@@ -94,9 +89,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/CalendarEventResponse'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: './shared.yaml#/components/responses/BadRequest'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
   /v1/calendar-events/{id}:
 
@@ -114,9 +109,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/CalendarEvent'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
     patch:
       tags: [Calendar Events]
@@ -139,11 +134,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/CalendarEvent'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: './shared.yaml#/components/responses/BadRequest'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
     delete:
       tags: [Calendar Events]
@@ -155,9 +150,9 @@ paths:
         '204':
           description: Event deleted
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
   # ── Inventory Items ───────────────────────────────────────────────────────────
 
@@ -171,12 +166,7 @@ paths:
         Returns all inventory items for the given profile_id ordered by
         purchase_date descending. Optionally filter by source_platform or category.
       parameters:
-        - name: profile_id
-          in: query
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
         - name: source_platform
           in: query
           required: false
@@ -195,9 +185,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/ListInventoryItemsResponse'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: './shared.yaml#/components/responses/BadRequest'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
     post:
       tags: [Inventory Items]
@@ -220,9 +210,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/InventoryItem'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: './shared.yaml#/components/responses/BadRequest'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
   /v1/inventory-items/{id}:
 
@@ -240,9 +230,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/InventoryItem'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
     put:
       tags: [Inventory Items]
@@ -269,11 +259,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/InventoryItem'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: './shared.yaml#/components/responses/BadRequest'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
     delete:
       tags: [Inventory Items]
@@ -285,9 +275,9 @@ paths:
         '204':
           description: Item deleted
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
   # ── Goals ─────────────────────────────────────────────────────────────────────
 
@@ -299,12 +289,7 @@ paths:
       summary: List financial goals for a profile
       description: Returns all goals for the given profile_id ordered by created_at descending.
       parameters:
-        - name: profile_id
-          in: query
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
         - name: status
           in: query
           required: false
@@ -318,9 +303,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/ListGoalsResponse'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: './shared.yaml#/components/responses/BadRequest'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
     post:
       tags: [Goals]
@@ -340,9 +325,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/Goal'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: './shared.yaml#/components/responses/BadRequest'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
   /v1/goals/{id}:
 
@@ -360,9 +345,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/Goal'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
     patch:
       tags: [Goals]
@@ -385,11 +370,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/Goal'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: './shared.yaml#/components/responses/BadRequest'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
     delete:
       tags: [Goals]
@@ -401,9 +386,9 @@ paths:
         '204':
           description: Goal deleted
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
   # ── Goal Progress (internal — called by projection engine) ────────────────────
 
@@ -433,9 +418,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/Goal'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: './shared.yaml#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: './shared.yaml#/components/responses/InternalError'
 
 components:
 
@@ -867,48 +852,3 @@ components:
             $ref: '#/components/schemas/Goal'
         total_size:
           type: integer
-
-    # ── Error ─────────────────────────────────────────────────────────────────────
-
-    Error:
-      type: object
-      required: [code, message, status]
-      properties:
-        code:
-          type: integer
-        status:
-          type: string
-        message:
-          type: string
-        details:
-          type: array
-          items:
-            type: object
-            properties:
-              field:
-                type: string
-              issue:
-                type: string
-
-  responses:
-
-    BadRequest:
-      description: Request validation failed
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-
-    NotFound:
-      description: Resource not found
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-
-    InternalError:
-      description: Unexpected server error
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
