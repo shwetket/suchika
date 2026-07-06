@@ -39,6 +39,7 @@ const EMPTY_ACCOUNT = {
 };
 const EMPTY_VITAL_ENTRY = { reading_date: '', value: '' };
 
+
 function StepIndicator({ step }) {
   const steps = ['Your Details', 'Wealth (optional)', 'Health (optional)'];
   return (

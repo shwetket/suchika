@@ -12,7 +12,7 @@ Give any agent or developer instant context on the wealth domain — accounts, t
 
 ---
 
-**Last updated:** 2026-07-07 (pre-v1.0 gap-closing pass, roadmap item Q54 — physical assets list pagination added; see Implementation Status and API Contract below)
+**Last updated:** 2026-07-06 (v1.0 retrospective — domain-state schema drift correction + simplification review; documentation-only pass, no code changes)
 **Version:** v0.4 Phase 1+2+3+4 complete; Epic 8 — Use Cases 8.1/8.2/8.4/8.5/8.6 delivered (all 11 gateway projection steps live), **Use Case 8.3 (dynamic triggers: reallocation, budget-cap alerts, SIP-gap checks) was never implemented** despite prior "fully delivered" framing — see Open Issues and the Retrospective section at the end of this file; v0.5 Phase 0 data-isolation gap closed
 **Port:** 8082
 

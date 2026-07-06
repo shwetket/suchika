@@ -78,8 +78,6 @@ function toEditForm(item) {
 const inputClass =
   'border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full';
 
-const PAGE_SIZE = 20;
-
 function ItemRow({ item, onEdit, onDelete, onToggleConsumed }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const colour = PLATFORM_COLOURS[item.source_platform] || 'bg-gray-100 text-gray-700';

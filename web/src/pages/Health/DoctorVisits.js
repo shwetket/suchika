@@ -57,8 +57,6 @@ const EMPTY_FORM = {
 const inputClass =
   'border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
 
-const PAGE_SIZE = 20;
-
 function VisitFormFields({ form, onChange }) {
   return (
     <>
