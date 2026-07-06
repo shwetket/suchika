@@ -1,5 +1,6 @@
 package com.suchika.profile.adapters.service;
 
+import com.suchika.profile.domain.Admin;
 import com.suchika.profile.domain.BloodType;
 import com.suchika.profile.domain.Gender;
 import com.suchika.profile.domain.Profile;
@@ -76,6 +77,10 @@ public class ProfileService implements ProfileUseCase {
         Profile profile = profileRepository.findById(profileId)
             .orElseThrow(() -> new NotFoundException(PROFILE_NOT_FOUND + profileId));
 
+        if (Boolean.FALSE.equals(isActive)) {
+            rejectIfSelfProfileOfActiveAdmin(profile);
+        }
+
         if (emailAddress != null) profile.setEmailAddress(emailAddress);
         if (gender != null) profile.setGender(gender);
         if (bloodType != null) profile.setBloodType(bloodType);
@@ -90,8 +95,22 @@ public class ProfileService implements ProfileUseCase {
         Profile profile = profileRepository.findById(profileId)
             .orElseThrow(() -> new NotFoundException(PROFILE_NOT_FOUND + profileId));
 
+        rejectIfSelfProfileOfActiveAdmin(profile);
+
         profile.setActive(false);
         profileRepository.save(profile);
         AppLogger.info("Profile deactivated: %s", profileId);
+    }
+
+    private void rejectIfSelfProfileOfActiveAdmin(Profile profile) {
+        if (profile.getRelationToAdmin() != RelationToAdmin.SELF) {
+            return;
+        }
+        boolean adminActive = adminRepository.findById(profile.getAdminId())
+            .map(Admin::isActive)
+            .orElse(false);
+        if (adminActive) {
+            throw new ConflictException("The SELF profile of an active admin cannot be deactivated");
+        }
     }
 }

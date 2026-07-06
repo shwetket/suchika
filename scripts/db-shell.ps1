@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 # Opens a psql shell connected to app_db.
 # Usage: .\scripts\db-shell.ps1 [-AsAdmin]
 #   -AsAdmin  : connect as postgres superuser (for schema changes, bootstrap)
@@ -8,12 +8,13 @@ param([switch]$AsAdmin)
 $psqlExe = 'C:\Program Files\PostgreSQL\18\bin\psql.exe'
 
 function FindPsql {
-    $fromPath = (Get-Command psql -ErrorAction SilentlyContinue)?.Source
-    if ($fromPath) { return $fromPath }
+    $fromCmd = Get-Command psql -ErrorAction SilentlyContinue
+    if ($fromCmd) { return $fromCmd.Source }
     if (Test-Path $psqlExe) { return $psqlExe }
     $found = Get-ChildItem 'C:\Program Files\PostgreSQL' -Recurse -Filter 'psql.exe' -ErrorAction SilentlyContinue |
              Sort-Object FullName -Descending | Select-Object -First 1
-    return $found?.FullName
+    if ($found) { return $found.FullName }
+    return $null
 }
 
 $psql = FindPsql

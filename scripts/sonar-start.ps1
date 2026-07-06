@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 # Starts the local SonarQube server and opens the dashboard in a browser.
 # SonarQube must be extracted in the repo root as sonarqube-*/.
 # Usage: .\scripts\sonar-start.ps1

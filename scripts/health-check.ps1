@@ -1,4 +1,4 @@
-# Health report for all Suchika services.
+﻿# Health report for all Suchika services.
 # Usage: .\scripts\health-check.ps1
 
 $UP = 0; $DOWN = 0

@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 # Tails the latest build or test log for a service.
 # Usage:
 #   .\scripts\logs.ps1                 # list newest log from each service

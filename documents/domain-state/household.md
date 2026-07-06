@@ -2,19 +2,35 @@
 
 ## Objective
 
-Document the design and implementation status for the household domain (v0.3).
+Document the actual, current implementation status for the household domain — schema, contract, key files, and open issues. This file is a living reference, not a session log: historical narrative belongs in git history / ROADMAP.md, not here.
 
 ## Use Cases
 
-- Before starting household work — read this file first; it defines the schema and key constraints
-- When creating or extending `application/contract/household.yaml` — the API Contract section outlines the surface
-- After completing household milestones — update Implementation Status to reflect what is done
+- Before starting household work — read this file first for the real schema and constraints
+- When extending `application/contract/household.yaml` — the API Contract section outlines the surface
+- After completing household work — update Implementation Status and Open Issues to reflect what changed
 
 ---
 
-**Last updated:** 2026-07-05 (Flyway consolidation FK fix + `Goal.updateCurrentAmount` validation gap)
-**Version:** v0.3 — complete (backend + gateway + frontend); v0.5 Phase 0/2 items in progress, see Open Issues / Backlog
+**Last updated:** 2026-07-06 (v1.0-planning retrospective — full rewrite after finding this file's own prior version, and `.claude/agents/household-developer.md`, both out of sync with actual code)
+**Version:** Backend + gateway + frontend complete since v0.3; carried through v0.4 (no household-specific work)/v0.5 (Phases 0, 2, 3)/v0.6 (one copy-note change). No open feature work. Next planned milestone touching this domain is v1.0 (auth/persistence, cross-cutting — see `documents/ROADMAP.md`).
 **Port:** 8084
+
+---
+
+## Retrospective Findings (2026-07-06)
+
+Requested by the project owner ahead of v1.0 planning: no new features, just verify actual state and simplify. Full findings reported to the user; summarized here for future readers of this file.
+
+1. **`.claude/agents/household-developer.md` is badly stale and should be rewritten by its owner.** It states household is "NOT STARTED... nothing exists yet... stub frontend pages... no API contract file." None of that is true — every layer described below has existed since v0.3 (2026-07-02/03) and is still in active use. Flagged to the user; not edited here (out of scope for this file).
+2. **This file (before today) was mostly accurate but had drifted in three concrete places**, corrected below:
+   - The schema table claimed `unit`, `source_platform`, and `goal.status` are `NOT NULL` — the actual `V1__init_household_consolidated.sql` has all three as bare nullable columns (no `NOT NULL`, no `DEFAULT 'ACTIVE'` on `status`). This looks like an unintended casualty of the V1 consolidation rewrite: the project's own two-category constraint philosophy (see `CLAUDE.md`) says `NOT NULL` should be *kept*, only `CHECK` was supposed to be dropped. Not fixed here (no new dev this pass) — logged as an open issue below.
+   - The doc described adapter-layer DB tests as blocked on a `flyway_schema_history` mismatch against "the shared dev Postgres," without flagging that this whole test strategy contradicts both `ARCHITECTURE_GUIDELINES.md` ("Adapter tests use the real DB — Testcontainers with real PostgreSQL") and `documents/OpenQuestions.md` Q34/Q35, which the product owner resolved 2026-07-04 as "move to Testcontainers... to be safe anywhere." A repo-wide search found **zero** Testcontainers usage anywhere in `application/`. Household's `GoalPanacheRepositoryTest`, `CalendarEventPanacheRepositoryTest`, `InventoryItemPanacheRepositoryTest`, and `InventoryItemCreateUpdateIT` all still use a `%integration-test` Quarkus config profile pointed at `jdbc:postgresql://localhost:5432/app_db` — the same shared local instance dev services use. The Q34/Q35 resolution was never implemented, in household or (as far as this pass checked) elsewhere.
+   - The "G3: ProjectionCalculationEngine — 4 snapshot keys" line was vague and reads as stale. Actual code has exactly **two** compute steps that touch household data: `computeGoalProgress` (snapshot key is literally `WEALTH_GOAL_PROGRESS`, not household-prefixed — it's named for the financial-goal concept, not the schema it reads from) and `computeEventSummary` (`HOUSEHOLD_EVENT_SUMMARY`). Corrected below.
+3. **Dead code found:** `SnapshotKey.WEALTH_GOAL_PROGRESS_FAMILY` (`application/web-gateway/.../projection/SnapshotKey.java`) is defined but never computed or read anywhere — a speculative "family rollup" constant for goal progress that was never built. Safe to delete (gateway file, not edited here — out of scope for this pass).
+4. **Vacation Planner / gateway boundary — confirmed correctly scoped, not blurred.** `com.suchika.gateway.vacationplanner` (`VacationPlannerService`/`Resource`) depends only on `WealthServiceClient` — verified by reading its imports/constructor. It never calls `HouseholdServiceClient` and has zero household domain/adapter code involved. This is the architecturally correct place for a genuine cross-domain BFF composition (no cross-domain DB joins, no household code pulled into the gateway beyond what's already there for goals/events). The only actual "household" tie is a nav/UX placement decision (`/household/vacation-planner`, product-owner-approved, Q27) — not a backend boundary issue. One real gap worth a future look: trip dates are manually re-entered by the user even though `household.calendar_event` already has `EventType.TRAVEL` — no integration between the two, so a user planning a trip populates the same date range twice in two different places. Not fixed here (no new dev this pass).
+5. **Household's own backend footprint is lean and not over-built.** 3 domain entities, 3 use cases, 3 output ports, 3 JAX-RS resources, validation correctly placed in domain-layer `create()` factories, no speculative generic abstractions, no unused config toggles beyond item 3 above. One minor internal inconsistency: `InventoryItemUseCase.update()` takes a `UpdateInventoryItemCommand` record, while `CalendarEventUseCase.update()` and `GoalUseCase.update()` take 6-7 positional parameters each. Not a bug — worth normalizing to the Command-record style if either is touched again, not urgent enough to warrant a change on its own.
+6. `web/src/pages/Household/` also contains `Profiles.js` — this is profile-domain data (`profile.profile`/`profile.admin` via `admins`/`profiles` API modules), not household calendar/inventory/goal data. It sits there because the frontend nav groups a standalone "Profiles" link next to the "Household" dropdown (Calendar/Inventory/Goals/Vacation Planner) — a UX grouping choice, not misplaced code. Noted for clarity, not a defect.
 
 ---
 
@@ -22,52 +38,43 @@ Document the design and implementation status for the household domain (v0.3).
 
 | Component | Status | Notes |
 |---|---|---|
-| OpenAPI contract | ✅ | `application/contract/household.yaml` — complete |
-| Flyway migration | ✅ | `V1__init_household_consolidated.sql` (2026-07-04/05, replaces the former V1–V4 series in place per Q31/Q32 product-owner approval) — calendar_event, inventory_item, goal. All CHECK constraints removed (enum discriminators *and* business-rule checks, e.g. `end_date >= start_date`, `quantity > 0`, `target_amount > 0`, `current_amount >= 0`); FKs to `profile.profile(id)` kept per Q31 resolution ("remove CHECK, keep FKs"). Requires a manual local dev-DB reset (`db-reset.ps1`) since this overwrote a previously-committed V1 — accepted, ephemeral pre-v1.0 consequence. |
-| Domain entities + enums | ✅ | CalendarEvent, InventoryItem, Goal + 4 enums |
-| Ports (input + output) | ✅ | 3 use cases + 3 repository interfaces |
-| JPA entities + DAOs | ✅ | CalendarEventEntity, InventoryItemEntity, GoalEntity + Panache DAOs |
-| Panache repositories | ✅ | CalendarEventPanacheRepository, InventoryItemPanacheRepository, GoalPanacheRepository |
-| Services (use case impls) | ✅ | CalendarEventService, InventoryItemService, GoalService |
-| HTTP resources | ✅ | CalendarEventResource, InventoryItemResource, GoalResource |
-| DTOs | ✅ | Full set of request/response DTOs including CalendarEventResponse with conflicting_events |
-| HouseholdApplication | ✅ | Entry point wired |
-| Domain unit tests | ✅ | CalendarEventTest, InventoryItemTest, GoalTest — all passing |
-| Adapter service tests | ✅ | CalendarEventServiceTest, InventoryItemServiceTest, GoalServiceTest — all passing |
-| G1: household.yaml mirrored to gateway | ✅ | `application/web-gateway/src/main/resources/household.yaml` |
-| G1: HouseholdServiceClient | ✅ | `com.suchika.gateway.household.HouseholdServiceClient` — all 14 endpoints |
-| G2: HouseholdGatewayResource | ✅ | `com.suchika.gateway.household.HouseholdGatewayResource` — `/v1/household/...` proxy |
-| G2: gateway.yaml updated | ✅ | Household paths + projection endpoints added to `application/contract/gateway.yaml` |
-| G3: ProjectionCalculationEngine | ✅ | `com.suchika.gateway.projection.ProjectionCalculationEngine` — 4 snapshot keys (per-profile: `HOUSEHOLD_EVENT_SUMMARY` stays per-profile under ADR-017 — events are per-person, never rolled up) |
-| G3: DashboardSnapshotRepository | ✅ | `com.suchika.gateway.projection.DashboardSnapshotRepository` — UPSERT + read |
-| G3: DashboardSnapshotEntity | ✅ | `com.suchika.gateway.adapters.projection.DashboardSnapshotEntity` — composite PK |
-| G3: ProjectionResource | ✅ | `com.suchika.gateway.projection.ProjectionResource` — POST refresh + GET dashboard |
-| G4: HouseholdGatewayResourceTest | ✅ | 5 tests — list/get/create calendar events, list goals, list inventory |
-| G4: ProjectionResourceTest | ✅ | 3 tests — refresh 200, dashboard 200, dashboard empty |
-| build.gradle.kts + app.properties | ✅ | Added hibernate-orm, jdbc-postgresql, flyway; test profile disables DB |
-| Frontend — Calendar | ✅ | Full CRUD page with conflict warning banner, type filter, profile selector |
-| Frontend — Inventory | ✅ | Full CRUD page with platform filter, add/delete |
-| Frontend — Goals | ✅ | Full CRUD page with progress bar, status badge, edit modal |
-| Frontend — Dashboard update | ✅ | Household card added; Refresh Live Data section with spinner + snapshot metrics |
-| Frontend — household API module | ✅ | `web/src/api/household.js` — calendar, inventory, goals, projections |
-| Frontend — API client regenerated | ✅ | `generate:api` now points at `gateway.yaml`; household + projection types generated |
-| Frontend — Routes | ✅ | `/household/goals` route added to `App.js` |
-| Frontend — Tests | ✅ | Calendar.test.js (7), Inventory.test.js (5), Goals.test.js (7), Dashboard.test.js (8) — 285 total passing |
+| OpenAPI contract | Done | `application/contract/household.yaml` — 3 resource groups, full CRUD + conflict detection + goal current-amount endpoint |
+| Flyway migration | Done | `V1__init_household_consolidated.sql` — `calendar_event`, `inventory_item`, `goal`. No CHECK constraints anywhere (by design). FKs to `profile.profile(id)` present. See Retrospective item 2 for a nullability gap found in this pass. |
+| Domain entities + enums | Done | `CalendarEvent`, `InventoryItem`, `Goal` + `EventType`, `ItemUnit`, `SourcePlatform`, `GoalStatus` |
+| Ports (input + output) | Done | 3 use cases + 3 repository interfaces |
+| JPA entities + DAOs + Panache repos | Done | One of each per aggregate |
+| Services (use case impls) | Done | `CalendarEventService`, `InventoryItemService`, `GoalService` |
+| HTTP resources | Done | `CalendarEventResource`, `InventoryItemResource`, `GoalResource` |
+| DTOs | Done | Full request/response set, including `CalendarEventResponse.conflicting_events` |
+| Domain unit tests | Done | `CalendarEventTest`, `InventoryItemTest`, `GoalTest` — plain JUnit 5, no framework |
+| Adapter service tests | Done | `CalendarEventServiceTest`, `InventoryItemServiceTest`, `GoalServiceTest` — mocked repositories |
+| Adapter DB tests | Done, but see caveat | `CalendarEventPanacheRepositoryTest`, `GoalPanacheRepositoryTest`, `InventoryItemPanacheRepositoryTest`, `InventoryItemCreateUpdateIT` — all run against the shared local Postgres via an `%integration-test` config profile, not Testcontainers (Retrospective item 2) |
+| Gateway: `household.yaml` mirrored | Done | `application/web-gateway/src/main/resources/household.yaml` |
+| Gateway: `HouseholdServiceClient` | Done | `com.suchika.gateway.household.HouseholdServiceClient` — full REST client |
+| Gateway: `HouseholdGatewayResource` | Done | Proxies household endpoints under `/v1/household/...` |
+| Gateway: projection engine integration | Done | 2 of `ProjectionCalculationEngine`'s 12 compute steps touch household data (see Retrospective item 2); household calendar events also read (not written) by `computeActionCenterAlerts` |
+| Frontend — Calendar | Done | `web/src/pages/Household/Calendar.js` — CRUD, conflict warning banner, type filter, profile selector |
+| Frontend — Inventory | Done | `Inventory.js` — CRUD, platform filter, edit modal, `is_consumed` toggle |
+| Frontend — Goals | Done | `Goals.js` — CRUD, progress bar, status badge, edit modal |
+| Frontend — Vacation Planner | Done | `VacationPlanner.js` — gateway-native feature, wealth-only data (see Retrospective item 4) |
+| Frontend — tests | Done | `Calendar.test.js`, `Inventory.test.js`, `Goals.test.js`, `VacationPlanner.test.js` under `web/src/pages/Household/` — cover render/loading/error states. (Not tracking a hardcoded test count here — the prior version of this doc had a stale "285 total" figure that mixed in `Dashboard.test.js`, which isn't even a household page. Run `npm run test:ci` for a current count.) |
 
 ---
 
 ## Database Schema (`household` schema)
+
+Source: `application/flyway/household/V1__init_household_consolidated.sql`, read directly for this update (not inferred from prior doc text).
 
 ### `household.calendar_event`
 
 | Column | Type | Constraints |
 |---|---|---|
 | id | UUID | PK, DEFAULT gen_random_uuid() |
-| profile_id | UUID | FK → profile.profile(id) ON DELETE RESTRICT |
+| profile_id | UUID | nullable column; FK → profile.profile(id) ON DELETE RESTRICT |
 | title | VARCHAR(200) | NOT NULL |
 | event_type | VARCHAR(50) | NOT NULL (validated at API layer only — no DB CHECK) |
 | start_date | DATE | NOT NULL |
-| end_date | DATE | nullable; `end_date >= start_date` enforced only in `CalendarEvent.create()` (domain layer) — no DB CHECK since the V1 consolidation |
+| end_date | DATE | nullable; `end_date >= start_date` enforced only in `CalendarEvent.create()` (domain layer) — no DB CHECK |
 | location | VARCHAR(200) | nullable |
 | notes | TEXT | nullable |
 | metadata | JSONB | NOT NULL DEFAULT '{}' |
@@ -78,15 +85,15 @@ Document the design and implementation status for the household domain (v0.3).
 | Column | Type | Constraints |
 |---|---|---|
 | id | UUID | PK, DEFAULT gen_random_uuid() |
-| profile_id | UUID | FK → profile.profile(id) ON DELETE RESTRICT |
+| profile_id | UUID | nullable column; FK → profile.profile(id) ON DELETE RESTRICT |
 | item_name | VARCHAR(200) | NOT NULL |
-| quantity | NUMERIC(10,3) | NOT NULL; `quantity > 0` enforced only in the domain layer — no DB CHECK since the V1 consolidation |
-| unit | VARCHAR(20) | NOT NULL (validated at API layer) |
-| source_platform | VARCHAR(50) | NOT NULL (validated at API layer) |
+| quantity | NUMERIC(10,3) | NOT NULL; `quantity > 0` enforced only in `InventoryItem.create()` (domain layer) — no DB CHECK |
+| unit | VARCHAR(20) | **nullable in the actual DDL** — validated at API/Java-enum layer when going through normal request flow, but the column itself has no `NOT NULL`. Drift vs. this doc's prior claim; see Retrospective item 2 and Open Issues. |
+| source_platform | VARCHAR(50) | **nullable in the actual DDL**, same caveat as `unit` |
 | purchase_date | DATE | NOT NULL |
 | category | VARCHAR(50) | nullable |
 | metadata | JSONB | NOT NULL DEFAULT '{}' |
-| is_consumed | BOOLEAN | NOT NULL DEFAULT false (V4, v0.5 Phase 0) — means "used in a calculation," not "physically used up"; rows are never deleted or expired |
+| is_consumed | BOOLEAN | NOT NULL DEFAULT false — means "used in a calculation," not "physically used up"; rows are never deleted or expired |
 | created_at | TIMESTAMPTZ | NOT NULL DEFAULT now() |
 
 ### `household.goal`
@@ -94,13 +101,13 @@ Document the design and implementation status for the household domain (v0.3).
 | Column | Type | Constraints |
 |---|---|---|
 | id | UUID | PK, DEFAULT gen_random_uuid() |
-| profile_id | UUID | FK → profile.profile(id) ON DELETE RESTRICT |
+| profile_id | UUID | nullable column; FK → profile.profile(id) ON DELETE RESTRICT |
 | goal_name | VARCHAR(200) | NOT NULL |
-| target_amount | NUMERIC(19,2) | NOT NULL; `target_amount > 0` enforced in `Goal.create()` (domain layer) — no DB CHECK since the V1 consolidation |
-| current_amount | NUMERIC(19,2) | NOT NULL DEFAULT 0.00; `current_amount >= 0` enforced in `GoalService.updateCurrentAmount()` (adapter/service layer, throws `BadRequestException`) — no DB CHECK since the V1 consolidation. This was a validation gap found by architect review (2026-07-05): the CHECK was dropped from the consolidated migration with no code replacement, since `updateCurrentAmount()` builds the updated `Goal` directly via `Goal.builder()` and bypasses `Goal.create()`'s validation entirely. Fixed by adding an explicit guard at the top of the service method. |
+| target_amount | NUMERIC(19,2) | NOT NULL; `target_amount > 0` enforced in `Goal.create()` (domain layer) — no DB CHECK |
+| current_amount | NUMERIC(19,2) | NOT NULL DEFAULT 0.00; `current_amount >= 0` enforced in `GoalService.updateCurrentAmount()` via an explicit guard (`amount == null \|\| amount.compareTo(BigDecimal.ZERO) < 0` → `BadRequestException`), since that method builds the updated `Goal` via `Goal.builder()` directly and bypasses `Goal.create()`'s validation. Verified present in code as of this update. |
 | monthly_saving | NUMERIC(19,2) | nullable |
 | target_date | DATE | nullable |
-| status | VARCHAR(20) | NOT NULL DEFAULT 'ACTIVE' (validated at API layer) |
+| status | VARCHAR(20) | **nullable in the actual DDL, no default.** `Goal.create()` always sets `GoalStatus.ACTIVE` in the domain layer for rows created through the normal API path, so this is unlikely to surface a bug in practice — but the column itself does not enforce it. Drift vs. this doc's prior claim; see Open Issues. |
 | notes | TEXT | nullable |
 | created_at | TIMESTAMPTZ | NOT NULL DEFAULT now() |
 
@@ -108,27 +115,26 @@ Document the design and implementation status for the household domain (v0.3).
 
 ## API Contract
 
-File: `application/contract/household.yaml`
-Base URL: `http://localhost:8084`
+File: `application/contract/household.yaml` · Base URL: `http://localhost:8084`
 
 | Method | Path | Description |
 |---|---|---|
 | GET | /v1/calendar-events | List events for a profile (filter by event_type, date range) |
-| POST | /v1/calendar-events | Create event; returns conflicting_events list |
+| POST | /v1/calendar-events | Create event; returns conflicting_events list (warning only, not blocking) |
 | GET | /v1/calendar-events/{id} | Get single event |
 | PATCH | /v1/calendar-events/{id} | Partial update |
 | DELETE | /v1/calendar-events/{id} | Delete |
 | GET | /v1/inventory-items | List items (filter by source_platform, category) |
 | POST | /v1/inventory-items | Add item |
 | GET | /v1/inventory-items/{id} | Get single item |
-| PUT | /v1/inventory-items/{id} | Full update, including `is_consumed` toggle (v0.5 Phase 0) |
+| PUT | /v1/inventory-items/{id} | Full/partial update, including `is_consumed` toggle |
 | DELETE | /v1/inventory-items/{id} | Delete |
 | GET | /v1/goals | List goals (filter by status) |
 | POST | /v1/goals | Create goal |
 | GET | /v1/goals/{id} | Get single goal |
 | PATCH | /v1/goals/{id} | Partial update |
 | DELETE | /v1/goals/{id} | Delete |
-| PUT | /v1/goals/{id}/current-amount | Update current_amount (called by gateway projection engine) |
+| PUT | /v1/goals/{id}/current-amount | Update current_amount (called by the gateway projection engine only — not intended for direct client use) |
 
 ---
 
@@ -136,56 +142,40 @@ Base URL: `http://localhost:8084`
 
 | Layer | Path |
 |---|---|
-| Domain entities | `application/domain/household/domain/src/main/java/com/suchika/household/domain/` |
+| Domain entities + enums | `application/domain/household/domain/src/main/java/com/suchika/household/domain/` |
 | Input ports (use cases) | `application/domain/household/ports/src/main/java/com/suchika/household/ports/input/` |
 | Output ports (repos) | `application/domain/household/ports/src/main/java/com/suchika/household/ports/output/` |
-| JPA entities + DAOs | `application/domain/household/adapters/src/main/java/com/suchika/household/adapters/persistence/` |
+| JPA entities + DAOs + Panache repos | `application/domain/household/adapters/src/main/java/com/suchika/household/adapters/persistence/` |
 | Services | `application/domain/household/adapters/src/main/java/com/suchika/household/adapters/service/` |
-| HTTP resources | `application/domain/household/adapters/src/main/java/com/suchika/household/adapters/http/` |
-| DTOs | `application/domain/household/adapters/src/main/java/com/suchika/household/adapters/http/dto/` |
+| HTTP resources + DTOs | `application/domain/household/adapters/src/main/java/com/suchika/household/adapters/http/` |
 | Domain unit tests | `application/domain/household/domain/src/test/java/com/suchika/household/domain/` |
-| Adapter service tests | `application/domain/household/adapters/src/test/java/com/suchika/household/adapters/service/` |
-| Flyway migrations | `application/flyway/household/` |
+| Adapter tests (service + DB) | `application/domain/household/adapters/src/test/java/com/suchika/household/adapters/` |
+| Flyway migration | `application/flyway/household/V1__init_household_consolidated.sql` |
 | OpenAPI contract | `application/contract/household.yaml` |
-| Frontend pages | `web/src/pages/Household/` (Calendar.js, Inventory.js, Goals.js — fully implemented) |
+| Gateway client/resource | `application/web-gateway/src/main/java/com/suchika/gateway/household/` (`HouseholdServiceClient`, `HouseholdGatewayResource`) |
+| Gateway projection engine | `application/web-gateway/src/main/java/com/suchika/gateway/projection/ProjectionCalculationEngine.java` (2 of 12 steps; see Retrospective item 2) |
+| Vacation Planner (gateway-native, not household code) | `application/web-gateway/src/main/java/com/suchika/gateway/vacationplanner/` |
+| Frontend pages | `web/src/pages/Household/` — `Calendar.js`, `Inventory.js`, `Goals.js`, `VacationPlanner.js` (household data); `Profiles.js` (profile-domain data, grouped here for nav UX only — see Retrospective item 6) |
 
 ---
 
 ## Key Design Decisions
 
 - Startup order: profile must run first (Flyway migrations reference `profile.profile`).
-- Event types, source platforms, units, goal status are VARCHAR — no DB CHECK. Enforced at OpenAPI contract + Java enum layer only.
-- **Revised 2026-07-05 (supersedes prior guidance):** `end_date >= start_date`, `quantity > 0`, `target_amount > 0`, `current_amount >= 0` are **no longer DB CHECK constraints** — all CHECK constraints (enum and business-rule alike) were dropped in the `V1__init_household_consolidated.sql` rewrite per the product owner's Q31/Q44/Q45 resolutions (`documents/OpenQuestions.md`). FKs to `profile.profile(id)` were kept (Q31: "remove CHECK, keep FKs") — an architect review on 2026-07-05 found the consolidation had silently dropped all three FKs too; restored verbatim from the pre-consolidation `V1__init_household.sql`/`V2__goals.sql`.
-- Business-rule validation for these four rules now lives entirely in code: `end_date >= start_date` and `quantity > 0` and `target_amount > 0` are enforced in the respective domain factory methods (`CalendarEvent.create()`, `InventoryItem.create()`, `Goal.create()`), which already existed and needed no change. `current_amount >= 0` had no code equivalent at all (a real gap, since `GoalService.updateCurrentAmount()` never goes through `Goal.create()`) — fixed by adding an explicit `amount == null || amount.compareTo(BigDecimal.ZERO) < 0` guard at the top of `GoalService.updateCurrentAmount()`, throwing `BadRequestException`. This deliberately does not follow the domain-layer-`IllegalArgumentException` pattern used by the `*.create()` factories: `ApplicationExceptionMapper` only maps `ApplicationException` subtypes, so a raw `IllegalArgumentException` thrown from a service method would surface as an unmapped 500, not a 400. `BadRequestException` matches the existing, already-tested convention for use-case-level guards in this exact class (`GoalService` already throws `NotFoundException` the same way) and in `GoalResource` (null/format checks). The OpenAPI contract already documents `minimum: 0` on `UpdateGoalCurrentAmountRequest.current_amount` — only the Java-layer enforcement was missing.
-- Conflict detection is warning-only — creation is not blocked. `CalendarEventResponse` includes `conflicting_events` list.
-- `progressPercent()` and `daysToCompletion()` are computed by the domain `Goal` entity and included in `GoalDto`.
-- `current_amount` on goals is updated by the web-gateway projection engine via `PUT /v1/goals/{id}/current-amount`.
-- `profile_id` filter injected only in adapter layer (Panache repositories) — never in domain or ports.
-- All logging via `AppLogger`. All exceptions via `shared/exception/` hierarchy.
+- Discriminator columns (`event_type`, `unit`, `source_platform`, `goal.status`) are VARCHAR, no DB CHECK — enforced at OpenAPI contract + Java enum layer only, per project-wide policy.
+- Business-rule validation (`end_date >= start_date`, `quantity > 0`, `target_amount > 0`) lives in the domain layer's `create()` factory methods, which throw `IllegalArgumentException`. `current_amount >= 0` is the one exception — enforced in `GoalService.updateCurrentAmount()` with an explicit guard throwing `BadRequestException`, because that code path builds a `Goal` directly via the builder and never goes through `Goal.create()`.
+- Conflict detection on calendar events is warning-only — creation is not blocked. `CalendarEventResponse` includes a `conflicting_events` list.
+- `progressPercent()` and `daysToCompletion()` are computed by the domain `Goal` entity, not stored, and surfaced read-only in `GoalDto`.
+- `goal.current_amount` is written by the web-gateway's `ProjectionCalculationEngine.computeGoalProgress()` step via `PUT /v1/goals/{id}/current-amount` — not by any direct client. Its snapshot key is `WEALTH_GOAL_PROGRESS` (named for the financial-goal concept, not the household schema it reads from — see Retrospective item 2).
+- `profile_id` filter is injected only in the adapter layer (Panache repositories) — never in domain or ports, per ADR-006. Domain entities (`CalendarEvent`, `InventoryItem`, `Goal`) do hold `profileId` as a plain field, which is a deliberate, documented trade-off — see ADR-019 in `documents/ARCHITECTURE_DECISIONS.md`.
+- All logging via `AppLogger`. All exceptions via `shared/exception/` hierarchy (`NotFoundException`, `BadRequestException`).
 
 ---
 
-## Open Issues / Remaining Work
+## Open Issues
 
-- 🔲 **Local dev DB blocked on `flyway_schema_history` mismatch (2026-07-05).** After the FK-restoration fix to `V1__init_household_consolidated.sql`, `./gradlew :application:domain:household:adapters:test` fails 5 of its DB-backed tests (`GoalPanacheRepositoryTest`, `CalendarEventPanacheRepositoryTest`, `InventoryItemPanacheRepositoryTest`, `InventoryItemCreateUpdateIT`, plus one cascading `CalendarEventResourceTest` failure) with `FlywayValidateException`. Root cause: the local shared `app_db`'s `flyway_schema_history` still has the checksum/description of the pre-consolidation household migrations (V1–V4); the rewritten `V1__init_household_consolidated.sql` is a different migration under the same version number, so Flyway's validate step rejects it on startup. This is the accepted, known consequence of the Q32-approved in-place V1 overwrite — fixed by a `scripts/db-reset.ps1 -Force` (drop+recreate `app_db`) followed by re-establishing `profile` schema/seed data before household's tests (household's own Flyway config does not run profile's migrations). **Not performed this session** — `app_db` is a single shared local Postgres instance and other domain agents (health/wealth/profile consolidation work) were concurrently active in the same session; the auto-mode permission classifier correctly blocked an unattended destructive `DROP DATABASE` against a shared resource. Needs an explicit human (or coordinated multi-agent) go-ahead before the reset runs, then a re-run of `./gradlew :application:domain:household:domain:test :application:domain:household:adapters:test` to confirm green. The domain-layer suite (pure JUnit, no DB) already passes 100% independent of this blocker, and the two code fixes above (FK restoration, `updateCurrentAmount` guard) are covered by new/existing unit tests that ran successfully in the `domain` module and via the mocked-repository `GoalServiceTest`.
-- Dashboard Refresh section uses `user.profile_id` from auth context; if auth token does not include `profile_id`, the refresh button stays disabled. Link profile_id into the auth response in a future iteration.
-- Task Tracking deferred to v0.4 — no `task` table exists yet. Will need `V4__tasks.sql` when scoped.
-- Inventory CSV import deferred to v0.4 — v0.3 is manual CRUD only.
-- ✅ **v0.5 Phase 0: `PUT /v1/inventory-items/{id}` endpoint + edit modal — COMPLETE (2026-07-02).** `InventoryItemResource.java` gained a `@PUT @Path("/{id}")` handler; `InventoryItemUseCase.update()` does a partial merge against the existing record. Edit modal added to `web/src/pages/Household/Inventory.js`.
-- ✅ **v0.5 Phase 0: `is_consumed BOOLEAN` flag on inventory items — COMPLETE (2026-07-02).** Q6 resolution — means "used in a calculation," not "used up"; no deletion, no expiry. `V4__inventory_item_consumed_flag.sql` added `is_consumed BOOLEAN NOT NULL DEFAULT false`; toggled via the same PUT endpoint above rather than a separate route.
-- ✅ **v0.5 Phase 2: Vacation Planner feature lives here in nav — COMPLETE (2026-07-02).** Route `/household/vacation-planner` (product owner decision, `OpenQuestions.md` Q27) — added via a new "Household" `NavDropdown` in `Navigation.js`, which also fixed a pre-existing gap (Calendar/Inventory/Goals had no nav links at all before this). The feature itself is implemented entirely in the gateway's new `com.suchika.gateway.vacationplanner` package and reads only wealth data (`WEALTH_LIQUIDITY_TIERS_FAMILY` snapshot + `physical_asset.metadata`) — it does **not** call `HouseholdServiceClient` or look at calendar events; trip dates are supplied directly by the user in the form, not derived from `household.calendar_event`. See `documents/domain-state/wealth.md` for the full implementation detail — this entry exists here only to explain the nav placement.
-- ✅ **v0.5 Phase 3: Consolidated Action Center upcoming events — COMPLETE (2026-07-02).** No household-domain code changed — gateway-only read of the existing `GET /v1/calendar-events` endpoint. `ProjectionCalculationEngine.computeActionCenterAlerts()` calls `householdServiceClient.listCalendarEvents(memberProfileId, null, today, today+30days)` per household member (same 30-day lookahead as the existing per-profile `computeEventSummary` step, but looped across all members instead of just the caller), tagging each event with the member's `profile_id`/`full_name` in the `ACTION_CENTER_ALERTS_FAMILY.upcoming_events` payload. See `documents/domain-state/wealth.md` for the full cross-domain implementation detail.
-- ✅ **v0.6: Goal progress auto-refresh copy note — COMPLETE (2026-07-03).** One-line note added under the Goals page header ("Progress updates when you refresh the dashboard — new transactions aren't reflected here until then.") — no code/API change, purely explains the existing manual-refresh dependency that was previously silent.
-
-## Completed in v0.3 Gateway Pass (G1–G4)
-
-- G1: `household.yaml` mirrored to gateway resources; `HouseholdServiceClient` created.
-- G2: `HouseholdGatewayResource` proxies all 14 household endpoints under `/v1/household/...`; `gateway.yaml` updated with household + projection paths and schemas.
-- G3: Full `ProjectionCalculationEngine` (4 compute methods), `DashboardSnapshotRepository` (UPSERT + read), `DashboardSnapshotEntity` (composite PK in `..adapters..` package for ArchUnit), `ProjectionResource` (`POST /refresh/{profileId}` + `GET /dashboard/{profileId}`). `build.gradle.kts` extended with `quarkus-hibernate-orm`, `quarkus-jdbc-postgresql`, `quarkus-flyway`; `application.properties` updated with datasource config and test-profile DB disable.
-- G4: `HouseholdGatewayResourceTest` (5 tests) and `ProjectionResourceTest` (3 tests) both passing. All 17 web-gateway tests green. ArchUnit still green.
-
----
-
-## Integration Test Coverage — 2026-07-03 (QA pass)
-
-- ✅ **`InventoryItemCreateUpdateIT` added** (`application/domain/household/adapters/src/test/java/com/suchika/household/adapters/http/InventoryItemCreateUpdateIT.java`) — true `@QuarkusTest` + real Postgres integration test: `POST /v1/inventory-items` -> `PUT /v1/inventory-items/{id}` round trip, using the real, DI-wired `InventoryItemService` and real Panache repository (not the `@InjectMock`'d `InventoryItemUseCase` pattern `InventoryItemResourceTest` uses). Specifically exercises the `UpdateInventoryItemCommand` refactor — partial updates (only `item_name`/`quantity` provided) preserve `unit`/`source_platform`/`category`, and the `is_consumed` toggle path leaves all other fields untouched. Uses RestAssured + the same `DatabaseIntegrationProfile` (`%integration-test` config profile) pattern as `InventoryItemPanacheRepositoryTest`, since household's default `%test` profile disables the datasource entirely. Compile-verified clean; **not executed** this session — see `documents/OpenQuestions.md` Q34/Q35 (the `%integration-test` profile still points at the same live shared dev Postgres and would TRUNCATE CASCADE via `R__seed_household_test_data.sql` on startup).
+- **Schema nullability gap (found in this retrospective, not fixed):** `inventory_item.unit`, `inventory_item.source_platform`, and `goal.status` lost their `NOT NULL` (and `status` its `DEFAULT 'ACTIVE'`) somewhere in the V1 Flyway consolidation rewrite. Per the project's own constraint philosophy, `NOT NULL` should have been kept — only `CHECK` was meant to be dropped. Application-layer validation currently covers this in practice (the domain `create()` factories require these fields; `GoalStatus.ACTIVE` is always set on creation), so there's no known live bug — but the DB itself doesn't enforce it. A future fix would be a new Flyway file adding the `NOT NULL` back (never edit the committed V1) — not done here per this session's "no new development" scope.
+- **Adapter DB tests don't use Testcontainers**, contradicting both `ARCHITECTURE_GUIDELINES.md`'s stated standard and the product owner's Q34/Q35 resolution (2026-07-04) to move to Testcontainers. They instead run against the shared local dev Postgres via an `%integration-test` config-profile switch. This is a repo-wide gap, not household-specific, but household's four DB-backed test classes are the concrete instance checked in this pass. Worth a dedicated pass before v1.0 (real persistence, less tolerance for shared-DB test fragility).
+- **Vacation Planner duplicates trip-date entry.** `household.calendar_event` already models `EventType.TRAVEL`, but the gateway's Vacation Planner takes trip dates as fresh user input instead of letting the user pick an existing travel event. Not a bug, just an unexploited integration opportunity.
+- Task Tracking (assigning tasks to child profiles with calendar-linked deadlines) remains unbuilt — no schema, no code. Originally deferred from v0.3; still not scoped for any milestone.
+- Dashboard/Action Center "Refresh Live Data" depends on `user.profile_id` being present in the auth context; if a future auth change omits it, the refresh action silently disables. Noted for whoever builds v1.0 auth.

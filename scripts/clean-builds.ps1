@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 # Safe clean: removes Gradle build outputs, React build, and .temp logs.
 # Does NOT touch node_modules, .env files, or uncommitted source files.
 # Usage: .\scripts\clean-builds.ps1

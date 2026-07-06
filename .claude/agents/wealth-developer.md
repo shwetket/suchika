@@ -17,9 +17,9 @@ Role: Full-stack developer for the Wealth domain (port 8082).
 
 **DB schema:** `wealth` — tables: `account`, `transaction`, `statement_upload`, `upload_error_log`, `physical_asset`
 
-**Key ADR:** `CreateAccountCommand` has 7 fields. `profileId` is passed separately: `createAccount(UUID profileId, CreateAccountCommand cmd)`. Do NOT add `profileId` back into the command — Sonar S107.
+**Key ADR:** `CreateAccountCommand` has 8 fields (incl. `currency`, added 2026-07). `profileId` is passed separately: `createAccount(UUID profileId, CreateAccountCommand cmd)`. Do NOT add `profileId` back into the command — Sonar S107.
 
-**Account types (VARCHAR):** `SAVINGS`, `CURRENT`, `CREDIT_CARD`, `HOME_LOAN`, `PERSONAL_LOAN`, `INVESTMENT`, `FD`
+**Account types (VARCHAR):** `SAVINGS`, `CURRENT`, `CREDIT_CARD`, `HOME_LOAN`, `PERSONAL_LOAN`, `CAR_LOAN`, `MUTUAL_FUND`, `NPS`, `PPF`, `FD`
 **Transaction types (VARCHAR):** `CREDIT`, `DEBIT`
 **Upload status (VARCHAR):** `PENDING` → `SUCCESS` | `FAILED`
 

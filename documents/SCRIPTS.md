@@ -5,7 +5,7 @@
 | **Type** | Reference |
 | **Audience** | Developers |
 | **Status** | Active |
-| **Last updated** | 2026-06-23 |
+| **Last updated** | 2026-07-06 |
 
 ## Objective
 
@@ -57,9 +57,9 @@ Dot-source once per terminal session. Defines all short aliases and functions.
 help-dev    # print full alias list
 ```
 
-**Build aliases:** `bp` `bw` `bh` `bho` `bg` `bwb` `ba` `bv`
+**Build aliases:** `bp` `bw` `bh` `bho` `bg` `bwb` `ba` `bv` (plus unaliased `build-shared`)
 **Dev aliases:** `dp` `dw` `dh` `dho` `dg` `dwb` `da`
-**Test aliases:** `tp` `tw` `tsa`
+**Test aliases:** `tp` `tw` `tsa` (plus unaliased `test-health`, `test-household`, `test-gateway`, `test-shared`, `test-web`)
 **Quality:** `ss` (sonar-scan) `gapi` (generate-api)
 **Control:** `sa` (stop-all) `status` `check`
 **Database:** `db-start` `db-reset` `db-shell`
@@ -68,9 +68,26 @@ help-dev    # print full alias list
 
 ---
 
-### `build-local.ps1` — Full pre-commit verification
+### `dev-aliases.sh` — Bash / Codespaces equivalent
 
-Builds all services in dependency order, runs ArchUnit, all tests, lint, Prettier, and optionally SonarQube.
+Same alias surface as `dev-aliases.ps1`, sourced the same way, for Linux/bash shells (Codespaces auto-loads it into `~/.bashrc`; see `.devcontainer/setup.sh`).
+
+```bash
+. ./scripts/dev-aliases.sh
+help-dev
+```
+
+Behavioral differences from the PowerShell version (both intentional, environment-driven):
+- `dev-profile`/`dev-wealth`/etc. run each service as a **background** job writing to `~/.suchika/logs/<svc>.log`, instead of opening a new terminal window (there's no `dev-service.ps1`-style "new window" concept in a Codespaces terminal). Watch output with `lnav-dev` or `tail -f`.
+- No `db-start` — Codespaces' `db` container is brought up and health-checked by `docker-compose`/`setup.sh` before the dev container is even usable, so there's no separate "start Postgres" step.
+- No `sonar-start` — SonarQube is not run in Codespaces at all (too resource-intensive for the free tier; run `ss`/`sonar-scan` locally before opening a PR instead — see CLAUDE.md).
+- `db-reset` / `db-shell -AsAdmin` use the same `PGPASSWORD` → `POSTGRES_PASSWORD` → `local_dev_only` fallback chain as `db-reset.ps1`. `local_dev_only` is correct out of the box in Codespaces (the `db` container is created with that password) and for `app_user` on any machine that's run `00_bootstrap.sql`, but on a natively-installed Windows Postgres the real superuser password is whatever was chosen at install time — export `PGPASSWORD` yourself first if so.
+
+---
+
+### `build-local.ps1` / `build-local.sh` — Full pre-commit verification
+
+Builds all services in dependency order, runs ArchUnit, all tests, lint, Prettier, and optionally SonarQube. Mirrors CI exactly (see `documents/CICD.md`).
 
 ```powershell
 .\scripts\build-local.ps1                  # full verification
@@ -78,7 +95,12 @@ Builds all services in dependency order, runs ArchUnit, all tests, lint, Prettie
 .\scripts\build-local.ps1 -SkipFrontend    # backend only
 .\scripts\build-local.ps1 -FrontendOnly    # frontend only
 ```
-**Alias:** `bv`
+```bash
+bash scripts/build-local.sh                # full verification (Codespaces/Linux)
+bash scripts/build-local.sh --skip-sonar
+bash scripts/build-local.sh --skip-frontend
+```
+**Alias:** `bv` (both platforms, via `build-verify` in the respective `dev-aliases`)
 
 ---
 
@@ -119,14 +141,17 @@ Gradle tasks per domain:
 
 ---
 
-### `health-check.ps1` — Service health report
+### `health-check.ps1` / `health-check.sh` — Service health report
 
 HTTP GET to each service's OpenAPI endpoint + TCP check for the database.
 
 ```powershell
 .\scripts\health-check.ps1
 ```
-**Alias:** `status`
+```bash
+bash scripts/health-check.sh
+```
+**Alias:** `status` (both platforms — `dev-aliases.sh`'s `status` delegates to `health-check.sh` the same way `dev-aliases.ps1`'s does to `health-check.ps1`)
 
 Expected endpoints:
 - profile: `http://localhost:8081/q/openapi`
@@ -278,7 +303,7 @@ Removes everything git doesn't track, including `node_modules` and `.gradle` cac
 
 ### `setup-dev.ps1` — First-time developer setup
 
-Runs check-prerequisites, creates `.env` from template, bootstraps the database, installs npm dependencies.
+Runs check-prerequisites, creates `application/finance/.env` from `infrastructure/local/.env.template` (creating the `application/finance/` directory first — it isn't git-tracked, so it doesn't exist on a fresh clone), bootstraps the database, installs npm dependencies.
 
 ```powershell
 .\scripts\setup-dev.ps1
@@ -314,10 +339,19 @@ Called automatically by pre-commit hook. Not intended for manual use.
    - Comment block with Usage
    - `$root = Split-Path -Parent $PSScriptRoot`
    - Color helper functions: `Step`, `OK`, `Warn`, `Fail`
+   - **Save the file as UTF-8 with a BOM** (all `.ps1` files in this repo now carry one — see "Encoding note" below)
 2. If user-facing: add a function to `dev-aliases.ps1` in the appropriate section
 3. If it needs a short alias: add `Set-Alias` to the aliases section
 4. Update `help-dev` table in `dev-aliases.ps1`
 5. Update this document (`documents/SCRIPTS.md`) with a new entry
+
+### Encoding note (Windows PowerShell 5.1 gotcha)
+
+Windows PowerShell 5.1 (`powershell.exe`, not `pwsh.exe`) decodes a BOM-less `.ps1` file using the system's ANSI codepage, not UTF-8. Any non-ASCII character sitting inside an actual string literal (an em dash `—`, an arrow `→`/`←`, etc. — box-drawing characters and other decoration are safe *only* inside `#` comments or single-quoted here-strings `@'...'@`) gets mis-decoded and can silently corrupt string/quote parsing for the rest of the file. All 19 `.ps1` scripts in this repo were re-saved with a UTF-8 BOM (2026-07-06) to close this off permanently; keep new scripts saved the same way (PowerShell 5.1's own `Set-Content -Encoding UTF8` / ISE's default save both add the BOM automatically). PowerShell 7+ (`pwsh`) and every `.sh` script are unaffected — don't add a BOM to `.sh` files, it breaks the `#!` shebang line.
+
+### Known gap: `scripts/documentWriter.py`
+
+A Python script lives in `scripts/` that stages, classifies, and merges stray `.md` files into the canonical `documents/*.md` files and rewrites the README's repository-tree section. It is not part of the documented script set above, has no safety/dry-run gate, and its own docstring points at a `tools/documentWriter.py` path that doesn't exist in this repo — it does not follow this file's script conventions and is not maintained by `devops`. Evidence found during the 2026-07-06 retrospective suggests a keyword-classification bug in it has already merged unrelated agent/command-definition content into `documents/GETTING_STARTED.md`. Flagged for the project owner / `document-writer` agent to investigate; not modified here.
 
 ---
 

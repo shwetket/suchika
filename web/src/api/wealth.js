@@ -18,6 +18,9 @@ export function createAccount(profileId, data) {
 
 export const getAccount = (accountId) => get(`${API_ENDPOINTS.ACCOUNTS}/${accountId}`);
 
+export const getAccountBalance = (accountId, profileId) =>
+  get(`${API_ENDPOINTS.ACCOUNTS}/${accountId}/balance?profile_id=${encodeURIComponent(profileId)}`);
+
 export const updateAccount = (accountId, data) =>
   patch(`${API_ENDPOINTS.ACCOUNTS}/${accountId}`, data);
 

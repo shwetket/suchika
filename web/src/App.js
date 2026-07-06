@@ -33,11 +33,7 @@ import {
   Goals as HouseholdGoals,
   VacationPlanner as HouseholdVacationPlanner,
 } from './pages/Household';
-import {
-  Vitals as HealthVitals,
-  DoctorVisits as HealthDoctorVisits,
-  HealthProfile as HealthProfilePage,
-} from './pages/Health';
+import { Vitals as HealthVitals, DoctorVisits as HealthDoctorVisits } from './pages/Health';
 
 function resolveTheme(theme, prefersDark) {
   if (theme !== 'auto') return theme;
@@ -199,15 +195,6 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            <Route
-              path="/health/profile"
-              element={
-                <ProtectedRoute requiredRole="user">
-                  <HealthProfilePage />
-                </ProtectedRoute>
-              }
-            />
-
             {/* Admin Routes */}
             <Route
               path="/admin/setup"

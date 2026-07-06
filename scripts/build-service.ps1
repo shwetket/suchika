@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 # Shared build helper — called by dev-aliases.ps1, not directly by users.
 # Usage: .\scripts\build-service.ps1 <service> [-NoCache]
 #

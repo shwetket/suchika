@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 # Drops and recreates app_db, then re-runs 00_bootstrap.sql.
 # WARNING: destroys all local data. Intended for use before v1.0 (all data is ephemeral).
 # Usage: .\scripts\db-reset.ps1  [-Force]

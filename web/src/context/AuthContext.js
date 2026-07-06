@@ -23,7 +23,25 @@ export const AuthProvider = ({ children }) => {
 
   const login = useCallback(async (username, role = 'user') => {
     const response = await signIn({ username, role });
+
+    // Carry forward admin_id/profile_id from a prior session for the same
+    // username, so re-authenticating doesn't send an already-set-up admin
+    // back through the setup wizard (SetupGate gates on user.admin_id).
+    let carryForward = {};
+    const stored = localStorage.getItem('user');
+    if (stored) {
+      try {
+        const previous = JSON.parse(stored);
+        if (previous.username === response.username) {
+          carryForward = { admin_id: previous.admin_id, profile_id: previous.profile_id };
+        }
+      } catch (e) {
+        logError('AuthContext', e);
+      }
+    }
+
     const newUser = {
+      ...carryForward,
       username: response.username,
       role: response.role,
       token: response.token,

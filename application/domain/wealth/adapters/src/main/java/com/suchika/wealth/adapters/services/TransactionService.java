@@ -1,6 +1,7 @@
 package com.suchika.wealth.adapters.services;
 
 import com.suchika.shared.exception.BadRequestException;
+import com.suchika.shared.exception.ConflictException;
 import com.suchika.shared.exception.NotFoundException;
 import com.suchika.shared.logging.AppLogger;
 import com.suchika.wealth.domain.ExpenseCategory;
@@ -96,6 +97,9 @@ public class TransactionService implements TransactionUseCase {
         }
         if (command.txnType() == null) {
             throw new BadRequestException("txn_type is required");
+        }
+        if (repository.existsByDeduplicationKey(accountId, profileId, command.txnDate(), command.amount(), command.txnType())) {
+            throw new ConflictException("A transaction with the same account, date, amount, and type already exists");
         }
 
         Map<String, String> metadata = new HashMap<>();

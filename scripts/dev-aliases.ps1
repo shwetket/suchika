@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 # ============================================================================
 #  Suchika Developer Aliases
 #  Activate once per terminal session by dot-sourcing this file:
