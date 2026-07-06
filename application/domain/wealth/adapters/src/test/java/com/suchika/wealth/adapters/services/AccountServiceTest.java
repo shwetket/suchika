@@ -40,7 +40,7 @@ class AccountServiceTest {
     private static CreateAccountCommand cmd(String name, AccountType type, String institution,
                                             BigDecimal openingBalance, BigDecimal creditLimit,
                                             BigDecimal interestRate, BigDecimal emiAmount) {
-        return new CreateAccountCommand(name, type, institution, openingBalance, creditLimit, interestRate, emiAmount);
+        return new CreateAccountCommand(name, type, institution, null, openingBalance, creditLimit, interestRate, emiAmount);
     }
 
     @Test

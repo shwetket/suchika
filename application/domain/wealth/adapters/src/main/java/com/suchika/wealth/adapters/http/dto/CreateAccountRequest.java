@@ -17,6 +17,9 @@ public class CreateAccountRequest {
     @JsonProperty("institution_name")
     public String institutionName;
 
+    @JsonProperty("currency")
+    public String currency;
+
     @JsonProperty("opening_balance")
     public BigDecimal openingBalance;
 

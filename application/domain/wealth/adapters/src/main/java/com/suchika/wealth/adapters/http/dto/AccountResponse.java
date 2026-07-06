@@ -26,6 +26,9 @@ public class AccountResponse {
     @JsonProperty("institution_name")
     public String institutionName;
 
+    @JsonProperty("currency")
+    public String currency;
+
     @JsonProperty("opening_balance")
     public BigDecimal openingBalance;
 
@@ -58,6 +61,7 @@ public class AccountResponse {
         r.accountName = account.getAccountName();
         r.accountType = account.getAccountType() != null ? account.getAccountType().name() : null;
         r.institutionName = account.getInstitutionName();
+        r.currency = account.getCurrency();
         r.openingBalance = account.getOpeningBalance();
         r.creditLimit = account.getCreditLimit();
         r.interestRate = account.getInterestRate();

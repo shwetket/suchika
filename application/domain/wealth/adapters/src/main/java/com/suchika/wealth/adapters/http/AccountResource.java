@@ -48,7 +48,7 @@ public class AccountResource {
         AccountType accountType = parseAccountType(request.accountType);
         if (accountType == null) throw new BadRequestException("account_type is required");
         CreateAccountCommand command = new CreateAccountCommand(
-                request.accountName, accountType, request.institutionName,
+                request.accountName, accountType, request.institutionName, request.currency,
                 request.openingBalance, request.creditLimit, request.interestRate, request.emiAmount);
         return Response.status(201).entity(AccountResponse.from(useCase.createAccount(profileId, command))).build();
     }

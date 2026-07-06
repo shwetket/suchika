@@ -206,12 +206,125 @@ export interface paths {
      */
     post: operations["vacationPlannerBudgetCheck"];
   };
+  "/v1/admins": {
+    /** List all admins */
+    get: operations["listAdmins"];
+    /** Create an admin */
+    post: operations["createAdmin"];
+  };
+  "/v1/admins/{adminId}": {
+    /** Get an admin by id */
+    get: operations["getAdmin"];
+  };
+  "/v1/admins/{adminId}/policy": {
+    /**
+     * Merge household policy settings (includes the one-time setup_completed flag)
+     * @description Merges the provided keys into the admin's existing policy_settings map. Keys with a null value are ignored (existing value is preserved).
+     */
+    patch: operations["updateAdminPolicySettings"];
+  };
+  "/v1/profiles": {
+    /** List profiles scoped to an admin */
+    get: operations["listProfiles"];
+    /** Create a household member profile */
+    post: operations["createProfile"];
+  };
+  "/v1/profiles/{profileId}": {
+    /** Get a profile by id */
+    get: operations["getProfile"];
+    /** Deactivate a profile (soft delete) */
+    delete: operations["deactivateProfile"];
+    /**
+     * Update a profile
+     * @description Partial update. Only email_address, gender, blood_type, and is_active are mutable — full_name, dob, relation_to_admin, admin_id are immutable.
+     */
+    patch: operations["updateProfile"];
+  };
 }
 
 export type webhooks = Record<string, never>;
 
 export interface components {
   schemas: {
+    AdminResponse: {
+      /** @example admins/550e8400-e29b-41d4-a716-446655440000 */
+      name?: string;
+      /** Format: uuid */
+      admin_id?: string;
+      display_name?: string;
+      /** Format: email */
+      email_address?: string;
+      is_active?: boolean;
+      /** Format: date-time */
+      created_at?: string;
+      /** @description Household-level policy thresholds plus the one-time setup_completed flag. All keys optional. */
+      policy_settings?: {
+        [key: string]: string;
+      };
+    };
+    ListAdminsResponse: {
+      admins?: components["schemas"]["AdminResponse"][];
+    };
+    CreateAdminRequest: {
+      display_name: string;
+      /** Format: email */
+      email_address?: string;
+    };
+    UpdateAdminPolicyRequest: {
+      /** @description Keys to merge into the existing policy_settings map. A null value for a key leaves the existing value unchanged. */
+      policy_settings: {
+        [key: string]: string | null;
+      };
+    };
+    ProfileResponse: {
+      /** @example profiles/550e8400-e29b-41d4-a716-446655440000 */
+      name?: string;
+      /** Format: uuid */
+      profile_id?: string;
+      /** Format: uuid */
+      admin_id?: string;
+      full_name?: string;
+      /** Format: date */
+      dob?: string;
+      /** @enum {string} */
+      relation_to_admin?: "SELF" | "SPOUSE" | "CHILD" | "PARENT" | "SIBLING" | "OTHER";
+      /** Format: email */
+      email_address?: string;
+      /** @enum {string} */
+      gender?: "MALE" | "FEMALE" | "OTHER" | "PREFER_NOT_TO_SAY";
+      /** @enum {string} */
+      blood_type?: "A+" | "A-" | "B+" | "B-" | "AB+" | "AB-" | "O+" | "O-";
+      is_active?: boolean;
+      /** Format: date-time */
+      created_at?: string;
+    };
+    ListProfilesResponse: {
+      profiles?: components["schemas"]["ProfileResponse"][];
+    };
+    CreateProfileRequest: {
+      /** Format: uuid */
+      admin_id: string;
+      full_name: string;
+      /** Format: date */
+      dob: string;
+      /** @enum {string} */
+      relation_to_admin: "SELF" | "SPOUSE" | "CHILD" | "PARENT" | "SIBLING" | "OTHER";
+      /** Format: email */
+      email_address?: string;
+      /** @enum {string} */
+      gender?: "MALE" | "FEMALE" | "OTHER" | "PREFER_NOT_TO_SAY";
+      /** @enum {string} */
+      blood_type?: "A+" | "A-" | "B+" | "B-" | "AB+" | "AB-" | "O+" | "O-";
+    };
+    UpdateProfileRequest: {
+      /** Format: email */
+      email_address?: string;
+      /** @enum {string} */
+      gender?: "MALE" | "FEMALE" | "OTHER" | "PREFER_NOT_TO_SAY";
+      /** @enum {string} */
+      blood_type?: "A+" | "A-" | "B+" | "B-" | "AB+" | "AB-" | "O+" | "O-";
+      is_active?: boolean;
+    };
     DashboardSnapshotDto: {
       /** Format: uuid */
       profile_id?: string;
@@ -493,42 +606,8 @@ export interface components {
     ListUploadsResponse: {
       uploads?: components["schemas"]["StatementUploadResponse"][];
     };
-    Error: {
-      code: number;
-      status: string;
-      message: string;
-      details?: {
-          field?: string;
-          issue?: string;
-        }[];
-    };
   };
-  responses: {
-    /** @description Request validation failed */
-    BadRequest: {
-      content: {
-        "application/json": components["schemas"]["Error"];
-      };
-    };
-    /** @description Resource not found */
-    NotFound: {
-      content: {
-        "application/json": components["schemas"]["Error"];
-      };
-    };
-    /** @description Resource already exists or has conflicting state */
-    Conflict: {
-      content: {
-        "application/json": components["schemas"]["Error"];
-      };
-    };
-    /** @description Unexpected server error */
-    InternalError: {
-      content: {
-        "application/json": components["schemas"]["Error"];
-      };
-    };
-  };
+  responses: never;
   parameters: {
     /** @description Unique identifier of the household resource */
     HouseholdId: string;
@@ -548,7 +627,104 @@ export interface components {
 
 export type $defs = Record<string, never>;
 
-export type external = Record<string, never>;
+export interface external {
+  "shared.yaml": {
+    paths: Record<string, never>;
+    webhooks: Record<string, never>;
+    components: {
+      schemas: {
+        /**
+         * @description ISO 4217 currency code. Currently INR only.
+         * @default INR
+         * @enum {string}
+         */
+        Currency: "INR";
+        /** @description Standard error response body. Follows AIP-193 and Google error model. All 4xx and 5xx responses use this schema. */
+        Error: {
+          /**
+           * @description HTTP status code mirrored in the body for client convenience.
+           * @example 404
+           */
+          code: number;
+          /**
+           * @description Machine-readable error status string. Maps to gRPC status codes. Values: INVALID_ARGUMENT (400), NOT_FOUND (404), ALREADY_EXISTS (409), INTERNAL (500).
+           *
+           * @example NOT_FOUND
+           * @enum {string}
+           */
+          status: "INVALID_ARGUMENT" | "NOT_FOUND" | "ALREADY_EXISTS" | "FAILED_PRECONDITION" | "INTERNAL";
+          /**
+           * @description Human-readable summary of the error. Suitable for display.
+           * @example Profile not found
+           */
+          message: string;
+          /** @description Field-level validation issues. Present on INVALID_ARGUMENT (400) errors. Empty or absent for all other error types. */
+          details?: external["shared.yaml"]["components"]["schemas"]["ValidationIssue"][];
+        };
+        /** @description A single field-level validation failure within an error response. */
+        ValidationIssue: {
+          /**
+           * @description Dot-notation path to the invalid field within the request body. Examples: "full_name", "account.credit_limit", "items[0].quantity".
+           *
+           * @example full_name
+           */
+          field: string;
+          /**
+           * @description Human-readable description of the constraint that was violated.
+           * @example must not be blank
+           */
+          issue: string;
+        };
+      };
+      responses: {
+        /** @description 400 — Request body or query parameters failed validation. The 'details' array lists every field that violated a constraint. */
+        BadRequest: {
+          content: {
+            "application/json": external["shared.yaml"]["components"]["schemas"]["Error"];
+          };
+        };
+        /** @description 404 — The requested resource does not exist. */
+        NotFound: {
+          content: {
+            "application/json": external["shared.yaml"]["components"]["schemas"]["Error"];
+          };
+        };
+        /** @description 409 — The request conflicts with existing state. Examples: duplicate unique value, deactivating a resource with active children. */
+        Conflict: {
+          content: {
+            "application/json": external["shared.yaml"]["components"]["schemas"]["Error"];
+          };
+        };
+        /** @description 409 — A precondition for this operation was not met. Examples: uploading to a deactivated account, deleting an admin with active members. */
+        FailedPrecondition: {
+          content: {
+            "application/json": external["shared.yaml"]["components"]["schemas"]["Error"];
+          };
+        };
+        /** @description 500 — An unexpected server-side error occurred. The client should retry with exponential backoff. */
+        InternalError: {
+          content: {
+            "application/json": external["shared.yaml"]["components"]["schemas"]["Error"];
+          };
+        };
+      };
+      parameters: {
+        /** @description Maximum number of items to return per page. Follows AIP-158 (Pagination). Default 20, maximum 100. */
+        PageSize?: number;
+        /** @description Opaque token from the previous response's next_page_token field. Omit for the first page. */
+        PageToken?: string;
+        /** @description Unique identifier of the household member profile. */
+        ProfileIdParam: string;
+        /** @description Unique identifier of the household member profile. Required on every list/scoped operation project-wide — no domain treats this as optional. */
+        ProfileIdRequiredQueryParam: string;
+      };
+      requestBodies: never;
+      headers: never;
+      pathItems: never;
+    };
+    $defs: Record<string, never>;
+  };
+}
 
 export interface operations {
 
@@ -558,10 +734,10 @@ export interface operations {
    */
   listAccounts: {
     parameters: {
-      query?: {
+      query: {
         account_type?: components["schemas"]["AccountType"];
         is_active?: boolean;
-        profile_id?: string;
+        profile_id: external["shared.yaml"]["components"]["parameters"]["ProfileIdRequiredQueryParam"];
       };
     };
     responses: {
@@ -571,8 +747,8 @@ export interface operations {
           "application/json": components["schemas"]["ListAccountsResponse"];
         };
       };
-      400: components["responses"]["BadRequest"];
-      500: components["responses"]["InternalError"];
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
     };
   };
   /**
@@ -581,8 +757,8 @@ export interface operations {
    */
   createAccount: {
     parameters: {
-      query?: {
-        profile_id?: string;
+      query: {
+        profile_id: external["shared.yaml"]["components"]["parameters"]["ProfileIdRequiredQueryParam"];
       };
     };
     requestBody: {
@@ -597,8 +773,8 @@ export interface operations {
           "application/json": components["schemas"]["AccountResponse"];
         };
       };
-      400: components["responses"]["BadRequest"];
-      500: components["responses"]["InternalError"];
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
     };
   };
   /**
@@ -618,8 +794,8 @@ export interface operations {
           "application/json": components["schemas"]["AccountResponse"];
         };
       };
-      404: components["responses"]["NotFound"];
-      500: components["responses"]["InternalError"];
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
     };
   };
   /**
@@ -637,9 +813,9 @@ export interface operations {
       204: {
         content: never;
       };
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["Conflict"];
-      500: components["responses"]["InternalError"];
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      409: external["shared.yaml"]["components"]["responses"]["Conflict"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
     };
   };
   /**
@@ -664,9 +840,9 @@ export interface operations {
           "application/json": components["schemas"]["AccountResponse"];
         };
       };
-      400: components["responses"]["BadRequest"];
-      404: components["responses"]["NotFound"];
-      500: components["responses"]["InternalError"];
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
     };
   };
   /**
@@ -675,8 +851,8 @@ export interface operations {
    */
   getAccountBalance: {
     parameters: {
-      query?: {
-        profile_id?: string;
+      query: {
+        profile_id: external["shared.yaml"]["components"]["parameters"]["ProfileIdRequiredQueryParam"];
       };
       path: {
         accountId: components["parameters"]["AccountId"];
@@ -689,8 +865,8 @@ export interface operations {
           "application/json": components["schemas"]["AccountBalanceResponse"];
         };
       };
-      404: components["responses"]["NotFound"];
-      500: components["responses"]["InternalError"];
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
     };
   };
   /**
@@ -699,8 +875,8 @@ export interface operations {
    */
   getAmortization: {
     parameters: {
-      query?: {
-        profile_id?: string;
+      query: {
+        profile_id: external["shared.yaml"]["components"]["parameters"]["ProfileIdRequiredQueryParam"];
       };
       path: {
         accountId: components["parameters"]["AccountId"];
@@ -713,9 +889,9 @@ export interface operations {
           "application/json": components["schemas"]["AmortizationSummaryResponse"];
         };
       };
-      400: components["responses"]["BadRequest"];
-      404: components["responses"]["NotFound"];
-      500: components["responses"]["InternalError"];
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
     };
   };
   /**
@@ -740,9 +916,9 @@ export interface operations {
           "application/json": components["schemas"]["AccountResponse"];
         };
       };
-      400: components["responses"]["BadRequest"];
-      404: components["responses"]["NotFound"];
-      500: components["responses"]["InternalError"];
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
     };
   };
   /**
@@ -751,8 +927,8 @@ export interface operations {
    */
   listTransactions: {
     parameters: {
-      query?: {
-        profile_id?: string;
+      query: {
+        profile_id: external["shared.yaml"]["components"]["parameters"]["ProfileIdRequiredQueryParam"];
         /** @description Start date filter (inclusive), format YYYY-MM-DD. */
         from?: string;
         /** @description End date filter (inclusive), format YYYY-MM-DD. */
@@ -774,9 +950,9 @@ export interface operations {
           "application/json": components["schemas"]["ListTransactionsResponse"];
         };
       };
-      400: components["responses"]["BadRequest"];
-      404: components["responses"]["NotFound"];
-      500: components["responses"]["InternalError"];
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
     };
   };
   /**
@@ -785,8 +961,8 @@ export interface operations {
    */
   createTransaction: {
     parameters: {
-      query?: {
-        profile_id?: string;
+      query: {
+        profile_id: external["shared.yaml"]["components"]["parameters"]["ProfileIdRequiredQueryParam"];
       };
       path: {
         accountId: components["parameters"]["AccountId"];
@@ -804,8 +980,8 @@ export interface operations {
           "application/json": components["schemas"]["TransactionResponse"];
         };
       };
-      400: components["responses"]["BadRequest"];
-      500: components["responses"]["InternalError"];
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
     };
   };
   /**
@@ -826,8 +1002,8 @@ export interface operations {
           "application/json": components["schemas"]["TransactionResponse"];
         };
       };
-      404: components["responses"]["NotFound"];
-      500: components["responses"]["InternalError"];
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
     };
   };
   /**
@@ -853,9 +1029,9 @@ export interface operations {
           "application/json": components["schemas"]["TransactionResponse"];
         };
       };
-      400: components["responses"]["BadRequest"];
-      404: components["responses"]["NotFound"];
-      500: components["responses"]["InternalError"];
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
     };
   };
   /**
@@ -880,9 +1056,9 @@ export interface operations {
           "application/json": components["schemas"]["ListTransactionsResponse"];
         };
       };
-      400: components["responses"]["BadRequest"];
-      404: components["responses"]["NotFound"];
-      500: components["responses"]["InternalError"];
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
     };
   };
   /**
@@ -902,8 +1078,8 @@ export interface operations {
           "application/json": components["schemas"]["ListUploadsResponse"];
         };
       };
-      404: components["responses"]["NotFound"];
-      500: components["responses"]["InternalError"];
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
     };
   };
   /**
@@ -928,9 +1104,9 @@ export interface operations {
           "application/json": components["schemas"]["StatementUploadResponse"];
         };
       };
-      400: components["responses"]["BadRequest"];
-      404: components["responses"]["NotFound"];
-      500: components["responses"]["InternalError"];
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
     };
   };
   /** Get structured parse errors for a failed upload */
@@ -948,8 +1124,8 @@ export interface operations {
           "application/json": components["schemas"]["UploadErrorLogResponse"][];
         };
       };
-      404: components["responses"]["NotFound"];
-      500: components["responses"]["InternalError"];
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
     };
   };
   /**
@@ -968,8 +1144,8 @@ export interface operations {
       204: {
         content: never;
       };
-      404: components["responses"]["NotFound"];
-      500: components["responses"]["InternalError"];
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
     };
   };
   /**
@@ -978,10 +1154,10 @@ export interface operations {
    */
   listPhysicalAssets: {
     parameters: {
-      query?: {
+      query: {
         asset_type?: components["schemas"]["AssetType"];
         is_active?: boolean;
-        profile_id?: string;
+        profile_id: external["shared.yaml"]["components"]["parameters"]["ProfileIdRequiredQueryParam"];
       };
     };
     responses: {
@@ -991,8 +1167,8 @@ export interface operations {
           "application/json": components["schemas"]["ListPhysicalAssetsResponse"];
         };
       };
-      400: components["responses"]["BadRequest"];
-      500: components["responses"]["InternalError"];
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
     };
   };
   /**
@@ -1001,8 +1177,8 @@ export interface operations {
    */
   createPhysicalAsset: {
     parameters: {
-      query?: {
-        profile_id?: string;
+      query: {
+        profile_id: external["shared.yaml"]["components"]["parameters"]["ProfileIdRequiredQueryParam"];
       };
     };
     requestBody: {
@@ -1017,9 +1193,9 @@ export interface operations {
           "application/json": components["schemas"]["PhysicalAssetResponse"];
         };
       };
-      400: components["responses"]["BadRequest"];
-      409: components["responses"]["Conflict"];
-      500: components["responses"]["InternalError"];
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      409: external["shared.yaml"]["components"]["responses"]["Conflict"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
     };
   };
   /**
@@ -1039,8 +1215,8 @@ export interface operations {
           "application/json": components["schemas"]["PhysicalAssetResponse"];
         };
       };
-      404: components["responses"]["NotFound"];
-      500: components["responses"]["InternalError"];
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
     };
   };
   /**
@@ -1058,8 +1234,8 @@ export interface operations {
       204: {
         content: never;
       };
-      404: components["responses"]["NotFound"];
-      500: components["responses"]["InternalError"];
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
     };
   };
   /**
@@ -1084,16 +1260,16 @@ export interface operations {
           "application/json": components["schemas"]["PhysicalAssetResponse"];
         };
       };
-      400: components["responses"]["BadRequest"];
-      404: components["responses"]["NotFound"];
-      500: components["responses"]["InternalError"];
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
     };
   };
   /** List calendar events for a profile */
   listCalendarEvents: {
     parameters: {
       query: {
-        profile_id: string;
+        profile_id: external["shared.yaml"]["components"]["parameters"]["ProfileIdRequiredQueryParam"];
         event_type?: string;
         from_date?: string;
         to_date?: string;
@@ -1106,8 +1282,8 @@ export interface operations {
           "application/json": Record<string, never>;
         };
       };
-      400: components["responses"]["BadRequest"];
-      500: components["responses"]["InternalError"];
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
     };
   };
   /** Create a calendar event */
@@ -1124,8 +1300,8 @@ export interface operations {
           "application/json": Record<string, never>;
         };
       };
-      400: components["responses"]["BadRequest"];
-      500: components["responses"]["InternalError"];
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
     };
   };
   /** Get a calendar event */
@@ -1142,8 +1318,8 @@ export interface operations {
           "application/json": Record<string, never>;
         };
       };
-      404: components["responses"]["NotFound"];
-      500: components["responses"]["InternalError"];
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
     };
   };
   /** Delete a calendar event */
@@ -1158,8 +1334,8 @@ export interface operations {
       204: {
         content: never;
       };
-      404: components["responses"]["NotFound"];
-      500: components["responses"]["InternalError"];
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
     };
   };
   /** Update a calendar event */
@@ -1181,16 +1357,16 @@ export interface operations {
           "application/json": Record<string, never>;
         };
       };
-      400: components["responses"]["BadRequest"];
-      404: components["responses"]["NotFound"];
-      500: components["responses"]["InternalError"];
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
     };
   };
   /** List inventory items for a profile */
   listInventoryItems: {
     parameters: {
       query: {
-        profile_id: string;
+        profile_id: external["shared.yaml"]["components"]["parameters"]["ProfileIdRequiredQueryParam"];
         source_platform?: string;
         category?: string;
       };
@@ -1202,8 +1378,8 @@ export interface operations {
           "application/json": Record<string, never>;
         };
       };
-      400: components["responses"]["BadRequest"];
-      500: components["responses"]["InternalError"];
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
     };
   };
   /** Add an inventory item */
@@ -1220,8 +1396,8 @@ export interface operations {
           "application/json": Record<string, never>;
         };
       };
-      400: components["responses"]["BadRequest"];
-      500: components["responses"]["InternalError"];
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
     };
   };
   /** Get an inventory item */
@@ -1238,8 +1414,8 @@ export interface operations {
           "application/json": Record<string, never>;
         };
       };
-      404: components["responses"]["NotFound"];
-      500: components["responses"]["InternalError"];
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
     };
   };
   /**
@@ -1264,9 +1440,9 @@ export interface operations {
           "application/json": Record<string, never>;
         };
       };
-      400: components["responses"]["BadRequest"];
-      404: components["responses"]["NotFound"];
-      500: components["responses"]["InternalError"];
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
     };
   };
   /** Delete an inventory item */
@@ -1281,15 +1457,15 @@ export interface operations {
       204: {
         content: never;
       };
-      404: components["responses"]["NotFound"];
-      500: components["responses"]["InternalError"];
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
     };
   };
   /** List financial goals for a profile */
   listGoals: {
     parameters: {
       query: {
-        profile_id: string;
+        profile_id: external["shared.yaml"]["components"]["parameters"]["ProfileIdRequiredQueryParam"];
         status?: string;
       };
     };
@@ -1300,8 +1476,8 @@ export interface operations {
           "application/json": Record<string, never>;
         };
       };
-      400: components["responses"]["BadRequest"];
-      500: components["responses"]["InternalError"];
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
     };
   };
   /** Create a financial goal */
@@ -1318,8 +1494,8 @@ export interface operations {
           "application/json": Record<string, never>;
         };
       };
-      400: components["responses"]["BadRequest"];
-      500: components["responses"]["InternalError"];
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
     };
   };
   /** Get a goal */
@@ -1336,8 +1512,8 @@ export interface operations {
           "application/json": Record<string, never>;
         };
       };
-      404: components["responses"]["NotFound"];
-      500: components["responses"]["InternalError"];
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
     };
   };
   /** Delete a goal */
@@ -1352,8 +1528,8 @@ export interface operations {
       204: {
         content: never;
       };
-      404: components["responses"]["NotFound"];
-      500: components["responses"]["InternalError"];
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
     };
   };
   /** Update a goal */
@@ -1375,9 +1551,9 @@ export interface operations {
           "application/json": Record<string, never>;
         };
       };
-      400: components["responses"]["BadRequest"];
-      404: components["responses"]["NotFound"];
-      500: components["responses"]["InternalError"];
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
     };
   };
   /**
@@ -1397,7 +1573,7 @@ export interface operations {
           "application/json": components["schemas"]["DashboardResponse"];
         };
       };
-      500: components["responses"]["InternalError"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
     };
   };
   /**
@@ -1417,7 +1593,7 @@ export interface operations {
           "application/json": components["schemas"]["DashboardResponse"];
         };
       };
-      500: components["responses"]["InternalError"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
     };
   };
   /**
@@ -1427,7 +1603,7 @@ export interface operations {
   vacationPlannerBudgetCheck: {
     parameters: {
       query: {
-        profile_id: string;
+        profile_id: external["shared.yaml"]["components"]["parameters"]["ProfileIdRequiredQueryParam"];
       };
     };
     requestBody: {
@@ -1442,8 +1618,182 @@ export interface operations {
           "application/json": components["schemas"]["VacationPlannerResponse"];
         };
       };
-      400: components["responses"]["BadRequest"];
-      500: components["responses"]["InternalError"];
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+    };
+  };
+  /** List all admins */
+  listAdmins: {
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ListAdminsResponse"];
+        };
+      };
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+    };
+  };
+  /** Create an admin */
+  createAdmin: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateAdminRequest"];
+      };
+    };
+    responses: {
+      /** @description Created */
+      201: {
+        content: {
+          "application/json": components["schemas"]["AdminResponse"];
+        };
+      };
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      409: external["shared.yaml"]["components"]["responses"]["Conflict"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+    };
+  };
+  /** Get an admin by id */
+  getAdmin: {
+    parameters: {
+      path: {
+        adminId: string;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["AdminResponse"];
+        };
+      };
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+    };
+  };
+  /**
+   * Merge household policy settings (includes the one-time setup_completed flag)
+   * @description Merges the provided keys into the admin's existing policy_settings map. Keys with a null value are ignored (existing value is preserved).
+   */
+  updateAdminPolicySettings: {
+    parameters: {
+      path: {
+        adminId: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateAdminPolicyRequest"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["AdminResponse"];
+        };
+      };
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+    };
+  };
+  /** List profiles scoped to an admin */
+  listProfiles: {
+    parameters: {
+      query?: {
+        admin_id?: string;
+        is_active?: boolean;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ListProfilesResponse"];
+        };
+      };
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+    };
+  };
+  /** Create a household member profile */
+  createProfile: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateProfileRequest"];
+      };
+    };
+    responses: {
+      /** @description Created */
+      201: {
+        content: {
+          "application/json": components["schemas"]["ProfileResponse"];
+        };
+      };
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      409: external["shared.yaml"]["components"]["responses"]["Conflict"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+    };
+  };
+  /** Get a profile by id */
+  getProfile: {
+    parameters: {
+      path: {
+        profileId: string;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ProfileResponse"];
+        };
+      };
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+    };
+  };
+  /** Deactivate a profile (soft delete) */
+  deactivateProfile: {
+    parameters: {
+      path: {
+        profileId: string;
+      };
+    };
+    responses: {
+      /** @description No content */
+      204: {
+        content: never;
+      };
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+    };
+  };
+  /**
+   * Update a profile
+   * @description Partial update. Only email_address, gender, blood_type, and is_active are mutable — full_name, dob, relation_to_admin, admin_id are immutable.
+   */
+  updateProfile: {
+    parameters: {
+      path: {
+        profileId: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateProfileRequest"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ProfileResponse"];
+        };
+      };
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
     };
   };
 }
