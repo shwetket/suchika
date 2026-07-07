@@ -59,17 +59,14 @@ public class StatementUploadService implements StatementUploadUseCase {
 
         try {
             List<ParsedRow> rows = csvParser.parse(csvContent);
-            List<ParsedRow> dedupedRows = deduplicateSameFile(rows);
-
             int insertedCount = 0;
             List<UploadResult.SkippedRow> skipped = new ArrayList<>();
-            // Tracks dedup keys inserted in THIS batch to avoid double-checking same-file variants.
+            // Tracks dedup keys inserted in THIS batch to avoid same-file duplicates
             Set<String> insertedThisBatch = new LinkedHashSet<>();
 
-            for (ParsedRow row : dedupedRows) {
+            for (ParsedRow row : rows) {
                 String dedupKey = row.date() + "|" + row.amount().toPlainString() + "|" + row.txnType();
-                if (txnRepo.existsByDeduplicationKey(accountId, profileId, row.date(), row.amount(), row.txnType())
-                        && !insertedThisBatch.contains(dedupKey)) {
+                if (insertedThisBatch.contains(dedupKey) || txnRepo.existsByDeduplicationKey(accountId, profileId, row.date(), row.amount(), row.txnType())) {
                     skipped.add(new UploadResult.SkippedRow(row.date(), row.amount(), row.description()));
                 } else {
                     txnRepo.save(Transaction.create(accountId, uploadId, row.date(), row.amount(),
@@ -124,26 +121,5 @@ public class StatementUploadService implements StatementUploadUseCase {
         return errorLogRepo.findByUploadId(uploadId);
     }
 
-    /**
-     * Same-file deduplication: rows within the same batch that share
-     * (date, amount, txnType, description) have a sequence suffix appended to
-     * the description so the DB unique constraint treats them as distinct events.
-     */
-    private List<ParsedRow> deduplicateSameFile(List<ParsedRow> rows) {
-        Map<String, Integer> seen = new LinkedHashMap<>();
-        List<ParsedRow> result = new ArrayList<>(rows.size());
 
-        for (ParsedRow row : rows) {
-            String key = row.date() + "|" + row.amount().toPlainString() + "|" + row.txnType() + "|" + row.description();
-            int count = seen.getOrDefault(key, 0);
-            seen.put(key, count + 1);
-
-            if (count > 0) {
-                result.add(row.withDescription(row.description() + " #" + (count + 1)));
-            } else {
-                result.add(row);
-            }
-        }
-        return result;
-    }
 }

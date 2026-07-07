@@ -100,7 +100,9 @@ function AccountCard({ account, balance, onEdit, onDeactivate }) {
       <div className="text-sm text-gray-600 space-y-1">
         <p>
           Balance:{' '}
-          {balance === undefined ? 'Loading...' : formatCurrency(balance ?? account.opening_balance)}
+          {balance === undefined
+            ? 'Loading...'
+            : formatCurrency(balance ?? account.opening_balance)}
         </p>
         {account.credit_limit !== null &&
           account.credit_limit !== undefined &&

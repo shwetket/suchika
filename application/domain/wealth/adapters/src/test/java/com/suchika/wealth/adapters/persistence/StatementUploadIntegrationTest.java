@@ -86,21 +86,22 @@ class StatementUploadIntegrationTest {
     }
 
     @Test
-    void uploadStatement_sameFileDuplicates_bothKeptWithSuffix() {
+    void uploadStatement_sameFileDuplicates_secondRowSkipped() {
         String csvWithDuplicates = """
                 Date,Narration,Withdrawal Amt.,Deposit Amt.
                 05/06/2026,DUPLICATE TXN,500.00,
                 05/06/2026,DUPLICATE TXN,500.00,""";
 
-        uploadUseCase.uploadStatement(SEEDED_ACCOUNT_ID, "dups.csv", csvWithDuplicates);
+        UploadResult result = uploadUseCase.uploadStatement(SEEDED_ACCOUNT_ID, "dups.csv", csvWithDuplicates);
 
         List<Transaction> txns = transactionRepository.findByAccountId(SEEDED_ACCOUNT_ID, null,
                 LocalDate.of(2026, Month.JUNE, 5), LocalDate.of(2026, Month.JUNE, 5), TxnType.DEBIT);
-        assertEquals(2, txns.size());
+        assertEquals(1, txns.size());
+        assertEquals(1, result.getInsertedCount());
+        assertEquals(1, result.getSkippedDuplicates().size());
 
         List<String> descriptions = txns.stream().map(Transaction::getDescription).toList();
-        assertTrue(descriptions.contains("DUPLICATE TXN"), "First row should keep original description");
-        assertTrue(descriptions.stream().anyMatch(d -> d.contains("#2")), "Second row should get #2 suffix");
+        assertTrue(descriptions.contains("DUPLICATE TXN"), "First row should be kept");
     }
 
     @Test

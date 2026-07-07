@@ -60,19 +60,20 @@ class StatementUploadServiceTest {
     }
 
     @Test
-    void upload_sameFileDuplicateRows_bothKeptWithSuffix() {
+    void upload_sameFileDuplicateRows_secondRowSkipped() {
         String csv = """
                 Date,Narration,Withdrawal Amt.,Deposit Amt.
                 01/06/2026,DUPLICATE TXNM,500.00,
                 01/06/2026,DUPLICATE TXNM,500.00,""";
 
-        service.uploadStatement(ACCOUNT_ID, "dups.csv", csv);
+        UploadResult result = service.uploadStatement(ACCOUNT_ID, "dups.csv", csv);
 
-        assertEquals(2, txnRepo.saved.size());
+        assertEquals(1, txnRepo.saved.size());
+        assertEquals(1, result.getInsertedCount());
+        assertEquals(1, result.getSkippedDuplicates().size());
         List<String> descriptions = txnRepo.saved.stream()
                 .map(Transaction::getDescription).toList();
         assertTrue(descriptions.contains("DUPLICATE TXNM"));
-        assertTrue(descriptions.stream().anyMatch(d -> d.contains("#2")));
     }
 
     @Test

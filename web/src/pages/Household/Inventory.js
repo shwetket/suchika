@@ -200,7 +200,12 @@ export const Inventory = () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await listInventoryItems(selectedProfileId, platformFilter || null, page, PAGE_SIZE);
+      const data = await listInventoryItems(
+        selectedProfileId,
+        platformFilter || null,
+        page,
+        PAGE_SIZE
+      );
       const list = data.inventory_items ?? data.items ?? [];
       setItems(list);
       setTotalSize(data.total_size ?? list.length);
