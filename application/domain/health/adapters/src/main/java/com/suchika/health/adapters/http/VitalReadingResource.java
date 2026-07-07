@@ -45,10 +45,6 @@ public class VitalReadingResource {
         return Response.ok(new ListVitalReadingsResponse(readings, result.totalCount(), page, size)).build();
     }
 
-
-
-
-
     @POST
     public Response recordVitalReading(RecordVitalReadingRequest request) {
         if (request == null) throw new BadRequestException("Request body is required");
