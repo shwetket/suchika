@@ -5,6 +5,7 @@ import com.suchika.wealth.domain.PhysicalAsset;
 import com.suchika.wealth.ports.output.PhysicalAssetRepository;
 import io.quarkus.panache.common.Page;
 import jakarta.enterprise.context.ApplicationScoped;
+import com.suchika.shared.persistence.PanacheQueryFilter;
 
 import java.util.List;
 import java.util.Optional;
@@ -37,14 +38,14 @@ public class PhysicalAssetPanacheRepository implements PhysicalAssetRepository {
 
     @Override
     public List<PhysicalAsset> findAll(UUID profileId, AssetType assetType, Boolean isActive) {
-        Filter filter = buildFilter(profileId, assetType, isActive);
+        PanacheQueryFilter filter = buildFilter(profileId, assetType, isActive);
         return dao.find(filter.query(), filter.params().toArray())
                 .stream().map(PhysicalAssetEntity::toDomain).toList();
     }
 
     @Override
     public List<PhysicalAsset> findAll(UUID profileId, AssetType assetType, Boolean isActive, int page, int size) {
-        Filter filter = buildFilter(profileId, assetType, isActive);
+        PanacheQueryFilter filter = buildFilter(profileId, assetType, isActive);
         return dao.find(filter.query(), filter.params().toArray())
                 .page(Page.of(page, size))
                 .list()
@@ -53,7 +54,7 @@ public class PhysicalAssetPanacheRepository implements PhysicalAssetRepository {
 
     @Override
     public long countAll(UUID profileId, AssetType assetType, Boolean isActive) {
-        Filter filter = buildFilter(profileId, assetType, isActive);
+        PanacheQueryFilter filter = buildFilter(profileId, assetType, isActive);
         return dao.find(filter.query(), filter.params().toArray()).count();
     }
 
@@ -64,7 +65,7 @@ public class PhysicalAssetPanacheRepository implements PhysicalAssetRepository {
      * starts from a tautology so every optional filter can be appended uniformly
      * with "and", and orders newest-first so pagination across calls is stable.
      */
-    private Filter buildFilter(UUID profileId, AssetType assetType, Boolean isActive) {
+    private PanacheQueryFilter buildFilter(UUID profileId, AssetType assetType, Boolean isActive) {
         StringBuilder query = new StringBuilder("1=1");
         List<Object> params = new java.util.ArrayList<>();
 
@@ -82,10 +83,7 @@ public class PhysicalAssetPanacheRepository implements PhysicalAssetRepository {
         }
         query.append(" order by createdAt desc");
 
-        return new Filter(query.toString(), params);
-    }
-
-    private record Filter(String query, List<Object> params) {
+        return new PanacheQueryFilter(query.toString(), params);
     }
 
     @Override

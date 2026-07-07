@@ -5,6 +5,7 @@ import com.suchika.health.domain.VitalType;
 import com.suchika.health.ports.output.VitalReadingRepository;
 import io.quarkus.panache.common.Page;
 import jakarta.enterprise.context.ApplicationScoped;
+import com.suchika.shared.persistence.PanacheQueryFilter;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -38,14 +39,14 @@ public class VitalReadingPanacheRepository implements VitalReadingRepository {
 
     @Override
     public List<VitalReading> findByProfileId(UUID profileId, VitalType vitalType) {
-        Filter filter = buildFilter(profileId, vitalType);
+        PanacheQueryFilter filter = buildFilter(profileId, vitalType);
         return dao.find(filter.query(), filter.params().toArray())
                 .stream().map(VitalReadingEntity::toDomain).toList();
     }
 
     @Override
     public List<VitalReading> findByProfileId(UUID profileId, VitalType vitalType, int page, int size) {
-        Filter filter = buildFilter(profileId, vitalType);
+        PanacheQueryFilter filter = buildFilter(profileId, vitalType);
         return dao.find(filter.query(), filter.params().toArray())
                 .page(Page.of(page, size))
                 .list()
@@ -54,7 +55,7 @@ public class VitalReadingPanacheRepository implements VitalReadingRepository {
 
     @Override
     public long countByProfileId(UUID profileId, VitalType vitalType) {
-        Filter filter = buildFilter(profileId, vitalType);
+        PanacheQueryFilter filter = buildFilter(profileId, vitalType);
         return dao.find(filter.query(), filter.params().toArray()).count();
     }
 
@@ -63,7 +64,7 @@ public class VitalReadingPanacheRepository implements VitalReadingRepository {
      * {@code countByProfileId} — keeps the filter logic in exactly one place
      * (Sonar CPD) now that there are three call sites needing the same predicate.
      */
-    private Filter buildFilter(UUID profileId, VitalType vitalType) {
+    private PanacheQueryFilter buildFilter(UUID profileId, VitalType vitalType) {
         StringBuilder query = new StringBuilder("profileId = ?1");
         List<Object> params = new ArrayList<>();
         params.add(profileId);
@@ -74,10 +75,7 @@ public class VitalReadingPanacheRepository implements VitalReadingRepository {
         }
         query.append(" order by readingDate desc");
 
-        return new Filter(query.toString(), params);
-    }
-
-    private record Filter(String query, List<Object> params) {
+        return new PanacheQueryFilter(query.toString(), params);
     }
 
     @Override

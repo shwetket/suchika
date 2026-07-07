@@ -22,6 +22,8 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
+import com.suchika.shared.utils.ResourceUtils;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -29,9 +31,6 @@ import java.util.UUID;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class InventoryItemResource {
-
-    private static final int DEFAULT_PAGE_SIZE = 50;
-    private static final int MAX_PAGE_SIZE = 200;
 
     private final InventoryItemUseCase useCase;
 
@@ -48,8 +47,8 @@ public class InventoryItemResource {
             @QueryParam("size") Integer sizeParam) {
         if (profileId == null) throw new BadRequestException("profile_id is required");
         SourcePlatform platform = parseSourcePlatform(sourcePlatform);
-        int page = parsePage(pageParam);
-        int size = parseSize(sizeParam);
+        int page = ResourceUtils.parsePage(pageParam);
+        int size = ResourceUtils.parseSize(sizeParam);
 
         PagedInventoryItems result = useCase.listPaginated(profileId, platform, category, page, size);
         List<InventoryItemDto> items = result.items().stream().map(InventoryItemDto::from).toList();
@@ -115,19 +114,5 @@ public class InventoryItemResource {
         }
     }
 
-    private int parsePage(Integer pageParam) {
-        int page = pageParam != null ? pageParam : 0;
-        if (page < 0) {
-            throw new BadRequestException("page must be >= 0");
-        }
-        return page;
-    }
 
-    private int parseSize(Integer sizeParam) {
-        int size = sizeParam != null ? sizeParam : DEFAULT_PAGE_SIZE;
-        if (size < 1 || size > MAX_PAGE_SIZE) {
-            throw new BadRequestException("size must be between 1 and " + MAX_PAGE_SIZE);
-        }
-        return size;
-    }
 }

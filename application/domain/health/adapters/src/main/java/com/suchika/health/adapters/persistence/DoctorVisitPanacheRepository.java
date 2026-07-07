@@ -4,6 +4,7 @@ import com.suchika.health.domain.DoctorVisit;
 import com.suchika.health.ports.output.DoctorVisitRepository;
 import io.quarkus.panache.common.Page;
 import jakarta.enterprise.context.ApplicationScoped;
+import com.suchika.shared.persistence.PanacheQueryFilter;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -37,14 +38,14 @@ public class DoctorVisitPanacheRepository implements DoctorVisitRepository {
 
     @Override
     public List<DoctorVisit> findByProfileId(UUID profileId, LocalDate from, LocalDate to) {
-        Filter filter = buildFilter(profileId, from, to);
+        PanacheQueryFilter filter = buildFilter(profileId, from, to);
         return dao.find(filter.query(), filter.params().toArray())
                 .stream().map(DoctorVisitEntity::toDomain).toList();
     }
 
     @Override
     public List<DoctorVisit> findByProfileId(UUID profileId, LocalDate from, LocalDate to, int page, int size) {
-        Filter filter = buildFilter(profileId, from, to);
+        PanacheQueryFilter filter = buildFilter(profileId, from, to);
         return dao.find(filter.query(), filter.params().toArray())
                 .page(Page.of(page, size))
                 .list()
@@ -53,7 +54,7 @@ public class DoctorVisitPanacheRepository implements DoctorVisitRepository {
 
     @Override
     public long countByProfileId(UUID profileId, LocalDate from, LocalDate to) {
-        Filter filter = buildFilter(profileId, from, to);
+        PanacheQueryFilter filter = buildFilter(profileId, from, to);
         return dao.find(filter.query(), filter.params().toArray()).count();
     }
 
@@ -62,7 +63,7 @@ public class DoctorVisitPanacheRepository implements DoctorVisitRepository {
      * {@code countByProfileId} — keeps the filter logic in exactly one place
      * (Sonar CPD) now that there are three call sites needing the same predicate.
      */
-    private Filter buildFilter(UUID profileId, LocalDate from, LocalDate to) {
+    private PanacheQueryFilter buildFilter(UUID profileId, LocalDate from, LocalDate to) {
         StringBuilder query = new StringBuilder("profileId = ?1");
         List<Object> params = new java.util.ArrayList<>();
         params.add(profileId);
@@ -78,10 +79,7 @@ public class DoctorVisitPanacheRepository implements DoctorVisitRepository {
         }
         query.append(" order by fromDate desc");
 
-        return new Filter(query.toString(), params);
-    }
-
-    private record Filter(String query, List<Object> params) {
+        return new PanacheQueryFilter(query.toString(), params);
     }
 
     @Override

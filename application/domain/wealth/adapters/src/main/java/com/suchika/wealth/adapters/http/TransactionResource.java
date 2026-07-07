@@ -15,6 +15,8 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
+import com.suchika.shared.utils.ResourceUtils;
+
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -23,9 +25,6 @@ import java.util.UUID;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class TransactionResource {
-
-    private static final int DEFAULT_PAGE_SIZE = 50;
-    private static final int MAX_PAGE_SIZE = 200;
 
     private final TransactionUseCase useCase;
 
@@ -43,11 +42,11 @@ public class TransactionResource {
             @QueryParam("page") Integer pageParam,
             @QueryParam("size") Integer sizeParam) {
 
-        LocalDate from = parseDate(fromParam, "from");
-        LocalDate to = parseDate(toParam, "to");
+        LocalDate from = ResourceUtils.parseDate(fromParam, "from");
+        LocalDate to = ResourceUtils.parseDate(toParam, "to");
         TxnType txnType = parseTxnType(txnTypeParam);
-        int page = parsePage(pageParam);
-        int size = parseSize(sizeParam);
+        int page = ResourceUtils.parsePage(pageParam);
+        int size = ResourceUtils.parseSize(sizeParam);
 
         PagedTransactions result = useCase.listByAccountPaginated(accountId, profileId, from, to, txnType, page, size);
         List<TransactionResponse> transactions = result.transactions().stream().map(TransactionResponse::from).toList();
@@ -62,7 +61,7 @@ public class TransactionResource {
         if (request == null) throw new BadRequestException("Request body is required");
         TxnType txnType = parseTxnType(request.txnType);
         if (txnType == null) throw new BadRequestException("txn_type is required");
-        LocalDate txnDate = parseDate(request.txnDate, "txn_date");
+        LocalDate txnDate = ResourceUtils.parseDate(request.txnDate, "txn_date");
         if (txnDate == null) throw new BadRequestException("txn_date is required");
         CreateTransactionCommand command = new CreateTransactionCommand(
                 txnDate, request.amount, txnType, request.description);
@@ -110,15 +109,6 @@ public class TransactionResource {
         }
     }
 
-    private LocalDate parseDate(String value, String paramName) {
-        if (value == null) return null;
-        try {
-            return LocalDate.parse(value);
-        } catch (Exception e) {
-            throw new BadRequestException("Invalid " + paramName + " date: " + value + " (expected yyyy-MM-dd)");
-        }
-    }
-
     private TxnType parseTxnType(String value) {
         if (value == null) return null;
         try {
@@ -126,21 +116,5 @@ public class TransactionResource {
         } catch (IllegalArgumentException e) {
             throw new BadRequestException("Invalid txn_type: " + value + " (expected CREDIT or DEBIT)");
         }
-    }
-
-    private int parsePage(Integer pageParam) {
-        int page = pageParam != null ? pageParam : 0;
-        if (page < 0) {
-            throw new BadRequestException("page must be >= 0");
-        }
-        return page;
-    }
-
-    private int parseSize(Integer sizeParam) {
-        int size = sizeParam != null ? sizeParam : DEFAULT_PAGE_SIZE;
-        if (size < 1 || size > MAX_PAGE_SIZE) {
-            throw new BadRequestException("size must be between 1 and " + MAX_PAGE_SIZE);
-        }
-        return size;
     }
 }

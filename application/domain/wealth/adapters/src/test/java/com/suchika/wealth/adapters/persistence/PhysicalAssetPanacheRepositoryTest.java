@@ -17,7 +17,6 @@ import java.time.Month;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -88,7 +87,7 @@ class PhysicalAssetPanacheRepositoryTest {
         List<UUID> pagedIds = java.util.stream.Stream.of(firstPage, secondPage, thirdPage)
                 .flatMap(List::stream)
                 .map(PhysicalAsset::getId)
-                .collect(Collectors.toList());
+                .toList();
 
         assertEquals(5, pagedIds.size(), "pages together must cover the whole result set exactly once");
         assertEquals(new java.util.HashSet<>(insertedIds), new java.util.HashSet<>(pagedIds),

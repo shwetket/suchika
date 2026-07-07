@@ -22,6 +22,8 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
+import com.suchika.shared.utils.ResourceUtils;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -29,9 +31,6 @@ import java.util.UUID;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class GoalResource {
-
-    private static final int DEFAULT_PAGE_SIZE = 50;
-    private static final int MAX_PAGE_SIZE = 200;
 
     private final GoalUseCase useCase;
 
@@ -47,8 +46,8 @@ public class GoalResource {
             @QueryParam("size") Integer sizeParam) {
         if (profileId == null) throw new BadRequestException("profile_id is required");
         GoalStatus goalStatus = parseStatus(status);
-        int page = parsePage(pageParam);
-        int size = parseSize(sizeParam);
+        int page = ResourceUtils.parsePage(pageParam);
+        int size = ResourceUtils.parseSize(sizeParam);
 
         PagedGoals result = useCase.listPaginated(profileId, goalStatus, page, size);
         List<GoalDto> goals = result.goals().stream().map(GoalDto::from).toList();
@@ -104,19 +103,5 @@ public class GoalResource {
         }
     }
 
-    private int parsePage(Integer pageParam) {
-        int page = pageParam != null ? pageParam : 0;
-        if (page < 0) {
-            throw new BadRequestException("page must be >= 0");
-        }
-        return page;
-    }
 
-    private int parseSize(Integer sizeParam) {
-        int size = sizeParam != null ? sizeParam : DEFAULT_PAGE_SIZE;
-        if (size < 1 || size > MAX_PAGE_SIZE) {
-            throw new BadRequestException("size must be between 1 and " + MAX_PAGE_SIZE);
-        }
-        return size;
-    }
 }

@@ -13,6 +13,8 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
+import com.suchika.shared.utils.ResourceUtils;
+
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -21,9 +23,6 @@ import java.util.UUID;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class DoctorVisitResource {
-
-    private static final int DEFAULT_PAGE_SIZE = 50;
-    private static final int MAX_PAGE_SIZE = 200;
 
     private final DoctorVisitUseCase useCase;
 
@@ -38,40 +37,17 @@ public class DoctorVisitResource {
             @QueryParam("to") String toParam,
             @QueryParam("page") Integer pageParam,
             @QueryParam("size") Integer sizeParam) {
-        LocalDate from = parseDate(fromParam, "from");
-        LocalDate to = parseDate(toParam, "to");
-        int page = parsePage(pageParam);
-        int size = parseSize(sizeParam);
+        LocalDate from = ResourceUtils.parseDate(fromParam, "from");
+        LocalDate to = ResourceUtils.parseDate(toParam, "to");
+        int page = ResourceUtils.parsePage(pageParam);
+        int size = ResourceUtils.parseSize(sizeParam);
 
         PagedDoctorVisits result = useCase.listByProfilePaginated(profileId, from, to, page, size);
         List<DoctorVisitResponse> visits = result.visits().stream().map(DoctorVisitResponse::from).toList();
         return Response.ok(new ListDoctorVisitsResponse(visits, result.totalCount(), page, size)).build();
     }
 
-    private LocalDate parseDate(String value, String paramName) {
-        if (value == null) return null;
-        try {
-            return LocalDate.parse(value);
-        } catch (Exception e) {
-            throw new BadRequestException("Invalid " + paramName + " date: " + value + " (expected yyyy-MM-dd)");
-        }
-    }
 
-    private int parsePage(Integer pageParam) {
-        int page = pageParam != null ? pageParam : 0;
-        if (page < 0) {
-            throw new BadRequestException("page must be >= 0");
-        }
-        return page;
-    }
-
-    private int parseSize(Integer sizeParam) {
-        int size = sizeParam != null ? sizeParam : DEFAULT_PAGE_SIZE;
-        if (size < 1 || size > MAX_PAGE_SIZE) {
-            throw new BadRequestException("size must be between 1 and " + MAX_PAGE_SIZE);
-        }
-        return size;
-    }
 
     @POST
     public Response create(CreateDoctorVisitRequest request) {
