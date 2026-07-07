@@ -24,9 +24,6 @@ import java.util.UUID;
 @Consumes(MediaType.APPLICATION_JSON)
 public class DoctorVisitResource {
 
-    private static final int DEFAULT_PAGE_SIZE = 50;
-    private static final int MAX_PAGE_SIZE = 200;
-
     private final DoctorVisitUseCase useCase;
 
     public DoctorVisitResource(DoctorVisitUseCase useCase) {
@@ -40,10 +37,10 @@ public class DoctorVisitResource {
             @QueryParam("to") String toParam,
             @QueryParam("page") Integer pageParam,
             @QueryParam("size") Integer sizeParam) {
-        LocalDate from = parseDate(fromParam, "from");
-        LocalDate to = parseDate(toParam, "to");
-        int page = parsePage(pageParam);
-        int size = parseSize(sizeParam);
+        LocalDate from = ResourceUtils.parseDate(fromParam, "from");
+        LocalDate to = ResourceUtils.parseDate(toParam, "to");
+        int page = ResourceUtils.parsePage(pageParam);
+        int size = ResourceUtils.parseSize(sizeParam);
 
         PagedDoctorVisits result = useCase.listByProfilePaginated(profileId, from, to, page, size);
         List<DoctorVisitResponse> visits = result.visits().stream().map(DoctorVisitResponse::from).toList();
@@ -51,22 +48,6 @@ public class DoctorVisitResource {
     }
 
 
-
-    private int parsePage(Integer pageParam) {
-        int page = pageParam != null ? pageParam : 0;
-        if (page < 0) {
-            throw new BadRequestException("page must be >= 0");
-        }
-        return page;
-    }
-
-    private int parseSize(Integer sizeParam) {
-        int size = sizeParam != null ? sizeParam : DEFAULT_PAGE_SIZE;
-        if (size < 1 || size > MAX_PAGE_SIZE) {
-            throw new BadRequestException("size must be between 1 and " + MAX_PAGE_SIZE);
-        }
-        return size;
-    }
 
     @POST
     public Response create(CreateDoctorVisitRequest request) {

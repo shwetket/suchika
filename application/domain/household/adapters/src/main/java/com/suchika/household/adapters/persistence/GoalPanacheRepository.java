@@ -39,14 +39,14 @@ public class GoalPanacheRepository implements GoalRepository {
 
     @Override
     public List<Goal> findByProfileId(UUID profileId, GoalStatus status) {
-        Filter filter = buildFilter(profileId, status);
+        PanacheQueryFilter filter = buildFilter(profileId, status);
         return dao.find(filter.query(), filter.params().toArray())
                 .stream().map(GoalEntity::toDomain).toList();
     }
 
     @Override
     public List<Goal> findByProfileId(UUID profileId, GoalStatus status, int page, int size) {
-        Filter filter = buildFilter(profileId, status);
+        PanacheQueryFilter filter = buildFilter(profileId, status);
         return dao.find(filter.query(), filter.params().toArray())
                 .page(Page.of(page, size))
                 .list()
@@ -55,7 +55,7 @@ public class GoalPanacheRepository implements GoalRepository {
 
     @Override
     public long countByProfileId(UUID profileId, GoalStatus status) {
-        Filter filter = buildFilter(profileId, status);
+        PanacheQueryFilter filter = buildFilter(profileId, status);
         return dao.find(filter.query(), filter.params().toArray()).count();
     }
 
@@ -64,7 +64,7 @@ public class GoalPanacheRepository implements GoalRepository {
      * {@code countByProfileId} — keeps the filter logic in exactly one place
      * (Sonar CPD) now that there are three call sites needing the same predicate.
      */
-    private Filter buildFilter(UUID profileId, GoalStatus status) {
+    private PanacheQueryFilter buildFilter(UUID profileId, GoalStatus status) {
         List<Object> params = new ArrayList<>();
         params.add(profileId);
         String query;
@@ -74,10 +74,7 @@ public class GoalPanacheRepository implements GoalRepository {
         } else {
             query = "profileId = ?1 ORDER BY createdAt DESC";
         }
-        return new Filter(query, params);
-    }
-
-    private record Filter(String query, List<Object> params) {
+        return new PanacheQueryFilter(query, params);
     }
 
     @Override
