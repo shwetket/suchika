@@ -42,7 +42,9 @@ describe('listVitals', () => {
   it('appends page and size when provided', () => {
     get.mockResolvedValue({ vitals: [] });
     listVitals('profile-1', 'WEIGHT', 2, 20);
-    expect(get).toHaveBeenCalledWith('/v1/vitals?profile_id=profile-1&vital_type=WEIGHT&page=2&size=20');
+    expect(get).toHaveBeenCalledWith(
+      '/v1/vitals?profile_id=profile-1&vital_type=WEIGHT&page=2&size=20'
+    );
   });
 
   it('omits page and size when not provided', () => {
