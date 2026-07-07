@@ -8,6 +8,7 @@ import com.suchika.household.adapters.http.dto.UpdateCalendarEventRequest;
 import com.suchika.household.domain.CalendarEvent;
 import com.suchika.household.domain.EventType;
 import com.suchika.household.ports.input.CalendarEventUseCase;
+import com.suchika.household.ports.input.PagedCalendarEvents;
 import com.suchika.shared.exception.BadRequestException;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -30,6 +31,9 @@ import java.util.UUID;
 @Consumes(MediaType.APPLICATION_JSON)
 public class CalendarEventResource {
 
+    private static final int DEFAULT_PAGE_SIZE = 50;
+    private static final int MAX_PAGE_SIZE = 200;
+
     private final CalendarEventUseCase useCase;
 
     public CalendarEventResource(CalendarEventUseCase useCase) {
@@ -41,12 +45,17 @@ public class CalendarEventResource {
             @QueryParam("profile_id") UUID profileId,
             @QueryParam("event_type") String eventType,
             @QueryParam("from_date") LocalDate fromDate,
-            @QueryParam("to_date") LocalDate toDate) {
+            @QueryParam("to_date") LocalDate toDate,
+            @QueryParam("page") Integer pageParam,
+            @QueryParam("size") Integer sizeParam) {
         if (profileId == null) throw new BadRequestException("profile_id is required");
         EventType type = parseEventType(eventType);
-        List<CalendarEventDto> events = useCase.list(profileId, type, fromDate, toDate)
-                .stream().map(CalendarEventDto::from).toList();
-        return new ListCalendarEventsResponse(events);
+        int page = parsePage(pageParam);
+        int size = parseSize(sizeParam);
+
+        PagedCalendarEvents result = useCase.listPaginated(profileId, type, fromDate, toDate, page, size);
+        List<CalendarEventDto> events = result.events().stream().map(CalendarEventDto::from).toList();
+        return new ListCalendarEventsResponse(events, result.totalCount(), page, size);
     }
 
     @POST
@@ -98,5 +107,21 @@ public class CalendarEventResource {
         } catch (IllegalArgumentException e) {
             throw new BadRequestException("Invalid event_type: " + value);
         }
+    }
+
+    private int parsePage(Integer pageParam) {
+        int page = pageParam != null ? pageParam : 0;
+        if (page < 0) {
+            throw new BadRequestException("page must be >= 0");
+        }
+        return page;
+    }
+
+    private int parseSize(Integer sizeParam) {
+        int size = sizeParam != null ? sizeParam : DEFAULT_PAGE_SIZE;
+        if (size < 1 || size > MAX_PAGE_SIZE) {
+            throw new BadRequestException("size must be between 1 and " + MAX_PAGE_SIZE);
+        }
+        return size;
     }
 }

@@ -9,6 +9,7 @@ import com.suchika.wealth.domain.AssetType;
 import com.suchika.wealth.domain.PhysicalAsset;
 import com.suchika.wealth.domain.RegistrationType;
 import com.suchika.wealth.ports.input.CreatePhysicalAssetCommand;
+import com.suchika.wealth.ports.input.PagedPhysicalAssets;
 import com.suchika.wealth.ports.input.PhysicalAssetUseCase;
 import jakarta.ws.rs.core.Response;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,18 +39,69 @@ class PhysicalAssetResourceTest {
     @Test
     void listAssets_returns200_withAssetList() {
         useCase.assetsToReturn = List.of(buildAsset());
+        useCase.totalCountToReturn = 1;
 
-        Response response = resource.listAssets("VEHICLE", true, PROFILE_ID);
+        Response response = resource.listAssets("VEHICLE", true, PROFILE_ID, null, null);
 
         assertEquals(200, response.getStatus());
         ListPhysicalAssetsResponse body = (ListPhysicalAssetsResponse) response.getEntity();
         assertEquals(1, body.physicalAssets.size());
+        assertEquals(1, body.totalSize);
         assertEquals("Tata Nexon", body.physicalAssets.get(0).assetName);
+        assertEquals(PROFILE_ID, useCase.lastListProfileId);
+        assertEquals(AssetType.VEHICLE, useCase.lastListAssetType);
+        assertEquals(true, useCase.lastListIsActive);
     }
 
     @Test
     void listAssets_invalidAssetType_throwsBadRequest() {
-        assertThrows(BadRequestException.class, () -> resource.listAssets("NOT_A_TYPE", true, PROFILE_ID));
+        assertThrows(BadRequestException.class, () -> resource.listAssets("NOT_A_TYPE", true, PROFILE_ID, null, null));
+    }
+
+    @Test
+    void listAssets_defaultsPageAndSizeWhenNotProvided() {
+        useCase.assetsToReturn = List.of(buildAsset());
+
+        Response response = resource.listAssets(null, null, PROFILE_ID, null, null);
+
+        ListPhysicalAssetsResponse body = (ListPhysicalAssetsResponse) response.getEntity();
+        assertEquals(0, body.page);
+        assertEquals(50, body.size);
+        assertEquals(0, useCase.lastListPage);
+        assertEquals(50, useCase.lastListSize);
+    }
+
+    @Test
+    void listAssets_honorsExplicitPageAndSize() {
+        useCase.assetsToReturn = List.of(buildAsset());
+        useCase.totalCountToReturn = 120;
+
+        Response response = resource.listAssets(null, null, PROFILE_ID, 2, 25);
+
+        ListPhysicalAssetsResponse body = (ListPhysicalAssetsResponse) response.getEntity();
+        assertEquals(2, body.page);
+        assertEquals(25, body.size);
+        assertEquals(120, body.totalSize);
+        assertEquals(2, useCase.lastListPage);
+        assertEquals(25, useCase.lastListSize);
+    }
+
+    @Test
+    void listAssets_negativePage_throwsBadRequest() {
+        assertThrows(BadRequestException.class,
+                () -> resource.listAssets(null, null, PROFILE_ID, -1, null));
+    }
+
+    @Test
+    void listAssets_sizeExceedsMax_throwsBadRequest() {
+        assertThrows(BadRequestException.class,
+                () -> resource.listAssets(null, null, PROFILE_ID, null, 500));
+    }
+
+    @Test
+    void listAssets_sizeZero_throwsBadRequest() {
+        assertThrows(BadRequestException.class,
+                () -> resource.listAssets(null, null, PROFILE_ID, null, 0));
     }
 
     @Test
@@ -138,12 +190,19 @@ class PhysicalAssetResourceTest {
 
     static class StubUseCase implements PhysicalAssetUseCase {
         List<PhysicalAsset> assetsToReturn = List.of();
+        long totalCountToReturn;
         PhysicalAsset assetToReturn;
 
         CreatePhysicalAssetCommand lastCreateCommand;
         UUID lastUpdateAssetId;
         Map<String, String> lastUpdateMetadata;
         UUID lastDeactivateAssetId;
+
+        UUID lastListProfileId;
+        AssetType lastListAssetType;
+        Boolean lastListIsActive;
+        Integer lastListPage;
+        Integer lastListSize;
 
         @Override
         public PhysicalAsset createAsset(UUID profileId, CreatePhysicalAssetCommand command) {
@@ -159,6 +218,17 @@ class PhysicalAssetResourceTest {
         @Override
         public List<PhysicalAsset> listAssets(UUID profileId, AssetType assetType, Boolean isActive) {
             return assetsToReturn;
+        }
+
+        @Override
+        public PagedPhysicalAssets listAssetsPaginated(UUID profileId, AssetType assetType, Boolean isActive,
+                                                         int page, int size) {
+            lastListProfileId = profileId;
+            lastListAssetType = assetType;
+            lastListIsActive = isActive;
+            lastListPage = page;
+            lastListSize = size;
+            return new PagedPhysicalAssets(assetsToReturn, totalCountToReturn);
         }
 
         @Override

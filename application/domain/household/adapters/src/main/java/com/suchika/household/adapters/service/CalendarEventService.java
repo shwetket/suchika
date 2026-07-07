@@ -3,6 +3,7 @@ package com.suchika.household.adapters.service;
 import com.suchika.household.domain.CalendarEvent;
 import com.suchika.household.domain.EventType;
 import com.suchika.household.ports.input.CalendarEventUseCase;
+import com.suchika.household.ports.input.PagedCalendarEvents;
 import com.suchika.household.ports.output.CalendarEventRepository;
 import com.suchika.shared.exception.NotFoundException;
 import com.suchika.shared.logging.AppLogger;
@@ -40,6 +41,14 @@ public class CalendarEventService implements CalendarEventUseCase {
     public List<CalendarEvent> list(UUID profileId, EventType eventType,
                                     LocalDate fromDate, LocalDate toDate) {
         return repository.findByProfileId(profileId, eventType, fromDate, toDate);
+    }
+
+    @Override
+    public PagedCalendarEvents listPaginated(UUID profileId, EventType eventType,
+                                             LocalDate fromDate, LocalDate toDate, int page, int size) {
+        List<CalendarEvent> events = repository.findByProfileId(profileId, eventType, fromDate, toDate, page, size);
+        long totalCount = repository.countByProfileId(profileId, eventType, fromDate, toDate);
+        return new PagedCalendarEvents(events, totalCount);
     }
 
     @Override

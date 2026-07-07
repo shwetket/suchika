@@ -22,7 +22,9 @@ public interface HouseholdServiceClient {
             @QueryParam("profile_id") UUID profileId,
             @QueryParam("event_type") String eventType,
             @QueryParam("from_date") String fromDate,
-            @QueryParam("to_date") String toDate);
+            @QueryParam("to_date") String toDate,
+            @QueryParam("page") Integer page,
+            @QueryParam("size") Integer size);
 
     @POST
     @Path("/calendar-events")
@@ -47,7 +49,9 @@ public interface HouseholdServiceClient {
     JsonNode listInventoryItems(
             @QueryParam("profile_id") UUID profileId,
             @QueryParam("source_platform") String sourcePlatform,
-            @QueryParam("category") String category);
+            @QueryParam("category") String category,
+            @QueryParam("page") Integer page,
+            @QueryParam("size") Integer size);
 
     @POST
     @Path("/inventory-items")
@@ -71,7 +75,9 @@ public interface HouseholdServiceClient {
     @Path("/goals")
     JsonNode listGoals(
             @QueryParam("profile_id") UUID profileId,
-            @QueryParam("status") String status);
+            @QueryParam("status") String status,
+            @QueryParam("page") Integer page,
+            @QueryParam("size") Integer size);
 
     @POST
     @Path("/goals")

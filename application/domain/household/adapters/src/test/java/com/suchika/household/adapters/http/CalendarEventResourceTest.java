@@ -3,6 +3,7 @@ package com.suchika.household.adapters.http;
 import com.suchika.household.domain.CalendarEvent;
 import com.suchika.household.domain.EventType;
 import com.suchika.household.ports.input.CalendarEventUseCase;
+import com.suchika.household.ports.input.PagedCalendarEvents;
 import com.suchika.shared.exception.NotFoundException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
@@ -53,8 +54,8 @@ class CalendarEventResourceTest {
 
     @Test
     void listCalendarEvents_emptyResult_returns200WithEmptyList() {
-        Mockito.when(calendarEventUseCase.list(eq(PROFILE_ID), isNull(), isNull(), isNull()))
-                .thenReturn(List.of());
+        Mockito.when(calendarEventUseCase.listPaginated(eq(PROFILE_ID), isNull(), isNull(), isNull(), eq(0), eq(50)))
+                .thenReturn(new PagedCalendarEvents(List.of(), 0));
 
         given()
                 .queryParam("profile_id", PROFILE_ID)
@@ -67,8 +68,8 @@ class CalendarEventResourceTest {
 
     @Test
     void listCalendarEvents_withOneEvent_returns200WithEvent() {
-        Mockito.when(calendarEventUseCase.list(eq(PROFILE_ID), isNull(), isNull(), isNull()))
-                .thenReturn(List.of(sampleEvent));
+        Mockito.when(calendarEventUseCase.listPaginated(eq(PROFILE_ID), isNull(), isNull(), isNull(), eq(0), eq(50)))
+                .thenReturn(new PagedCalendarEvents(List.of(sampleEvent), 1));
 
         given()
                 .queryParam("profile_id", PROFILE_ID)
@@ -79,12 +80,63 @@ class CalendarEventResourceTest {
                 .body("calendar_events[0].id", is(EVENT_ID.toString()))
                 .body("calendar_events[0].title", is("Team Standup"))
                 .body("calendar_events[0].event_type", is("WORK"))
-                .body("total_size", is(1));
+                .body("total_size", is(1))
+                .body("page", is(0))
+                .body("size", is(50));
     }
 
     @Test
     void listCalendarEvents_missingProfileId_returns400() {
         given()
+                .when().get("/v1/calendar-events")
+                .then()
+                .statusCode(400);
+    }
+
+    // ---- Q54 pagination pass ----
+
+    @Test
+    void listCalendarEvents_honorsExplicitPageAndSize() {
+        Mockito.when(calendarEventUseCase.listPaginated(eq(PROFILE_ID), isNull(), isNull(), isNull(), eq(1), eq(5)))
+                .thenReturn(new PagedCalendarEvents(List.of(sampleEvent), 12));
+
+        given()
+                .queryParam("profile_id", PROFILE_ID)
+                .queryParam("page", 1)
+                .queryParam("size", 5)
+                .when().get("/v1/calendar-events")
+                .then()
+                .statusCode(200)
+                .body("total_size", is(12))
+                .body("page", is(1))
+                .body("size", is(5));
+    }
+
+    @Test
+    void listCalendarEvents_negativePage_returns400() {
+        given()
+                .queryParam("profile_id", PROFILE_ID)
+                .queryParam("page", -1)
+                .when().get("/v1/calendar-events")
+                .then()
+                .statusCode(400);
+    }
+
+    @Test
+    void listCalendarEvents_sizeZero_returns400() {
+        given()
+                .queryParam("profile_id", PROFILE_ID)
+                .queryParam("size", 0)
+                .when().get("/v1/calendar-events")
+                .then()
+                .statusCode(400);
+    }
+
+    @Test
+    void listCalendarEvents_sizeExceedsMax_returns400() {
+        given()
+                .queryParam("profile_id", PROFILE_ID)
+                .queryParam("size", 500)
                 .when().get("/v1/calendar-events")
                 .then()
                 .statusCode(400);

@@ -15,6 +15,19 @@ public interface PhysicalAssetRepository {
 
     List<PhysicalAsset> findAll(UUID profileId, AssetType assetType, Boolean isActive);
 
+    /**
+     * Paginated variant of {@link #findAll} — v1.0 pagination extension (Q54).
+     * {@code page} is 0-indexed. Same filter predicate as the unpaginated method;
+     * use {@link #countAll} for the total matching count.
+     */
+    List<PhysicalAsset> findAll(UUID profileId, AssetType assetType, Boolean isActive, int page, int size);
+
+    /**
+     * Total count of physical assets matching the same filter predicate as
+     * {@link #findAll}, ignoring pagination — used to compute total pages.
+     */
+    long countAll(UUID profileId, AssetType assetType, Boolean isActive);
+
     boolean existsById(UUID id);
 
     boolean existsByRegistrationNumber(String registrationNumber);

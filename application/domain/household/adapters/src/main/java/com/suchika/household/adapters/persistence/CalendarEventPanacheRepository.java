@@ -3,6 +3,7 @@ package com.suchika.household.adapters.persistence;
 import com.suchika.household.domain.CalendarEvent;
 import com.suchika.household.domain.EventType;
 import com.suchika.household.ports.output.CalendarEventRepository;
+import io.quarkus.panache.common.Page;
 import jakarta.enterprise.context.ApplicationScoped;
 
 import java.time.LocalDate;
@@ -45,6 +46,26 @@ public class CalendarEventPanacheRepository implements CalendarEventRepository {
                 .stream()
                 .map(CalendarEventEntity::toDomain)
                 .toList();
+    }
+
+    @Override
+    public List<CalendarEvent> findByProfileId(UUID profileId, EventType eventType,
+                                               LocalDate fromDate, LocalDate toDate, int page, int size) {
+        String query = buildListQuery(eventType, fromDate, toDate);
+        List<Object> params = buildListParams(profileId, eventType, fromDate, toDate);
+        return dao.find(query, params.toArray())
+                .page(Page.of(page, size))
+                .list()
+                .stream()
+                .map(CalendarEventEntity::toDomain)
+                .toList();
+    }
+
+    @Override
+    public long countByProfileId(UUID profileId, EventType eventType, LocalDate fromDate, LocalDate toDate) {
+        String query = buildListQuery(eventType, fromDate, toDate);
+        List<Object> params = buildListParams(profileId, eventType, fromDate, toDate);
+        return dao.find(query, params.toArray()).count();
     }
 
     @Override

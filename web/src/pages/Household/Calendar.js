@@ -57,6 +57,8 @@ const EMPTY_FORM = {
 const inputClass =
   'border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full';
 
+const PAGE_SIZE = 20;
+
 function EventFormFields({ form, onChange }) {
   return (
     <>
@@ -230,6 +232,8 @@ export const Calendar = () => {
   const [profiles, setProfiles] = useState([]);
   const [selectedProfileId, setSelectedProfileId] = useState('');
   const [events, setEvents] = useState([]);
+  const [totalSize, setTotalSize] = useState(0);
+  const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [typeFilter, setTypeFilter] = useState('');
@@ -256,18 +260,28 @@ export const Calendar = () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await listCalendarEvents(selectedProfileId, typeFilter || null);
-      setEvents(data.calendar_events ?? data.events ?? []);
+      const data = await listCalendarEvents(selectedProfileId, typeFilter || null, page, PAGE_SIZE);
+      const list = data.calendar_events ?? data.events ?? [];
+      setEvents(list);
+      setTotalSize(data.total_size ?? list.length);
     } catch (err) {
       setError(err.message || 'Failed to load events');
     } finally {
       setLoading(false);
     }
-  }, [selectedProfileId, typeFilter]);
+  }, [selectedProfileId, typeFilter, page]);
 
   useEffect(() => {
     loadEvents();
   }, [loadEvents]);
+
+  // Reset to page 0 whenever the filters (not the page itself) change.
+  useEffect(() => {
+    setPage(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProfileId, typeFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(totalSize / PAGE_SIZE));
 
   const handleChange = useCallback(
     (setter) => (e) => {
@@ -476,6 +490,30 @@ export const Calendar = () => {
                   ))}
                 </tbody>
               </table>
+
+              <div className="flex items-center justify-between mt-4 text-sm text-gray-600">
+                <span>
+                  Page {page + 1} of {totalPages} ({totalSize} total)
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPage((p) => Math.max(0, p - 1))}
+                    disabled={page === 0}
+                    className="px-3 py-1.5 border border-gray-300 rounded text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPage((p) => (p + 1 < totalPages ? p + 1 : p))}
+                    disabled={page + 1 >= totalPages}
+                    className="px-3 py-1.5 border border-gray-300 rounded text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </>

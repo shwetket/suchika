@@ -66,11 +66,13 @@ export const rollbackUpload = (accountId, uploadId) =>
 export const getUploadErrors = (accountId, uploadId) =>
   get(`${API_ENDPOINTS.ACCOUNTS}/${accountId}/uploads/${uploadId}/errors`);
 
-export function listPhysicalAssets(profileId, assetType, isActive) {
+export function listPhysicalAssets(profileId, assetType, isActive, page, size) {
   const params = new URLSearchParams();
   if (profileId !== null && profileId !== undefined) params.append('profile_id', profileId);
   if (assetType !== null && assetType !== undefined) params.append('asset_type', assetType);
   if (isActive !== null && isActive !== undefined) params.append('is_active', String(isActive));
+  if (page !== null && page !== undefined) params.append('page', page);
+  if (size !== null && size !== undefined) params.append('size', size);
   const query = params.toString();
   const url = query ? `${API_ENDPOINTS.PHYSICAL_ASSETS}?${query}` : API_ENDPOINTS.PHYSICAL_ASSETS;
   return get(url);

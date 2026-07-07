@@ -57,6 +57,8 @@ const EMPTY_FORM = {
 const inputClass =
   'border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
 
+const PAGE_SIZE = 20;
+
 function VisitFormFields({ form, onChange }) {
   return (
     <>
@@ -300,6 +302,8 @@ export const DoctorVisits = () => {
   const [error, setError] = useState(null);
   const [filterFrom, setFilterFrom] = useState('');
   const [filterTo, setFilterTo] = useState('');
+  const [totalSize, setTotalSize] = useState(0);
+  const [page, setPage] = useState(0);
 
   const [showAdd, setShowAdd] = useState(false);
   const [addForm, setAddForm] = useState(EMPTY_FORM);
@@ -325,18 +329,33 @@ export const DoctorVisits = () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await listDoctorVisits(selectedProfileId, filterFrom || null, filterTo || null);
+      const data = await listDoctorVisits(
+        selectedProfileId,
+        filterFrom || null,
+        filterTo || null,
+        page,
+        PAGE_SIZE
+      );
       setVisits(data.doctor_visits ?? []);
+      setTotalSize(data.total_size ?? (data.doctor_visits ?? []).length);
     } catch (err) {
       setError(err.message || 'Failed to load visits');
     } finally {
       setLoading(false);
     }
-  }, [selectedProfileId, filterFrom, filterTo]);
+  }, [selectedProfileId, filterFrom, filterTo, page]);
 
   useEffect(() => {
     loadVisits();
   }, [loadVisits]);
+
+  // Reset to page 0 whenever the filters (not the page itself) change.
+  useEffect(() => {
+    setPage(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProfileId, filterFrom, filterTo]);
+
+  const totalPages = Math.max(1, Math.ceil(totalSize / PAGE_SIZE));
 
   const handleFormChange = useCallback(
     (setter) => (e) => {
@@ -527,16 +546,42 @@ export const DoctorVisits = () => {
           )}
 
           {!loading && visits.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {visits.map((v) => (
-                <VisitCard
-                  key={v.id}
-                  visit={v}
-                  onEdit={handleEditOpen}
-                  onDelete={setConfirmTarget}
-                />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {visits.map((v) => (
+                  <VisitCard
+                    key={v.id}
+                    visit={v}
+                    onEdit={handleEditOpen}
+                    onDelete={setConfirmTarget}
+                  />
+                ))}
+              </div>
+
+              <div className="flex items-center justify-between mt-4 text-sm text-gray-600">
+                <span>
+                  Page {page + 1} of {totalPages} ({totalSize} total)
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPage((p) => Math.max(0, p - 1))}
+                    disabled={page === 0}
+                    className="px-3 py-1.5 border border-gray-300 rounded text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPage((p) => (p + 1 < totalPages ? p + 1 : p))}
+                    disabled={page + 1 >= totalPages}
+                    className="px-3 py-1.5 border border-gray-300 rounded text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            </>
           )}
         </>
       )}

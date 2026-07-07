@@ -5,7 +5,7 @@
 | **Type** | Reference |
 | **Audience** | All developers, product |
 | **Status** | Active |
-| **Last updated** | 2026-07-06 (pre-v1.0 architecture + business retrospective added) |
+| **Last updated** | 2026-07-07 (Q54 pagination unification closed) |
 
 ## Objective
 
@@ -713,7 +713,9 @@ Full-repo retrospective ahead of v1.0 planning, requested explicitly as a pre-pr
 4. Is Epic 8 "done, don't touch," or do you expect to keep adjusting formulas/thresholds — and if so, should more of what's hardcoded move into `policy_settings`?
 5. Formally close PROP-002 and PROP-003 now?
 6. `shared.yaml`'s `Error` schema: fix it to describe the real runtime shape (cheap), or use this moment to adopt the structured `details[]` array it already promises (a real DTO change)?
-7. Q54 (pagination shape) is still open even after contract consolidation — accept a breaking change to unify on one shape, or formally sanction both shapes and stop chasing a single format?
+7. ~~Q54 (pagination shape) is still open even after contract consolidation — accept a breaking change to unify on one shape, or formally sanction both shapes and stop chasing a single format?~~ **RESOLVED 2026-07-07.** Unified on the offset-based `page`/`size` shape already proven by the transaction list (0-indexed page, size default 50 max 200) as reusable `Page`/`Size` parameters in `shared.yaml`. Deleted the dead cursor-based (`page_token`/`next_page_token`) scaffolding that `shared.yaml` and `GET /v1/accounts` declared but never implemented (`AccountResource` never read the params; `nextPageToken` was hardcoded `null`). Extended real pagination to every list endpoint whose data can grow large over years of use: doctor visits, vitals, inventory items, calendar events, goals, physical assets — full vertical slice each (contract, ports, service, Panache repository, HTTP resource, gateway proxy, frontend Previous/Next UI). Member/profile list and accounts list intentionally left unpaginated — both stay small by design, not a gap.
+
+    **New open issue surfaced by this work:** the web-gateway's `ProjectionCalculationEngine` (dashboard/CQRS aggregation) calls several of these list methods internally, not just to serve frontend pages. Widening the signatures forced its call sites to pass an explicit page/size (goals and calendar events default to page 0/size 50; vitals and physical-asset compliance checks use size 200). This means dashboard aggregates now silently cap at that many rows per profile — a latent correctness gap once a household exceeds the cap, currently unlikely but not impossible for calendar events or vitals over several years. Tracked in each affected domain-state doc; needs a product-owner call on whether/when to make the projection engine page through full results instead of capping.
 
 ---
 

@@ -61,6 +61,8 @@ const EMPTY_FORM = {
 const inputClass =
   'border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
 
+const PAGE_SIZE = 20;
+
 function VitalRow({ vital, onEdit, onDelete }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -137,6 +139,8 @@ export const Vitals = () => {
   const [profiles, setProfiles] = useState([]);
   const [selectedProfileId, setSelectedProfileId] = useState('');
   const [vitals, setVitals] = useState([]);
+  const [totalSize, setTotalSize] = useState(0);
+  const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [typeFilter, setTypeFilter] = useState('');
@@ -163,18 +167,27 @@ export const Vitals = () => {
     setError(null);
     try {
       const vitalTypeArg = typeFilter || null;
-      const data = await listVitals(selectedProfileId, vitalTypeArg);
+      const data = await listVitals(selectedProfileId, vitalTypeArg, page, PAGE_SIZE);
       setVitals(data.vitals ?? []);
+      setTotalSize(data.total_size ?? (data.vitals ?? []).length);
     } catch (err) {
       setError(err.message || 'Failed to load vitals');
     } finally {
       setLoading(false);
     }
-  }, [selectedProfileId, typeFilter]);
+  }, [selectedProfileId, typeFilter, page]);
 
   useEffect(() => {
     loadVitals();
   }, [loadVitals]);
+
+  // Reset to page 0 whenever the filters (not the page itself) change.
+  useEffect(() => {
+    setPage(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProfileId, typeFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(totalSize / PAGE_SIZE));
 
   const handleAddChange = useCallback((e) => {
     const { name, value } = e.target;
@@ -371,42 +384,68 @@ export const Vitals = () => {
           )}
 
           {!loading && vitals.length > 0 && (
-            <div className="overflow-x-auto rounded-lg border border-gray-200">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      Date
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      Type
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      Value
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      Unit
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      Notes
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white">
-                  {vitals.map((v) => (
-                    <VitalRow
-                      key={v.id}
-                      vital={v}
-                      onEdit={handleEditOpen}
-                      onDelete={handleDelete}
-                    />
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <>
+              <div className="overflow-x-auto rounded-lg border border-gray-200">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                        Date
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                        Type
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                        Value
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                        Unit
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                        Notes
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white">
+                    {vitals.map((v) => (
+                      <VitalRow
+                        key={v.id}
+                        vital={v}
+                        onEdit={handleEditOpen}
+                        onDelete={handleDelete}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex items-center justify-between mt-4 text-sm text-gray-600">
+                <span>
+                  Page {page + 1} of {totalPages} ({totalSize} total)
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPage((p) => Math.max(0, p - 1))}
+                    disabled={page === 0}
+                    className="px-3 py-1.5 border border-gray-300 rounded text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPage((p) => (p + 1 < totalPages ? p + 1 : p))}
+                    disabled={page + 1 >= totalPages}
+                    className="px-3 py-1.5 border border-gray-300 rounded text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            </>
           )}
         </>
       )}

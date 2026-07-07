@@ -3,6 +3,7 @@ package com.suchika.household.adapters.http;
 import com.suchika.household.domain.Goal;
 import com.suchika.household.domain.GoalStatus;
 import com.suchika.household.ports.input.GoalUseCase;
+import com.suchika.household.ports.input.PagedGoals;
 import com.suchika.shared.exception.NotFoundException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
@@ -55,8 +56,8 @@ class GoalResourceTest {
 
     @Test
     void listGoals_returns200WithGoals() {
-        Mockito.when(goalUseCase.list(eq(PROFILE_ID), isNull()))
-                .thenReturn(List.of(sampleGoal));
+        Mockito.when(goalUseCase.listPaginated(eq(PROFILE_ID), isNull(), eq(0), eq(50)))
+                .thenReturn(new PagedGoals(List.of(sampleGoal), 1));
 
         given()
                 .queryParam("profile_id", PROFILE_ID)
@@ -67,13 +68,15 @@ class GoalResourceTest {
                 .body("goals[0].id", is(GOAL_ID.toString()))
                 .body("goals[0].goal_name", is("Emergency Fund"))
                 .body("goals[0].status", is("ACTIVE"))
-                .body("total_size", is(1));
+                .body("total_size", is(1))
+                .body("page", is(0))
+                .body("size", is(50));
     }
 
     @Test
     void listGoals_emptyResult_returns200WithEmptyList() {
-        Mockito.when(goalUseCase.list(eq(PROFILE_ID), isNull()))
-                .thenReturn(List.of());
+        Mockito.when(goalUseCase.listPaginated(eq(PROFILE_ID), isNull(), eq(0), eq(50)))
+                .thenReturn(new PagedGoals(List.of(), 0));
 
         given()
                 .queryParam("profile_id", PROFILE_ID)
@@ -87,6 +90,55 @@ class GoalResourceTest {
     @Test
     void listGoals_missingProfileId_returns400() {
         given()
+                .when().get("/v1/goals")
+                .then()
+                .statusCode(400);
+    }
+
+    // ---- Q54 pagination pass ----
+
+    @Test
+    void listGoals_honorsExplicitPageAndSize() {
+        Mockito.when(goalUseCase.listPaginated(eq(PROFILE_ID), isNull(), eq(3), eq(20)))
+                .thenReturn(new PagedGoals(List.of(sampleGoal), 65));
+
+        given()
+                .queryParam("profile_id", PROFILE_ID)
+                .queryParam("page", 3)
+                .queryParam("size", 20)
+                .when().get("/v1/goals")
+                .then()
+                .statusCode(200)
+                .body("total_size", is(65))
+                .body("page", is(3))
+                .body("size", is(20));
+    }
+
+    @Test
+    void listGoals_negativePage_returns400() {
+        given()
+                .queryParam("profile_id", PROFILE_ID)
+                .queryParam("page", -1)
+                .when().get("/v1/goals")
+                .then()
+                .statusCode(400);
+    }
+
+    @Test
+    void listGoals_sizeZero_returns400() {
+        given()
+                .queryParam("profile_id", PROFILE_ID)
+                .queryParam("size", 0)
+                .when().get("/v1/goals")
+                .then()
+                .statusCode(400);
+    }
+
+    @Test
+    void listGoals_sizeExceedsMax_returns400() {
+        given()
+                .queryParam("profile_id", PROFILE_ID)
+                .queryParam("size", 500)
                 .when().get("/v1/goals")
                 .then()
                 .statusCode(400);

@@ -7,6 +7,7 @@ import com.suchika.household.adapters.http.dto.UpdateInventoryItemRequest;
 import com.suchika.household.domain.ItemUnit;
 import com.suchika.household.domain.SourcePlatform;
 import com.suchika.household.ports.input.InventoryItemUseCase;
+import com.suchika.household.ports.input.PagedInventoryItems;
 import com.suchika.household.ports.input.UpdateInventoryItemCommand;
 import com.suchika.shared.exception.BadRequestException;
 import jakarta.ws.rs.Consumes;
@@ -29,6 +30,9 @@ import java.util.UUID;
 @Consumes(MediaType.APPLICATION_JSON)
 public class InventoryItemResource {
 
+    private static final int DEFAULT_PAGE_SIZE = 50;
+    private static final int MAX_PAGE_SIZE = 200;
+
     private final InventoryItemUseCase useCase;
 
     public InventoryItemResource(InventoryItemUseCase useCase) {
@@ -39,12 +43,17 @@ public class InventoryItemResource {
     public ListInventoryItemsResponse list(
             @QueryParam("profile_id") UUID profileId,
             @QueryParam("source_platform") String sourcePlatform,
-            @QueryParam("category") String category) {
+            @QueryParam("category") String category,
+            @QueryParam("page") Integer pageParam,
+            @QueryParam("size") Integer sizeParam) {
         if (profileId == null) throw new BadRequestException("profile_id is required");
         SourcePlatform platform = parseSourcePlatform(sourcePlatform);
-        List<InventoryItemDto> items = useCase.list(profileId, platform, category)
-                .stream().map(InventoryItemDto::from).toList();
-        return new ListInventoryItemsResponse(items);
+        int page = parsePage(pageParam);
+        int size = parseSize(sizeParam);
+
+        PagedInventoryItems result = useCase.listPaginated(profileId, platform, category, page, size);
+        List<InventoryItemDto> items = result.items().stream().map(InventoryItemDto::from).toList();
+        return new ListInventoryItemsResponse(items, result.totalCount(), page, size);
     }
 
     @POST
@@ -104,5 +113,21 @@ public class InventoryItemResource {
         } catch (IllegalArgumentException e) {
             throw new BadRequestException("Invalid unit: " + value);
         }
+    }
+
+    private int parsePage(Integer pageParam) {
+        int page = pageParam != null ? pageParam : 0;
+        if (page < 0) {
+            throw new BadRequestException("page must be >= 0");
+        }
+        return page;
+    }
+
+    private int parseSize(Integer sizeParam) {
+        int size = sizeParam != null ? sizeParam : DEFAULT_PAGE_SIZE;
+        if (size < 1 || size > MAX_PAGE_SIZE) {
+            throw new BadRequestException("size must be between 1 and " + MAX_PAGE_SIZE);
+        }
+        return size;
     }
 }

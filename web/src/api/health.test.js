@@ -38,6 +38,18 @@ describe('listVitals', () => {
     listVitals(null, null);
     expect(get).toHaveBeenCalledWith('/v1/vitals');
   });
+
+  it('appends page and size when provided', () => {
+    get.mockResolvedValue({ vitals: [] });
+    listVitals('profile-1', 'WEIGHT', 2, 20);
+    expect(get).toHaveBeenCalledWith('/v1/vitals?profile_id=profile-1&vital_type=WEIGHT&page=2&size=20');
+  });
+
+  it('omits page and size when not provided', () => {
+    get.mockResolvedValue({ vitals: [] });
+    listVitals('profile-1', 'WEIGHT', null, undefined);
+    expect(get).toHaveBeenCalledWith('/v1/vitals?profile_id=profile-1&vital_type=WEIGHT');
+  });
 });
 
 describe('recordVital', () => {
@@ -83,6 +95,20 @@ describe('listDoctorVisits', () => {
     get.mockResolvedValue({ doctor_visits: [] });
     listDoctorVisits(null);
     expect(get).toHaveBeenCalledWith('/v1/doctor-visits');
+  });
+
+  it('appends page and size when provided', () => {
+    get.mockResolvedValue({ doctor_visits: [] });
+    listDoctorVisits('profile-1', '2026-01-01', '2026-06-30', 1, 20);
+    expect(get).toHaveBeenCalledWith(
+      '/v1/doctor-visits?profile_id=profile-1&from=2026-01-01&to=2026-06-30&page=1&size=20'
+    );
+  });
+
+  it('omits page and size when not provided', () => {
+    get.mockResolvedValue({ doctor_visits: [] });
+    listDoctorVisits('profile-1', null, null);
+    expect(get).toHaveBeenCalledWith('/v1/doctor-visits?profile_id=profile-1');
   });
 });
 

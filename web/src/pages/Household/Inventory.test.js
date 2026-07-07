@@ -479,6 +479,63 @@ describe('Inventory page', () => {
     });
   });
 
+  // ---- Q54 pagination pass ----
+
+  it('requests page 0 and the default page size on first load', async () => {
+    listInventoryItems.mockResolvedValue({ inventory_items: MOCK_ITEMS, total_size: 2 });
+    render(<Inventory />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+
+    await waitFor(() => {
+      expect(listInventoryItems).toHaveBeenCalledWith('p1', null, 0, 20);
+    });
+  });
+
+  it('shows pagination controls with page count derived from total_size', async () => {
+    listInventoryItems.mockResolvedValue({ inventory_items: MOCK_ITEMS, total_size: 45 });
+    render(<Inventory />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Page 1 of 3 \(45 total\)/i)).toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: 'Previous' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled();
+  });
+
+  it('clicking Next requests the next page', async () => {
+    listInventoryItems.mockResolvedValue({ inventory_items: MOCK_ITEMS, total_size: 45 });
+    render(<Inventory />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+    await waitFor(() => screen.getByRole('button', { name: 'Next' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+
+    await waitFor(() => {
+      expect(listInventoryItems).toHaveBeenCalledWith('p1', null, 1, 20);
+      expect(screen.getByText(/Page 2 of 3/i)).toBeInTheDocument();
+    });
+  });
+
+  it('disables Next on the last page', async () => {
+    listInventoryItems.mockResolvedValue({ inventory_items: MOCK_ITEMS, total_size: 2 });
+    render(<Inventory />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Page 1 of 1 \(2 total\)/i)).toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
+  });
+
   it('shows error when toggling is_consumed fails', async () => {
     listInventoryItems.mockResolvedValue({ inventory_items: MOCK_ITEMS });
     updateInventoryItem.mockRejectedValue(new Error());

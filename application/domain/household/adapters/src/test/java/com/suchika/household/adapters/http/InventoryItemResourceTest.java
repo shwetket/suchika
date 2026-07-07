@@ -4,6 +4,7 @@ import com.suchika.household.domain.InventoryItem;
 import com.suchika.household.domain.ItemUnit;
 import com.suchika.household.domain.SourcePlatform;
 import com.suchika.household.ports.input.InventoryItemUseCase;
+import com.suchika.household.ports.input.PagedInventoryItems;
 import com.suchika.household.ports.input.UpdateInventoryItemCommand;
 import com.suchika.shared.exception.NotFoundException;
 import io.quarkus.test.InjectMock;
@@ -56,8 +57,8 @@ class InventoryItemResourceTest {
 
     @Test
     void listInventoryItems_returns200WithItems() {
-        Mockito.when(inventoryItemUseCase.list(eq(PROFILE_ID), isNull(), isNull()))
-                .thenReturn(List.of(sampleItem));
+        Mockito.when(inventoryItemUseCase.listPaginated(eq(PROFILE_ID), isNull(), isNull(), eq(0), eq(50)))
+                .thenReturn(new PagedInventoryItems(List.of(sampleItem), 1));
 
         given()
                 .queryParam("profile_id", PROFILE_ID)
@@ -68,13 +69,15 @@ class InventoryItemResourceTest {
                 .body("inventory_items[0].id", is(ITEM_ID.toString()))
                 .body("inventory_items[0].item_name", is("Basmati Rice"))
                 .body("inventory_items[0].unit", is("KG"))
-                .body("total_size", is(1));
+                .body("total_size", is(1))
+                .body("page", is(0))
+                .body("size", is(50));
     }
 
     @Test
     void listInventoryItems_emptyResult_returns200WithEmptyList() {
-        Mockito.when(inventoryItemUseCase.list(eq(PROFILE_ID), isNull(), isNull()))
-                .thenReturn(List.of());
+        Mockito.when(inventoryItemUseCase.listPaginated(eq(PROFILE_ID), isNull(), isNull(), eq(0), eq(50)))
+                .thenReturn(new PagedInventoryItems(List.of(), 0));
 
         given()
                 .queryParam("profile_id", PROFILE_ID)
@@ -88,6 +91,55 @@ class InventoryItemResourceTest {
     @Test
     void listInventoryItems_missingProfileId_returns400() {
         given()
+                .when().get("/v1/inventory-items")
+                .then()
+                .statusCode(400);
+    }
+
+    // ---- Q54 pagination pass ----
+
+    @Test
+    void listInventoryItems_honorsExplicitPageAndSize() {
+        Mockito.when(inventoryItemUseCase.listPaginated(eq(PROFILE_ID), isNull(), isNull(), eq(2), eq(10)))
+                .thenReturn(new PagedInventoryItems(List.of(sampleItem), 25));
+
+        given()
+                .queryParam("profile_id", PROFILE_ID)
+                .queryParam("page", 2)
+                .queryParam("size", 10)
+                .when().get("/v1/inventory-items")
+                .then()
+                .statusCode(200)
+                .body("total_size", is(25))
+                .body("page", is(2))
+                .body("size", is(10));
+    }
+
+    @Test
+    void listInventoryItems_negativePage_returns400() {
+        given()
+                .queryParam("profile_id", PROFILE_ID)
+                .queryParam("page", -1)
+                .when().get("/v1/inventory-items")
+                .then()
+                .statusCode(400);
+    }
+
+    @Test
+    void listInventoryItems_sizeZero_returns400() {
+        given()
+                .queryParam("profile_id", PROFILE_ID)
+                .queryParam("size", 0)
+                .when().get("/v1/inventory-items")
+                .then()
+                .statusCode(400);
+    }
+
+    @Test
+    void listInventoryItems_sizeExceedsMax_returns400() {
+        given()
+                .queryParam("profile_id", PROFILE_ID)
+                .queryParam("size", 500)
                 .when().get("/v1/inventory-items")
                 .then()
                 .statusCode(400);

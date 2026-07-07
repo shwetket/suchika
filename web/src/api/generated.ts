@@ -709,10 +709,10 @@ export interface external {
         };
       };
       parameters: {
-        /** @description Maximum number of items to return per page. Follows AIP-158 (Pagination). Default 20, maximum 100. */
-        PageSize?: number;
-        /** @description Opaque token from the previous response's next_page_token field. Omit for the first page. */
-        PageToken?: string;
+        /** @description 0-indexed page number. Defaults to 0. */
+        Page?: number;
+        /** @description Maximum number of items to return per page. Defaults to 50, maximum 200. */
+        Size?: number;
         /** @description Unique identifier of the household member profile. */
         ProfileIdParam: string;
         /** @description Unique identifier of the household member profile. Required on every list/scoped operation project-wide — no domain treats this as optional. */

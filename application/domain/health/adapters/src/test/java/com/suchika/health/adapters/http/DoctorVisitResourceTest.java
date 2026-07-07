@@ -7,6 +7,7 @@ import com.suchika.health.adapters.http.dto.UpdateDoctorVisitRequest;
 import com.suchika.health.domain.DoctorVisit;
 import com.suchika.health.ports.input.CreateDoctorVisitCommand;
 import com.suchika.health.ports.input.DoctorVisitUseCase;
+import com.suchika.health.ports.input.PagedDoctorVisits;
 import com.suchika.health.ports.input.UpdateDoctorVisitCommand;
 import com.suchika.shared.exception.BadRequestException;
 import jakarta.ws.rs.core.Response;
@@ -38,21 +39,22 @@ class DoctorVisitResourceTest {
 
     @Test
     void listVisits_returns200_withVisitList() {
-        useCase.visitsToReturn = List.of(buildVisit());
+        useCase.pagedVisitsToReturn = new PagedDoctorVisits(List.of(buildVisit()), 1);
 
-        Response response = resource.listVisits(PROFILE_ID, null, null);
+        Response response = resource.listVisits(PROFILE_ID, null, null, null, null);
 
         assertEquals(200, response.getStatus());
         ListDoctorVisitsResponse body = (ListDoctorVisitsResponse) response.getEntity();
         assertEquals(1, body.doctorVisits.size());
         assertEquals("Dr. Rao", body.doctorVisits.get(0).doctorName);
+        assertEquals(1, body.totalSize);
     }
 
     @Test
     void listVisits_passesDateRangeThroughToUseCase() {
-        useCase.visitsToReturn = List.of(buildVisit());
+        useCase.pagedVisitsToReturn = new PagedDoctorVisits(List.of(buildVisit()), 1);
 
-        resource.listVisits(PROFILE_ID, "2026-01-01", "2026-06-30");
+        resource.listVisits(PROFILE_ID, "2026-01-01", "2026-06-30", null, null);
 
         assertEquals(LocalDate.of(2026, Month.JANUARY, 1), useCase.lastListFrom);
         assertEquals(LocalDate.of(2026, Month.JUNE, 30), useCase.lastListTo);
@@ -60,7 +62,53 @@ class DoctorVisitResourceTest {
 
     @Test
     void listVisits_invalidFromDate_throwsBadRequest() {
-        assertThrows(BadRequestException.class, () -> resource.listVisits(PROFILE_ID, "not-a-date", null));
+        assertThrows(BadRequestException.class,
+                () -> resource.listVisits(PROFILE_ID, "not-a-date", null, null, null));
+    }
+
+    @Test
+    void listVisits_defaultsPageAndSizeWhenNotProvided() {
+        useCase.pagedVisitsToReturn = new PagedDoctorVisits(List.of(buildVisit()), 1);
+
+        Response response = resource.listVisits(PROFILE_ID, null, null, null, null);
+
+        ListDoctorVisitsResponse body = (ListDoctorVisitsResponse) response.getEntity();
+        assertEquals(0, body.page);
+        assertEquals(50, body.size);
+        assertEquals(0, useCase.lastListPage);
+        assertEquals(50, useCase.lastListSize);
+    }
+
+    @Test
+    void listVisits_honorsExplicitPageAndSize() {
+        useCase.pagedVisitsToReturn = new PagedDoctorVisits(List.of(buildVisit()), 120);
+
+        Response response = resource.listVisits(PROFILE_ID, null, null, 2, 25);
+
+        ListDoctorVisitsResponse body = (ListDoctorVisitsResponse) response.getEntity();
+        assertEquals(2, body.page);
+        assertEquals(25, body.size);
+        assertEquals(120, body.totalSize);
+        assertEquals(2, useCase.lastListPage);
+        assertEquals(25, useCase.lastListSize);
+    }
+
+    @Test
+    void listVisits_negativePage_throwsBadRequest() {
+        assertThrows(BadRequestException.class,
+                () -> resource.listVisits(PROFILE_ID, null, null, -1, null));
+    }
+
+    @Test
+    void listVisits_sizeExceedsMax_throwsBadRequest() {
+        assertThrows(BadRequestException.class,
+                () -> resource.listVisits(PROFILE_ID, null, null, null, 500));
+    }
+
+    @Test
+    void listVisits_sizeZero_throwsBadRequest() {
+        assertThrows(BadRequestException.class,
+                () -> resource.listVisits(PROFILE_ID, null, null, null, 0));
     }
 
     @Test
@@ -147,6 +195,7 @@ class DoctorVisitResourceTest {
 
     static class StubUseCase implements DoctorVisitUseCase {
         List<DoctorVisit> visitsToReturn = List.of();
+        PagedDoctorVisits pagedVisitsToReturn = new PagedDoctorVisits(List.of(), 0);
         DoctorVisit visitToReturn;
 
         CreateDoctorVisitCommand lastCreateCommand;
@@ -155,6 +204,8 @@ class DoctorVisitResourceTest {
         UUID lastDeleteId;
         LocalDate lastListFrom;
         LocalDate lastListTo;
+        Integer lastListPage;
+        Integer lastListSize;
 
         @Override
         public DoctorVisit create(CreateDoctorVisitCommand command) {
@@ -172,6 +223,16 @@ class DoctorVisitResourceTest {
             lastListFrom = from;
             lastListTo = to;
             return visitsToReturn;
+        }
+
+        @Override
+        public PagedDoctorVisits listByProfilePaginated(UUID profileId, LocalDate from, LocalDate to,
+                                                          int page, int size) {
+            lastListFrom = from;
+            lastListTo = to;
+            lastListPage = page;
+            lastListSize = size;
+            return pagedVisitsToReturn;
         }
 
         @Override

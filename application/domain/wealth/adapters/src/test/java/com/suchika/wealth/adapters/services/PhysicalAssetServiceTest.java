@@ -7,6 +7,7 @@ import com.suchika.wealth.domain.AssetType;
 import com.suchika.wealth.domain.PhysicalAsset;
 import com.suchika.wealth.domain.RegistrationType;
 import com.suchika.wealth.ports.input.CreatePhysicalAssetCommand;
+import com.suchika.wealth.ports.input.PagedPhysicalAssets;
 import com.suchika.wealth.ports.output.PhysicalAssetRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -166,10 +167,44 @@ class PhysicalAssetServiceTest {
         assertThrows(NotFoundException.class, () -> service.deactivateAsset(randomId));
     }
 
+    // ---- v1.0 pagination extension (Q54): physical asset list pagination ----
+
+    @Test
+    void listAssetsPaginated_returnsRequestedPageAndTotalCount() {
+        for (int i = 0; i < 5; i++) {
+            service.createAsset(null, cmd("Vehicle " + i, AssetType.VEHICLE, "Maruti", "Swift",
+                    "KA-01-AB-000" + i, RegistrationType.PRIVATE));
+        }
+
+        PagedPhysicalAssets result = service.listAssetsPaginated(null, null, null, 1, 2);
+
+        assertEquals(2, result.assets().size());
+        assertEquals(5, result.totalCount());
+        assertEquals(1, repo.lastPage);
+        assertEquals(2, repo.lastSize);
+    }
+
+    @Test
+    void listAssetsPaginated_passesFiltersThroughToRepo() {
+        UUID profileId = UUID.randomUUID();
+
+        service.listAssetsPaginated(profileId, AssetType.VEHICLE, true, 0, 10);
+
+        assertEquals(profileId, repo.lastProfileId);
+        assertEquals(AssetType.VEHICLE, repo.lastAssetType);
+        assertEquals(true, repo.lastIsActive);
+    }
+
     // ---- Fake repository ----
 
     static class FakePhysicalAssetRepository implements PhysicalAssetRepository {
         private final Map<UUID, PhysicalAsset> store = new HashMap<>();
+
+        UUID lastProfileId;
+        AssetType lastAssetType;
+        Boolean lastIsActive;
+        Integer lastPage;
+        Integer lastSize;
 
         @Override
         public PhysicalAsset save(PhysicalAsset asset) {
@@ -198,11 +233,29 @@ class PhysicalAssetServiceTest {
 
         @Override
         public List<PhysicalAsset> findAll(UUID profileId, AssetType assetType, Boolean isActive) {
+            this.lastProfileId = profileId;
+            this.lastAssetType = assetType;
+            this.lastIsActive = isActive;
             return store.values().stream()
                     .filter(a -> profileId == null || profileId.equals(a.getProfileId()))
                     .filter(a -> assetType == null || assetType == a.getAssetType())
                     .filter(a -> isActive == null || isActive.equals(a.isActive()))
                     .toList();
+        }
+
+        @Override
+        public List<PhysicalAsset> findAll(UUID profileId, AssetType assetType, Boolean isActive, int page, int size) {
+            this.lastPage = page;
+            this.lastSize = size;
+            List<PhysicalAsset> all = findAll(profileId, assetType, isActive);
+            int start = Math.min(page * size, all.size());
+            int end = Math.min(start + size, all.size());
+            return all.subList(start, end);
+        }
+
+        @Override
+        public long countAll(UUID profileId, AssetType assetType, Boolean isActive) {
+            return findAll(profileId, assetType, isActive).size();
         }
 
         @Override

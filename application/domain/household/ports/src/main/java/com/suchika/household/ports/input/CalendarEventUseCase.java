@@ -16,6 +16,14 @@ public interface CalendarEventUseCase {
     List<CalendarEvent> list(UUID profileId, EventType eventType,
                              LocalDate fromDate, LocalDate toDate);
 
+    /**
+     * Paginated variant of {@link #list} (Q54 pagination pass). {@code page} is
+     * 0-indexed. Used by the HTTP list endpoint; {@link #list} stays as-is for
+     * any caller that wants the full list.
+     */
+    PagedCalendarEvents listPaginated(UUID profileId, EventType eventType,
+                                      LocalDate fromDate, LocalDate toDate, int page, int size);
+
     CalendarEvent get(UUID id);
 
     CalendarEvent update(UUID id, String title, EventType eventType,

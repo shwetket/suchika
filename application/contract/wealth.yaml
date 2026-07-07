@@ -507,6 +507,8 @@ paths:
           schema:
             type: boolean
         - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
+        - $ref: './shared.yaml#/components/parameters/Page'
+        - $ref: './shared.yaml#/components/parameters/Size'
       responses:
         '200':
           description: Successfully listed physical assets
@@ -1225,5 +1227,12 @@ components:
             $ref: '#/components/schemas/PhysicalAsset'
         total_size:
           type: integer
-          description: Total number of physical assets matching the filter
+          format: int64
+          description: Total count matching the filter across all pages (pagination).
+        page:
+          type: integer
+          description: Present only on the paginated GET list endpoint.
+        size:
+          type: integer
+          description: Present only on the paginated GET list endpoint.
 

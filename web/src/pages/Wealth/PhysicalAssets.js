@@ -34,6 +34,8 @@ const EMPTY_EDIT = {
 const inputClass =
   'border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
 
+const PAGE_SIZE = 20;
+
 function StatusBadge({ active }) {
   const cls = active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500';
   return (
@@ -126,6 +128,8 @@ export const PhysicalAssets = () => {
   const [profiles, setProfiles] = useState([]);
   const [selectedProfileId, setSelectedProfileId] = useState('');
   const [assets, setAssets] = useState([]);
+  const [totalSize, setTotalSize] = useState(0);
+  const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [activeFilter, setActiveFilter] = useState(null);
@@ -154,18 +158,27 @@ export const PhysicalAssets = () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await listPhysicalAssets(selectedProfileId, null, activeFilter);
+      const data = await listPhysicalAssets(selectedProfileId, null, activeFilter, page, PAGE_SIZE);
       setAssets(data.physical_assets ?? []);
+      setTotalSize(data.total_size ?? (data.physical_assets ?? []).length);
     } catch (err) {
       setError(err.message || 'Failed to load physical assets');
     } finally {
       setLoading(false);
     }
-  }, [selectedProfileId, activeFilter]);
+  }, [selectedProfileId, activeFilter, page]);
 
   useEffect(() => {
     loadAssets();
   }, [loadAssets]);
+
+  // Reset to page 0 whenever the filters (not the page itself) change.
+  useEffect(() => {
+    setPage(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProfileId, activeFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(totalSize / PAGE_SIZE));
 
   const handleAddChange = useCallback((e) => {
     const { name, value } = e.target;
@@ -357,16 +370,42 @@ export const PhysicalAssets = () => {
             <div className="text-center py-16 text-gray-400">No physical assets found.</div>
           )}
           {!loading && assets.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {assets.map((a) => (
-                <AssetCard
-                  key={a.asset_id}
-                  asset={a}
-                  onEdit={handleEditOpen}
-                  onDeactivate={setConfirmTarget}
-                />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {assets.map((a) => (
+                  <AssetCard
+                    key={a.asset_id}
+                    asset={a}
+                    onEdit={handleEditOpen}
+                    onDeactivate={setConfirmTarget}
+                  />
+                ))}
+              </div>
+
+              <div className="flex items-center justify-between mt-4 text-sm text-gray-600">
+                <span>
+                  Page {page + 1} of {totalPages} ({totalSize} total)
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPage((p) => Math.max(0, p - 1))}
+                    disabled={page === 0}
+                    className="px-3 py-1.5 border border-gray-300 rounded text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPage((p) => (p + 1 < totalPages ? p + 1 : p))}
+                    disabled={page + 1 >= totalPages}
+                    className="px-3 py-1.5 border border-gray-300 rounded text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            </>
           )}
         </>
       )}

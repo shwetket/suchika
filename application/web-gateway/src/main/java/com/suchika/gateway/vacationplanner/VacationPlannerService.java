@@ -102,7 +102,7 @@ public class VacationPlannerService {
         ArrayNode issues = MAPPER.createArrayNode();
 
         JsonNode assetsResponse = wealthServiceClient.listPhysicalAssets(
-                VEHICLE_ASSET_TYPE, true, profileId.toString());
+                VEHICLE_ASSET_TYPE, true, profileId.toString(), null, null);
         JsonNode assetsArray = assetsResponse.path(PHYSICAL_ASSETS_FIELD);
         if (assetsArray.isArray()) {
             for (JsonNode asset : assetsArray) {

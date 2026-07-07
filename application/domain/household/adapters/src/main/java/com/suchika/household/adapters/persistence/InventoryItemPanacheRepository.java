@@ -3,6 +3,7 @@ package com.suchika.household.adapters.persistence;
 import com.suchika.household.domain.InventoryItem;
 import com.suchika.household.domain.SourcePlatform;
 import com.suchika.household.ports.output.InventoryItemRepository;
+import io.quarkus.panache.common.Page;
 import jakarta.enterprise.context.ApplicationScoped;
 
 import java.util.ArrayList;
@@ -43,6 +44,26 @@ public class InventoryItemPanacheRepository implements InventoryItemRepository {
                 .stream()
                 .map(InventoryItemEntity::toDomain)
                 .toList();
+    }
+
+    @Override
+    public List<InventoryItem> findByProfileId(UUID profileId, SourcePlatform sourcePlatform, String category,
+                                                int page, int size) {
+        String query = buildQuery(sourcePlatform, category);
+        List<Object> params = buildParams(profileId, sourcePlatform, category);
+        return dao.find(query, params.toArray())
+                .page(Page.of(page, size))
+                .list()
+                .stream()
+                .map(InventoryItemEntity::toDomain)
+                .toList();
+    }
+
+    @Override
+    public long countByProfileId(UUID profileId, SourcePlatform sourcePlatform, String category) {
+        String query = buildQuery(sourcePlatform, category);
+        List<Object> params = buildParams(profileId, sourcePlatform, category);
+        return dao.find(query, params.toArray()).count();
     }
 
     @Override

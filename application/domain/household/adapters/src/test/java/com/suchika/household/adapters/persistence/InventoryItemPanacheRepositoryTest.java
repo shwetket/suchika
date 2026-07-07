@@ -189,6 +189,65 @@ class InventoryItemPanacheRepositoryTest {
         assertTrue(otherResults.isEmpty());
     }
 
+    // ---- Q54 pagination pass ----
+
+    @Test
+    void findByProfileId_paginated_returnsRequestedPageOrderedNewestFirst() {
+        UUID profileId = saveProfile("Pagination Page Member");
+        for (int day = 1; day <= 5; day++) {
+            repository.save(InventoryItem.builder()
+                    .profileId(profileId)
+                    .itemName("Item day " + day)
+                    .quantity(new BigDecimal("1.000"))
+                    .unit(ItemUnit.UNITS)
+                    .sourcePlatform(SourcePlatform.MANUAL)
+                    .purchaseDate(LocalDate.of(2026, Month.MARCH, day))
+                    .build());
+        }
+
+        List<InventoryItem> firstPage = repository.findByProfileId(profileId, null, null, 0, 2);
+        List<InventoryItem> secondPage = repository.findByProfileId(profileId, null, null, 1, 2);
+
+        assertEquals(2, firstPage.size());
+        assertEquals(2, secondPage.size());
+        assertEquals("Item day 5", firstPage.get(0).getItemName());
+        assertEquals("Item day 3", secondPage.get(0).getItemName());
+    }
+
+    @Test
+    void countByProfileId_returnsTotalMatchingFilterIgnoringPage() {
+        UUID profileId = saveProfile("Pagination Count Member");
+        for (int day = 1; day <= 5; day++) {
+            repository.save(InventoryItem.builder()
+                    .profileId(profileId)
+                    .itemName("Counted Item " + day)
+                    .quantity(new BigDecimal("1.000"))
+                    .unit(ItemUnit.UNITS)
+                    .sourcePlatform(SourcePlatform.MANUAL)
+                    .purchaseDate(LocalDate.of(2026, Month.APRIL, day))
+                    .build());
+        }
+
+        long total = repository.countByProfileId(profileId, null, null);
+
+        assertEquals(5, total);
+    }
+
+    @Test
+    void countByProfileId_appliesSameFiltersAsFindByProfileId() {
+        UUID profileId = saveProfile("Pagination Filter Member");
+        repository.save(InventoryItem.builder()
+                .profileId(profileId).itemName("Blinkit Item").quantity(new BigDecimal("1.000"))
+                .unit(ItemUnit.UNITS).sourcePlatform(SourcePlatform.BLINKIT)
+                .purchaseDate(LocalDate.of(2026, Month.MAY, 1)).build());
+        repository.save(InventoryItem.builder()
+                .profileId(profileId).itemName("Zepto Item").quantity(new BigDecimal("1.000"))
+                .unit(ItemUnit.UNITS).sourcePlatform(SourcePlatform.ZEPTO)
+                .purchaseDate(LocalDate.of(2026, Month.MAY, 2)).build());
+
+        assertEquals(1, repository.countByProfileId(profileId, SourcePlatform.BLINKIT, null));
+    }
+
     // --- save update ---
 
     @Test
@@ -293,5 +352,31 @@ class InventoryItemPanacheRepositoryTest {
                 .purchaseDate(purchaseDate)
                 .category(category)
                 .build();
+    }
+
+    /**
+     * Inserts a minimal profile.admin + profile.profile row pair via native SQL so a
+     * fresh, test-scoped profile_id (FK to profile.profile) is available for pagination
+     * tests — avoids count assertions being polluted by seed data or other tests sharing
+     * SEED_PROFILE_ID. Rolled back automatically by @TestTransaction.
+     */
+    private UUID saveProfile(String fullName) {
+        UUID adminId = UUID.randomUUID();
+        em.createNativeQuery("INSERT INTO profile.admin (id, display_name) VALUES (?1, ?2)")
+                .setParameter(1, adminId)
+                .setParameter(2, "Test Admin")
+                .executeUpdate();
+
+        UUID profileId = UUID.randomUUID();
+        em.createNativeQuery("INSERT INTO profile.profile (id, admin_id, full_name, dob, relation_to_admin) "
+                        + "VALUES (?1, ?2, ?3, ?4, ?5)")
+                .setParameter(1, profileId)
+                .setParameter(2, adminId)
+                .setParameter(3, fullName)
+                .setParameter(4, LocalDate.of(1990, Month.JANUARY, 1))
+                .setParameter(5, "OTHER")
+                .executeUpdate();
+
+        return profileId;
     }
 }

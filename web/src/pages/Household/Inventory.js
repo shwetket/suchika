@@ -78,6 +78,8 @@ function toEditForm(item) {
 const inputClass =
   'border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full';
 
+const PAGE_SIZE = 20;
+
 function ItemRow({ item, onEdit, onDelete, onToggleConsumed }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const colour = PLATFORM_COLOURS[item.source_platform] || 'bg-gray-100 text-gray-700';
@@ -171,6 +173,8 @@ export const Inventory = () => {
   const [profiles, setProfiles] = useState([]);
   const [selectedProfileId, setSelectedProfileId] = useState('');
   const [items, setItems] = useState([]);
+  const [totalSize, setTotalSize] = useState(0);
+  const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [platformFilter, setPlatformFilter] = useState('');
@@ -196,18 +200,28 @@ export const Inventory = () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await listInventoryItems(selectedProfileId, platformFilter || null);
-      setItems(data.inventory_items ?? data.items ?? []);
+      const data = await listInventoryItems(selectedProfileId, platformFilter || null, page, PAGE_SIZE);
+      const list = data.inventory_items ?? data.items ?? [];
+      setItems(list);
+      setTotalSize(data.total_size ?? list.length);
     } catch (err) {
       setError(err.message || 'Failed to load inventory');
     } finally {
       setLoading(false);
     }
-  }, [selectedProfileId, platformFilter]);
+  }, [selectedProfileId, platformFilter, page]);
 
   useEffect(() => {
     loadItems();
   }, [loadItems]);
+
+  // Reset to page 0 whenever the filters (not the page itself) change.
+  useEffect(() => {
+    setPage(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProfileId, platformFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(totalSize / PAGE_SIZE));
 
   const handleAddChange = useCallback((e) => {
     const { name, value } = e.target;
@@ -448,6 +462,30 @@ export const Inventory = () => {
                   ))}
                 </tbody>
               </table>
+
+              <div className="flex items-center justify-between mt-4 text-sm text-gray-600">
+                <span>
+                  Page {page + 1} of {totalPages} ({totalSize} total)
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPage((p) => Math.max(0, p - 1))}
+                    disabled={page === 0}
+                    className="px-3 py-1.5 border border-gray-300 rounded text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPage((p) => (p + 1 < totalPages ? p + 1 : p))}
+                    disabled={page + 1 >= totalPages}
+                    className="px-3 py-1.5 border border-gray-300 rounded text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </>

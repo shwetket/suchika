@@ -2,6 +2,7 @@ package com.suchika.household.adapters.service;
 
 import com.suchika.household.domain.CalendarEvent;
 import com.suchika.household.domain.EventType;
+import com.suchika.household.ports.input.PagedCalendarEvents;
 import com.suchika.household.ports.output.CalendarEventRepository;
 import com.suchika.shared.exception.NotFoundException;
 import org.junit.jupiter.api.BeforeEach;
@@ -61,6 +62,34 @@ class CalendarEventServiceTest {
 
         assertEquals(1, results.size());
         assertEquals("Event A", results.get(0).getTitle());
+    }
+
+    // ---- Q54 pagination pass ----
+
+    @Test
+    void listPaginated_returnsRequestedPageAndTotalCount() {
+        UUID profileId = UUID.randomUUID();
+        for (int i = 0; i < 5; i++) {
+            service.create(profileId, "Event " + i, EventType.PERSONAL, JAN_10, null, null, null);
+        }
+
+        PagedCalendarEvents result = service.listPaginated(profileId, null, null, null, 1, 2);
+
+        assertEquals(2, result.events().size());
+        assertEquals(5, result.totalCount());
+    }
+
+    @Test
+    void listPaginated_passesFiltersThroughToRepo() {
+        UUID profileId = UUID.randomUUID();
+        service.create(profileId, "Work Event", EventType.WORK, JAN_10, null, null, null);
+        service.create(profileId, "Family Event", EventType.FAMILY, JAN_15, null, null, null);
+
+        PagedCalendarEvents result = service.listPaginated(profileId, EventType.WORK, null, null, 0, 10);
+
+        assertEquals(1, result.events().size());
+        assertEquals(1, result.totalCount());
+        assertEquals("Work Event", result.events().get(0).getTitle());
     }
 
     @Test
@@ -178,6 +207,20 @@ class CalendarEventServiceTest {
                     .filter(e -> fromDate == null || !e.getStartDate().isBefore(fromDate))
                     .filter(e -> toDate == null || !e.getStartDate().isAfter(toDate))
                     .toList();
+        }
+
+        @Override
+        public List<CalendarEvent> findByProfileId(UUID profileId, EventType eventType,
+                                                   LocalDate fromDate, LocalDate toDate, int page, int size) {
+            List<CalendarEvent> all = findByProfileId(profileId, eventType, fromDate, toDate);
+            int start = Math.min(page * size, all.size());
+            int end = Math.min(start + size, all.size());
+            return all.subList(start, end);
+        }
+
+        @Override
+        public long countByProfileId(UUID profileId, EventType eventType, LocalDate fromDate, LocalDate toDate) {
+            return findByProfileId(profileId, eventType, fromDate, toDate).size();
         }
 
         @Override

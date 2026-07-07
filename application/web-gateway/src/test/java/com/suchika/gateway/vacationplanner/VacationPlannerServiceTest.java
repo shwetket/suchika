@@ -45,7 +45,7 @@ class VacationPlannerServiceTest {
     void setUp() {
         MockitoAnnotations.openMocks(this);
         service = new VacationPlannerService(wealthServiceClient, snapshotRepository);
-        when(wealthServiceClient.listPhysicalAssets(any(), any(), any()))
+        when(wealthServiceClient.listPhysicalAssets(any(), any(), any(), any(), any()))
                 .thenReturn(emptyAssets());
     }
 
@@ -127,7 +127,7 @@ class VacationPlannerServiceTest {
     @Test
     void checkBudget_flagsVehicleWithPucExpiringBeforeTripEnd() {
         seedLiquidityTiers(100000);
-        when(wealthServiceClient.listPhysicalAssets(any(), any(), any())).thenReturn(parse(
+        when(wealthServiceClient.listPhysicalAssets(any(), any(), any(), any(), any())).thenReturn(parse(
                 "{\"physical_assets\":[{\"asset_id\":\"a1\",\"asset_name\":\"Tata Nexon\","
                 + "\"metadata\":{\"puc_expiry\":\"2026-08-01\"}}]}"));
 
@@ -148,7 +148,7 @@ class VacationPlannerServiceTest {
     @Test
     void checkBudget_passesWhenAssetExpiryIsAfterTripEnd() {
         seedLiquidityTiers(100000);
-        when(wealthServiceClient.listPhysicalAssets(any(), any(), any())).thenReturn(parse(
+        when(wealthServiceClient.listPhysicalAssets(any(), any(), any(), any(), any())).thenReturn(parse(
                 "{\"physical_assets\":[{\"asset_id\":\"a1\",\"asset_name\":\"Tata Nexon\","
                 + "\"metadata\":{\"puc_expiry\":\"2027-01-01\",\"insurance_expiry\":\"2027-01-01\"}}]}"));
 
@@ -165,7 +165,7 @@ class VacationPlannerServiceTest {
     @Test
     void checkBudget_ignoresAssetWithUnparseableExpiryDate() {
         seedLiquidityTiers(100000);
-        when(wealthServiceClient.listPhysicalAssets(any(), any(), any())).thenReturn(parse(
+        when(wealthServiceClient.listPhysicalAssets(any(), any(), any(), any(), any())).thenReturn(parse(
                 "{\"physical_assets\":[{\"asset_id\":\"a1\",\"asset_name\":\"Tata Nexon\","
                 + "\"metadata\":{\"puc_expiry\":\"not-a-date\"}}]}"));
 

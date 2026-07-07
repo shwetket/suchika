@@ -171,6 +171,59 @@ class CalendarEventPanacheRepositoryTest {
         assertTrue(otherResults.isEmpty());
     }
 
+    // ---- Q54 pagination pass ----
+
+    @Test
+    void findByProfileId_paginated_returnsRequestedPageOrderedNewestFirst() {
+        UUID profileId = saveProfile("Pagination Page Member");
+        for (int day = 1; day <= 5; day++) {
+            repository.save(CalendarEvent.builder()
+                    .profileId(profileId)
+                    .title("Event day " + day)
+                    .eventType(EventType.OTHER)
+                    .startDate(LocalDate.of(2026, Month.MARCH, day))
+                    .build());
+        }
+
+        List<CalendarEvent> firstPage = repository.findByProfileId(profileId, null, null, null, 0, 2);
+        List<CalendarEvent> secondPage = repository.findByProfileId(profileId, null, null, null, 1, 2);
+
+        assertEquals(2, firstPage.size());
+        assertEquals(2, secondPage.size());
+        assertEquals("Event day 5", firstPage.get(0).getTitle());
+        assertEquals("Event day 3", secondPage.get(0).getTitle());
+    }
+
+    @Test
+    void countByProfileId_returnsTotalMatchingFilterIgnoringPage() {
+        UUID profileId = saveProfile("Pagination Count Member");
+        for (int day = 1; day <= 5; day++) {
+            repository.save(CalendarEvent.builder()
+                    .profileId(profileId)
+                    .title("Counted Event " + day)
+                    .eventType(EventType.OTHER)
+                    .startDate(LocalDate.of(2026, Month.APRIL, day))
+                    .build());
+        }
+
+        long total = repository.countByProfileId(profileId, null, null, null);
+
+        assertEquals(5, total);
+    }
+
+    @Test
+    void countByProfileId_appliesSameFiltersAsFindByProfileId() {
+        UUID profileId = saveProfile("Pagination Filter Member");
+        repository.save(CalendarEvent.builder()
+                .profileId(profileId).title("Work Event").eventType(EventType.WORK)
+                .startDate(LocalDate.of(2026, Month.MAY, 1)).build());
+        repository.save(CalendarEvent.builder()
+                .profileId(profileId).title("Family Event").eventType(EventType.FAMILY)
+                .startDate(LocalDate.of(2026, Month.MAY, 2)).build());
+
+        assertEquals(1, repository.countByProfileId(profileId, EventType.WORK, null, null));
+    }
+
     // --- conflict detection ---
 
     @Test
@@ -278,5 +331,31 @@ class CalendarEventPanacheRepositoryTest {
                 .startDate(startDate)
                 .endDate(endDate)
                 .build();
+    }
+
+    /**
+     * Inserts a minimal profile.admin + profile.profile row pair via native SQL so a
+     * fresh, test-scoped profile_id (FK to profile.profile) is available for pagination
+     * tests — avoids count assertions being polluted by seed data or other tests sharing
+     * SEED_PROFILE_ID. Rolled back automatically by @TestTransaction.
+     */
+    private UUID saveProfile(String fullName) {
+        UUID adminId = UUID.randomUUID();
+        em.createNativeQuery("INSERT INTO profile.admin (id, display_name) VALUES (?1, ?2)")
+                .setParameter(1, adminId)
+                .setParameter(2, "Test Admin")
+                .executeUpdate();
+
+        UUID profileId = UUID.randomUUID();
+        em.createNativeQuery("INSERT INTO profile.profile (id, admin_id, full_name, dob, relation_to_admin) "
+                        + "VALUES (?1, ?2, ?3, ?4, ?5)")
+                .setParameter(1, profileId)
+                .setParameter(2, adminId)
+                .setParameter(3, fullName)
+                .setParameter(4, LocalDate.of(1990, Month.JANUARY, 1))
+                .setParameter(5, "OTHER")
+                .executeUpdate();
+
+        return profileId;
     }
 }

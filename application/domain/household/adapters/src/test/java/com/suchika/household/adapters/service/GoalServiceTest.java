@@ -2,6 +2,7 @@ package com.suchika.household.adapters.service;
 
 import com.suchika.household.domain.Goal;
 import com.suchika.household.domain.GoalStatus;
+import com.suchika.household.ports.input.PagedGoals;
 import com.suchika.household.ports.output.GoalRepository;
 import com.suchika.shared.exception.BadRequestException;
 import com.suchika.shared.exception.NotFoundException;
@@ -58,6 +59,36 @@ class GoalServiceTest {
 
         assertEquals(1, activeGoals.size());
         assertEquals("Active Goal", activeGoals.get(0).getGoalName());
+    }
+
+    // ---- Q54 pagination pass ----
+
+    @Test
+    void listPaginated_returnsRequestedPageAndTotalCount() {
+        UUID profileId = UUID.randomUUID();
+        for (int i = 0; i < 5; i++) {
+            service.create(profileId, "Goal " + i, new BigDecimal("10000"), null, null, null);
+        }
+
+        PagedGoals result = service.listPaginated(profileId, null, 1, 2);
+
+        assertEquals(2, result.goals().size());
+        assertEquals(5, result.totalCount());
+    }
+
+    @Test
+    void listPaginated_passesStatusFilterThroughToRepo() {
+        UUID profileId = UUID.randomUUID();
+        service.create(profileId, "Active Goal", new BigDecimal("100000"), null, null, null);
+        service.update(
+                service.create(profileId, "Paused Goal", new BigDecimal("50000"), null, null, null).getId(),
+                null, null, null, null, GoalStatus.PAUSED, null);
+
+        PagedGoals result = service.listPaginated(profileId, GoalStatus.ACTIVE, 0, 10);
+
+        assertEquals(1, result.goals().size());
+        assertEquals(1, result.totalCount());
+        assertEquals("Active Goal", result.goals().get(0).getGoalName());
     }
 
     @Test
@@ -182,6 +213,19 @@ class GoalServiceTest {
                     .filter(g -> g.getProfileId().equals(profileId))
                     .filter(g -> status == null || g.getStatus() == status)
                     .toList();
+        }
+
+        @Override
+        public List<Goal> findByProfileId(UUID profileId, GoalStatus status, int page, int size) {
+            List<Goal> all = findByProfileId(profileId, status);
+            int start = Math.min(page * size, all.size());
+            int end = Math.min(start + size, all.size());
+            return all.subList(start, end);
+        }
+
+        @Override
+        public long countByProfileId(UUID profileId, GoalStatus status) {
+            return findByProfileId(profileId, status).size();
         }
 
         @Override

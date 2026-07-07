@@ -161,6 +161,45 @@ class VitalReadingPanacheRepositoryTest {
         assertEquals(0, new BigDecimal("76.0").compareTo(found.get().getValueSecondary()));
     }
 
+    // ---- pre-v1.0 pagination pass (Q54) ----
+
+    @Test
+    void findByProfileId_paginated_returnsRequestedPageOrderedNewestFirst() {
+        repository.save(reading(LocalDate.of(2026, Month.SEPTEMBER, 1), VitalType.OXYGEN_SATURATION, new BigDecimal("97"), null, "%"));
+        repository.save(reading(LocalDate.of(2026, Month.SEPTEMBER, 2), VitalType.OXYGEN_SATURATION, new BigDecimal("98"), null, "%"));
+        repository.save(reading(LocalDate.of(2026, Month.SEPTEMBER, 3), VitalType.OXYGEN_SATURATION, new BigDecimal("99"), null, "%"));
+
+        List<VitalReading> firstPage = repository.findByProfileId(SEED_PROFILE_ID, VitalType.OXYGEN_SATURATION, 0, 2);
+        List<VitalReading> secondPage = repository.findByProfileId(SEED_PROFILE_ID, VitalType.OXYGEN_SATURATION, 1, 2);
+
+        assertEquals(2, firstPage.size());
+        assertEquals(1, secondPage.size());
+        assertEquals(LocalDate.of(2026, Month.SEPTEMBER, 3), firstPage.get(0).getReadingDate());
+        assertEquals(LocalDate.of(2026, Month.SEPTEMBER, 2), firstPage.get(1).getReadingDate());
+        assertEquals(LocalDate.of(2026, Month.SEPTEMBER, 1), secondPage.get(0).getReadingDate());
+    }
+
+    @Test
+    void countByProfileId_returnsTotalMatchingFilterIgnoringPage() {
+        repository.save(reading(LocalDate.of(2026, Month.OCTOBER, 1), VitalType.OXYGEN_SATURATION, new BigDecimal("97"), null, "%"));
+        repository.save(reading(LocalDate.of(2026, Month.OCTOBER, 2), VitalType.OXYGEN_SATURATION, new BigDecimal("98"), null, "%"));
+        repository.save(reading(LocalDate.of(2026, Month.OCTOBER, 3), VitalType.OXYGEN_SATURATION, new BigDecimal("99"), null, "%"));
+
+        long count = repository.countByProfileId(SEED_PROFILE_ID, VitalType.OXYGEN_SATURATION);
+
+        assertEquals(3, count);
+    }
+
+    @Test
+    void countByProfileId_appliesSameVitalTypeFilterAsFindByProfileId() {
+        repository.save(reading(LocalDate.of(2026, Month.NOVEMBER, 1), VitalType.OXYGEN_SATURATION, new BigDecimal("97"), null, "%"));
+        repository.save(reading(LocalDate.of(2026, Month.NOVEMBER, 2), VitalType.TEMPERATURE, new BigDecimal("98.6"), null, "F"));
+
+        long count = repository.countByProfileId(SEED_PROFILE_ID, VitalType.OXYGEN_SATURATION);
+
+        assertEquals(1, count);
+    }
+
     private VitalReading reading(LocalDate date, VitalType type, BigDecimal primary, BigDecimal secondary, String unit) {
         return VitalReading.builder()
                 .profileId(SEED_PROFILE_ID)

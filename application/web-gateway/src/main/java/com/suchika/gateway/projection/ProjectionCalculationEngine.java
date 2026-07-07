@@ -92,6 +92,12 @@ public class ProjectionCalculationEngine {
     private static final String START_DATE_FIELD = "start_date";
     private static final int STREAK_GAP_THRESHOLD_DAYS = 30;
     private static final int ACTION_CENTER_EVENT_LOOKAHEAD_DAYS = 30;
+    // Pre-v1.0 pagination pass (Q54): GET /v1/vitals now defaults to 50 rows per page.
+    // These two internal aggregations only need the latest reading per vital_type (10
+    // types total, newest-first), so the system's own page-size ceiling is used to keep
+    // this call effectively unbounded for realistic reading volumes without introducing
+    // an unpaginated code path back into the contract.
+    private static final int VITALS_AGGREGATION_FETCH_SIZE = 200;
     private static final List<String> STREAK_TRACKED_VITAL_TYPES =
             List.of("WEIGHT", "BLOOD_PRESSURE", "BLOOD_SUGAR_FASTING");
 
@@ -220,7 +226,7 @@ public class ProjectionCalculationEngine {
     // ── WEALTH_GOAL_PROGRESS ──────────────────────────────────────────────────
 
     void computeGoalProgress(UUID profileId) {
-        JsonNode goalsResponse = householdServiceClient.listGoals(profileId, null);
+        JsonNode goalsResponse = householdServiceClient.listGoals(profileId, null, null, null);
         JsonNode goalsArray = goalsResponse.path(GOALS_FIELD);
 
         double totalBalance = computeTotalBalance(profileId);
@@ -276,7 +282,7 @@ public class ProjectionCalculationEngine {
     // ── HEALTH_VITALS_SUMMARY ─────────────────────────────────────────────────
 
     void computeVitalsSummary(UUID profileId) {
-        JsonNode vitalsResponse = healthServiceClient.listVitals(profileId, null);
+        JsonNode vitalsResponse = healthServiceClient.listVitals(profileId, null, 0, VITALS_AGGREGATION_FETCH_SIZE);
         JsonNode vitalsArray = vitalsResponse.path(VITAL_READINGS_FIELD);
 
         // Keep only the latest reading per vital_type (readings assumed newest-first)
@@ -314,7 +320,7 @@ public class ProjectionCalculationEngine {
         String thirtyDaysAhead = nowIst.plusDays(30).toString();
 
         JsonNode eventsResponse = householdServiceClient.listCalendarEvents(
-                profileId, null, today, thirtyDaysAhead);
+                profileId, null, today, thirtyDaysAhead, null, null);
         JsonNode eventsArray = eventsResponse.path(EVENTS_FIELD);
 
         ArrayNode eventsPayload = MAPPER.createArrayNode();
@@ -1060,7 +1066,7 @@ public class ProjectionCalculationEngine {
     private void addUpcomingEventsForMember(
             UUID memberProfileId, String memberName, String today, String lookaheadText, ArrayNode upcomingEvents) {
         JsonNode eventsResponse = householdServiceClient.listCalendarEvents(
-                memberProfileId, null, today, lookaheadText);
+                memberProfileId, null, today, lookaheadText, null, null);
         JsonNode eventsArray = eventsResponse.path(EVENTS_FIELD);
         if (!eventsArray.isArray()) {
             return;
@@ -1079,7 +1085,7 @@ public class ProjectionCalculationEngine {
     private void addVehicleComplianceForMember(
             UUID memberProfileId, String memberName, LocalDate today, ArrayNode vehicleCompliance) {
         JsonNode assetsResponse = wealthServiceClient.listPhysicalAssets(
-                VEHICLE_ASSET_TYPE, true, memberProfileId.toString());
+                VEHICLE_ASSET_TYPE, true, memberProfileId.toString(), null, null);
         JsonNode assetsArray = assetsResponse.path(PHYSICAL_ASSETS_FIELD);
         if (!assetsArray.isArray()) {
             return;
@@ -1109,7 +1115,7 @@ public class ProjectionCalculationEngine {
     }
 
     private void addStreakGapsForMember(UUID memberProfileId, String memberName, LocalDate today, ArrayNode streakGaps) {
-        JsonNode vitalsResponse = healthServiceClient.listVitals(memberProfileId, null);
+        JsonNode vitalsResponse = healthServiceClient.listVitals(memberProfileId, null, 0, VITALS_AGGREGATION_FETCH_SIZE);
         JsonNode vitalsArray = vitalsResponse.path(VITAL_READINGS_FIELD);
 
         java.util.Map<String, String> latestReadingDateByType = new java.util.HashMap<>();

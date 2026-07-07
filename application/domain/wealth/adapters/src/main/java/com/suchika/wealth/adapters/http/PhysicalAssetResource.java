@@ -8,6 +8,7 @@ import com.suchika.wealth.adapters.http.dto.UpdatePhysicalAssetRequest;
 import com.suchika.wealth.domain.AssetType;
 import com.suchika.wealth.domain.RegistrationType;
 import com.suchika.wealth.ports.input.CreatePhysicalAssetCommand;
+import com.suchika.wealth.ports.input.PagedPhysicalAssets;
 import com.suchika.wealth.ports.input.PhysicalAssetUseCase;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -21,6 +22,9 @@ import java.util.UUID;
 @Consumes(MediaType.APPLICATION_JSON)
 public class PhysicalAssetResource {
 
+    private static final int DEFAULT_PAGE_SIZE = 50;
+    private static final int MAX_PAGE_SIZE = 200;
+
     private final PhysicalAssetUseCase useCase;
 
     public PhysicalAssetResource(PhysicalAssetUseCase useCase) {
@@ -31,11 +35,16 @@ public class PhysicalAssetResource {
     public Response listAssets(
             @QueryParam("asset_type") String assetTypeParam,
             @QueryParam("is_active") Boolean isActive,
-            @QueryParam("profile_id") UUID profileId) {
+            @QueryParam("profile_id") UUID profileId,
+            @QueryParam("page") Integer pageParam,
+            @QueryParam("size") Integer sizeParam) {
         AssetType assetType = parseAssetType(assetTypeParam);
-        List<PhysicalAssetResponse> assets = useCase.listAssets(profileId, assetType, isActive)
-                .stream().map(PhysicalAssetResponse::from).toList();
-        return Response.ok(new ListPhysicalAssetsResponse(assets)).build();
+        int page = parsePage(pageParam);
+        int size = parseSize(sizeParam);
+
+        PagedPhysicalAssets result = useCase.listAssetsPaginated(profileId, assetType, isActive, page, size);
+        List<PhysicalAssetResponse> assets = result.assets().stream().map(PhysicalAssetResponse::from).toList();
+        return Response.ok(new ListPhysicalAssetsResponse(assets, result.totalCount(), page, size)).build();
     }
 
     @POST
@@ -93,5 +102,21 @@ public class PhysicalAssetResource {
         } catch (IllegalArgumentException e) {
             throw new BadRequestException("Invalid registration_type: " + value);
         }
+    }
+
+    private int parsePage(Integer pageParam) {
+        int page = pageParam != null ? pageParam : 0;
+        if (page < 0) {
+            throw new BadRequestException("page must be >= 0");
+        }
+        return page;
+    }
+
+    private int parseSize(Integer sizeParam) {
+        int size = sizeParam != null ? sizeParam : DEFAULT_PAGE_SIZE;
+        if (size < 1 || size > MAX_PAGE_SIZE) {
+            throw new BadRequestException("size must be between 1 and " + MAX_PAGE_SIZE);
+        }
+        return size;
     }
 }

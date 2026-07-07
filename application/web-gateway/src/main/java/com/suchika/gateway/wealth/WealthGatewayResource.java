@@ -169,8 +169,10 @@ public class WealthGatewayResource {
     public JsonNode listPhysicalAssets(
             @QueryParam("asset_type") String assetType,
             @QueryParam("is_active") Boolean isActive,
-            @QueryParam("profile_id") String profileId) {
-        return wealthServiceClient.listPhysicalAssets(assetType, isActive, profileId);
+            @QueryParam("profile_id") String profileId,
+            @QueryParam("page") Integer page,
+            @QueryParam("size") Integer size) {
+        return wealthServiceClient.listPhysicalAssets(assetType, isActive, profileId, page, size);
     }
 
     @POST

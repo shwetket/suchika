@@ -89,6 +89,49 @@ class DoctorVisitPanacheRepositoryTest {
         assertTrue(results.stream().noneMatch(v -> "Too late".equals(v.getDiagnosis())));
     }
 
+    // ---- pre-v1.0 pagination pass (Q54) ----
+
+    @Test
+    void findByProfileId_paginated_returnsRequestedPageOrderedNewestFirst() {
+        repository.save(visit(LocalDate.of(2026, Month.SEPTEMBER, 1), "Sept 1 paged visit"));
+        repository.save(visit(LocalDate.of(2026, Month.SEPTEMBER, 2), "Sept 2 paged visit"));
+        repository.save(visit(LocalDate.of(2026, Month.SEPTEMBER, 3), "Sept 3 paged visit"));
+
+        List<DoctorVisit> firstPage = repository.findByProfileId(SEED_PROFILE_ID,
+                LocalDate.of(2026, Month.SEPTEMBER, 1), LocalDate.of(2026, Month.SEPTEMBER, 3), 0, 2);
+        List<DoctorVisit> secondPage = repository.findByProfileId(SEED_PROFILE_ID,
+                LocalDate.of(2026, Month.SEPTEMBER, 1), LocalDate.of(2026, Month.SEPTEMBER, 3), 1, 2);
+
+        assertEquals(2, firstPage.size());
+        assertEquals(1, secondPage.size());
+        assertEquals("Sept 3 paged visit", firstPage.get(0).getDiagnosis());
+        assertEquals("Sept 2 paged visit", firstPage.get(1).getDiagnosis());
+        assertEquals("Sept 1 paged visit", secondPage.get(0).getDiagnosis());
+    }
+
+    @Test
+    void countByProfileId_returnsTotalMatchingFilterIgnoringPage() {
+        repository.save(visit(LocalDate.of(2026, Month.OCTOBER, 1), "Oct 1 count visit"));
+        repository.save(visit(LocalDate.of(2026, Month.OCTOBER, 2), "Oct 2 count visit"));
+        repository.save(visit(LocalDate.of(2026, Month.OCTOBER, 3), "Oct 3 count visit"));
+
+        long count = repository.countByProfileId(SEED_PROFILE_ID,
+                LocalDate.of(2026, Month.OCTOBER, 1), LocalDate.of(2026, Month.OCTOBER, 3));
+
+        assertEquals(3, count);
+    }
+
+    @Test
+    void countByProfileId_appliesSameDateFilterAsFindByProfileId() {
+        repository.save(visit(LocalDate.of(2026, Month.NOVEMBER, 1), "Nov 1 visit"));
+        repository.save(visit(LocalDate.of(2026, Month.NOVEMBER, 15), "Nov 15 visit"));
+
+        long count = repository.countByProfileId(SEED_PROFILE_ID,
+                LocalDate.of(2026, Month.NOVEMBER, 10), LocalDate.of(2026, Month.NOVEMBER, 30));
+
+        assertEquals(1, count);
+    }
+
     private DoctorVisit visit(LocalDate fromDate, String diagnosis) {
         return DoctorVisit.builder()
                 .profileId(SEED_PROFILE_ID)
