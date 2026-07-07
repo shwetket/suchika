@@ -12,8 +12,8 @@ Document the actual, current implementation status for the household domain — 
 
 ---
 
-**Last updated:** 2026-07-06 (v1.0-planning retrospective — full rewrite after finding this file's own prior version, and `.claude/agents/household-developer.md`, both out of sync with actual code)
-**Version:** Backend + gateway + frontend complete since v0.3; carried through v0.4 (no household-specific work)/v0.5 (Phases 0, 2, 3)/v0.6 (one copy-note change). No open feature work. Next planned milestone touching this domain is v1.0 (auth/persistence, cross-cutting — see `documents/ROADMAP.md`).
+**Last updated:** 2026-07-07 (Q54 pagination pass — added pagination to all three list endpoints; see new section below)
+**Version:** Backend + gateway + frontend complete since v0.3; carried through v0.4 (no household-specific work)/v0.5 (Phases 0, 2, 3)/v0.6 (one copy-note change)/pre-v1.0 Q54 pagination pass (2026-07-07). No other open feature work. Next planned milestone touching this domain is v1.0 (auth/persistence, cross-cutting — see `documents/ROADMAP.md`).
 **Port:** 8084
 
 ---
@@ -34,6 +34,21 @@ Requested by the project owner ahead of v1.0 planning: no new features, just ver
 
 ---
 
+## Q54 Pagination Pass (2026-07-07)
+
+Roadmap item Q54: extend real pagination (previously only on wealth's transaction list) to every list endpoint whose data can grow large over years of use. All three household list endpoints — `GET /v1/calendar-events`, `GET /v1/inventory-items`, `GET /v1/goals` — now support `page`/`size` query params (shared OpenAPI params in `shared.yaml`, 0-indexed page, default size 50, max 200), mirroring the wealth transaction-list pattern exactly:
+
+- New per-endpoint paged-result records in `ports/input`: `PagedCalendarEvents`, `PagedInventoryItems`, `PagedGoals` (each `(items, totalCount)`), plus a new `listPaginated(...)` method on each use-case interface — the old unpaginated `list(...)` method is kept on all three for any caller that wants the full list.
+- Output ports gained a paged `findByProfileId(..., page, size)` overload and a `countByProfileId(...)` method on all three repositories, reusing each Panache repo's existing filter-building helper (added one to `GoalPanacheRepository`, which didn't have one before, mirroring `InventoryItemPanacheRepository`/`CalendarEventPanacheRepository`'s pre-existing `buildQuery`/`buildParams` style).
+- HTTP resources now always call the paginated use-case method for their `GET` list endpoint; `page`/`size` `@QueryParam`s default to 0/50 and validate (400 on negative page, size outside 1-200).
+- Response DTOs (`ListCalendarEventsResponse`, `ListInventoryItemsResponse`, `ListGoalsResponse`) gained a second constructor with `page`/`size` fields; the original items-only constructor is kept.
+- Gateway (`HouseholdServiceClient`, `HouseholdGatewayResource`) passes `page`/`size` straight through as an extra pair of query params on all three methods.
+- Frontend: `web/src/api/household.js`'s three list functions gained trailing `page`/`size` params (optional-append, same pattern as `wealth.js`); `Calendar.js`, `Inventory.js`, `Goals.js` each gained `PAGE_SIZE = 20`, `page`/`totalSize` state, a filter-reset-to-page-0 `useEffect` (separate from the load effect, matching `Transactions.js`), and a Previous/Next control block.
+
+**Consequential fix, not itself part of the Q54 scope:** widening `HouseholdServiceClient.listGoals`/`.listCalendarEvents` broke every existing call site with the old arity. `application/web-gateway/src/main/java/com/suchika/gateway/projection/ProjectionCalculationEngine.java` calls both methods directly (`computeGoalProgress`, `computeEventSummary`, `addUpcomingEventsForMember`) — these 3 call sites now pass explicit `null` for `page`/`size`, which resolves to the resource's default (page 0, size 50). This was a **required** compile fix, not a design choice; see Open Issues below for the resulting behavioral risk it introduces.
+
+---
+
 ## Implementation Status
 
 | Component | Status | Notes |
@@ -41,23 +56,24 @@ Requested by the project owner ahead of v1.0 planning: no new features, just ver
 | OpenAPI contract | Done | `application/contract/household.yaml` — 3 resource groups, full CRUD + conflict detection + goal current-amount endpoint |
 | Flyway migration | Done | `V1__init_household_consolidated.sql` — `calendar_event`, `inventory_item`, `goal`. No CHECK constraints anywhere (by design). FKs to `profile.profile(id)` present. See Retrospective item 2 for a nullability gap found in this pass. |
 | Domain entities + enums | Done | `CalendarEvent`, `InventoryItem`, `Goal` + `EventType`, `ItemUnit`, `SourcePlatform`, `GoalStatus` |
-| Ports (input + output) | Done | 3 use cases + 3 repository interfaces |
-| JPA entities + DAOs + Panache repos | Done | One of each per aggregate |
-| Services (use case impls) | Done | `CalendarEventService`, `InventoryItemService`, `GoalService` |
-| HTTP resources | Done | `CalendarEventResource`, `InventoryItemResource`, `GoalResource` |
-| DTOs | Done | Full request/response set, including `CalendarEventResponse.conflicting_events` |
+| Ports (input + output) | Done | 3 use cases + 3 repository interfaces, each now with a paginated method/overload (Q54) alongside the original unpaginated ones; new `PagedCalendarEvents`/`PagedInventoryItems`/`PagedGoals` records |
+| JPA entities + DAOs + Panache repos | Done | One of each per aggregate; each Panache repo now has a paged-find + count method sharing a filter-builder helper |
+| Services (use case impls) | Done | `CalendarEventService`, `InventoryItemService`, `GoalService` — each gained a `listPaginated(...)` method |
+| HTTP resources | Done | `CalendarEventResource`, `InventoryItemResource`, `GoalResource` — GET list endpoints now take `page`/`size` `@QueryParam`s (default 0/50, validated 1-200) and call the paginated use-case method |
+| DTOs | Done | Full request/response set, including `CalendarEventResponse.conflicting_events`; the 3 `ListXxxResponse` classes gained a second constructor carrying `page`/`size` |
 | Domain unit tests | Done | `CalendarEventTest`, `InventoryItemTest`, `GoalTest` — plain JUnit 5, no framework |
-| Adapter service tests | Done | `CalendarEventServiceTest`, `InventoryItemServiceTest`, `GoalServiceTest` — mocked repositories |
-| Adapter DB tests | Done, but see caveat | `CalendarEventPanacheRepositoryTest`, `GoalPanacheRepositoryTest`, `InventoryItemPanacheRepositoryTest`, `InventoryItemCreateUpdateIT` — all run against the shared local Postgres via an `%integration-test` config profile, not Testcontainers (Retrospective item 2) |
+| Adapter service tests | Done | `CalendarEventServiceTest`, `InventoryItemServiceTest`, `GoalServiceTest` — mocked repositories; each gained `listPaginated` coverage |
+| Adapter DB tests | Done, but see caveat | `CalendarEventPanacheRepositoryTest`, `GoalPanacheRepositoryTest`, `InventoryItemPanacheRepositoryTest`, `InventoryItemCreateUpdateIT` — all run against the shared local Postgres via an `%integration-test` config profile, not Testcontainers (Retrospective item 2). Each paged-find/count test uses a freshly-inserted test-scoped profile (native SQL, rolled back per test) rather than the shared seeded profile, since `R__seed_household_test_data.sql` seeds exactly one row per table for that profile — sharing it would make exact-count pagination assertions flaky. |
+| Resource tests | Done | `CalendarEventResourceTest`, `InventoryItemResourceTest`, `GoalResourceTest` (`@QuarkusTest` + `@InjectMock` + RestAssured) — updated to stub `listPaginated` instead of `list`; added explicit page/size and validation-error (negative page, size 0, size > 200) cases |
 | Gateway: `household.yaml` mirrored | Done | `application/web-gateway/src/main/resources/household.yaml` |
-| Gateway: `HouseholdServiceClient` | Done | `com.suchika.gateway.household.HouseholdServiceClient` — full REST client |
-| Gateway: `HouseholdGatewayResource` | Done | Proxies household endpoints under `/v1/household/...` |
-| Gateway: projection engine integration | Done | 2 of `ProjectionCalculationEngine`'s 12 compute steps touch household data (see Retrospective item 2); household calendar events also read (not written) by `computeActionCenterAlerts` |
-| Frontend — Calendar | Done | `web/src/pages/Household/Calendar.js` — CRUD, conflict warning banner, type filter, profile selector |
-| Frontend — Inventory | Done | `Inventory.js` — CRUD, platform filter, edit modal, `is_consumed` toggle |
-| Frontend — Goals | Done | `Goals.js` — CRUD, progress bar, status badge, edit modal |
+| Gateway: `HouseholdServiceClient` | Done | `com.suchika.gateway.household.HouseholdServiceClient` — full REST client; 3 list methods now also take `page`/`size` |
+| Gateway: `HouseholdGatewayResource` | Done | Proxies household endpoints under `/v1/household/...`; passes `page`/`size` straight through |
+| Gateway: projection engine integration | Done, see Open Issues | 2 of `ProjectionCalculationEngine`'s 12 compute steps touch household data (see Retrospective item 2); household calendar events also read (not written) by `computeActionCenterAlerts`. All 3 internal call sites (`computeGoalProgress`, `computeEventSummary`, `addUpcomingEventsForMember`) now pass explicit `null` page/size, landing on the endpoint's default page 0/size 50 — see the new Open Issues entry on the resulting truncation risk. |
+| Frontend — Calendar | Done | `web/src/pages/Household/Calendar.js` — CRUD, conflict warning banner, type filter, profile selector, pagination (Q54) |
+| Frontend — Inventory | Done | `Inventory.js` — CRUD, platform filter, edit modal, `is_consumed` toggle, pagination (Q54) |
+| Frontend — Goals | Done | `Goals.js` — CRUD, progress bar, status badge, edit modal, pagination (Q54) |
 | Frontend — Vacation Planner | Done | `VacationPlanner.js` — gateway-native feature, wealth-only data (see Retrospective item 4) |
-| Frontend — tests | Done | `Calendar.test.js`, `Inventory.test.js`, `Goals.test.js`, `VacationPlanner.test.js` under `web/src/pages/Household/` — cover render/loading/error states. (Not tracking a hardcoded test count here — the prior version of this doc had a stale "285 total" figure that mixed in `Dashboard.test.js`, which isn't even a household page. Run `npm run test:ci` for a current count.) |
+| Frontend — tests | Done | `Calendar.test.js`, `Inventory.test.js`, `Goals.test.js`, `VacationPlanner.test.js` under `web/src/pages/Household/` — cover render/loading/error states plus pagination mechanics (page-0-on-load, Previous/Next, last-page disabling). 123 tests passing across the 5 suites in this directory as of this pass (`npx react-scripts test src/pages/Household --watchAll=false` — plain `npx jest` does not work in this CRA project, it skips the Babel/JSX transform `react-scripts` wires up). |
 
 ---
 
@@ -119,7 +135,7 @@ File: `application/contract/household.yaml` · Base URL: `http://localhost:8084`
 
 | Method | Path | Description |
 |---|---|---|
-| GET | /v1/calendar-events | List events for a profile (filter by event_type, date range) |
+| GET | /v1/calendar-events | List events for a profile (filter by event_type, date range; paginated — `page`/`size`, Q54) |
 | POST | /v1/calendar-events | Create event; returns conflicting_events list (warning only, not blocking) |
 | GET | /v1/calendar-events/{id} | Get single event |
 | PATCH | /v1/calendar-events/{id} | Partial update |
@@ -135,6 +151,8 @@ File: `application/contract/household.yaml` · Base URL: `http://localhost:8084`
 | PATCH | /v1/goals/{id} | Partial update |
 | DELETE | /v1/goals/{id} | Delete |
 | PUT | /v1/goals/{id}/current-amount | Update current_amount (called by the gateway projection engine only — not intended for direct client use) |
+
+`page`/`size` are the shared `Page`/`Size` OpenAPI params (`application/contract/shared.yaml`): 0-indexed page, default size 50, max 200. All three `ListXxxResponse` bodies include `total_size` (grand total across all pages), `page`, and `size`.
 
 ---
 
@@ -179,3 +197,4 @@ File: `application/contract/household.yaml` · Base URL: `http://localhost:8084`
 - **Vacation Planner duplicates trip-date entry.** `household.calendar_event` already models `EventType.TRAVEL`, but the gateway's Vacation Planner takes trip dates as fresh user input instead of letting the user pick an existing travel event. Not a bug, just an unexploited integration opportunity.
 - Task Tracking (assigning tasks to child profiles with calendar-linked deadlines) remains unbuilt — no schema, no code. Originally deferred from v0.3; still not scoped for any milestone.
 - Dashboard/Action Center "Refresh Live Data" depends on `user.profile_id` being present in the auth context; if a future auth change omits it, the refresh action silently disables. Noted for whoever builds v1.0 auth.
+- **New (2026-07-07, Q54 pagination pass): `ProjectionCalculationEngine`'s internal consumption of `listGoals`/`listCalendarEvents` now silently caps at 50 rows per profile.** Widening `HouseholdServiceClient`'s list methods to add `page`/`size` was a required, mechanical change (the alternative — a second, unpaginated client method — wasn't asked for and isn't how the wealth precedent was extended either, since wealth's own `ProjectionCalculationEngine` usage never called its list endpoint at all, only a dedicated balance-aggregate endpoint). The 3 internal call sites (`computeGoalProgress`, `computeEventSummary`, `addUpcomingEventsForMember`) now pass `null` for page/size, which the household resource layer resolves to the endpoint's default (page 0, size 50) — the same default any unpaginated caller gets. For any household with **more than 50 active goals** or **more than 50 calendar events matching the 30-day lookahead window**, this would silently truncate the data these compute steps see (goal progress stops updating for the excluded goals; the action-center/event-summary alerts miss the excluded events). Given goals are ordered `createdAt DESC` and events `startDate DESC`, the practical exposure is low today (no realistic household has 50+ goals; the calendar query already filters to a 30-day window before pagination even applies) — but it's a latent scale ceiling worth flagging for whoever next touches the projection engine or plans real multi-year usage. Not fixed here — doing so (e.g., looping the engine through pages, or adding a dedicated non-paginated internal-only endpoint) is a materially different, larger change than "add pagination to 3 list endpoints" and was out of scope for this pass.

@@ -24,6 +24,9 @@ import java.util.UUID;
 @Consumes(MediaType.APPLICATION_JSON)
 public class PhysicalAssetResource {
 
+    private static final int DEFAULT_PAGE_SIZE = 50;
+    private static final int MAX_PAGE_SIZE = 200;
+
     private final PhysicalAssetUseCase useCase;
 
     public PhysicalAssetResource(PhysicalAssetUseCase useCase) {
@@ -38,8 +41,8 @@ public class PhysicalAssetResource {
             @QueryParam("page") Integer pageParam,
             @QueryParam("size") Integer sizeParam) {
         AssetType assetType = parseAssetType(assetTypeParam);
-        int page = ResourceUtils.parsePage(pageParam);
-        int size = ResourceUtils.parseSize(sizeParam);
+        int page = parsePage(pageParam);
+        int size = parseSize(sizeParam);
 
         PagedPhysicalAssets result = useCase.listAssetsPaginated(profileId, assetType, isActive, page, size);
         List<PhysicalAssetResponse> assets = result.assets().stream().map(PhysicalAssetResponse::from).toList();
@@ -103,5 +106,19 @@ public class PhysicalAssetResource {
         }
     }
 
+    private int parsePage(Integer pageParam) {
+        int page = pageParam != null ? pageParam : 0;
+        if (page < 0) {
+            throw new BadRequestException("page must be >= 0");
+        }
+        return page;
+    }
 
+    private int parseSize(Integer sizeParam) {
+        int size = sizeParam != null ? sizeParam : DEFAULT_PAGE_SIZE;
+        if (size < 1 || size > MAX_PAGE_SIZE) {
+            throw new BadRequestException("size must be between 1 and " + MAX_PAGE_SIZE);
+        }
+        return size;
+    }
 }
