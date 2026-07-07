@@ -14,8 +14,25 @@ public class ListCalendarEventsResponse {
     @JsonProperty("total_size")
     public int totalSize;
 
+    @JsonProperty("page")
+    public Integer page;
+
+    @JsonProperty("size")
+    public Integer size;
+
     public ListCalendarEventsResponse(List<CalendarEventDto> calendarEvents) {
         this.calendarEvents = calendarEvents;
         this.totalSize = calendarEvents.size();
+    }
+
+    /**
+     * Paginated variant (Q54 pagination pass) — totalSize is the grand total matching
+     * the filter across all pages, not just calendarEvents.size().
+     */
+    public ListCalendarEventsResponse(List<CalendarEventDto> calendarEvents, long totalSize, int page, int size) {
+        this.calendarEvents = calendarEvents;
+        this.totalSize = (int) totalSize;
+        this.page = page;
+        this.size = size;
     }
 }

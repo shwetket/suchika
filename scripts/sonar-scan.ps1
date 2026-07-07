@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 # Runs SonarQube analysis and opens the project dashboard.
 # Requires: SonarQube running at http://localhost:9000 and sonar-scanner in PATH.
 # Usage: .\scripts\sonar-scan.ps1

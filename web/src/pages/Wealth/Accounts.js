@@ -1,9 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
+import { Field } from '../../components/Field';
+import { Modal } from '../../components/Modal';
 import { listProfiles } from '../../api/profiles';
 import {
   createAccount,
   deactivateAccount,
+  getAccountBalance,
   listAccounts,
   updateAccount,
   updateAccountClassification,
@@ -15,7 +18,10 @@ const ACCOUNT_TYPES = [
   'CREDIT_CARD',
   'HOME_LOAN',
   'PERSONAL_LOAN',
-  'INVESTMENT',
+  'CAR_LOAN',
+  'MUTUAL_FUND',
+  'NPS',
+  'PPF',
   'FD',
 ];
 const TYPE_TABS = ['ALL', ...ACCOUNT_TYPES];
@@ -78,50 +84,7 @@ function StatusBadge({ active }) {
 }
 StatusBadge.propTypes = { active: PropTypes.bool.isRequired };
 
-function Field({ label, required, children }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <label className="text-sm font-medium text-gray-700">
-        {label}
-        {required && <span className="text-red-500 ml-1">*</span>}
-      </label>
-      {children}
-    </div>
-  );
-}
-Field.propTypes = {
-  label: PropTypes.string.isRequired,
-  required: PropTypes.bool,
-  children: PropTypes.node.isRequired,
-};
-Field.defaultProps = { required: false };
-
-function Modal({ title, onClose, children }) {
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-5 border-b">
-          <h2 className="text-xl font-bold">{title}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
-          >
-            &times;
-          </button>
-        </div>
-        <div className="p-5">{children}</div>
-      </div>
-    </div>
-  );
-}
-Modal.propTypes = {
-  title: PropTypes.string.isRequired,
-  onClose: PropTypes.func.isRequired,
-  children: PropTypes.node.isRequired,
-};
-
-function AccountCard({ account, onEdit, onDeactivate }) {
+function AccountCard({ account, balance, onEdit, onDeactivate }) {
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-5 flex flex-col gap-2">
       <div className="flex items-start justify-between">
@@ -135,7 +98,12 @@ function AccountCard({ account, onEdit, onDeactivate }) {
         {account.account_type.replaceAll('_', ' ')}
       </span>
       <div className="text-sm text-gray-600 space-y-1">
-        <p>Balance: {formatCurrency(account.opening_balance)}</p>
+        <p>
+          Balance:{' '}
+          {balance === undefined
+            ? 'Loading...'
+            : formatCurrency(balance ?? account.opening_balance)}
+        </p>
         {account.credit_limit !== null &&
           account.credit_limit !== undefined &&
           account.credit_limit > 0 && <p>Credit Limit: {formatCurrency(account.credit_limit)}</p>}
@@ -175,9 +143,11 @@ AccountCard.propTypes = {
     interest_rate: PropTypes.number,
     is_active: PropTypes.bool.isRequired,
   }).isRequired,
+  balance: PropTypes.number,
   onEdit: PropTypes.func.isRequired,
   onDeactivate: PropTypes.func.isRequired,
 };
+AccountCard.defaultProps = { balance: undefined };
 
 function AccountFormFields({ form, onChange }) {
   const isLoan = LOAN_TYPES.has(form.account_type);
@@ -281,6 +251,7 @@ export const Accounts = () => {
   const [profiles, setProfiles] = useState([]);
   const [selectedProfileId, setSelectedProfileId] = useState('');
   const [accounts, setAccounts] = useState([]);
+  const [balances, setBalances] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [typeFilter, setTypeFilter] = useState('ALL');
@@ -325,6 +296,27 @@ export const Accounts = () => {
   useEffect(() => {
     loadAccounts();
   }, [loadAccounts]);
+
+  useEffect(() => {
+    if (accounts.length === 0) {
+      setBalances({});
+      return undefined;
+    }
+    let cancelled = false;
+    setBalances({});
+    Promise.all(
+      accounts.map((a) =>
+        getAccountBalance(a.account_id, selectedProfileId)
+          .then((data) => [a.account_id, data.current_balance])
+          .catch(() => [a.account_id, null])
+      )
+    ).then((pairs) => {
+      if (!cancelled) setBalances(Object.fromEntries(pairs));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [accounts, selectedProfileId]);
 
   const handleAddChange = useCallback((e) => {
     const { name, value } = e.target;
@@ -548,6 +540,7 @@ export const Accounts = () => {
                 <AccountCard
                   key={a.account_id}
                   account={a}
+                  balance={balances[a.account_id]}
                   onEdit={handleEditOpen}
                   onDeactivate={setConfirmTarget}
                 />

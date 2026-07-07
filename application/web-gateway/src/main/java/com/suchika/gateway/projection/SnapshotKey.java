@@ -33,7 +33,6 @@ public final class SnapshotKey {
      * WEALTH_VALIDATION_REPORT_FAMILY (validation gate with PASS/WARNING/CRITICAL).
      */
     public static final String WEALTH_NET_WORTH_FAMILY = "WEALTH_NET_WORTH_FAMILY";
-    public static final String WEALTH_GOAL_PROGRESS_FAMILY = "WEALTH_GOAL_PROGRESS_FAMILY";
     public static final String WEALTH_VALIDATION_REPORT_FAMILY = "WEALTH_VALIDATION_REPORT_FAMILY";
     public static final String WEALTH_EMI_TRACKING_FAMILY = "WEALTH_EMI_TRACKING_FAMILY";
     public static final String WEALTH_LIQUIDITY_TIERS_FAMILY = "WEALTH_LIQUIDITY_TIERS_FAMILY";

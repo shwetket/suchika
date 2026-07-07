@@ -3,10 +3,12 @@ import { API_ENDPOINTS } from '../utils/constants';
 
 // ── Calendar Events ──────────────────────────────────────────────────────────
 
-export function listCalendarEvents(profileId, eventType) {
+export function listCalendarEvents(profileId, eventType, page, size) {
   const params = new URLSearchParams();
   if (profileId !== null && profileId !== undefined) params.append('profile_id', profileId);
   if (eventType !== null && eventType !== undefined) params.append('event_type', eventType);
+  if (page !== null && page !== undefined) params.append('page', page);
+  if (size !== null && size !== undefined) params.append('size', size);
   const query = params.toString();
   const url = query ? `${API_ENDPOINTS.CALENDAR_EVENTS}?${query}` : API_ENDPOINTS.CALENDAR_EVENTS;
   return get(url);
@@ -21,11 +23,13 @@ export const deleteCalendarEvent = (id) => del(`${API_ENDPOINTS.CALENDAR_EVENTS}
 
 // ── Inventory Items ──────────────────────────────────────────────────────────
 
-export function listInventoryItems(profileId, sourcePlatform) {
+export function listInventoryItems(profileId, sourcePlatform, page, size) {
   const params = new URLSearchParams();
   if (profileId !== null && profileId !== undefined) params.append('profile_id', profileId);
   if (sourcePlatform !== null && sourcePlatform !== undefined)
     params.append('source_platform', sourcePlatform);
+  if (page !== null && page !== undefined) params.append('page', page);
+  if (size !== null && size !== undefined) params.append('size', size);
   const query = params.toString();
   const url = query ? `${API_ENDPOINTS.INVENTORY_ITEMS}?${query}` : API_ENDPOINTS.INVENTORY_ITEMS;
   return get(url);
@@ -40,10 +44,12 @@ export const deleteInventoryItem = (id) => del(`${API_ENDPOINTS.INVENTORY_ITEMS}
 
 // ── Goals ────────────────────────────────────────────────────────────────────
 
-export function listGoals(profileId, status) {
+export function listGoals(profileId, status, page, size) {
   const params = new URLSearchParams();
   if (profileId !== null && profileId !== undefined) params.append('profile_id', profileId);
   if (status !== null && status !== undefined) params.append('status', status);
+  if (page !== null && page !== undefined) params.append('page', page);
+  if (size !== null && size !== undefined) params.append('size', size);
   const query = params.toString();
   const url = query ? `${API_ENDPOINTS.HOUSEHOLD_GOALS}?${query}` : API_ENDPOINTS.HOUSEHOLD_GOALS;
   return get(url);

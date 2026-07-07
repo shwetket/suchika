@@ -6,13 +6,25 @@ import { createAdmin } from '../../api/admins';
 import { createProfile, updateAdminPolicy } from '../../api/profiles';
 import { createAccount, updateAccountClassification } from '../../api/wealth';
 import { recordVital } from '../../api/health';
+import { Field } from '../../components/Field';
 
 const inputClass =
   'border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
 
 const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 const GENDERS = ['MALE', 'FEMALE', 'OTHER', 'PREFER_NOT_TO_SAY'];
-const ACCOUNT_TYPES = ['SAVINGS', 'CURRENT', 'HOME_LOAN', 'PERSONAL_LOAN', 'CAR_LOAN'];
+const ACCOUNT_TYPES = [
+  'SAVINGS',
+  'CURRENT',
+  'CREDIT_CARD',
+  'HOME_LOAN',
+  'PERSONAL_LOAN',
+  'CAR_LOAN',
+  'MUTUAL_FUND',
+  'NPS',
+  'PPF',
+  'FD',
+];
 const LOAN_TYPES = new Set(['HOME_LOAN', 'PERSONAL_LOAN', 'CAR_LOAN']);
 
 const EMPTY_IDENTITY = { fullName: '', dob: '', email: '', gender: '', bloodType: '' };
@@ -26,24 +38,6 @@ const EMPTY_ACCOUNT = {
   loan_tenure_months: '',
 };
 const EMPTY_VITAL_ENTRY = { reading_date: '', value: '' };
-
-function Field({ label, required, children }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <label className="text-sm font-medium text-gray-700">
-        {label}
-        {required && <span className="text-red-500 ml-1">*</span>}
-      </label>
-      {children}
-    </div>
-  );
-}
-Field.propTypes = {
-  label: PropTypes.string.isRequired,
-  required: PropTypes.bool,
-  children: PropTypes.node.isRequired,
-};
-Field.defaultProps = { required: false };
 
 function StepIndicator({ step }) {
   const steps = ['Your Details', 'Wealth (optional)', 'Health (optional)'];

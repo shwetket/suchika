@@ -26,8 +26,10 @@ public class HealthGatewayResource {
     @Path("/vitals")
     public JsonNode listVitals(
             @QueryParam("profile_id") UUID profileId,
-            @QueryParam("vital_type") String vitalType) {
-        return healthServiceClient.listVitals(profileId, vitalType);
+            @QueryParam("vital_type") String vitalType,
+            @QueryParam("page") Integer page,
+            @QueryParam("size") Integer size) {
+        return healthServiceClient.listVitals(profileId, vitalType, page, size);
     }
 
     @POST
@@ -66,8 +68,10 @@ public class HealthGatewayResource {
     public JsonNode listDoctorVisits(
             @QueryParam("profile_id") UUID profileId,
             @QueryParam("from") String from,
-            @QueryParam("to") String to) {
-        return healthServiceClient.listDoctorVisits(profileId, from, to);
+            @QueryParam("to") String to,
+            @QueryParam("page") Integer page,
+            @QueryParam("size") Integer size) {
+        return healthServiceClient.listDoctorVisits(profileId, from, to, page, size);
     }
 
     @POST

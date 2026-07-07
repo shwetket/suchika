@@ -11,15 +11,11 @@ public class ListAccountsResponse {
     @JsonProperty("accounts")
     public List<AccountResponse> accounts;
 
-    @JsonProperty("next_page_token")
-    public String nextPageToken;
-
     @JsonProperty("total_size")
     public int totalSize;
 
     public ListAccountsResponse(List<AccountResponse> accounts) {
         this.accounts = accounts;
-        this.nextPageToken = null;
         this.totalSize = accounts.size();
     }
 }

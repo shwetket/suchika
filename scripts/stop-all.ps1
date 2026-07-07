@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 # Kills all Suchika dev processes by port.
 # Ports: 3000 (React), 8080 (gateway), 8081-8084 (domain services).
 # Usage: .\scripts\stop-all.ps1

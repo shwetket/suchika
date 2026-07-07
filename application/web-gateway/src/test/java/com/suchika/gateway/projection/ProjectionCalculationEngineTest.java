@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -64,7 +65,7 @@ class ProjectionCalculationEngineTest {
         MockitoAnnotations.openMocks(this);
         engine = new ProjectionCalculationEngine(wealthClient, healthClient, householdClient, profileClient, snapshotRepo);
         when(wealthClient.listAccounts(isNull(), eq(true), anyString())).thenReturn(buildEmptyAccountsResponse());
-        when(householdClient.listGoals(any(), isNull())).thenReturn(MAPPER.createObjectNode().set("goals", MAPPER.createArrayNode()));
+        when(householdClient.listGoals(any(), isNull(), isNull(), isNull())).thenReturn(MAPPER.createObjectNode().set("goals", MAPPER.createArrayNode()));
     }
 
     // ── computeNetWorth ───────────────────────────────────────────────────────
@@ -142,7 +143,7 @@ class ProjectionCalculationEngineTest {
                 new VitalEntry("WEIGHT", 70.0, 0.0, "kg", "2026-05-01"),
                 new VitalEntry("HEIGHT", 175.0, 0.0, "cm", "2026-01-01")
         );
-        when(healthClient.listVitals(PROFILE_ID, null)).thenReturn(vitalsResponse);
+        when(healthClient.listVitals(PROFILE_ID, null, 0, 200)).thenReturn(vitalsResponse);
 
         engine.computeVitalsSummary(PROFILE_ID);
 
@@ -163,7 +164,7 @@ class ProjectionCalculationEngineTest {
     @Test
     void computeVitalsSummary_emptyVitals_storesEmptyArray() throws Exception {
         JsonNode emptyVitalsResponse = MAPPER.readTree("{\"vital_readings\":[]}");
-        when(healthClient.listVitals(PROFILE_ID, null)).thenReturn(emptyVitalsResponse);
+        when(healthClient.listVitals(PROFILE_ID, null, 0, 200)).thenReturn(emptyVitalsResponse);
 
         engine.computeVitalsSummary(PROFILE_ID);
 
@@ -179,7 +180,7 @@ class ProjectionCalculationEngineTest {
     @Test
     void computeEventSummary_countsUpcomingEvents() throws Exception {
         JsonNode eventsResponse = buildCalendarEventsResponse(3);
-        when(householdClient.listCalendarEvents(eq(PROFILE_ID), isNull(), anyString(), anyString()))
+        when(householdClient.listCalendarEvents(eq(PROFILE_ID), isNull(), anyString(), anyString(), isNull(), isNull()))
                 .thenReturn(eventsResponse);
 
         engine.computeEventSummary(PROFILE_ID);
@@ -195,7 +196,7 @@ class ProjectionCalculationEngineTest {
     @Test
     void computeEventSummary_noEvents_storesZeroCount() throws Exception {
         JsonNode emptyResponse = MAPPER.readTree("{\"calendar_events\":[]}");
-        when(householdClient.listCalendarEvents(eq(PROFILE_ID), isNull(), anyString(), anyString()))
+        when(householdClient.listCalendarEvents(eq(PROFILE_ID), isNull(), anyString(), anyString(), isNull(), isNull()))
                 .thenReturn(emptyResponse);
 
         engine.computeEventSummary(PROFILE_ID);
@@ -217,7 +218,7 @@ class ProjectionCalculationEngineTest {
         UUID accountId = UUID.fromString("33333333-0000-0000-0000-000000000001");
         JsonNode accountsResponse = buildAccountsResponse(accountId);
 
-        when(householdClient.listGoals(PROFILE_ID, null)).thenReturn(goalsResponse);
+        when(householdClient.listGoals(PROFILE_ID, null, null, null)).thenReturn(goalsResponse);
         when(wealthClient.listAccounts(isNull(), eq(true), eq(PROFILE_ID.toString())))
                 .thenReturn(accountsResponse);
         stubBalance(accountId, 600.0);
@@ -248,7 +249,7 @@ class ProjectionCalculationEngineTest {
         UUID accountId = UUID.fromString("44444444-0000-0000-0000-000000000001");
         JsonNode accountsResponse = buildAccountsResponse(accountId);
 
-        when(householdClient.listGoals(PROFILE_ID, null)).thenReturn(goalsResponse);
+        when(householdClient.listGoals(PROFILE_ID, null, null, null)).thenReturn(goalsResponse);
         when(wealthClient.listAccounts(isNull(), eq(true), eq(PROFILE_ID.toString())))
                 .thenReturn(accountsResponse);
         stubBalance(accountId, 1000.0);
@@ -354,13 +355,13 @@ class ProjectionCalculationEngineTest {
         // Stub all clients with empty-but-valid responses
         when(wealthClient.listAccounts(any(), any(), any()))
                 .thenReturn(buildEmptyAccountsResponse());
-        when(wealthClient.listPhysicalAssets(any(), any(), any()))
+        when(wealthClient.listPhysicalAssets(any(), any(), any(), any(), any()))
                 .thenReturn(MAPPER.readTree("{\"physical_assets\":[]}"));
-        when(healthClient.listVitals(any(), any()))
+        when(healthClient.listVitals(any(), any(), anyInt(), anyInt()))
                 .thenReturn(MAPPER.readTree("{\"vital_readings\":[]}"));
-        when(householdClient.listCalendarEvents(any(), any(), any(), any()))
+        when(householdClient.listCalendarEvents(any(), any(), any(), any(), any(), any()))
                 .thenReturn(MAPPER.readTree("{\"calendar_events\":[]}"));
-        when(householdClient.listGoals(any(), any()))
+        when(householdClient.listGoals(any(), any(), any(), any()))
                 .thenReturn(MAPPER.readTree("{\"goals\":[]}"));
         when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
         when(profileClient.listProfiles(ADMIN_ID, true)).thenReturn(buildEmptyProfilesResponse());
@@ -393,11 +394,11 @@ class ProjectionCalculationEngineTest {
         // (health, household) from refreshing and upserting their own snapshots.
         when(wealthClient.listAccounts(any(), any(), any()))
                 .thenThrow(new RuntimeException("wealth service unavailable"));
-        when(healthClient.listVitals(any(), any()))
+        when(healthClient.listVitals(any(), any(), anyInt(), anyInt()))
                 .thenReturn(MAPPER.readTree("{\"vital_readings\":[]}"));
-        when(householdClient.listCalendarEvents(any(), any(), any(), any()))
+        when(householdClient.listCalendarEvents(any(), any(), any(), any(), any(), any()))
                 .thenReturn(MAPPER.readTree("{\"calendar_events\":[]}"));
-        when(householdClient.listGoals(any(), any()))
+        when(householdClient.listGoals(any(), any(), any(), any()))
                 .thenReturn(MAPPER.readTree("{\"goals\":[]}"));
         when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
         when(profileClient.listProfiles(ADMIN_ID, true)).thenReturn(buildEmptyProfilesResponse());
@@ -684,9 +685,9 @@ class ProjectionCalculationEngineTest {
                 new MemberEntry(PROFILE_ID, "Ketan", "SELF"),
                 new MemberEntry(spouseProfileId, "Shweta", "SPOUSE")
         ));
-        when(householdClient.listCalendarEvents(eq(PROFILE_ID), isNull(), anyString(), anyString()))
+        when(householdClient.listCalendarEvents(eq(PROFILE_ID), isNull(), anyString(), anyString(), isNull(), isNull()))
                 .thenReturn(buildCalendarEventsResponse(2));
-        when(householdClient.listCalendarEvents(eq(spouseProfileId), isNull(), anyString(), anyString()))
+        when(householdClient.listCalendarEvents(eq(spouseProfileId), isNull(), anyString(), anyString(), isNull(), isNull()))
                 .thenReturn(buildCalendarEventsResponse(1));
         stubNoVehicles(PROFILE_ID);
         stubNoVehicles(spouseProfileId);
@@ -708,12 +709,12 @@ class ProjectionCalculationEngineTest {
         when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
         when(profileClient.listProfiles(ADMIN_ID, true))
                 .thenReturn(buildProfilesResponse(new MemberEntry(PROFILE_ID, "Ketan", "SELF")));
-        when(householdClient.listCalendarEvents(eq(PROFILE_ID), isNull(), anyString(), anyString()))
+        when(householdClient.listCalendarEvents(eq(PROFILE_ID), isNull(), anyString(), anyString(), isNull(), isNull()))
                 .thenReturn(buildCalendarEventsResponse(0));
         stubNoVitals(PROFILE_ID);
 
         String nearExpiry = FIXED_TODAY.plusDays(10).toString();
-        when(wealthClient.listPhysicalAssets("VEHICLE", true, PROFILE_ID.toString()))
+        when(wealthClient.listPhysicalAssets("VEHICLE", true, PROFILE_ID.toString(), null, null))
                 .thenReturn(buildPhysicalAssetsResponse("a1", "Tata Nexon", nearExpiry, null));
 
         engine.computeActionCenterAlerts(PROFILE_ID, FIXED_TODAY);
@@ -734,12 +735,12 @@ class ProjectionCalculationEngineTest {
         when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
         when(profileClient.listProfiles(ADMIN_ID, true))
                 .thenReturn(buildProfilesResponse(new MemberEntry(PROFILE_ID, "Ketan", "SELF")));
-        when(householdClient.listCalendarEvents(eq(PROFILE_ID), isNull(), anyString(), anyString()))
+        when(householdClient.listCalendarEvents(eq(PROFILE_ID), isNull(), anyString(), anyString(), isNull(), isNull()))
                 .thenReturn(buildCalendarEventsResponse(0));
         stubNoVitals(PROFILE_ID);
 
         String farExpiry = FIXED_TODAY.plusDays(90).toString();
-        when(wealthClient.listPhysicalAssets("VEHICLE", true, PROFILE_ID.toString()))
+        when(wealthClient.listPhysicalAssets("VEHICLE", true, PROFILE_ID.toString(), null, null))
                 .thenReturn(buildPhysicalAssetsResponse("a1", "Tata Nexon", farExpiry, farExpiry));
 
         engine.computeActionCenterAlerts(PROFILE_ID, FIXED_TODAY);
@@ -755,12 +756,12 @@ class ProjectionCalculationEngineTest {
         when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
         when(profileClient.listProfiles(ADMIN_ID, true))
                 .thenReturn(buildProfilesResponse(new MemberEntry(PROFILE_ID, "Ketan", "SELF")));
-        when(householdClient.listCalendarEvents(eq(PROFILE_ID), isNull(), anyString(), anyString()))
+        when(householdClient.listCalendarEvents(eq(PROFILE_ID), isNull(), anyString(), anyString(), isNull(), isNull()))
                 .thenReturn(buildCalendarEventsResponse(0));
         stubNoVehicles(PROFILE_ID);
 
         String staleDate = FIXED_TODAY.minusDays(45).toString();
-        when(healthClient.listVitals(eq(PROFILE_ID), isNull())).thenReturn(
+        when(healthClient.listVitals(eq(PROFILE_ID), isNull(), anyInt(), anyInt())).thenReturn(
                 buildVitalsResponse(new VitalEntry("WEIGHT", 70.0, 0.0, "kg", staleDate)));
 
         engine.computeActionCenterAlerts(PROFILE_ID, FIXED_TODAY);
@@ -783,12 +784,12 @@ class ProjectionCalculationEngineTest {
         when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
         when(profileClient.listProfiles(ADMIN_ID, true))
                 .thenReturn(buildProfilesResponse(new MemberEntry(PROFILE_ID, "Ketan", "SELF")));
-        when(householdClient.listCalendarEvents(eq(PROFILE_ID), isNull(), anyString(), anyString()))
+        when(householdClient.listCalendarEvents(eq(PROFILE_ID), isNull(), anyString(), anyString(), isNull(), isNull()))
                 .thenReturn(buildCalendarEventsResponse(0));
         stubNoVehicles(PROFILE_ID);
 
         String recentDate = FIXED_TODAY.minusDays(5).toString();
-        when(healthClient.listVitals(eq(PROFILE_ID), isNull())).thenReturn(buildVitalsResponse(
+        when(healthClient.listVitals(eq(PROFILE_ID), isNull(), anyInt(), anyInt())).thenReturn(buildVitalsResponse(
                 new VitalEntry("WEIGHT", 70.0, 0.0, "kg", recentDate),
                 new VitalEntry("BLOOD_PRESSURE", 120.0, 80.0, "mmHg", recentDate),
                 new VitalEntry("BLOOD_SUGAR_FASTING", 95.0, 0.0, "mg/dL", recentDate)
@@ -812,12 +813,12 @@ class ProjectionCalculationEngineTest {
     }
 
     private void stubNoVehicles(UUID profileId) {
-        when(wealthClient.listPhysicalAssets("VEHICLE", true, profileId.toString()))
+        when(wealthClient.listPhysicalAssets("VEHICLE", true, profileId.toString(), null, null))
                 .thenReturn(MAPPER.createObjectNode().set("physical_assets", MAPPER.createArrayNode()));
     }
 
     private void stubNoVitals(UUID profileId) {
-        when(healthClient.listVitals(eq(profileId), isNull()))
+        when(healthClient.listVitals(eq(profileId), isNull(), anyInt(), anyInt()))
                 .thenReturn(MAPPER.createObjectNode().set("vital_readings", MAPPER.createArrayNode()));
     }
 

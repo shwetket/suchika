@@ -75,6 +75,7 @@ build-health()    { cd "$ROOT" && ./gradlew :application:domain:health:adapters:
 build-household() { cd "$ROOT" && ./gradlew :application:domain:household:adapters:build --no-build-cache; }
 build-gateway()   { cd "$ROOT" && ./gradlew :application:web-gateway:build --no-build-cache; }
 build-web()       { cd "$ROOT/web" && npm run build; }
+build-shared()    { cd "$ROOT" && ./gradlew :shared:build --no-build-cache; }
 build-all()       { cd "$ROOT" && ./gradlew build --no-build-cache && cd web && npm run build; }
 build-verify()    {
   if command -v pwsh >/dev/null 2>&1; then
@@ -99,6 +100,8 @@ test-profile()   { cd "$ROOT" && ./gradlew :application:domain:profile:domain:te
 test-wealth()    { cd "$ROOT" && ./gradlew :application:domain:wealth:domain:test :application:domain:wealth:adapters:test; }
 test-health()    { cd "$ROOT" && ./gradlew :application:domain:health:domain:test :application:domain:health:adapters:test; }
 test-household() { cd "$ROOT" && ./gradlew :application:domain:household:domain:test :application:domain:household:adapters:test; }
+test-gateway()   { cd "$ROOT" && ./gradlew :application:web-gateway:test; }
+test-shared()    { cd "$ROOT" && ./gradlew :shared:test; }
 test-web()       { cd "$ROOT/web" && npm run test:ci; }
 test-all()       { cd "$ROOT" && ./gradlew test; }
 
@@ -122,19 +125,7 @@ alias gapi='generate-api'
 
 # ── Status / Control ─────────────────────────────────────────────────────────
 
-status() {
-  echo "Service health:"
-  for entry in "profile:8081" "wealth:8082" "health:8083" "household:8084" "gateway:8080" "web:3000"; do
-    local svc="${entry%%:*}" port="${entry##*:}"
-    local url="http://localhost:$port/q/openapi"
-    [[ "$svc" == "web" ]] && url="http://localhost:$port"
-    if curl -sf --max-time 2 "$url" >/dev/null 2>&1; then
-      echo "  [UP]   $svc  :$port"
-    else
-      echo "  [DOWN] $svc  :$port"
-    fi
-  done
-}
+status() { bash "$ROOT/scripts/health-check.sh"; }
 
 stop-all() {
   echo "Stopping all services..."
@@ -155,8 +146,12 @@ check() { bash "$ROOT/scripts/check-prerequisites.sh"; }
 
 db-shell() {
   local host="${PGHOST:-localhost}"
+  # Same fallback chain as db-reset.ps1: PGPASSWORD, else POSTGRES_PASSWORD, else the
+  # 00_bootstrap.sql / docker-compose default. Set PGPASSWORD yourself if your local
+  # postgres superuser password differs (it will, on a natively-installed Postgres).
+  local admin_pw="${PGPASSWORD:-${POSTGRES_PASSWORD:-local_dev_only}}"
   if [[ "$1" == "-AsAdmin" ]]; then
-    PGPASSWORD="${POSTGRES_PASSWORD:-local_dev_only}" psql -h "$host" -U postgres app_db
+    PGPASSWORD="$admin_pw" psql -h "$host" -U postgres app_db
   else
     PGPASSWORD="${DB_PASSWORD:-local_dev_only}" psql -h "$host" -U app_user app_db
   fi
@@ -168,10 +163,13 @@ db-reset() {
     [[ "$confirm" == "y" ]] || { echo "Aborted."; return 1; }
   fi
   local host="${PGHOST:-localhost}"
-  PGPASSWORD="${POSTGRES_PASSWORD:-local_dev_only}" psql -h "$host" -U postgres \
+  # Same fallback chain as db-reset.ps1: PGPASSWORD, else POSTGRES_PASSWORD, else the
+  # 00_bootstrap.sql / docker-compose default.
+  local admin_pw="${PGPASSWORD:-${POSTGRES_PASSWORD:-local_dev_only}}"
+  PGPASSWORD="$admin_pw" psql -h "$host" -U postgres \
     -c "DROP DATABASE IF EXISTS app_db;" \
     -c "CREATE DATABASE app_db;"
-  PGPASSWORD="${POSTGRES_PASSWORD:-local_dev_only}" psql -h "$host" -U postgres -d app_db \
+  PGPASSWORD="$admin_pw" psql -h "$host" -U postgres -d app_db \
     -f "$ROOT/application/flyway/00_bootstrap.sql"
   echo "  Done. Start profile service to run Flyway migrations."
 }
@@ -224,16 +222,22 @@ cat << 'EOF'
   bp build-profile  dp  dev-profile  :8081  tp  test-profile
   bw build-wealth   dw  dev-wealth   :8082  tw  test-wealth
   bh build-health   dh  dev-health   :8083  tsa test-all
-  bho build-hshld   dho dev-household:8084  test-web (no alias)
-  bg build-gateway  dg  dev-gateway  :8080
-  bwb build-web     dwb dev-web      :3000  QUALITY
-  ba build-all      da  dev-all             ─────────
-  bv build-verify                           ss   sonar-scan
+  bho build-hshld   dho dev-household:8084  test-health/-household (no alias)
+  bg build-gateway  dg  dev-gateway  :8080  test-gateway/-shared    (no alias)
+  bwb build-web     dwb dev-web      :3000  test-web                (no alias)
+  ba build-all      da  dev-all             QUALITY
+  bv build-verify                           ─────────
+  build-shared (no alias)                   ss   sonar-scan
                                             gapi generate-api
   STATUS / CONTROL      DATABASE       LOGS
   ────────────────      ────────       ────
   status  health        db-shell       logs [svc]
   sa      stop-all      db-reset       lnav-dev [svcs]
   check   prereqs       db-shell -AsAdmin
+
+  NOTE: sonar-scan needs pwsh + a local SonarQube server -- not run in Codespaces
+        (see CLAUDE.md). db-reset/db-shell -AsAdmin need the REAL postgres
+        superuser password if it isn't 'local_dev_only' on this machine --
+        export PGPASSWORD before calling them if so.
 EOF
 }

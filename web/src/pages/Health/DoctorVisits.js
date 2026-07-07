@@ -7,6 +7,8 @@ import {
   listDoctorVisits,
   updateDoctorVisit,
 } from '../../api/health';
+import { Field } from '../../components/Field';
+import { Modal } from '../../components/Modal';
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -55,51 +57,7 @@ const EMPTY_FORM = {
 const inputClass =
   'border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
 
-function Modal({ title, onClose, children }) {
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-5 border-b">
-          <h2 className="text-xl font-bold">{title}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
-          >
-            &times;
-          </button>
-        </div>
-        <div className="p-5">{children}</div>
-      </div>
-    </div>
-  );
-}
-
-Modal.propTypes = {
-  title: PropTypes.string.isRequired,
-  onClose: PropTypes.func.isRequired,
-  children: PropTypes.node.isRequired,
-};
-
-function Field({ label, required, children }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <label className="text-sm font-medium text-gray-700">
-        {label}
-        {required && <span className="text-red-500 ml-1">*</span>}
-      </label>
-      {children}
-    </div>
-  );
-}
-
-Field.propTypes = {
-  label: PropTypes.string.isRequired,
-  required: PropTypes.bool,
-  children: PropTypes.node.isRequired,
-};
-
-Field.defaultProps = { required: false };
+const PAGE_SIZE = 20;
 
 function VisitFormFields({ form, onChange }) {
   return (
@@ -344,6 +302,8 @@ export const DoctorVisits = () => {
   const [error, setError] = useState(null);
   const [filterFrom, setFilterFrom] = useState('');
   const [filterTo, setFilterTo] = useState('');
+  const [totalSize, setTotalSize] = useState(0);
+  const [page, setPage] = useState(0);
 
   const [showAdd, setShowAdd] = useState(false);
   const [addForm, setAddForm] = useState(EMPTY_FORM);
@@ -369,18 +329,33 @@ export const DoctorVisits = () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await listDoctorVisits(selectedProfileId, filterFrom || null, filterTo || null);
+      const data = await listDoctorVisits(
+        selectedProfileId,
+        filterFrom || null,
+        filterTo || null,
+        page,
+        PAGE_SIZE
+      );
       setVisits(data.doctor_visits ?? []);
+      setTotalSize(data.total_size ?? (data.doctor_visits ?? []).length);
     } catch (err) {
       setError(err.message || 'Failed to load visits');
     } finally {
       setLoading(false);
     }
-  }, [selectedProfileId, filterFrom, filterTo]);
+  }, [selectedProfileId, filterFrom, filterTo, page]);
 
   useEffect(() => {
     loadVisits();
   }, [loadVisits]);
+
+  // Reset to page 0 whenever the filters (not the page itself) change.
+  useEffect(() => {
+    setPage(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProfileId, filterFrom, filterTo]);
+
+  const totalPages = Math.max(1, Math.ceil(totalSize / PAGE_SIZE));
 
   const handleFormChange = useCallback(
     (setter) => (e) => {
@@ -571,16 +546,42 @@ export const DoctorVisits = () => {
           )}
 
           {!loading && visits.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {visits.map((v) => (
-                <VisitCard
-                  key={v.id}
-                  visit={v}
-                  onEdit={handleEditOpen}
-                  onDelete={setConfirmTarget}
-                />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {visits.map((v) => (
+                  <VisitCard
+                    key={v.id}
+                    visit={v}
+                    onEdit={handleEditOpen}
+                    onDelete={setConfirmTarget}
+                  />
+                ))}
+              </div>
+
+              <div className="flex items-center justify-between mt-4 text-sm text-gray-600">
+                <span>
+                  Page {page + 1} of {totalPages} ({totalSize} total)
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPage((p) => Math.max(0, p - 1))}
+                    disabled={page === 0}
+                    className="px-3 py-1.5 border border-gray-300 rounded text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPage((p) => (p + 1 < totalPages ? p + 1 : p))}
+                    disabled={page + 1 >= totalPages}
+                    className="px-3 py-1.5 border border-gray-300 rounded text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            </>
           )}
         </>
       )}

@@ -14,8 +14,25 @@ public class ListInventoryItemsResponse {
     @JsonProperty("total_size")
     public int totalSize;
 
+    @JsonProperty("page")
+    public Integer page;
+
+    @JsonProperty("size")
+    public Integer size;
+
     public ListInventoryItemsResponse(List<InventoryItemDto> inventoryItems) {
         this.inventoryItems = inventoryItems;
         this.totalSize = inventoryItems.size();
+    }
+
+    /**
+     * Paginated variant (Q54 pagination pass) — totalSize is the grand total matching
+     * the filter across all pages, not just inventoryItems.size().
+     */
+    public ListInventoryItemsResponse(List<InventoryItemDto> inventoryItems, long totalSize, int page, int size) {
+        this.inventoryItems = inventoryItems;
+        this.totalSize = (int) totalSize;
+        this.page = page;
+        this.size = size;
     }
 }

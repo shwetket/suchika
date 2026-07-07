@@ -5,7 +5,7 @@
 | **Type** | Reference |
 | **Audience** | AI agents, new developers |
 | **Status** | Active |
-| **Last updated** | 2026-07-03 |
+| **Last updated** | 2026-07-06 |
 
 ## Objective
 
@@ -42,6 +42,8 @@ Hexagonal Architecture (Ports & Adapters). Single PostgreSQL database (`app_db`)
 | web-gateway | ✅ | — | 12 CQRS projection steps live (Action Center added in v0.5) |
 
 **Next milestone: v0.7** — not yet planned; see `ROADMAP.md` for the full future-milestone list (v1.0 Security & Persistence is next after any v0.7 gap-filling).
+
+**Pre-v1.0 retrospective — 2026-07-06:** full-repo review (architect, business-analyst, all domain/infra/frontend agents); no version bump. See `ROADMAP.md`'s "Architect Review — 2026-07-06" and "Business Analyst Review — 2026-07-06" sections; all four `domain-state/*.md` files were refreshed the same day.
 
 Quality gates (v0.6): all Gradle tests green (512 backend tests total), ArchUnit clean including a new port-interface test-coverage rule, Jest branch coverage gate enforced (branches 70%, lines 80%). 413 JS tests, 30 gateway projection tests.
 

@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 # Opens lnav watching all Suchika service log files in real-time.
 # All 5 services write to ~/.suchika/logs/ when running in dev mode.
 #

@@ -32,12 +32,10 @@ paths:
       operationId: listAccounts
       summary: List all accounts
       description: >
-        Returns a paginated list of accounts.
-        Supports filtering by account_type and is_active.
-        Follows AIP-132 (Standard List) and AIP-158 (Pagination).
+        Returns all accounts. Supports filtering by account_type and is_active.
+        Not paginated — an individual household's account count stays small.
+        Follows AIP-132 (Standard List).
       parameters:
-        - $ref: './shared.yaml#/components/parameters/PageSize'
-        - $ref: './shared.yaml#/components/parameters/PageToken'
         - name: account_type
           in: query
           required: false
@@ -287,21 +285,8 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/TxnType'
-        - name: page
-          in: query
-          required: false
-          description: 0-indexed page number. Defaults to 0.
-          schema:
-            type: integer
-            minimum: 0
-        - name: size
-          in: query
-          required: false
-          description: Page size. Defaults to 50, max 200.
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 200
+        - $ref: './shared.yaml#/components/parameters/Page'
+        - $ref: './shared.yaml#/components/parameters/Size'
       responses:
         '200':
           description: Transactions listed
@@ -522,6 +507,8 @@ paths:
           schema:
             type: boolean
         - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
+        - $ref: './shared.yaml#/components/parameters/Page'
+        - $ref: './shared.yaml#/components/parameters/Size'
       responses:
         '200':
           description: Successfully listed physical assets
@@ -1126,16 +1113,12 @@ components:
 
     ListAccountsResponse:
       type: object
-      description: Paginated list of accounts. Follows AIP-158.
+      description: List of accounts. Not paginated.
       properties:
         accounts:
           type: array
           items:
             $ref: '#/components/schemas/Account'
-        next_page_token:
-          type: string
-          nullable: true
-          description: Pass this as page_token in next request. Null means last page.
         total_size:
           type: integer
           description: Total number of accounts matching the filter
@@ -1244,5 +1227,12 @@ components:
             $ref: '#/components/schemas/PhysicalAsset'
         total_size:
           type: integer
-          description: Total number of physical assets matching the filter
+          format: int64
+          description: Total count matching the filter across all pages (pagination).
+        page:
+          type: integer
+          description: Present only on the paginated GET list endpoint.
+        size:
+          type: integer
+          description: Present only on the paginated GET list endpoint.
 

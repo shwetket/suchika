@@ -7,6 +7,7 @@ import com.suchika.household.adapters.http.dto.UpdateInventoryItemRequest;
 import com.suchika.household.domain.ItemUnit;
 import com.suchika.household.domain.SourcePlatform;
 import com.suchika.household.ports.input.InventoryItemUseCase;
+import com.suchika.household.ports.input.PagedInventoryItems;
 import com.suchika.household.ports.input.UpdateInventoryItemCommand;
 import com.suchika.shared.exception.BadRequestException;
 import jakarta.ws.rs.Consumes;
@@ -20,6 +21,8 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+
+import com.suchika.shared.utils.ResourceUtils;
 
 import java.util.List;
 import java.util.UUID;
@@ -39,12 +42,17 @@ public class InventoryItemResource {
     public ListInventoryItemsResponse list(
             @QueryParam("profile_id") UUID profileId,
             @QueryParam("source_platform") String sourcePlatform,
-            @QueryParam("category") String category) {
+            @QueryParam("category") String category,
+            @QueryParam("page") Integer pageParam,
+            @QueryParam("size") Integer sizeParam) {
         if (profileId == null) throw new BadRequestException("profile_id is required");
         SourcePlatform platform = parseSourcePlatform(sourcePlatform);
-        List<InventoryItemDto> items = useCase.list(profileId, platform, category)
-                .stream().map(InventoryItemDto::from).toList();
-        return new ListInventoryItemsResponse(items);
+        int page = ResourceUtils.parsePage(pageParam);
+        int size = ResourceUtils.parseSize(sizeParam);
+
+        PagedInventoryItems result = useCase.listPaginated(profileId, platform, category, page, size);
+        List<InventoryItemDto> items = result.items().stream().map(InventoryItemDto::from).toList();
+        return new ListInventoryItemsResponse(items, result.totalCount(), page, size);
     }
 
     @POST
@@ -105,4 +113,6 @@ public class InventoryItemResource {
             throw new BadRequestException("Invalid unit: " + value);
         }
     }
+
+
 }

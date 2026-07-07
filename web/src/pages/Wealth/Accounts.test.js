@@ -11,10 +11,11 @@ jest.mock('../../api/wealth', () => ({
   createAccount: jest.fn(),
   updateAccount: jest.fn(),
   deactivateAccount: jest.fn(),
+  getAccountBalance: jest.fn(),
 }));
 
 const { listProfiles } = require('../../api/profiles');
-const { listAccounts, createAccount } = require('../../api/wealth');
+const { listAccounts, createAccount, getAccountBalance } = require('../../api/wealth');
 
 const MOCK_PROFILES = [
   { profile_id: 'p1', full_name: 'Alice', is_active: true },
@@ -48,6 +49,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   listProfiles.mockResolvedValue({ profiles: MOCK_PROFILES });
   listAccounts.mockResolvedValue({ accounts: [] });
+  getAccountBalance.mockResolvedValue({ current_balance: 0 });
 });
 
 describe('Accounts page', () => {

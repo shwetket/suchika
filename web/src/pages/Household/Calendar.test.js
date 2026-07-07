@@ -231,8 +231,65 @@ describe('Calendar page', () => {
     fireEvent.change(typeFilter, { target: { value: 'FAMILY' } });
 
     await waitFor(() => {
-      expect(listCalendarEvents).toHaveBeenCalledWith('p1', 'FAMILY');
+      expect(listCalendarEvents).toHaveBeenCalledWith('p1', 'FAMILY', 0, 20);
     });
+  });
+
+  // ---- Q54 pagination pass ----
+
+  it('requests page 0 and the default page size on first load', async () => {
+    listCalendarEvents.mockResolvedValue({ calendar_events: MOCK_EVENTS, total_size: 2 });
+    render(<Calendar />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+
+    await waitFor(() => {
+      expect(listCalendarEvents).toHaveBeenCalledWith('p1', null, 0, 20);
+    });
+  });
+
+  it('shows pagination controls with page count derived from total_size', async () => {
+    listCalendarEvents.mockResolvedValue({ calendar_events: MOCK_EVENTS, total_size: 45 });
+    render(<Calendar />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Page 1 of 3 \(45 total\)/i)).toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: 'Previous' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled();
+  });
+
+  it('clicking Next requests the next page', async () => {
+    listCalendarEvents.mockResolvedValue({ calendar_events: MOCK_EVENTS, total_size: 45 });
+    render(<Calendar />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+    await waitFor(() => screen.getByRole('button', { name: 'Next' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+
+    await waitFor(() => {
+      expect(listCalendarEvents).toHaveBeenCalledWith('p1', null, 1, 20);
+      expect(screen.getByText(/Page 2 of 3/i)).toBeInTheDocument();
+    });
+  });
+
+  it('disables Next on the last page', async () => {
+    listCalendarEvents.mockResolvedValue({ calendar_events: MOCK_EVENTS, total_size: 2 });
+    render(<Calendar />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Page 1 of 1 \(2 total\)/i)).toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
   });
 
   it('shows validation error when event type is missing on add', async () => {

@@ -5,7 +5,7 @@
 | **Type** | Reference |
 | **Audience** | All developers, product |
 | **Status** | Active |
-| **Last updated** | 2026-07-03 (v0.6 Testing Foundation complete) |
+| **Last updated** | 2026-07-07 (Q54 pagination unification closed) |
 
 ## Objective
 
@@ -654,6 +654,106 @@ The following items are low-scope, high-impact for the active user. They do not 
 **Clarify scope of v0.5 Consolidated Action Center:**
 
 - The v0.5 plan says "Upcoming calendar events, vehicle compliance deadlines, biometric streak gaps." Vehicle compliance deadlines belong to the Physical Assets feature (vehicle PUC/insurance expiry). Ensure the Physical Assets frontend page is complete before v0.5 scope is confirmed, or remove vehicle compliance deadlines from the v0.5 Action Center scope.
+
+---
+
+## Architect Review — 2026-07-06
+
+Full-repo retrospective ahead of v1.0 planning, requested explicitly as a pre-production simplification pass ("no new developments... time to retrospect and simplify... haven't gone live in production"). Independently re-verified against actual code, not just prior docs.
+
+### Reconciling the 2026-06-29 Review (10 items)
+
+| # | Item | Status now |
+|---|---|---|
+| 1 | Gateway `/errors` proxy missing | Resolved |
+| 2 | Net worth from `opening_balance` not txn history | Resolved (`GET /accounts/{id}/balance` exists) — **but see finding below: the Accounts.js page itself never adopted it** |
+| 3 | `TransactionPanacheRepository` no profile_id filter | Resolved — subquery filter present on all methods |
+| 4 | `ARCHITECTURE.md` used as agent-dump | Resolved |
+| 5 | V3 CHECK constraint churn | Moot — superseded by ADR-020's blanket CHECK removal |
+| 6 | `profileId` in domain entities | Resolved — ADR-019 documents it as an accepted trade-off |
+| 7 | No ArchUnit rule for profile_id in adapter queries | Still open, deferred to v1.0 |
+| 8 | PROP-004 API versioning | Still open, unresolved |
+| 9 | v0.6 testing milestone re-scope | Resolved, delivered |
+| 10 | `refreshAll()` synchronous, all-or-nothing | Half-resolved — per-step try/catch shipped, but still fully synchronous; worse now that the engine has grown to 12 steps |
+
+### Best Practices Confirmed
+
+- Hexagonal layering independently re-verified by direct grep (zero `jakarta.persistence`/`.ws.rs`/`.inject`/`@Entity`/`@Inject` in any `domain/` module; zero cross-domain imports).
+- Contract consolidation (`shared.yaml` + all 5 domain contracts referencing it) is genuinely clean — all 6 contract/mirror pairs verified byte-identical via `diff`.
+- CORS fix (`quarkus.http.cors.enabled=true`) is real, not a band-aid.
+- Flyway consolidation (ADR-020) correctly removed all CHECK constraints while keeping FK/PK/UNIQUE across all 5 migration files.
+- `OpenQuestions.md` decision-log discipline is unusually good — rare to see a project keep this complete.
+
+### New / Still-Open Architectural Debt
+
+1. **[HIGH]** Household's adapter DB tests are RED on this branch — blocked on a pending `db-reset.ps1 -Force` (Flyway checksum mismatch from the in-place V1 edit). Not a regression, but present-tense broken until someone runs the reset.
+2. **[HIGH]** Three "RESOLVED" `OpenQuestions.md` decisions were approved but never implemented — a process finding, not 3 isolated misses: Q34/Q35 (Testcontainers — zero usage anywhere in the repo; all adapter DB tests still hit a shared local Postgres), Q10 (E2E via CI + stub backend — no msw/WireMock, no CI e2e step), Q11 (contract tests — zero references anywhere). Every other "done" marker in these docs deserves a second look given this pattern.
+3. **[MEDIUM]** ADR-020's move of business-rule validation into domain-layer factories (`IllegalArgumentException`) introduced duplicate validation at the adapter layer, because no `ExceptionMapper` exists for that exception type — the adapter copy always runs first, so the domain copy is provably dead code in several places. **Update 2026-07-06 (quarkus-developer follow-up):** this is worse than first described — 3 of these gaps are not just "duplicated," they're **live 500-instead-of-400 bugs today** (`Goal.target_amount<=0`, `CalendarEvent.end_date<start_date`, `InventoryItem.quantity<=0` all throw unmapped `IllegalArgumentException`). A generic `ExceptionMapper<IllegalArgumentException>` has been proposed in detail (see Quarkus audit below) but not yet implemented — needs a go-ahead.
+4. **[MEDIUM]** `wealth.transaction`'s DB dedup constraint (5 fields, includes `description`) doesn't match the real business dedup rule (`existsByDeduplicationKey()`, 4 fields, `description` excluded per the v0.4 fix) — and is actually *narrower*, so it can miss real duplicates. Worse: manual transaction entry skips the dedup check entirely and calls `save()` directly, so a colliding manual entry throws an unmapped `PersistenceException` → raw 500. Documented in `documents/domain-state/wealth.md`; not fixed.
+5. **[MEDIUM, escalated]** `ProjectionCalculationEngine` has grown from 4 compute steps (ADR-013) to 12 (1216 lines), several looping per household member. A single dashboard refresh is a synchronous chain of potentially dozens of sequential HTTP round-trips. The case for parallelizing independent steps is stronger now than when this was first logged.
+6. **[MEDIUM, process]** The same class of Flyway mistake happened independently 4 times in one week — 3 domains pre-consolidation each added-then-reverted CHECK constraints on enums, and during this session's consolidation itself, 3 domains independently dropped FKs that Q31 said to keep (each caught only by manual review, not mechanically).
+7. **[LOW]** `shared.yaml`'s `Error` schema still doesn't match `ErrorResponse.java`'s runtime shape — real severity is low since the frontend's hand-written error handler matches runtime reality, not the contract, so nothing is silently broken today. Still a real gap that will hard-fail contract tests on day one of ever building them (see item 2 above).
+8. **[LOW]** Domain-state schema drift — confirmed multiple independent instances this pass (wealth's `account`/`transaction`/`physical_asset` tables, household's nullability claims). Several already fixed as part of this retrospective; treat these docs as needing a real sync cadence going forward, not a one-time fix.
+9. Carried forward unchanged: PROP-004 (API versioning), the ArchUnit profile_id-adapter-query rule — both deliberately deferred to v1.0.
+
+### Simplification Opportunities (pre-launch — cut, don't add)
+
+1. **Five independently-deployed Quarkus services for a single-household, no-auth, one-operator local app is the single biggest thing worth reconsidering, and now — before v1.0 multiplies the auth/encryption surface by 5 — is the cheapest point to do it.** The concrete costs are already visible in this codebase: the contract-mirror drift bug class, the `/errors` gateway-bypass bug (structurally impossible in a monolith), and the 1200+-line `ProjectionCalculationEngine` (needed per-step try/catch specifically because cross-service REST calls fail independently — in-process calls don't have that failure mode). Business-analyst's independent take: consolidate before v1.0, or at minimum centralize OIDC validation at the gateway only so domain services never independently authenticate — that alone avoids 5x-ing the auth integration work without a full rewrite.
+2. The web-gateway's hand-synced contract mirrors are a standing liability with a proven drift track record (profile.yaml, gateway.yaml both drifted this year). Confirm whether the MicroProfile Rest Client interfaces are actually generated from these mirrors or are hand-written Java that merely happens to match — if the latter, delete the mirrors outright.
+3. `ProjectionCalculationEngine` at 1216 lines / 12 methods in one class — stop extending this one file for the next metric; it's the largest, most complex class in the repo by a wide margin.
+4. Close `PROP-002` (restricted-profile redaction) outright — no auth, no roles exist yet; carrying an open proposal about a not-yet-built permission system is pure overhead. Business-analyst concurs, recommends Option A (block entirely) over redaction given zero real usage data to design redaction around.
+5. Close `PROP-003` (event sourcing for wealth) as rejected — nothing in 4 shipped versions needed it; the CQRS snapshot pattern already gives most of the value it was chasing.
+6. Epic 8's financial engine is the single largest concentration of bespoke logic in the app. Business-analyst's take (concurred by wealth-developer): keep 8.1/8.2/8.4/8.5/8.6 as-is (real, validated demand — replaces a manual Python/markdown workflow), but do not retroactively build 8.3 (reallocation triggers, budget-cap alerts, SIP-gap checks) just to complete the label — no real household data has ever exercised those thresholds. Mark 8.3 explicitly not-delivered in `REQUIREMENTS_wealth_domain.md` instead.
+
+### Open Questions for the Product Owner
+
+1. Consolidate to a modular monolith before starting v1.0 auth/encryption work — yes/no? If no, at minimum: OIDC validation lives only at the gateway, not independently in all 5 services?
+2. Several "RESOLVED" decisions were approved months ago and never implemented, with nothing flagging the gap. Adopt a "decided vs. done" status distinction going forward?
+3. Run `db-reset.ps1 -Force` today so household's adapter tests are provably green before this retrospective closes, or explicitly accept as out of scope for this pass?
+4. Is Epic 8 "done, don't touch," or do you expect to keep adjusting formulas/thresholds — and if so, should more of what's hardcoded move into `policy_settings`?
+5. Formally close PROP-002 and PROP-003 now?
+6. `shared.yaml`'s `Error` schema: fix it to describe the real runtime shape (cheap), or use this moment to adopt the structured `details[]` array it already promises (a real DTO change)?
+7. ~~Q54 (pagination shape) is still open even after contract consolidation — accept a breaking change to unify on one shape, or formally sanction both shapes and stop chasing a single format?~~ **RESOLVED 2026-07-07.** Unified on the offset-based `page`/`size` shape already proven by the transaction list (0-indexed page, size default 50 max 200) as reusable `Page`/`Size` parameters in `shared.yaml`. Deleted the dead cursor-based (`page_token`/`next_page_token`) scaffolding that `shared.yaml` and `GET /v1/accounts` declared but never implemented (`AccountResource` never read the params; `nextPageToken` was hardcoded `null`). Extended real pagination to every list endpoint whose data can grow large over years of use: doctor visits, vitals, inventory items, calendar events, goals, physical assets — full vertical slice each (contract, ports, service, Panache repository, HTTP resource, gateway proxy, frontend Previous/Next UI). Member/profile list and accounts list intentionally left unpaginated — both stay small by design, not a gap.
+
+    **New open issue surfaced by this work:** the web-gateway's `ProjectionCalculationEngine` (dashboard/CQRS aggregation) calls several of these list methods internally, not just to serve frontend pages. Widening the signatures forced its call sites to pass an explicit page/size (goals and calendar events default to page 0/size 50; vitals and physical-asset compliance checks use size 200). This means dashboard aggregates now silently cap at that many rows per profile — a latent correctness gap once a household exceeds the cap, currently unlikely but not impossible for calendar events or vitals over several years. Tracked in each affected domain-state doc; needs a product-owner call on whether/when to make the projection engine page through full results instead of capping.
+
+---
+
+## Business Analyst Review — 2026-07-06
+
+Re-verification of the 2026-06-29 review against current code, scoped strictly to v1.0 and not beyond, per the product owner's explicit request.
+
+### Stale-Claims Corrections
+
+1. The "net worth uses opening_balance, not transaction history" bug (2026-06-29 item) was fixed at the **Dashboard and Reports** level, but **`web/src/pages/Wealth/Accounts.js:138` still renders `account.opening_balance` directly** — no live-balance wrapper exists anywhere in the frontend API layer to call the `/balance` endpoint. This specific page instance is still open.
+2. `ROADMAP.md`'s own v0.2 section understates `RelationToAdmin` at 6 values; the real, current enum has 9 (`PARENT_IN_LAW`, `GRANDPARENT`, `GRANDCHILD` added pre-v0.6, confirmed consistent across contract/mirror/frontend as of this retrospective).
+3. Epic 8 Use Case 8.3 (dynamic reallocation triggers, budget-cap breach alerts, SIP-gap checks) was never built despite "Epic 8 — COMPLETE" labeling; 8.1/8.2/8.4/8.5/8.6 did ship. No use-case-level `[DONE]` markers exist in `REQUIREMENTS_wealth_domain.md` to distinguish which 5 of 6 actually shipped.
+4. Confirmed clean, no drift: gateway `/errors` proxy, vitals `PATCH`, inventory `PUT` + edit modal + `is_consumed` toggle, Physical Assets frontend page.
+
+### V1.0 Readiness Per Feature
+
+- **Persistent Data Migration** — Flyway discipline is real and consistently followed. Sharp blocker: Testcontainers adoption (Q34/Q35) is confirmed unimplemented anywhere, independently corroborated across profile/wealth/household test suites — "no more ephemeral resets" isn't credible while `./gradlew test` still targets the same database real data would live in. Separately, household's `inventory_item.unit`/`source_platform`/`goal.status` silently lost `NOT NULL` in the V1 rewrite — cheaper to patch now, while tables are empty.
+- **Authentication (OIDC/OAuth2) + RBAC** — backend 100% greenfield. Frontend has real, reusable scaffolding (`AuthContext`/`useAuth`/`ProtectedRoute`, a genuine 3-tier role hierarchy, a working Setup Wizard) — but `signIn()` posts to a nonexistent endpoint and silently fabricates a client-side token on any failure; **confirmed by react-developer this is pinned by a test whose name lies about what it verifies** (`auth.test.js`, "throws when backend returns 401" actually asserts the fabrication succeeds). Must be deleted, not adapted, when real auth lands — fail-closed, not fail-open.
+- **Encryption at Rest** — 100% greenfield. Real tension to flag now: the fields that make a "financial ledger" sensitive (`amount`, `txn_date`) are exactly what Epic 8 depends on as plaintext SQL predicates (SUM aggregation, dedup key, date filters). Encrypting them means moving that arithmetic out of SQL into the application layer — materially bigger than "add a crypto utility." Peripheral fields (narration, doctor/hospital names, registration numbers) are encryptable without touching the query layer.
+- **Google Fit (Manual Sync)** — 100% greenfield but well-specified. A second, independent OAuth relationship (Suchika ↔ Google) distinct from the app's own login OAuth — building one does not hand you the other for free.
+- **Cross-Domain Security Enforcement** — ADR-006's `profile_id` scoping gives tenant *data isolation* ("pass profile_id=X, only get X's rows"), not *authorization*. No role field exists on Profile, no authenticated binding of a request to a profile_id (it's a caller-supplied parameter today). ADR-006 is a useful pattern precedent (every adapter already threads profile_id uniformly) but not partial progress on access control itself — two different problems sharing a parameter name.
+
+### Recommended Simplifications/Cuts
+
+- Concur with the architect: consolidating to a modular monolith is cheapest to reconsider now, before v1.0 multiplies the auth/encryption surface by 5. Fallback if a full rewrite is too disruptive: centralize OIDC validation at the gateway only.
+- **Cut Google Fit from the v1.0 batch** (de-scope, don't redesign) — it's the one v1.0 item that's purely additive rather than closing a security/durability gap; pulling it out shrinks the milestone's blast radius without diluting what "Security & Persistence" is actually about.
+- Encryption scope for v1.0: peripheral/identifying fields only; explicitly defer full ledger-value encryption (a real re-architecture of the SQL aggregation layer) rather than deciding it implicitly mid-implementation.
+- Testcontainers adoption should become an explicit, hard-blocking line item of "Persistent Data Migration" itself, not ambient cleanup — the whole point of that feature is "the DB now holds real data," and the current test suite is a confirmed, repeated threat to exactly that data.
+- Don't retroactively build Epic 8 Use Case 8.3 — let the shipped 5 of 6 get real usage first (see architect section above).
+
+### Open Questions for the Product Owner
+
+1. RBAC role source: derive Admin/Restricted from the existing `relation_to_admin` field, or a new independent field? If derived, how do the other 7 relation values map onto a 2-tier split?
+2. Encryption scope: peripheral fields only, or full ledger values (a bigger, riskier change)? Needs deciding before any code is written.
+3. Does Google Fit need to ship alongside auth/encryption/persistence, or can it be sequenced separately?
+4. Confirm Testcontainers adoption as a hard-blocking prerequisite of "Persistent Data Migration," given it's now independently confirmed unimplemented in 3+ domains.
+5. Two small, cheap-now/expensive-later fixes: (a) restore `NOT NULL` on the three household columns via a new Flyway file, (b) either implement or drop the contract's promised 409 on deactivating an admin's SELF profile (currently promised, contradicted by two green tests) — fix both before v1.0 locks in persistent schema?
+6. `profile.profile.metadata JSONB` is a dead column with zero consumers — repurpose (e.g., avatar) or drop before it becomes real, migrated data?
 
 ---
 

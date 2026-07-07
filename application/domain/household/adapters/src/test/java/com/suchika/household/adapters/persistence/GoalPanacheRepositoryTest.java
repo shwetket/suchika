@@ -14,9 +14,11 @@ import org.junit.jupiter.api.Test;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.Month;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -167,6 +169,57 @@ class GoalPanacheRepositoryTest {
         assertTrue(otherResults.isEmpty());
     }
 
+    // ---- Q54 pagination pass ----
+    // Note: unlike InventoryItem (purchaseDate) and CalendarEvent (startDate), Goal
+    // ordering is by createdAt — a DB-generated now() value that Postgres resolves
+    // per-transaction, not per-statement. Since @TestTransaction runs each test in one
+    // transaction, rows inserted here can share an identical createdAt, so — matching
+    // the pre-existing findByProfileId_orderedByCreatedAtDesc test's own approach —
+    // these assertions verify page sizes and full-set coverage, not per-page ordering.
+
+    @Test
+    void findByProfileId_paginated_returnsRequestedPageSizes_withNoDuplicatesOrGaps() {
+        UUID profileId = saveProfile("Pagination Page Member");
+        for (int i = 1; i <= 5; i++) {
+            repository.save(goalForProfile(profileId, "Page Goal " + i, new BigDecimal("10000.00")));
+        }
+
+        List<Goal> firstPage = repository.findByProfileId(profileId, null, 0, 2);
+        List<Goal> secondPage = repository.findByProfileId(profileId, null, 1, 2);
+        List<Goal> thirdPage = repository.findByProfileId(profileId, null, 2, 2);
+
+        assertEquals(2, firstPage.size());
+        assertEquals(2, secondPage.size());
+        assertEquals(1, thirdPage.size());
+
+        Set<UUID> allIds = new HashSet<>();
+        firstPage.forEach(g -> allIds.add(g.getId()));
+        secondPage.forEach(g -> allIds.add(g.getId()));
+        thirdPage.forEach(g -> allIds.add(g.getId()));
+        assertEquals(5, allIds.size(), "Expected 5 distinct goals across all pages with no duplicates or gaps");
+    }
+
+    @Test
+    void countByProfileId_returnsTotalMatchingFilterIgnoringPage() {
+        UUID profileId = saveProfile("Pagination Count Member");
+        for (int i = 1; i <= 5; i++) {
+            repository.save(goalForProfile(profileId, "Counted Goal " + i, new BigDecimal("10000.00")));
+        }
+
+        long total = repository.countByProfileId(profileId, null);
+
+        assertEquals(5, total);
+    }
+
+    @Test
+    void countByProfileId_appliesSameFiltersAsFindByProfileId() {
+        UUID profileId = saveProfile("Pagination Filter Member");
+        repository.save(goalForProfile(profileId, "Active Filter Goal", new BigDecimal("10000.00")));
+        repository.save(goalWithStatusForProfile(profileId, "Paused Filter Goal", new BigDecimal("20000.00"), GoalStatus.PAUSED));
+
+        assertEquals(1, repository.countByProfileId(profileId, GoalStatus.ACTIVE));
+    }
+
     // --- currentAmount update (used by projection engine) ---
 
     @Test
@@ -303,5 +356,51 @@ class GoalPanacheRepositoryTest {
                 .currentAmount(BigDecimal.ZERO)
                 .status(status)
                 .build();
+    }
+
+    private Goal goalForProfile(UUID profileId, String name, BigDecimal targetAmount) {
+        return Goal.builder()
+                .profileId(profileId)
+                .goalName(name)
+                .targetAmount(targetAmount)
+                .currentAmount(BigDecimal.ZERO)
+                .status(GoalStatus.ACTIVE)
+                .build();
+    }
+
+    private Goal goalWithStatusForProfile(UUID profileId, String name, BigDecimal targetAmount, GoalStatus status) {
+        return Goal.builder()
+                .profileId(profileId)
+                .goalName(name)
+                .targetAmount(targetAmount)
+                .currentAmount(BigDecimal.ZERO)
+                .status(status)
+                .build();
+    }
+
+    /**
+     * Inserts a minimal profile.admin + profile.profile row pair via native SQL so a
+     * fresh, test-scoped profile_id (FK to profile.profile) is available for pagination
+     * tests — avoids count assertions being polluted by seed data or other tests sharing
+     * SEED_PROFILE_ID. Rolled back automatically by @TestTransaction.
+     */
+    private UUID saveProfile(String fullName) {
+        UUID adminId = UUID.randomUUID();
+        em.createNativeQuery("INSERT INTO profile.admin (id, display_name) VALUES (?1, ?2)")
+                .setParameter(1, adminId)
+                .setParameter(2, "Test Admin")
+                .executeUpdate();
+
+        UUID profileId = UUID.randomUUID();
+        em.createNativeQuery("INSERT INTO profile.profile (id, admin_id, full_name, dob, relation_to_admin) "
+                        + "VALUES (?1, ?2, ?3, ?4, ?5)")
+                .setParameter(1, profileId)
+                .setParameter(2, adminId)
+                .setParameter(3, fullName)
+                .setParameter(4, LocalDate.of(1990, Month.JANUARY, 1))
+                .setParameter(5, "OTHER")
+                .executeUpdate();
+
+        return profileId;
     }
 }

@@ -7,6 +7,7 @@ import com.suchika.shared.logging.AppLogger;
 import com.suchika.wealth.domain.AssetType;
 import com.suchika.wealth.domain.PhysicalAsset;
 import com.suchika.wealth.ports.input.CreatePhysicalAssetCommand;
+import com.suchika.wealth.ports.input.PagedPhysicalAssets;
 import com.suchika.wealth.ports.input.PhysicalAssetUseCase;
 import com.suchika.wealth.ports.output.PhysicalAssetRepository;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -77,6 +78,14 @@ public class PhysicalAssetService implements PhysicalAssetUseCase {
     @Override
     public List<PhysicalAsset> listAssets(UUID profileId, AssetType assetType, Boolean isActive) {
         return repository.findAll(profileId, assetType, isActive);
+    }
+
+    @Override
+    public PagedPhysicalAssets listAssetsPaginated(UUID profileId, AssetType assetType, Boolean isActive,
+                                                    int page, int size) {
+        List<PhysicalAsset> assets = repository.findAll(profileId, assetType, isActive, page, size);
+        long totalCount = repository.countAll(profileId, assetType, isActive);
+        return new PagedPhysicalAssets(assets, totalCount);
     }
 
     @Override

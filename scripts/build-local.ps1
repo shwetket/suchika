@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 # Ultimate pre-commit build verification for Suchika.
 # Builds each domain one by one in dependency order, checks frontend lint/format/tests/build,
 # runs ArchUnit, and optionally runs SonarQube analysis.

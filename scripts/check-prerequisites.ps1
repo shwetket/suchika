@@ -1,4 +1,4 @@
-# Checks that all tools required to build and run Suchika are present and at the right version.
+﻿# Checks that all tools required to build and run Suchika are present and at the right version.
 # Run before the first build or after a fresh machine setup.
 # Usage: .\scripts\check-prerequisites.ps1
 $ErrorActionPreference = "Continue"  # don't stop on individual check failures

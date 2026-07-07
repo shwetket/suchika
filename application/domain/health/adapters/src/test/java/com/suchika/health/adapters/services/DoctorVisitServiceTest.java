@@ -2,6 +2,7 @@ package com.suchika.health.adapters.services;
 
 import com.suchika.health.domain.DoctorVisit;
 import com.suchika.health.ports.input.CreateDoctorVisitCommand;
+import com.suchika.health.ports.input.PagedDoctorVisits;
 import com.suchika.health.ports.input.UpdateDoctorVisitCommand;
 import com.suchika.health.ports.output.DoctorVisitRepository;
 import com.suchika.shared.exception.BadRequestException;
@@ -134,6 +135,37 @@ class DoctorVisitServiceTest {
         assertThrows(NotFoundException.class, () -> service.delete(unknownId));
     }
 
+    @Test
+    void listByProfilePaginated_rejects_null_profile_id() {
+        assertThrows(BadRequestException.class, () -> service.listByProfilePaginated(null, null, null, 0, 10));
+    }
+
+    @Test
+    void listByProfilePaginated_returnsRequestedPageAndTotalCount() {
+        UUID profileId = UUID.randomUUID();
+        for (int i = 0; i < 5; i++) {
+            service.create(noVisitCmd(profileId, "visit " + i));
+        }
+
+        PagedDoctorVisits result = service.listByProfilePaginated(profileId, null, null, 1, 2);
+
+        assertEquals(2, result.visits().size());
+        assertEquals(5, result.totalCount());
+    }
+
+    @Test
+    void listByProfilePaginated_passesDateRangeThroughToRepo() {
+        UUID profileId = UUID.randomUUID();
+        LocalDate from = LocalDate.of(2026, Month.JANUARY, 1);
+        LocalDate to = LocalDate.of(2026, Month.JUNE, 30);
+
+        service.listByProfilePaginated(profileId, from, to, 0, 10);
+
+        assertEquals(profileId, repository.lastProfileId);
+        assertEquals(from, repository.lastFrom);
+        assertEquals(to, repository.lastTo);
+    }
+
     // ── Test helpers ─────────────────────────────────────────────────────────
 
     private static CreateDoctorVisitCommand visitCmd(UUID profileId, boolean visitedDoctor,
@@ -190,6 +222,19 @@ class DoctorVisitServiceTest {
                     .filter(v -> from == null || !v.getFromDate().isBefore(from))
                     .filter(v -> to == null || !v.getFromDate().isAfter(to))
                     .toList();
+        }
+
+        @Override
+        public List<DoctorVisit> findByProfileId(UUID profileId, LocalDate from, LocalDate to, int page, int size) {
+            List<DoctorVisit> all = findByProfileId(profileId, from, to);
+            int start = Math.min(page * size, all.size());
+            int end = Math.min(start + size, all.size());
+            return all.subList(start, end);
+        }
+
+        @Override
+        public long countByProfileId(UUID profileId, LocalDate from, LocalDate to) {
+            return findByProfileId(profileId, from, to).size();
         }
 
         @Override

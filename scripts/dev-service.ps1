@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 # Shared dev-mode helper - called by dev-aliases.ps1, not directly by users.
 # Opens a new terminal window running quarkusDev (or npm start for web).
 # STARTUP ORDER: always start profile before other domain services.

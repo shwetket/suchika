@@ -8,10 +8,13 @@ import com.suchika.wealth.adapters.http.dto.UpdatePhysicalAssetRequest;
 import com.suchika.wealth.domain.AssetType;
 import com.suchika.wealth.domain.RegistrationType;
 import com.suchika.wealth.ports.input.CreatePhysicalAssetCommand;
+import com.suchika.wealth.ports.input.PagedPhysicalAssets;
 import com.suchika.wealth.ports.input.PhysicalAssetUseCase;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+
+import com.suchika.shared.utils.ResourceUtils;
 
 import java.util.List;
 import java.util.UUID;
@@ -31,11 +34,16 @@ public class PhysicalAssetResource {
     public Response listAssets(
             @QueryParam("asset_type") String assetTypeParam,
             @QueryParam("is_active") Boolean isActive,
-            @QueryParam("profile_id") UUID profileId) {
+            @QueryParam("profile_id") UUID profileId,
+            @QueryParam("page") Integer pageParam,
+            @QueryParam("size") Integer sizeParam) {
         AssetType assetType = parseAssetType(assetTypeParam);
-        List<PhysicalAssetResponse> assets = useCase.listAssets(profileId, assetType, isActive)
-                .stream().map(PhysicalAssetResponse::from).toList();
-        return Response.ok(new ListPhysicalAssetsResponse(assets)).build();
+        int page = ResourceUtils.parsePage(pageParam);
+        int size = ResourceUtils.parseSize(sizeParam);
+
+        PagedPhysicalAssets result = useCase.listAssetsPaginated(profileId, assetType, isActive, page, size);
+        List<PhysicalAssetResponse> assets = result.assets().stream().map(PhysicalAssetResponse::from).toList();
+        return Response.ok(new ListPhysicalAssetsResponse(assets, result.totalCount(), page, size)).build();
     }
 
     @POST
@@ -94,4 +102,6 @@ public class PhysicalAssetResource {
             throw new BadRequestException("Invalid registration_type: " + value);
         }
     }
+
+
 }

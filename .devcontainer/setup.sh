@@ -52,11 +52,8 @@ PGPASSWORD="${DB_PASSWORD:-local_dev_only}" psql -h db -U postgres -d app_db \
 # services normally run these on startup, but they may not be started yet.
 echo "==> Applying profile schema migrations..."
 PGPASSWORD="${DB_PASSWORD:-local_dev_only}" psql -h db -U app_user -d app_db \
-  -f "$ROOT/application/flyway/profile/V1__init_profile.sql" 2>/dev/null \
-  && echo "  V1__init_profile applied" || echo "  V1__init_profile already applied — skipping"
-PGPASSWORD="${DB_PASSWORD:-local_dev_only}" psql -h db -U app_user -d app_db \
-  -f "$ROOT/application/flyway/profile/V2__add_admin_table.sql" 2>/dev/null \
-  && echo "  V2__add_admin_table applied" || echo "  V2__add_admin_table already applied — skipping"
+  -f "$ROOT/application/flyway/profile/V1__init_profile_consolidated.sql" 2>/dev/null \
+  && echo "  V1__init_profile_consolidated applied" || echo "  V1__init_profile_consolidated already applied — skipping"
 
 # ── Profile test seed ─────────────────────────────────────────────────────────
 # Insert the canonical test admin/profile rows so QuarkusTest suites for health,

@@ -151,4 +151,63 @@ describe('PhysicalAssets page', () => {
       expect(createPhysicalAsset).toHaveBeenCalled();
     });
   });
+
+  it('requests page 0 and the default page size on first load', async () => {
+    listPhysicalAssets.mockResolvedValue({ physical_assets: MOCK_ASSETS, total_size: 2 });
+    render(<PhysicalAssets />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    const profileSelect = screen.getByRole('combobox');
+    fireEvent.change(profileSelect, { target: { value: 'p1' } });
+
+    await waitFor(() => {
+      expect(listPhysicalAssets).toHaveBeenCalledWith('p1', null, null, 0, 20);
+    });
+  });
+
+  it('shows pagination controls with page count derived from total_size', async () => {
+    listPhysicalAssets.mockResolvedValue({ physical_assets: MOCK_ASSETS, total_size: 45 });
+    render(<PhysicalAssets />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    const profileSelect = screen.getByRole('combobox');
+    fireEvent.change(profileSelect, { target: { value: 'p1' } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Page 1 of 3 \(45 total\)/i)).toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: 'Previous' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled();
+  });
+
+  it('clicking Next requests the next page', async () => {
+    listPhysicalAssets.mockResolvedValue({ physical_assets: MOCK_ASSETS, total_size: 45 });
+    render(<PhysicalAssets />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    const profileSelect = screen.getByRole('combobox');
+    fireEvent.change(profileSelect, { target: { value: 'p1' } });
+    await waitFor(() => screen.getByRole('button', { name: 'Next' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+
+    await waitFor(() => {
+      expect(listPhysicalAssets).toHaveBeenCalledWith('p1', null, null, 1, 20);
+      expect(screen.getByText(/Page 2 of 3/i)).toBeInTheDocument();
+    });
+  });
+
+  it('disables Next on the last page', async () => {
+    listPhysicalAssets.mockResolvedValue({ physical_assets: MOCK_ASSETS, total_size: 2 });
+    render(<PhysicalAssets />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    const profileSelect = screen.getByRole('combobox');
+    fireEvent.change(profileSelect, { target: { value: 'p1' } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Page 1 of 1 \(2 total\)/i)).toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
+  });
 });

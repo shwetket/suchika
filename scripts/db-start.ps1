@@ -1,17 +1,18 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 # Ensures PostgreSQL is running and opens a psql shell to app_db.
 # Usage: .\scripts\db-start.ps1
 
 $psqlExe = 'C:\Program Files\PostgreSQL\18\bin\psql.exe'
 
 function FindPsql {
-    $fromPath = (Get-Command psql -ErrorAction SilentlyContinue)?.Source
-    if ($fromPath) { return $fromPath }
+    $fromCmd = Get-Command psql -ErrorAction SilentlyContinue
+    if ($fromCmd) { return $fromCmd.Source }
     if (Test-Path $psqlExe) { return $psqlExe }
     # Search common PostgreSQL install locations
     $found = Get-ChildItem 'C:\Program Files\PostgreSQL' -Recurse -Filter 'psql.exe' -ErrorAction SilentlyContinue |
              Sort-Object FullName -Descending | Select-Object -First 1
-    return $found?.FullName
+    if ($found) { return $found.FullName }
+    return $null
 }
 
 # ── Find and start PostgreSQL service ─────────────────────────────────────────

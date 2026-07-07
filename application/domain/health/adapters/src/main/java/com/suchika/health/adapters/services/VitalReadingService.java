@@ -2,6 +2,7 @@ package com.suchika.health.adapters.services;
 
 import com.suchika.health.domain.VitalReading;
 import com.suchika.health.domain.VitalType;
+import com.suchika.health.ports.input.PagedVitalReadings;
 import com.suchika.health.ports.input.UpdateVitalReadingCommand;
 import com.suchika.health.ports.input.VitalReadingUseCase;
 import com.suchika.health.ports.output.VitalReadingRepository;
@@ -52,6 +53,16 @@ public class VitalReadingService implements VitalReadingUseCase {
             throw new BadRequestException("profile_id is required");
         }
         return repository.findByProfileId(profileId, vitalType);
+    }
+
+    @Override
+    public PagedVitalReadings listByProfilePaginated(UUID profileId, VitalType vitalType, int page, int size) {
+        if (profileId == null) {
+            throw new BadRequestException("profile_id is required");
+        }
+        List<VitalReading> readings = repository.findByProfileId(profileId, vitalType, page, size);
+        long totalCount = repository.countByProfileId(profileId, vitalType);
+        return new PagedVitalReadings(readings, totalCount);
     }
 
     @Override

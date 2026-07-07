@@ -30,8 +30,10 @@ public class HouseholdGatewayResource {
             @QueryParam("profile_id") UUID profileId,
             @QueryParam("event_type") String eventType,
             @QueryParam("from_date") String fromDate,
-            @QueryParam("to_date") String toDate) {
-        return householdServiceClient.listCalendarEvents(profileId, eventType, fromDate, toDate);
+            @QueryParam("to_date") String toDate,
+            @QueryParam("page") Integer page,
+            @QueryParam("size") Integer size) {
+        return householdServiceClient.listCalendarEvents(profileId, eventType, fromDate, toDate, page, size);
     }
 
     @POST
@@ -72,8 +74,10 @@ public class HouseholdGatewayResource {
     public JsonNode listInventoryItems(
             @QueryParam("profile_id") UUID profileId,
             @QueryParam("source_platform") String sourcePlatform,
-            @QueryParam("category") String category) {
-        return householdServiceClient.listInventoryItems(profileId, sourcePlatform, category);
+            @QueryParam("category") String category,
+            @QueryParam("page") Integer page,
+            @QueryParam("size") Integer size) {
+        return householdServiceClient.listInventoryItems(profileId, sourcePlatform, category, page, size);
     }
 
     @POST
@@ -113,8 +117,10 @@ public class HouseholdGatewayResource {
     @Path("/goals")
     public JsonNode listGoals(
             @QueryParam("profile_id") UUID profileId,
-            @QueryParam("status") String status) {
-        return householdServiceClient.listGoals(profileId, status);
+            @QueryParam("status") String status,
+            @QueryParam("page") Integer page,
+            @QueryParam("size") Integer size) {
+        return householdServiceClient.listGoals(profileId, status, page, size);
     }
 
     @POST

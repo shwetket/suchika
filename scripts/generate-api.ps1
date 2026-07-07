@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 # Regenerates web/src/api/generated.ts from application/contract/gateway.yaml.
 # Run after ANY change to a backend OpenAPI contract.
 # Usage: .\scripts\generate-api.ps1

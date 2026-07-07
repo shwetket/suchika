@@ -8,6 +8,7 @@ import com.suchika.household.adapters.http.dto.UpdateCalendarEventRequest;
 import com.suchika.household.domain.CalendarEvent;
 import com.suchika.household.domain.EventType;
 import com.suchika.household.ports.input.CalendarEventUseCase;
+import com.suchika.household.ports.input.PagedCalendarEvents;
 import com.suchika.shared.exception.BadRequestException;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -20,6 +21,8 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+
+import com.suchika.shared.utils.ResourceUtils;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -41,12 +44,17 @@ public class CalendarEventResource {
             @QueryParam("profile_id") UUID profileId,
             @QueryParam("event_type") String eventType,
             @QueryParam("from_date") LocalDate fromDate,
-            @QueryParam("to_date") LocalDate toDate) {
+            @QueryParam("to_date") LocalDate toDate,
+            @QueryParam("page") Integer pageParam,
+            @QueryParam("size") Integer sizeParam) {
         if (profileId == null) throw new BadRequestException("profile_id is required");
         EventType type = parseEventType(eventType);
-        List<CalendarEventDto> events = useCase.list(profileId, type, fromDate, toDate)
-                .stream().map(CalendarEventDto::from).toList();
-        return new ListCalendarEventsResponse(events);
+        int page = ResourceUtils.parsePage(pageParam);
+        int size = ResourceUtils.parseSize(sizeParam);
+
+        PagedCalendarEvents result = useCase.listPaginated(profileId, type, fromDate, toDate, page, size);
+        List<CalendarEventDto> events = result.events().stream().map(CalendarEventDto::from).toList();
+        return new ListCalendarEventsResponse(events, result.totalCount(), page, size);
     }
 
     @POST
@@ -99,4 +107,6 @@ public class CalendarEventResource {
             throw new BadRequestException("Invalid event_type: " + value);
         }
     }
+
+
 }

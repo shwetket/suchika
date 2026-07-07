@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 # Shared test helper — called by dev-aliases.ps1, not directly by users.
 # Runs tests for a single domain and logs output to .temp\logs\{service}\.
 #

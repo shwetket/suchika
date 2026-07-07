@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 # First-time developer setup for Suchika.
 # Run once on a fresh clone or after clean-all.
 # Usage: .\scripts\setup-dev.ps1
@@ -7,7 +7,7 @@ param([switch]$SkipDb)
 $ErrorActionPreference = 'Continue'
 $root    = Split-Path -Parent $PSScriptRoot
 $envSrc  = Join-Path $root 'infrastructure\local\.env.template'
-$envDest = Join-Path $root '.env'
+$envDest = Join-Path $root 'application\finance\.env'
 $boot    = Join-Path $root 'application\flyway\00_bootstrap.sql'
 $psqlExe = 'C:\Program Files\PostgreSQL\18\bin\psql.exe'
 
@@ -17,12 +17,13 @@ function Warn($msg) { Write-Host "  [!]   $msg" -ForegroundColor Yellow }
 function Fail($msg) { Write-Host "  [X]   $msg" -ForegroundColor Red }
 
 function FindPsql {
-    $fromPath = (Get-Command psql -ErrorAction SilentlyContinue)?.Source
-    if ($fromPath) { return $fromPath }
+    $fromCmd = Get-Command psql -ErrorAction SilentlyContinue
+    if ($fromCmd) { return $fromCmd.Source }
     if (Test-Path $psqlExe) { return $psqlExe }
     $found = Get-ChildItem 'C:\Program Files\PostgreSQL' -Recurse -Filter 'psql.exe' -ErrorAction SilentlyContinue |
              Sort-Object FullName -Descending | Select-Object -First 1
-    return $found?.FullName
+    if ($found) { return $found.FullName }
+    return $null
 }
 
 Write-Host "`n===  Suchika First-Time Setup  ===" -ForegroundColor Cyan
@@ -37,8 +38,11 @@ if (Test-Path $envDest) {
     OK ".env already exists at $envDest"
 } else {
     if (Test-Path $envSrc) {
+        # application/finance/ is not tracked by git (holds only the gitignored .env),
+        # so it won't exist yet on a fresh clone -- create it before copying into it.
+        New-Item -ItemType Directory -Force -Path (Split-Path $envDest) | Out-Null
         Copy-Item $envSrc $envDest
-        OK ".env copied from template"
+        OK ".env copied from template to $envDest"
         Warn "Edit $envDest and set DB_PASSWORD before starting any service."
     } else {
         Warn ".env template not found at $envSrc"

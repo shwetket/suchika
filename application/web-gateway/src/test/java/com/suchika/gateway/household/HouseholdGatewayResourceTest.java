@@ -37,7 +37,7 @@ class HouseholdGatewayResourceTest {
     @BeforeEach
     void setUp() throws Exception {
         // list calendar events
-        when(householdServiceClient.listCalendarEvents(PROFILE_ID, null, null, null))
+        when(householdServiceClient.listCalendarEvents(PROFILE_ID, null, null, null, null, null))
                 .thenReturn(mapper.readTree(
                         "{\"calendar_events\":[{\"id\":\"" + EVENT_ID + "\","
                         + "\"title\":\"Test Event\","
@@ -68,7 +68,7 @@ class HouseholdGatewayResourceTest {
         doNothing().when(householdServiceClient).deleteCalendarEvent(any());
 
         // list goals
-        when(householdServiceClient.listGoals(PROFILE_ID, null))
+        when(householdServiceClient.listGoals(PROFILE_ID, null, null, null))
                 .thenReturn(mapper.readTree(
                         "{\"goals\":[{\"id\":\"" + GOAL_ID + "\","
                         + "\"goal_name\":\"Vacation Fund\","
@@ -95,7 +95,7 @@ class HouseholdGatewayResourceTest {
         doNothing().when(householdServiceClient).deleteGoal(any());
 
         // list inventory items
-        when(householdServiceClient.listInventoryItems(PROFILE_ID, null, null))
+        when(householdServiceClient.listInventoryItems(PROFILE_ID, null, null, null, null))
                 .thenReturn(mapper.readTree(
                         "{\"inventory_items\":[{\"id\":\"" + ITEM_ID + "\","
                         + "\"item_name\":\"Milk\",\"quantity\":2}],"

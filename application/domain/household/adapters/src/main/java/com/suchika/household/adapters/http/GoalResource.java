@@ -7,6 +7,7 @@ import com.suchika.household.adapters.http.dto.UpdateGoalCurrentAmountRequest;
 import com.suchika.household.adapters.http.dto.UpdateGoalRequest;
 import com.suchika.household.domain.GoalStatus;
 import com.suchika.household.ports.input.GoalUseCase;
+import com.suchika.household.ports.input.PagedGoals;
 import com.suchika.shared.exception.BadRequestException;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -20,6 +21,8 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+
+import com.suchika.shared.utils.ResourceUtils;
 
 import java.util.List;
 import java.util.UUID;
@@ -38,12 +41,17 @@ public class GoalResource {
     @GET
     public ListGoalsResponse list(
             @QueryParam("profile_id") UUID profileId,
-            @QueryParam("status") String status) {
+            @QueryParam("status") String status,
+            @QueryParam("page") Integer pageParam,
+            @QueryParam("size") Integer sizeParam) {
         if (profileId == null) throw new BadRequestException("profile_id is required");
         GoalStatus goalStatus = parseStatus(status);
-        List<GoalDto> goals = useCase.list(profileId, goalStatus)
-                .stream().map(GoalDto::from).toList();
-        return new ListGoalsResponse(goals);
+        int page = ResourceUtils.parsePage(pageParam);
+        int size = ResourceUtils.parseSize(sizeParam);
+
+        PagedGoals result = useCase.listPaginated(profileId, goalStatus, page, size);
+        List<GoalDto> goals = result.goals().stream().map(GoalDto::from).toList();
+        return new ListGoalsResponse(goals, result.totalCount(), page, size);
     }
 
     @POST
@@ -94,4 +102,6 @@ public class GoalResource {
             throw new BadRequestException("Invalid status: " + value);
         }
     }
+
+
 }

@@ -6,11 +6,14 @@ import com.suchika.health.adapters.http.dto.ListDoctorVisitsResponse;
 import com.suchika.health.adapters.http.dto.UpdateDoctorVisitRequest;
 import com.suchika.health.ports.input.CreateDoctorVisitCommand;
 import com.suchika.health.ports.input.DoctorVisitUseCase;
+import com.suchika.health.ports.input.PagedDoctorVisits;
 import com.suchika.health.ports.input.UpdateDoctorVisitCommand;
 import com.suchika.shared.exception.BadRequestException;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+
+import com.suchika.shared.utils.ResourceUtils;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -31,22 +34,20 @@ public class DoctorVisitResource {
     public Response listVisits(
             @QueryParam("profile_id") UUID profileId,
             @QueryParam("from") String fromParam,
-            @QueryParam("to") String toParam) {
-        LocalDate from = parseDate(fromParam, "from");
-        LocalDate to = parseDate(toParam, "to");
-        List<DoctorVisitResponse> visits = useCase.listByProfile(profileId, from, to)
-                .stream().map(DoctorVisitResponse::from).toList();
-        return Response.ok(new ListDoctorVisitsResponse(visits)).build();
+            @QueryParam("to") String toParam,
+            @QueryParam("page") Integer pageParam,
+            @QueryParam("size") Integer sizeParam) {
+        LocalDate from = ResourceUtils.parseDate(fromParam, "from");
+        LocalDate to = ResourceUtils.parseDate(toParam, "to");
+        int page = ResourceUtils.parsePage(pageParam);
+        int size = ResourceUtils.parseSize(sizeParam);
+
+        PagedDoctorVisits result = useCase.listByProfilePaginated(profileId, from, to, page, size);
+        List<DoctorVisitResponse> visits = result.visits().stream().map(DoctorVisitResponse::from).toList();
+        return Response.ok(new ListDoctorVisitsResponse(visits, result.totalCount(), page, size)).build();
     }
 
-    private LocalDate parseDate(String value, String paramName) {
-        if (value == null) return null;
-        try {
-            return LocalDate.parse(value);
-        } catch (Exception e) {
-            throw new BadRequestException("Invalid " + paramName + " date: " + value + " (expected yyyy-MM-dd)");
-        }
-    }
+
 
     @POST
     public Response create(CreateDoctorVisitRequest request) {

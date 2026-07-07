@@ -5,6 +5,7 @@ import com.suchika.wealth.domain.TxnType;
 import com.suchika.wealth.ports.output.TransactionRepository;
 import io.quarkus.panache.common.Page;
 import jakarta.enterprise.context.ApplicationScoped;
+import com.suchika.shared.persistence.PanacheQueryFilter;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -39,7 +40,7 @@ public class TransactionPanacheRepository implements TransactionRepository {
 
     @Override
     public List<Transaction> findByAccountId(UUID accountId, UUID profileId, LocalDate from, LocalDate to, TxnType txnType) {
-        Filter filter = buildFilter(accountId, profileId, from, to, txnType);
+        PanacheQueryFilter filter = buildFilter(accountId, profileId, from, to, txnType);
         return dao.find(filter.query(), filter.params().toArray())
                 .stream().map(TransactionEntity::toDomain).toList();
     }
@@ -47,7 +48,7 @@ public class TransactionPanacheRepository implements TransactionRepository {
     @Override
     public List<Transaction> findByAccountId(UUID accountId, UUID profileId, LocalDate from, LocalDate to, TxnType txnType,
                                               int page, int size) {
-        Filter filter = buildFilter(accountId, profileId, from, to, txnType);
+        PanacheQueryFilter filter = buildFilter(accountId, profileId, from, to, txnType);
         return dao.find(filter.query(), filter.params().toArray())
                 .page(Page.of(page, size))
                 .list()
@@ -56,7 +57,7 @@ public class TransactionPanacheRepository implements TransactionRepository {
 
     @Override
     public long countByAccountId(UUID accountId, UUID profileId, LocalDate from, LocalDate to, TxnType txnType) {
-        Filter filter = buildFilter(accountId, profileId, from, to, txnType);
+        PanacheQueryFilter filter = buildFilter(accountId, profileId, from, to, txnType);
         return dao.find(filter.query(), filter.params().toArray()).count();
     }
 
@@ -65,7 +66,7 @@ public class TransactionPanacheRepository implements TransactionRepository {
      * {@code countByAccountId} — keeps the filter logic in exactly one place
      * (Sonar CPD) now that there are three call sites needing the same predicate.
      */
-    private Filter buildFilter(UUID accountId, UUID profileId, LocalDate from, LocalDate to, TxnType txnType) {
+    private PanacheQueryFilter buildFilter(UUID accountId, UUID profileId, LocalDate from, LocalDate to, TxnType txnType) {
         StringBuilder query = new StringBuilder("accountId = ?1");
         List<Object> params = new java.util.ArrayList<>();
         params.add(accountId);
@@ -90,10 +91,7 @@ public class TransactionPanacheRepository implements TransactionRepository {
         }
         query.append(" order by txnDate desc");
 
-        return new Filter(query.toString(), params);
-    }
-
-    private record Filter(String query, List<Object> params) {
+        return new PanacheQueryFilter(query.toString(), params);
     }
 
     @Override

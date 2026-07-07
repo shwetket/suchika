@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 # Nuclear clean: removes everything git doesn't track, INCLUDING node_modules and .gradle cache.
 # SAFE: always excludes application/finance/.env so you don't lose DB credentials.
 # Shows a dry-run preview before doing anything.

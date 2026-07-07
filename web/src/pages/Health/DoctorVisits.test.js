@@ -99,7 +99,7 @@ describe('DoctorVisits page', () => {
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
 
     await waitFor(() => {
-      expect(listDoctorVisits).toHaveBeenCalledWith('p1', null, null);
+      expect(listDoctorVisits).toHaveBeenCalledWith('p1', null, null, 0, 20);
     });
   });
 
@@ -115,8 +115,51 @@ describe('DoctorVisits page', () => {
     fireEvent.change(screen.getByLabelText('To date'), { target: { value: '2026-06-30' } });
 
     await waitFor(() => {
-      expect(listDoctorVisits).toHaveBeenCalledWith('p1', '2026-01-01', '2026-06-30');
+      expect(listDoctorVisits).toHaveBeenCalledWith('p1', '2026-01-01', '2026-06-30', 0, 20);
     });
+  });
+
+  it('shows pagination controls with page count derived from total_size', async () => {
+    listDoctorVisits.mockResolvedValue({ doctor_visits: MOCK_VISITS, total_size: 45 });
+    render(<DoctorVisits />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Page 1 of 3 \(45 total\)/i)).toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: 'Previous' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled();
+  });
+
+  it('clicking Next requests the next page', async () => {
+    listDoctorVisits.mockResolvedValue({ doctor_visits: MOCK_VISITS, total_size: 45 });
+    render(<DoctorVisits />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+    await waitFor(() => screen.getByRole('button', { name: 'Next' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+
+    await waitFor(() => {
+      expect(listDoctorVisits).toHaveBeenCalledWith('p1', null, null, 1, 20);
+      expect(screen.getByText(/Page 2 of 3/i)).toBeInTheDocument();
+    });
+  });
+
+  it('disables Next on the last page', async () => {
+    listDoctorVisits.mockResolvedValue({ doctor_visits: MOCK_VISITS, total_size: 2 });
+    render(<DoctorVisits />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Page 1 of 1 \(2 total\)/i)).toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
   });
 
   it('shows error message on API failure', async () => {

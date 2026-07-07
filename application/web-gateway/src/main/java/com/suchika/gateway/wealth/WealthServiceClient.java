@@ -109,7 +109,9 @@ public interface WealthServiceClient {
     JsonNode listPhysicalAssets(
             @QueryParam("asset_type") String assetType,
             @QueryParam("is_active") Boolean isActive,
-            @QueryParam("profile_id") String profileId);
+            @QueryParam("profile_id") String profileId,
+            @QueryParam("page") Integer page,
+            @QueryParam("size") Integer size);
 
     @POST
     @Path("/physical-assets")

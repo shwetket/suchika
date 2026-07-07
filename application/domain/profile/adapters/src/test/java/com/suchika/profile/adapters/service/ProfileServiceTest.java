@@ -148,12 +148,22 @@ class ProfileServiceTest {
     }
 
     @Test
-    void updateProfile_setIsActiveFalse_deactivatesProfile() {
+    void updateProfile_setIsActiveFalseOnSelfProfileOfActiveAdmin_throwsConflictException() {
         UUID adminId = seedAdmin();
         Profile created = service.createProfile(adminId, "Ketan", LocalDate.of(1988, Month.MARCH, 15),
             RelationToAdmin.SELF, null, null, null);
 
-        Profile updated = service.updateProfile(created.getId(), null, null, null, false);
+        assertThrows(ConflictException.class,
+            () -> service.updateProfile(created.getId(), null, null, null, false));
+    }
+
+    @Test
+    void updateProfile_setIsActiveFalseOnNonSelfProfile_deactivatesProfile() {
+        UUID adminId = seedAdmin();
+        Profile spouse = service.createProfile(adminId, "Shweta", LocalDate.of(1990, Month.JANUARY, 1),
+            RelationToAdmin.SPOUSE, null, null, null);
+
+        Profile updated = service.updateProfile(spouse.getId(), null, null, null, false);
 
         assertFalse(updated.isActive());
     }
@@ -164,15 +174,37 @@ class ProfileServiceTest {
     }
 
     @Test
-    void deactivateProfile_setsActiveToFalse() {
+    void deactivateProfile_selfProfileOfActiveAdmin_throwsConflictException() {
         UUID adminId = seedAdmin();
         Profile created = service.createProfile(adminId, "Ketan", LocalDate.of(1988, Month.MARCH, 15),
             RelationToAdmin.SELF, null, null, null);
         assertTrue(created.isActive());
 
+        assertThrows(ConflictException.class, () -> service.deactivateProfile(created.getId()));
+        assertTrue(service.getProfile(created.getId()).isActive());
+    }
+
+    @Test
+    void deactivateProfile_selfProfileOfInactiveAdmin_succeeds() {
+        UUID adminId = seedAdmin();
+        Profile created = service.createProfile(adminId, "Ketan", LocalDate.of(1988, Month.MARCH, 15),
+            RelationToAdmin.SELF, null, null, null);
+        adminRepo.findById(adminId).ifPresent(admin -> admin.setActive(false));
+
         service.deactivateProfile(created.getId());
 
         assertFalse(service.getProfile(created.getId()).isActive());
+    }
+
+    @Test
+    void deactivateProfile_nonSelfProfileOfActiveAdmin_succeeds() {
+        UUID adminId = seedAdmin();
+        Profile child = service.createProfile(adminId, "Aanya", LocalDate.of(2015, Month.MAY, 10),
+            RelationToAdmin.CHILD, null, null, null);
+
+        service.deactivateProfile(child.getId());
+
+        assertFalse(service.getProfile(child.getId()).isActive());
     }
 
     // ---- Fake repositories ----

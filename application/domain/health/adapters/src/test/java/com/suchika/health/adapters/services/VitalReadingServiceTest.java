@@ -2,6 +2,7 @@ package com.suchika.health.adapters.services;
 
 import com.suchika.health.domain.VitalReading;
 import com.suchika.health.domain.VitalType;
+import com.suchika.health.ports.input.PagedVitalReadings;
 import com.suchika.health.ports.input.UpdateVitalReadingCommand;
 import com.suchika.health.ports.output.VitalReadingRepository;
 import com.suchika.shared.exception.BadRequestException;
@@ -110,6 +111,38 @@ class VitalReadingServiceTest {
     }
 
     @Test
+    void listByProfilePaginated_rejects_null_profile_id() {
+        assertThrows(BadRequestException.class, () -> service.listByProfilePaginated(null, null, 0, 10));
+    }
+
+    @Test
+    void listByProfilePaginated_returnsRequestedPageAndTotalCount() {
+        UUID profileId = UUID.randomUUID();
+        for (int i = 1; i <= 5; i++) {
+            service.recordReading(profileId, VitalType.WEIGHT, LocalDate.of(2024, Month.JANUARY, i),
+                    new BigDecimal("70"), null, "kg", null);
+        }
+
+        PagedVitalReadings result = service.listByProfilePaginated(profileId, null, 1, 2);
+
+        assertEquals(2, result.readings().size());
+        assertEquals(5, result.totalCount());
+    }
+
+    @Test
+    void listByProfilePaginated_filtersByVitalType() {
+        UUID profileId = UUID.randomUUID();
+        service.recordReading(profileId, VitalType.WEIGHT, LocalDate.of(2024, Month.JANUARY, 14), new BigDecimal("72"), null, "kg", null);
+        service.recordReading(profileId, VitalType.HEART_RATE, LocalDate.of(2024, Month.JANUARY, 15), new BigDecimal("70"), null, "bpm", null);
+
+        PagedVitalReadings result = service.listByProfilePaginated(profileId, VitalType.HEART_RATE, 0, 10);
+
+        assertEquals(1, result.readings().size());
+        assertEquals(1, result.totalCount());
+        assertEquals(VitalType.HEART_RATE, result.readings().get(0).getVitalType());
+    }
+
+    @Test
     void update_partial_fields() {
         UUID profileId = UUID.randomUUID();
         VitalReading created = service.recordReading(profileId, VitalType.WEIGHT,
@@ -180,6 +213,19 @@ class VitalReadingServiceTest {
                     .filter(r -> r.getProfileId().equals(profileId))
                     .filter(r -> vitalType == null || r.getVitalType() == vitalType)
                     .toList();
+        }
+
+        @Override
+        public List<VitalReading> findByProfileId(UUID profileId, VitalType vitalType, int page, int size) {
+            List<VitalReading> all = findByProfileId(profileId, vitalType);
+            int start = Math.min(page * size, all.size());
+            int end = Math.min(start + size, all.size());
+            return all.subList(start, end);
+        }
+
+        @Override
+        public long countByProfileId(UUID profileId, VitalType vitalType) {
+            return findByProfileId(profileId, vitalType).size();
         }
 
         @Override

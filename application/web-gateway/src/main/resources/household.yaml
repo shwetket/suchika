@@ -54,6 +54,8 @@ paths:
           schema:
             type: string
             format: date
+        - $ref: './shared.yaml#/components/parameters/Page'
+        - $ref: './shared.yaml#/components/parameters/Size'
       responses:
         '200':
           description: Events returned newest-first
@@ -177,6 +179,8 @@ paths:
           required: false
           schema:
             type: string
+        - $ref: './shared.yaml#/components/parameters/Page'
+        - $ref: './shared.yaml#/components/parameters/Size'
       responses:
         '200':
           description: Items returned newest-first
@@ -295,6 +299,8 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/GoalStatus'
+        - $ref: './shared.yaml#/components/parameters/Page'
+        - $ref: './shared.yaml#/components/parameters/Size'
       responses:
         '200':
           description: Goals returned
@@ -611,6 +617,12 @@ components:
             $ref: '#/components/schemas/CalendarEvent'
         total_size:
           type: integer
+        page:
+          type: integer
+          description: Present only on the paginated GET list response (Q54 pagination pass).
+        size:
+          type: integer
+          description: Present only on the paginated GET list response (Q54 pagination pass).
 
     # ── Inventory Item ────────────────────────────────────────────────────────────
 
@@ -722,6 +734,12 @@ components:
             $ref: '#/components/schemas/InventoryItem'
         total_size:
           type: integer
+        page:
+          type: integer
+          description: Present only on the paginated GET list response (Q54 pagination pass).
+        size:
+          type: integer
+          description: Present only on the paginated GET list response (Q54 pagination pass).
 
     # ── Goal ─────────────────────────────────────────────────────────────────────
 
@@ -852,3 +870,9 @@ components:
             $ref: '#/components/schemas/Goal'
         total_size:
           type: integer
+        page:
+          type: integer
+          description: Present only on the paginated GET list response (Q54 pagination pass).
+        size:
+          type: integer
+          description: Present only on the paginated GET list response (Q54 pagination pass).

@@ -664,6 +664,63 @@ describe('Goals page', () => {
     });
   });
 
+  // ---- Q54 pagination pass ----
+
+  it('requests page 0 and the default page size on first load', async () => {
+    listGoals.mockResolvedValue({ goals: MOCK_GOALS, total_size: 2 });
+    render(<Goals />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+
+    await waitFor(() => {
+      expect(listGoals).toHaveBeenCalledWith('p1', null, 0, 20);
+    });
+  });
+
+  it('shows pagination controls with page count derived from total_size', async () => {
+    listGoals.mockResolvedValue({ goals: MOCK_GOALS, total_size: 45 });
+    render(<Goals />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Page 1 of 3 \(45 total\)/i)).toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: 'Previous' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled();
+  });
+
+  it('clicking Next requests the next page', async () => {
+    listGoals.mockResolvedValue({ goals: MOCK_GOALS, total_size: 45 });
+    render(<Goals />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+    await waitFor(() => screen.getByRole('button', { name: 'Next' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+
+    await waitFor(() => {
+      expect(listGoals).toHaveBeenCalledWith('p1', null, 1, 20);
+      expect(screen.getByText(/Page 2 of 3/i)).toBeInTheDocument();
+    });
+  });
+
+  it('disables Next on the last page', async () => {
+    listGoals.mockResolvedValue({ goals: MOCK_GOALS, total_size: 2 });
+    render(<Goals />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Page 1 of 1 \(2 total\)/i)).toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
+  });
+
   it('shows fallback error message when deleteGoal fails without message', async () => {
     listGoals.mockResolvedValue({ goals: MOCK_GOALS });
     deleteGoal.mockRejectedValue(new Error());

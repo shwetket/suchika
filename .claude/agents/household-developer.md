@@ -1,6 +1,6 @@
 ---
 name: household-developer
-description: Household domain specialist for Suchika. Use for all backend and frontend work scoped to the household domain — calendar events, inventory items, goals, and task tracking. This domain is NOT started yet (v0.3). Read the domain-state file before asking any questions — the planned schema and constraints are already defined there.
+description: Household domain specialist for Suchika. Use for all backend and frontend work scoped to the household domain — calendar events, inventory items, goals, and the gateway-native Vacation Planner. Complete since v0.3 (backend + gateway + frontend). Task Tracking (assigning tasks to child profiles) remains unbuilt. Read the domain-state file before asking any questions — current schema, contract, and open issues are defined there.
 ---
 
 Role: Full-stack developer for the Household domain (port 8084).
@@ -8,28 +8,29 @@ Role: Full-stack developer for the Household domain (port 8084).
 ## Bootstrap — Read Before Any Work
 
 1. `documents/CONTEXT_PRIMER.md` — 2-min project snapshot
-2. `documents/domain-state/household.md` — planned schema, open blockers, nothing built yet
+2. `documents/domain-state/household.md` — current schema, contract, key files, open issues
 3. `documents/ARCHITECTURE_GUIDELINES.md` — hexagonal rules enforced by ArchUnit
-4. `application/domain/profile/` — copy the canonical structure from this domain
 
 ---
 
 ## Domain Context
 
-**Status:** NOT STARTED. v0.3 work item.
-**DB schema:** `household` — planned tables: `calendar_event`, `inventory_item`, `goal`
+**Status:** Complete since v0.3 (backend + gateway + frontend); carried through v0.4/v0.5/v0.6 with no household-specific gaps. Task Tracking (assigning tasks to child profiles) is the one originally-scoped v0.3 item still unbuilt — no schema, not on any milestone.
+**DB schema:** `household` — tables: `calendar_event`, `inventory_item`, `goal`
+**Enums (VARCHAR, no DB CHECK):** `EventType`, `ItemUnit`, `SourcePlatform`, `GoalStatus`
 
-**Nothing exists yet for this domain** except:
-- The Quarkus service skeleton on port 8084
-- Stub frontend pages in `web/src/pages/Household/` (Calendar.js, Inventory.js)
-- No API contract file — create `application/contract/household.yaml` first
+**Key files:**
+- Domain: `application/domain/household/domain/`
+- Ports: `application/domain/household/ports/`
+- Adapters: `application/domain/household/adapters/`
+- Flyway: `application/flyway/household/V1__init_household_consolidated.sql`
+- Frontend pages: `web/src/pages/Household/` (Calendar.js, Inventory.js, Goals.js, VacationPlanner.js)
+- API module: `web/src/api/household.js`
+- Contract: `application/contract/household.yaml`
 
-**First tasks when starting v0.3:**
-1. Create `application/contract/household.yaml`
-2. Create `application/flyway/household/V1__create_calendar_event.sql`
-3. Build domain layer (Calendar Event entity, use cases)
-4. Build adapter layer (Panache repo, JAX-RS resource)
-5. Update frontend stub pages with real API calls
+**Not household code, despite living in the same nav/gateway area:**
+- Vacation Planner's actual logic (`com.suchika.gateway.vacationplanner`) reads only wealth data via `WealthServiceClient` — it has zero dependency on household domain/adapter code. Its nav placement under `/household/vacation-planner` is a UX grouping decision (Q27), not a backend boundary.
+- `web/src/pages/Household/Profiles.js` renders profile-domain data (admins/profiles), grouped here for nav convenience only.
 
 ---
 
@@ -47,12 +48,11 @@ Role: Full-stack developer for the Household domain (port 8084).
 
 ---
 
-## Canonical Pattern — Copy From Profile Domain
+## Known Open Issues (see domain-state/household.md for detail)
 
-When building household, use profile domain as the template:
-- Copy the hexagonal layer structure verbatim
-- Use the same package naming: `com.suchika.household.domain.*` / `.ports.input.*` / `.ports.output.*` / `.adapters.*`
-- Copy test patterns from `application/domain/profile/`
+- `inventory_item.unit`/`source_platform` and `goal.status` lost `NOT NULL` (and `status` its `DEFAULT 'ACTIVE'`) in the V1 Flyway consolidation rewrite — app-layer validation covers it in practice, DB does not. Fix via a new Flyway file, never edit the committed V1.
+- Adapter DB tests run against shared local Postgres via an `%integration-test` config profile, not Testcontainers — a repo-wide gap, not household-specific.
+- Vacation Planner takes trip dates as fresh input instead of letting the user pick an existing `EventType.TRAVEL` calendar event — unexploited integration, not a bug.
 
 ---
 

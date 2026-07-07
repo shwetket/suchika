@@ -4,6 +4,7 @@ import com.suchika.household.domain.InventoryItem;
 import com.suchika.household.domain.ItemUnit;
 import com.suchika.household.domain.SourcePlatform;
 import com.suchika.household.ports.input.InventoryItemUseCase;
+import com.suchika.household.ports.input.PagedInventoryItems;
 import com.suchika.household.ports.input.UpdateInventoryItemCommand;
 import com.suchika.household.ports.output.InventoryItemRepository;
 import com.suchika.shared.exception.NotFoundException;
@@ -42,6 +43,14 @@ public class InventoryItemService implements InventoryItemUseCase {
     @Override
     public List<InventoryItem> list(UUID profileId, SourcePlatform sourcePlatform, String category) {
         return repository.findByProfileId(profileId, sourcePlatform, category);
+    }
+
+    @Override
+    public PagedInventoryItems listPaginated(UUID profileId, SourcePlatform sourcePlatform, String category,
+                                              int page, int size) {
+        List<InventoryItem> items = repository.findByProfileId(profileId, sourcePlatform, category, page, size);
+        long totalCount = repository.countByProfileId(profileId, sourcePlatform, category);
+        return new PagedInventoryItems(items, totalCount);
     }
 
     @Override

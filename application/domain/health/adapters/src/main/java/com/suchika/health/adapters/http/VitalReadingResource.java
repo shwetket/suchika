@@ -5,12 +5,15 @@ import com.suchika.health.adapters.http.dto.RecordVitalReadingRequest;
 import com.suchika.health.adapters.http.dto.UpdateVitalReadingRequest;
 import com.suchika.health.adapters.http.dto.VitalReadingResponse;
 import com.suchika.health.domain.VitalType;
+import com.suchika.health.ports.input.PagedVitalReadings;
 import com.suchika.health.ports.input.UpdateVitalReadingCommand;
 import com.suchika.health.ports.input.VitalReadingUseCase;
 import com.suchika.shared.exception.BadRequestException;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+
+import com.suchika.shared.utils.ResourceUtils;
 
 import java.util.List;
 import java.util.UUID;
@@ -29,13 +32,20 @@ public class VitalReadingResource {
     @GET
     public Response listVitals(
             @QueryParam("profile_id") UUID profileId,
-            @QueryParam("vital_type") String vitalTypeParam) {
+            @QueryParam("vital_type") String vitalTypeParam,
+            @QueryParam("page") Integer pageParam,
+            @QueryParam("size") Integer sizeParam) {
 
         VitalType vitalType = parseVitalType(vitalTypeParam);
-        List<VitalReadingResponse> readings = useCase.listByProfile(profileId, vitalType)
-                .stream().map(VitalReadingResponse::from).toList();
-        return Response.ok(new ListVitalReadingsResponse(readings)).build();
+        int page = ResourceUtils.parsePage(pageParam);
+        int size = ResourceUtils.parseSize(sizeParam);
+
+        PagedVitalReadings result = useCase.listByProfilePaginated(profileId, vitalType, page, size);
+        List<VitalReadingResponse> readings = result.readings().stream().map(VitalReadingResponse::from).toList();
+        return Response.ok(new ListVitalReadingsResponse(readings, result.totalCount(), page, size)).build();
     }
+
+
 
     @POST
     public Response recordVitalReading(RecordVitalReadingRequest request) {

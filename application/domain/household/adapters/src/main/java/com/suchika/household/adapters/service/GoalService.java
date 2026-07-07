@@ -3,6 +3,7 @@ package com.suchika.household.adapters.service;
 import com.suchika.household.domain.Goal;
 import com.suchika.household.domain.GoalStatus;
 import com.suchika.household.ports.input.GoalUseCase;
+import com.suchika.household.ports.input.PagedGoals;
 import com.suchika.household.ports.output.GoalRepository;
 import com.suchika.shared.exception.BadRequestException;
 import com.suchika.shared.exception.NotFoundException;
@@ -39,6 +40,13 @@ public class GoalService implements GoalUseCase {
     @Override
     public List<Goal> list(UUID profileId, GoalStatus status) {
         return repository.findByProfileId(profileId, status);
+    }
+
+    @Override
+    public PagedGoals listPaginated(UUID profileId, GoalStatus status, int page, int size) {
+        List<Goal> goals = repository.findByProfileId(profileId, status, page, size);
+        long totalCount = repository.countByProfileId(profileId, status);
+        return new PagedGoals(goals, totalCount);
     }
 
     @Override

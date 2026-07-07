@@ -36,7 +36,7 @@ class VacationPlannerResourceTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        when(wealthServiceClient.listPhysicalAssets(any(), any(), any()))
+        when(wealthServiceClient.listPhysicalAssets(any(), any(), any(), any(), any()))
                 .thenReturn(mapper.readTree("{\"physical_assets\":[]}"));
         when(snapshotRepository.findByProfileId(PROFILE_ID)).thenReturn(List.of(
                 new DashboardSnapshotDto(

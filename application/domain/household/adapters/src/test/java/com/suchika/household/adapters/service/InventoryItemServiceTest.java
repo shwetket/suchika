@@ -3,6 +3,7 @@ package com.suchika.household.adapters.service;
 import com.suchika.household.domain.InventoryItem;
 import com.suchika.household.domain.ItemUnit;
 import com.suchika.household.domain.SourcePlatform;
+import com.suchika.household.ports.input.PagedInventoryItems;
 import com.suchika.household.ports.input.UpdateInventoryItemCommand;
 import com.suchika.household.ports.output.InventoryItemRepository;
 import com.suchika.shared.exception.NotFoundException;
@@ -70,6 +71,35 @@ class InventoryItemServiceTest {
 
         assertEquals(1, results.size());
         assertEquals("Milk", results.get(0).getItemName());
+    }
+
+    // ---- Q54 pagination pass ----
+
+    @Test
+    void listPaginated_returnsRequestedPageAndTotalCount() {
+        UUID profileId = UUID.randomUUID();
+        for (int i = 0; i < 5; i++) {
+            service.create(profileId, "Item " + i, new BigDecimal("1"),
+                    ItemUnit.UNITS, SourcePlatform.MANUAL, PURCHASE_DATE, null);
+        }
+
+        PagedInventoryItems result = service.listPaginated(profileId, null, null, 1, 2);
+
+        assertEquals(2, result.items().size());
+        assertEquals(5, result.totalCount());
+    }
+
+    @Test
+    void listPaginated_passesFiltersThroughToRepo() {
+        UUID profileId = UUID.randomUUID();
+        service.create(profileId, "Milk", new BigDecimal("2"), ItemUnit.L, SourcePlatform.INSTAMART, PURCHASE_DATE, null);
+        service.create(profileId, "Rice", new BigDecimal("5"), ItemUnit.KG, SourcePlatform.BLINKIT, PURCHASE_DATE, null);
+
+        PagedInventoryItems result = service.listPaginated(profileId, SourcePlatform.INSTAMART, null, 0, 10);
+
+        assertEquals(1, result.items().size());
+        assertEquals(1, result.totalCount());
+        assertEquals("Milk", result.items().get(0).getItemName());
     }
 
     @Test
@@ -179,6 +209,20 @@ class InventoryItemServiceTest {
                     .filter(i -> sourcePlatform == null || i.getSourcePlatform() == sourcePlatform)
                     .filter(i -> category == null || category.isBlank() || category.equals(i.getCategory()))
                     .toList();
+        }
+
+        @Override
+        public List<InventoryItem> findByProfileId(UUID profileId, SourcePlatform sourcePlatform, String category,
+                                                    int page, int size) {
+            List<InventoryItem> all = findByProfileId(profileId, sourcePlatform, category);
+            int start = Math.min(page * size, all.size());
+            int end = Math.min(start + size, all.size());
+            return all.subList(start, end);
+        }
+
+        @Override
+        public long countByProfileId(UUID profileId, SourcePlatform sourcePlatform, String category) {
+            return findByProfileId(profileId, sourcePlatform, category).size();
         }
 
         @Override

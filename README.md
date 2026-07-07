@@ -110,7 +110,8 @@ suchika/
 │   │   ├── profile.yaml
 │   │   ├── wealth.yaml
 │   │   ├── health.yaml
-│   │   └── household.yaml
+│   │   ├── household.yaml
+│   │   └── shared.yaml
 │   ├── domain/
 │   │   ├── profile/               ← port 8081 — start first; all other domains FK into profile.profile
 │   │   │   ├── domain/            ← pure Java business logic, zero framework deps
@@ -134,33 +135,57 @@ suchika/
 │   │   ├── wealth/
 │   │   ├── health/
 │   │   ├── household/
-│   │   └── gateway/
+│   │   ├── projections/
+│   │   └── test-seed/             ← per-domain R__seed_*.sql fixtures
 │   └── web-gateway/               ← port 8080; BFF aggregator — no DB, composes domain REST calls
 ├── web/                           ← React + Tailwind frontend; talks only to web-gateway (port 8080)
+│   ├── e2e/                       ← Playwright specs (see documents/E2E_TESTING.md)
 │   └── src/
 │       ├── api/                   ← generated.ts (never hand-edit) + domain API modules
 │       └── pages/
-│           ├── Public/
-│           ├── User/              ← wealth/, health/, household/ pages
-│           └── Admin/
+│           ├── Public/            ← no auth
+│           ├── User/              ← user + admin
+│           ├── Admin/             ← admin only
+│           ├── Health/            ← domain-segmented route pages
+│           ├── Household/
+│           └── Wealth/
 ├── shared/                        ← AppLogger, typed exceptions, ArchUnit domain rules
 ├── scripts/                       ← PowerShell + bash dev helpers (see documents/SCRIPTS.md)
+├── infrastructure/                ← local/.env.template used by one-time DB setup
 ├── documents/                     ← All project documentation
 │   ├── CONTEXT_PRIMER.md          ← read this first — compact project snapshot
 │   ├── domain-state/              ← per-domain schema, ADRs, open issues
-│   │   ├── profile.md
-│   │   ├── wealth.md
 │   │   ├── health.md
-│   │   └── household.md
-│   ├── ARCHITECTURE_GUIDELINES.md
+│   │   ├── household.md
+│   │   ├── profile.md
+│   │   └── wealth.md
+│   ├── AGENTS.md
+│   ├── API.md
+│   ├── ARCHITECTURE.md
 │   ├── ARCHITECTURE_DECISIONS.md
+│   ├── ARCHITECTURE_GUIDELINES.md
+│   ├── ARCHITECTURE_PROPOSALS.md
+│   ├── architecture-review-2026-07.md
 │   ├── BUSINESS_REQUIREMENTS.md
-│   ├── ROADMAP.md
-│   ├── FRONTEND_GUIDELINES.md
-│   ├── LOGGING_AND_EXCEPTIONS.md
-│   ├── SCRIPTS.md
 │   ├── CICD.md
-│   └── E2E_TESTING.md
+│   ├── contract-consolidation-plan.md
+│   ├── E2E_TESTING.md
+│   ├── EPIC8_IMPLEMENTATION_PLAN.md
+│   ├── feature_request.md
+│   ├── flyway-consolidation-plan.md
+│   ├── FRONTEND_GUIDELINES.md
+│   ├── GETTING_STARTED.md
+│   ├── LOGGING_AND_EXCEPTIONS.md
+│   ├── OpenQuestions.md
+│   ├── QA_API_TEST_RESULTS.md
+│   ├── REQUIREMENTS_cross_domain.md
+│   ├── REQUIREMENTS_health_domain.md
+│   ├── REQUIREMENTS_household_domain.md
+│   ├── REQUIREMENTS_wealth_domain.md
+│   ├── ROADMAP.md
+│   ├── SCRIPTS.md
+│   ├── V02_DEVELOPMENT_PLAN.md
+│   └── web_e2e_README.md
 ├── .github/
 │   ├── CODEOWNERS                 ← * @ketan
 │   ├── workflows/
