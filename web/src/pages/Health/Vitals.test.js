@@ -60,7 +60,8 @@ describe('Vitals page', () => {
 
   it('shows loading state during fetch', async () => {
     listVitals.mockImplementation(
-      () => new Promise((resolve) => setTimeout(() => resolve({ vital_readings: MOCK_VITALS }), 200))
+      () =>
+        new Promise((resolve) => setTimeout(() => resolve({ vital_readings: MOCK_VITALS }), 200))
     );
     render(<Vitals />);
     await waitFor(() => screen.getByText('Alice'));

@@ -4,7 +4,7 @@ A personal household management system — track your **Wealth**, **Health**, an
 
 Built on **Hexagonal Architecture** (Ports & Adapters) with four isolated Quarkus microservices, a BFF web-gateway, and a React frontend.
 
-**Current version: v0.4** — All four domains live. Wealth CSV upload has structured error logging, dedup fix, and frontend error/skipped-duplicates panels.
+**Current version: v0.6** — All four domains complete. v0.6 Testing Foundation: new ArchUnit port-interface coverage rule, expanded HTTP adapter/domain unit tests, Jest branch coverage gate, transaction list pagination, doctor visit date-range filter.
 
 ---
 
@@ -46,6 +46,7 @@ psql -U postgres -d app_db -f application/flyway/00_bootstrap.sql
 ./gradlew :application:domain:profile:adapters:quarkusDev   # port 8081
 ./gradlew :application:domain:wealth:adapters:quarkusDev    # port 8082
 ./gradlew :application:domain:health:adapters:quarkusDev    # port 8083
+./gradlew :application:domain:household:adapters:quarkusDev # port 8084
 ./gradlew :application:web-gateway:quarkusDev               # port 8080 (BFF)
 
 # 3. Start the frontend
@@ -65,7 +66,7 @@ Organised by what you need to do:
 
 ### Understanding the architecture
 - [ARCHITECTURE_GUIDELINES](./documents/ARCHITECTURE_GUIDELINES.md) — rules every PR must follow (hexagonal layers, domain isolation, DB constraints)
-- [ARCHITECTURE_DECISIONS](./documents/ARCHITECTURE_DECISIONS.md) — all ADRs (ADR-001 through ADR-012) with rationale
+- [ARCHITECTURE_DECISIONS](./documents/ARCHITECTURE_DECISIONS.md) — all ADRs, numbered sequentially, with rationale for each decision
 - [ARCHITECTURE_PROPOSALS](./documents/ARCHITECTURE_PROPOSALS.md) — pending proposals under review
 
 ### Understanding what's built and what's planned

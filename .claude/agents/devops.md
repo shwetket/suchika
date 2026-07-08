@@ -92,7 +92,7 @@ scripts/
 | Item | Value |
 |---|---|
 | URL | `http://localhost:9000` |
-| Token | `sqp_67feaac2593aeeda89632d4dbbdc5f828c1c5437` (in sonar-project.properties) |
+| Token | set via `$env:SONAR_TOKEN` (never committed — see `scripts/sonar-scan.ps1`) |
 | Config | `sonar-project.properties` (repo root) |
 | Dashboard | `http://localhost:9000/dashboard?id=suchika` |
 

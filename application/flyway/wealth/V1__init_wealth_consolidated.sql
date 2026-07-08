@@ -57,7 +57,7 @@ CREATE TABLE wealth.transaction (
         FOREIGN KEY (upload_id) REFERENCES wealth.statement_upload(id)
         ON DELETE CASCADE,
     CONSTRAINT uq_transaction_dedup
-        UNIQUE (account_id, txn_date, amount, txn_type, description)
+        UNIQUE (account_id, txn_date, amount, txn_type)
 );
 
 CREATE TABLE wealth.physical_asset (

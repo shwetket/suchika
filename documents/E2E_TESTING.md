@@ -5,7 +5,7 @@
 | **Type** | Reference |
 | **Audience** | Frontend developers |
 | **Status** | Active |
-| **Last updated** | 2026-06-23 |
+| **Last updated** | 2026-07-08 |
 
 ## Objective
 
@@ -21,15 +21,19 @@ Document the Playwright E2E test suite — what is covered, how to run it, start
 
 ## Overview
 
-17 tests across 5 spec files covering the main user-facing flows:
+35 tests across 9 spec files covering the main user-facing flows:
 
 | Spec file | Tests | Coverage |
 |---|---|---|
 | `auth.spec.js` | 4 | Sign-in, home redirect, logout |
-| `navigation.spec.js` | 5 | Nav links, dropdowns, dashboard cards |
+| `navigation.spec.js` | 4 | Nav links, dropdowns, dashboard cards |
 | `profiles.spec.js` | 2 | Profiles page loads, Add Profile button |
 | `wealth.spec.js` | 4 | Accounts + transactions pages, URL redirects |
 | `health.spec.js` | 3 | Vitals + doctor visits pages, URL redirects |
+| `household.spec.js` | 7 | Calendar/Inventory/Goals pages + Add flows, Vacation Planner page |
+| `admin-setup.spec.js` | 5 | New-admin redirect, setup wizard steps and validation, full wizard flows |
+| `admin-policy.spec.js` | 3 | Policy settings page loads, threshold fields editable, Save button present |
+| `action-center.spec.js` | 3 | Action Center page loads, no-linked-profile guidance, Refresh button state |
 
 Config: `web/playwright.config.js` — Chromium only, headless, baseURL `http://localhost:3000`.
 
@@ -68,6 +72,7 @@ If tests need live data from the backend, start services in this order:
 ./gradlew :application:domain:profile:adapters:quarkusDev   # port 8081 — start first
 ./gradlew :application:domain:wealth:adapters:quarkusDev    # port 8082
 ./gradlew :application:domain:health:adapters:quarkusDev    # port 8083
+./gradlew :application:domain:household:adapters:quarkusDev # port 8084
 ./gradlew :application:web-gateway:quarkusDev               # port 8080 (BFF)
 cd web && npm start                                          # port 3000
 ```

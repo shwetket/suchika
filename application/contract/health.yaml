@@ -469,15 +469,15 @@ components:
         doctor_name:
           type: string
           nullable: true
-          maxLength: 100
+          maxLength: 50
         hospital_name:
           type: string
           nullable: true
-          maxLength: 200
+          maxLength: 50
         speciality:
           type: string
           nullable: true
-          maxLength: 100
+          maxLength: 50
         symptoms:
           type: string
           nullable: true
@@ -503,14 +503,15 @@ components:
         doctor_name:
           type: string
           nullable: true
-          maxLength: 100
+          maxLength: 50
         hospital_name:
           type: string
           nullable: true
-          maxLength: 200
+          maxLength: 50
         speciality:
           type: string
           nullable: true
+          maxLength: 50
         symptoms:
           type: string
           nullable: true
