@@ -20,6 +20,7 @@ import jakarta.transaction.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -187,7 +188,8 @@ public class AccountService implements AccountUseCase {
         int tenureMonths = Integer.parseInt(tenureStr);
         BigDecimal annualRate = account.getInterestRate() != null ? account.getInterestRate() : BigDecimal.ZERO;
 
-        return AmortizationCalculator.compute(principal, annualRate, tenureMonths, startDate);
+        LocalDate asOfDate = LocalDate.now(ZoneId.of("Asia/Kolkata"));
+        return AmortizationCalculator.compute(principal, annualRate, tenureMonths, startDate, asOfDate);
     }
 
     private static boolean isBlank(String value) {

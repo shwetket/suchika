@@ -168,8 +168,8 @@ export const Vitals = () => {
     try {
       const vitalTypeArg = typeFilter || null;
       const data = await listVitals(selectedProfileId, vitalTypeArg, page, PAGE_SIZE);
-      setVitals(data.vitals ?? []);
-      setTotalSize(data.total_size ?? (data.vitals ?? []).length);
+      setVitals(data.vital_readings ?? []);
+      setTotalSize(data.total_size ?? (data.vital_readings ?? []).length);
     } catch (err) {
       setError(err.message || 'Failed to load vitals');
     } finally {

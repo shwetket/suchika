@@ -12,7 +12,7 @@ public class ListInventoryItemsResponse {
     public List<InventoryItemDto> inventoryItems;
 
     @JsonProperty("total_size")
-    public int totalSize;
+    public long totalSize;
 
     @JsonProperty("page")
     public Integer page;
@@ -31,7 +31,7 @@ public class ListInventoryItemsResponse {
      */
     public ListInventoryItemsResponse(List<InventoryItemDto> inventoryItems, long totalSize, int page, int size) {
         this.inventoryItems = inventoryItems;
-        this.totalSize = (int) totalSize;
+        this.totalSize = totalSize;
         this.page = page;
         this.size = size;
     }

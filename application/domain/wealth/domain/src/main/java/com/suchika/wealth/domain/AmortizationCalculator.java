@@ -4,7 +4,6 @@ import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 
 /**
@@ -34,22 +33,23 @@ public final class AmortizationCalculator {
     }
 
     /**
-     * Computes the amortization summary as of today.
+     * Computes the amortization summary as of the given date.
      *
      * @param principal        original loan principal (positive)
      * @param annualRatePercent annual interest rate in percent (e.g. 8.75 for 8.75%). May be zero.
      * @param tenureMonths     original loan tenure in months (positive)
      * @param startDate        EMI start date (first payment date / disbursement date)
+     * @param asOfDate         the date to compute the summary as of (caller-supplied "today")
      * @return computed summary; all monetary amounts rounded to 2 dp
      */
     public static AmortizationSummary compute(
             BigDecimal principal,
             BigDecimal annualRatePercent,
             int tenureMonths,
-            LocalDate startDate) {
+            LocalDate startDate,
+            LocalDate asOfDate) {
 
-        LocalDate today = LocalDate.now(ZoneId.of("Asia/Kolkata"));
-        int elapsedMonths = (int) ChronoUnit.MONTHS.between(startDate, today);
+        int elapsedMonths = (int) ChronoUnit.MONTHS.between(startDate, asOfDate);
         if (elapsedMonths < 0) {
             elapsedMonths = 0;
         }

@@ -185,6 +185,18 @@ Generates LCOV coverage (`npm run test:coverage`), runs `sonar-scanner`, then op
 
 Requires: SonarQube running at `http://localhost:9000`. Start it with `sonar-start` if not running.
 
+Requires: `$env:SONAR_TOKEN` set in the shell before running. `sonar-project.properties` is
+git-tracked (despite being listed under `.gitignore`'s "Secrets" section — that entry predates
+the commit and no longer has effect) and deliberately does **not** contain a token; the
+`sonar-scanner` CLI reads `SONAR_TOKEN` from the environment automatically. Generate a token at
+`http://localhost:9000/account/security` and set it once per shell session:
+```powershell
+$env:SONAR_TOKEN = "sqp_..."
+```
+The script also computes `sonar.java.libraries` / `sonar.java.test.libraries` from
+`$env:GRADLE_USER_HOME` and passes them via `-D` flags, so no machine-specific path is
+hardcoded in `sonar-project.properties`.
+
 ---
 
 ### `sonar-start.ps1` — Start SonarQube server

@@ -33,6 +33,16 @@ if (-not (Get-Command sonar-scanner -ErrorAction SilentlyContinue)) {
     exit 1
 }
 
+# ── Preflight: SONAR_TOKEN set? ───────────────────────────────────────────────
+# sonar-project.properties intentionally does not contain a token (it's git-tracked).
+# sonar-scanner CLI reads SONAR_TOKEN from the environment automatically.
+if (-not $env:SONAR_TOKEN) {
+    Fail "SONAR_TOKEN environment variable is not set."
+    Write-Host "       Get a token:  http://localhost:9000/account/security" -ForegroundColor Yellow
+    Write-Host "       Then run:     `$env:SONAR_TOKEN = 'sqp_...'" -ForegroundColor Yellow
+    exit 1
+}
+
 # ── Run analysis ──────────────────────────────────────────────────────────────
 Step "Running sonar-scanner  (project: suchika)"
 
@@ -41,10 +51,14 @@ if (-not $env:GRADLE_USER_HOME) {
     $env:GRADLE_USER_HOME = "$env:USERPROFILE\.gradle"
 }
 
+# Java library paths depend on GRADLE_USER_HOME, which varies per machine/user —
+# passed dynamically here rather than hardcoded in sonar-project.properties.
+$gradleCache = "$env:GRADLE_USER_HOME/caches/modules-2/files-2.1/**/*.jar" -replace '\\', '/'
+
 Push-Location $root
 try {
     $start = Get-Date
-    & sonar-scanner
+    & sonar-scanner "-Dsonar.java.libraries=$gradleCache" "-Dsonar.java.test.libraries=$gradleCache"
     $exit = $LASTEXITCODE
 } finally {
     Pop-Location

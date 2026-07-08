@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { Vitals } from './Vitals';
 
 jest.mock('../../api/profiles', () => ({
@@ -47,7 +47,7 @@ const MOCK_VITALS = [
 beforeEach(() => {
   jest.clearAllMocks();
   listProfiles.mockResolvedValue({ profiles: MOCK_PROFILES });
-  listVitals.mockResolvedValue({ vitals: [] });
+  listVitals.mockResolvedValue({ vital_readings: [] });
 });
 
 describe('Vitals page', () => {
@@ -60,7 +60,7 @@ describe('Vitals page', () => {
 
   it('shows loading state during fetch', async () => {
     listVitals.mockImplementation(
-      () => new Promise((resolve) => setTimeout(() => resolve({ vitals: MOCK_VITALS }), 200))
+      () => new Promise((resolve) => setTimeout(() => resolve({ vital_readings: MOCK_VITALS }), 200))
     );
     render(<Vitals />);
     await waitFor(() => screen.getByText('Alice'));
@@ -70,7 +70,7 @@ describe('Vitals page', () => {
   });
 
   it('shows vitals history table after profile selection', async () => {
-    listVitals.mockResolvedValue({ vitals: MOCK_VITALS });
+    listVitals.mockResolvedValue({ vital_readings: MOCK_VITALS });
     render(<Vitals />);
     await waitFor(() => screen.getByText('Alice'));
 
@@ -83,8 +83,30 @@ describe('Vitals page', () => {
     });
   });
 
+  it('renders actual rows (not just the total count) matching the real API response shape', async () => {
+    // Regression test for a bug where the page read `data.vitals` instead of
+    // `data.vital_readings` (the field name actually returned by the API per
+    // health.yaml's ListVitalReadingsResponse schema). That bug caused the
+    // total count to render correctly (it used the right key) while the
+    // table body silently stayed empty. Asserting only on the count text
+    // would NOT have caught it, so this test asserts on row content too.
+    listVitals.mockResolvedValue({ vital_readings: MOCK_VITALS, total_size: 2 });
+    render(<Vitals />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Page 1 of 1 \(2 total\)/i)).toBeInTheDocument();
+    });
+    const table = screen.getByRole('table');
+    expect(within(table).getByText('Weight')).toBeInTheDocument();
+    expect(within(table).getByText('Blood Pressure')).toBeInTheDocument();
+    expect(within(table).getByText('120 / 80')).toBeInTheDocument();
+  });
+
   it('shows value_primary / value_secondary for blood pressure', async () => {
-    listVitals.mockResolvedValue({ vitals: MOCK_VITALS });
+    listVitals.mockResolvedValue({ vital_readings: MOCK_VITALS });
     render(<Vitals />);
     await waitFor(() => screen.getByText('Alice'));
 
@@ -108,7 +130,7 @@ describe('Vitals page', () => {
   });
 
   it('requests page 0 and the default page size on first load', async () => {
-    listVitals.mockResolvedValue({ vitals: MOCK_VITALS, total_size: 2 });
+    listVitals.mockResolvedValue({ vital_readings: MOCK_VITALS, total_size: 2 });
     render(<Vitals />);
     await waitFor(() => screen.getByText('Alice'));
 
@@ -120,7 +142,7 @@ describe('Vitals page', () => {
   });
 
   it('shows pagination controls with page count derived from total_size', async () => {
-    listVitals.mockResolvedValue({ vitals: MOCK_VITALS, total_size: 45 });
+    listVitals.mockResolvedValue({ vital_readings: MOCK_VITALS, total_size: 45 });
     render(<Vitals />);
     await waitFor(() => screen.getByText('Alice'));
 
@@ -134,7 +156,7 @@ describe('Vitals page', () => {
   });
 
   it('clicking Next requests the next page', async () => {
-    listVitals.mockResolvedValue({ vitals: MOCK_VITALS, total_size: 45 });
+    listVitals.mockResolvedValue({ vital_readings: MOCK_VITALS, total_size: 45 });
     render(<Vitals />);
     await waitFor(() => screen.getByText('Alice'));
 
@@ -150,7 +172,7 @@ describe('Vitals page', () => {
   });
 
   it('disables Next on the last page', async () => {
-    listVitals.mockResolvedValue({ vitals: MOCK_VITALS, total_size: 2 });
+    listVitals.mockResolvedValue({ vital_readings: MOCK_VITALS, total_size: 2 });
     render(<Vitals />);
     await waitFor(() => screen.getByText('Alice'));
 
@@ -163,7 +185,7 @@ describe('Vitals page', () => {
   });
 
   it('"Log Reading" button opens modal', async () => {
-    listVitals.mockResolvedValue({ vitals: MOCK_VITALS });
+    listVitals.mockResolvedValue({ vital_readings: MOCK_VITALS });
     render(<Vitals />);
     await waitFor(() => screen.getByText('Alice'));
 
@@ -175,7 +197,7 @@ describe('Vitals page', () => {
   });
 
   it('shows Diastolic field only when Blood Pressure is selected', async () => {
-    listVitals.mockResolvedValue({ vitals: [] });
+    listVitals.mockResolvedValue({ vital_readings: [] });
     render(<Vitals />);
     await waitFor(() => screen.getByText('Alice'));
 
@@ -194,7 +216,7 @@ describe('Vitals page', () => {
   });
 
   it('submits log reading form and reloads vitals', async () => {
-    listVitals.mockResolvedValue({ vitals: MOCK_VITALS });
+    listVitals.mockResolvedValue({ vital_readings: MOCK_VITALS });
     recordVital.mockResolvedValue({});
     render(<Vitals />);
     await waitFor(() => screen.getByText('Alice'));
@@ -223,7 +245,7 @@ describe('Vitals page', () => {
   });
 
   it('"Edit" button opens modal pre-filled with existing values', async () => {
-    listVitals.mockResolvedValue({ vitals: MOCK_VITALS });
+    listVitals.mockResolvedValue({ vital_readings: MOCK_VITALS });
     render(<Vitals />);
     await waitFor(() => screen.getByText('Alice'));
 
@@ -239,7 +261,7 @@ describe('Vitals page', () => {
   });
 
   it('submits edit form and reloads vitals', async () => {
-    listVitals.mockResolvedValue({ vitals: MOCK_VITALS });
+    listVitals.mockResolvedValue({ vital_readings: MOCK_VITALS });
     updateVital.mockResolvedValue({});
     render(<Vitals />);
     await waitFor(() => screen.getByText('Alice'));
@@ -267,7 +289,7 @@ describe('Vitals page', () => {
   });
 
   it('shows error message when update fails', async () => {
-    listVitals.mockResolvedValue({ vitals: MOCK_VITALS });
+    listVitals.mockResolvedValue({ vital_readings: MOCK_VITALS });
     updateVital.mockRejectedValue(new Error('Update failed'));
     render(<Vitals />);
     await waitFor(() => screen.getByText('Alice'));
