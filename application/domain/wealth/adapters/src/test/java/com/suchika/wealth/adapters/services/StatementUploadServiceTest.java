@@ -319,6 +319,14 @@ class StatementUploadServiceTest {
         public Optional<Account> findById(UUID id) { return Optional.ofNullable(store.get(id)); }
 
         @Override
+        public Optional<Account> findById(UUID id, UUID profileId) {
+            Account account = store.get(id);
+            if (account == null) return Optional.empty();
+            if (profileId != null && !profileId.equals(account.getProfileId())) return Optional.empty();
+            return Optional.of(account);
+        }
+
+        @Override
         public List<Account> findAll(UUID profileId, AccountType accountType, Boolean isActive) { return List.copyOf(store.values()); }
 
         @Override

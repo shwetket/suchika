@@ -188,13 +188,16 @@ paths:
       operationId: listProfiles
       summary: List profiles
       description: >
-        Returns all household member profiles. Filter by admin_id to scope
-        to one admin's household. Not paginated — always a small list.
+        Returns all household member profiles scoped to one admin's household.
+        admin_id is required — profile is the identity anchor domain and admin_id
+        is its equivalent of every other domain's required profile_id scoping
+        parameter; omitting it would return every profile across every admin.
+        Not paginated — always a small list.
         Follows AIP-132.
       parameters:
         - name: admin_id
           in: query
-          required: false
+          required: true
           description: Scope to one admin's household members.
           schema:
             type: string
@@ -211,6 +214,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListProfilesResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
         '500':
           $ref: './shared.yaml#/components/responses/InternalError'
 

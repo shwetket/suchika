@@ -57,6 +57,11 @@ class AccountResourceTest {
     }
 
     @Test
+    void listAccounts_missingProfileId_throwsBadRequest() {
+        assertThrows(BadRequestException.class, () -> resource.listAccounts(null, true, null));
+    }
+
+    @Test
     void createAccount_returns201_withCreatedAccount() {
         CreateAccountRequest request = new CreateAccountRequest();
         request.accountName = "HDFC Salary";
@@ -79,6 +84,14 @@ class AccountResourceTest {
     }
 
     @Test
+    void createAccount_missingProfileId_throwsBadRequest() {
+        CreateAccountRequest request = new CreateAccountRequest();
+        request.accountName = "HDFC Salary";
+        request.accountType = "SAVINGS";
+        assertThrows(BadRequestException.class, () -> resource.createAccount(null, request));
+    }
+
+    @Test
     void createAccount_missingAccountType_throwsBadRequest() {
         CreateAccountRequest request = new CreateAccountRequest();
         request.accountName = "No Type";
@@ -89,10 +102,16 @@ class AccountResourceTest {
     void getAccount_returnsAccountResponse() {
         useCase.accountToReturn = buildAccount();
 
-        AccountResponse response = resource.getAccount(ACCOUNT_ID);
+        AccountResponse response = resource.getAccount(ACCOUNT_ID, PROFILE_ID);
 
         assertEquals("SBI Savings", response.accountName);
         assertEquals(ACCOUNT_ID, useCase.lastGetAccountId);
+        assertEquals(PROFILE_ID, useCase.lastGetProfileId);
+    }
+
+    @Test
+    void getAccount_missingProfileId_throwsBadRequest() {
+        assertThrows(BadRequestException.class, () -> resource.getAccount(ACCOUNT_ID, null));
     }
 
     @Test
@@ -101,24 +120,43 @@ class AccountResourceTest {
         request.accountName = "Renamed";
         useCase.accountToReturn = buildAccount();
 
-        AccountResponse response = resource.updateAccount(ACCOUNT_ID, request);
+        AccountResponse response = resource.updateAccount(ACCOUNT_ID, PROFILE_ID, request);
 
         assertEquals("SBI Savings", response.accountName);
         assertEquals(ACCOUNT_ID, useCase.lastUpdateAccountId);
+        assertEquals(PROFILE_ID, useCase.lastUpdateProfileId);
         assertEquals("Renamed", useCase.lastUpdateAccountName);
     }
 
     @Test
     void updateAccount_nullBody_throwsBadRequest() {
-        assertThrows(BadRequestException.class, () -> resource.updateAccount(ACCOUNT_ID, null));
+        assertThrows(BadRequestException.class, () -> resource.updateAccount(ACCOUNT_ID, PROFILE_ID, null));
+    }
+
+    @Test
+    void updateAccount_missingProfileId_throwsBadRequest() {
+        UpdateAccountRequest request = new UpdateAccountRequest();
+        request.accountName = "Renamed";
+        assertThrows(BadRequestException.class, () -> resource.updateAccount(ACCOUNT_ID, null, request));
     }
 
     @Test
     void deactivateAccount_returns204() {
-        Response response = resource.deactivateAccount(ACCOUNT_ID);
+        Response response = resource.deactivateAccount(ACCOUNT_ID, PROFILE_ID);
 
         assertEquals(204, response.getStatus());
         assertEquals(ACCOUNT_ID, useCase.lastDeactivateAccountId);
+        assertEquals(PROFILE_ID, useCase.lastDeactivateProfileId);
+    }
+
+    @Test
+    void deactivateAccount_missingProfileId_throwsBadRequest() {
+        assertThrows(BadRequestException.class, () -> resource.deactivateAccount(ACCOUNT_ID, null));
+    }
+
+    @Test
+    void getAccountBalance_missingProfileId_throwsBadRequest() {
+        assertThrows(BadRequestException.class, () -> resource.getAccountBalance(ACCOUNT_ID, null));
     }
 
     @Test
@@ -138,16 +176,29 @@ class AccountResourceTest {
         request.category = "HOUSEHOLD_CORE";
         useCase.accountToReturn = buildAccount();
 
-        AccountResponse response = resource.updateAccountClassification(ACCOUNT_ID, request);
+        AccountResponse response = resource.updateAccountClassification(ACCOUNT_ID, PROFILE_ID, request);
 
         assertEquals("SBI Savings", response.accountName);
         assertEquals(ACCOUNT_ID, useCase.lastClassificationAccountId);
+        assertEquals(PROFILE_ID, useCase.lastClassificationProfileId);
         assertEquals("HOUSEHOLD_CORE", useCase.lastClassificationCommand.category());
     }
 
     @Test
     void updateAccountClassification_nullBody_throwsBadRequest() {
-        assertThrows(BadRequestException.class, () -> resource.updateAccountClassification(ACCOUNT_ID, null));
+        assertThrows(BadRequestException.class, () -> resource.updateAccountClassification(ACCOUNT_ID, PROFILE_ID, null));
+    }
+
+    @Test
+    void updateAccountClassification_missingProfileId_throwsBadRequest() {
+        UpdateAccountClassificationRequest request = new UpdateAccountClassificationRequest();
+        request.category = "HOUSEHOLD_CORE";
+        assertThrows(BadRequestException.class, () -> resource.updateAccountClassification(ACCOUNT_ID, null, request));
+    }
+
+    @Test
+    void getAmortization_missingProfileId_throwsBadRequest() {
+        assertThrows(BadRequestException.class, () -> resource.getAmortization(ACCOUNT_ID, null));
     }
 
     @Test
@@ -188,10 +239,14 @@ class AccountResourceTest {
         UUID lastCreateProfileId;
         CreateAccountCommand lastCreateCommand;
         UUID lastGetAccountId;
+        UUID lastGetProfileId;
         UUID lastUpdateAccountId;
+        UUID lastUpdateProfileId;
         String lastUpdateAccountName;
         UUID lastDeactivateAccountId;
+        UUID lastDeactivateProfileId;
         UUID lastClassificationAccountId;
+        UUID lastClassificationProfileId;
         UpdateAccountClassificationCommand lastClassificationCommand;
 
         @Override
@@ -202,8 +257,9 @@ class AccountResourceTest {
         }
 
         @Override
-        public Account getAccount(UUID id) {
+        public Account getAccount(UUID id, UUID profileId) {
             lastGetAccountId = id;
+            lastGetProfileId = profileId;
             return accountToReturn;
         }
 
@@ -213,16 +269,18 @@ class AccountResourceTest {
         }
 
         @Override
-        public Account updateAccount(UUID id, String accountName, BigDecimal openingBalance, BigDecimal creditLimit,
+        public Account updateAccount(UUID id, UUID profileId, String accountName, BigDecimal openingBalance, BigDecimal creditLimit,
                                       BigDecimal interestRate, BigDecimal emiAmount, Boolean isActive) {
             lastUpdateAccountId = id;
+            lastUpdateProfileId = profileId;
             lastUpdateAccountName = accountName;
             return accountToReturn;
         }
 
         @Override
-        public void deactivateAccount(UUID id) {
+        public void deactivateAccount(UUID id, UUID profileId) {
             lastDeactivateAccountId = id;
+            lastDeactivateProfileId = profileId;
         }
 
         @Override
@@ -231,8 +289,9 @@ class AccountResourceTest {
         }
 
         @Override
-        public Account updateAccountClassification(UUID id, UpdateAccountClassificationCommand command) {
+        public Account updateAccountClassification(UUID id, UUID profileId, UpdateAccountClassificationCommand command) {
             lastClassificationAccountId = id;
+            lastClassificationProfileId = profileId;
             lastClassificationCommand = command;
             return accountToReturn;
         }

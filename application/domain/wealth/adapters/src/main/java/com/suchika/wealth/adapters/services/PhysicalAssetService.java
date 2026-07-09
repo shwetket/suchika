@@ -70,8 +70,8 @@ public class PhysicalAssetService implements PhysicalAssetUseCase {
     }
 
     @Override
-    public PhysicalAsset getAsset(UUID id) {
-        return repository.findById(id)
+    public PhysicalAsset getAsset(UUID id, UUID profileId) {
+        return repository.findById(id, profileId)
                 .orElseThrow(() -> new NotFoundException(ASSET_NOT_FOUND + id));
     }
 
@@ -90,9 +90,9 @@ public class PhysicalAssetService implements PhysicalAssetUseCase {
 
     @Override
     @Transactional
-    public PhysicalAsset updateAsset(UUID id, String assetName, String make, String model,
+    public PhysicalAsset updateAsset(UUID id, UUID profileId, String assetName, String make, String model,
                                        Map<String, String> metadata, Boolean isActive) {
-        PhysicalAsset asset = repository.findById(id)
+        PhysicalAsset asset = repository.findById(id, profileId)
                 .orElseThrow(() -> new NotFoundException(ASSET_NOT_FOUND + id));
 
         if (assetName != null) {
@@ -113,8 +113,8 @@ public class PhysicalAssetService implements PhysicalAssetUseCase {
 
     @Override
     @Transactional
-    public void deactivateAsset(UUID id) {
-        PhysicalAsset asset = repository.findById(id)
+    public void deactivateAsset(UUID id, UUID profileId) {
+        PhysicalAsset asset = repository.findById(id, profileId)
                 .orElseThrow(() -> new NotFoundException(ASSET_NOT_FOUND + id));
 
         asset.setActive(false);

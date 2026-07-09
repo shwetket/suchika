@@ -86,7 +86,7 @@ class AccountServiceTest {
         Account created = service.createAccount(null,
                 cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
 
-        Account found = service.getAccount(created.getId());
+        Account found = service.getAccount(created.getId(), null);
 
         assertEquals(created.getId(), found.getId());
     }
@@ -94,7 +94,17 @@ class AccountServiceTest {
     @Test
     void getAccount_notFound_throwsNotFoundException() {
         UUID randomId = UUID.randomUUID();
-        assertThrows(NotFoundException.class, () -> service.getAccount(randomId));
+        assertThrows(NotFoundException.class, () -> service.getAccount(randomId, null));
+    }
+
+    @Test
+    void getAccount_wrongProfile_throwsNotFoundException() {
+        UUID ownerProfileId = UUID.randomUUID();
+        UUID otherProfileId = UUID.randomUUID();
+        Account created = service.createAccount(ownerProfileId,
+                cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
+
+        assertThrows(NotFoundException.class, () -> service.getAccount(created.getId(), otherProfileId));
     }
 
     @Test
@@ -111,7 +121,7 @@ class AccountServiceTest {
         Account account = service.createAccount(null,
                 cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", new BigDecimal("1000"), null, null, null));
 
-        Account updated = service.updateAccount(account.getId(), "HDFC Salary", null, null, null, null, null);
+        Account updated = service.updateAccount(account.getId(), null, "HDFC Salary", null, null, null, null, null);
 
         assertEquals("HDFC Salary", updated.getAccountName());
         assertEquals(0, new BigDecimal("1000").compareTo(updated.getOpeningBalance()));
@@ -124,7 +134,7 @@ class AccountServiceTest {
         UUID accountId = account.getId();
 
         assertThrows(BadRequestException.class,
-                () -> service.updateAccount(accountId, "  ", null, null, null, null, null));
+                () -> service.updateAccount(accountId, null, "  ", null, null, null, null, null));
     }
 
     @Test
@@ -132,7 +142,7 @@ class AccountServiceTest {
         Account account = service.createAccount(null,
                 cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
 
-        Account updated = service.updateAccount(account.getId(), null, null, null, null, null, false);
+        Account updated = service.updateAccount(account.getId(), null, null, null, null, null, null, false);
 
         assertFalse(updated.isActive());
     }
@@ -145,7 +155,19 @@ class AccountServiceTest {
         repo.markHasTransactions(accountId);
 
         assertThrows(ConflictException.class,
-                () -> service.updateAccount(accountId, null, null, null, null, null, false));
+                () -> service.updateAccount(accountId, null, null, null, null, null, null, false));
+    }
+
+    @Test
+    void updateAccount_wrongProfile_throwsNotFoundException() {
+        UUID ownerProfileId = UUID.randomUUID();
+        UUID otherProfileId = UUID.randomUUID();
+        Account account = service.createAccount(ownerProfileId,
+                cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
+        UUID accountId = account.getId();
+
+        assertThrows(NotFoundException.class,
+                () -> service.updateAccount(accountId, otherProfileId, "Renamed", null, null, null, null, null));
     }
 
     @Test
@@ -153,9 +175,9 @@ class AccountServiceTest {
         Account account = service.createAccount(null,
                 cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
 
-        service.deactivateAccount(account.getId());
+        service.deactivateAccount(account.getId(), null);
 
-        assertFalse(service.getAccount(account.getId()).isActive());
+        assertFalse(service.getAccount(account.getId(), null).isActive());
     }
 
     @Test
@@ -165,13 +187,23 @@ class AccountServiceTest {
         UUID accountId = account.getId();
         repo.markHasTransactions(accountId);
 
-        assertThrows(ConflictException.class, () -> service.deactivateAccount(accountId));
+        assertThrows(ConflictException.class, () -> service.deactivateAccount(accountId, null));
     }
 
     @Test
     void deactivateAccount_notFound_throwsNotFoundException() {
         UUID randomId = UUID.randomUUID();
-        assertThrows(NotFoundException.class, () -> service.deactivateAccount(randomId));
+        assertThrows(NotFoundException.class, () -> service.deactivateAccount(randomId, null));
+    }
+
+    @Test
+    void deactivateAccount_wrongProfile_throwsNotFoundException() {
+        UUID ownerProfileId = UUID.randomUUID();
+        UUID otherProfileId = UUID.randomUUID();
+        Account account = service.createAccount(ownerProfileId,
+                cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
+
+        assertThrows(NotFoundException.class, () -> service.deactivateAccount(account.getId(), otherProfileId));
     }
 
     // ---- Bug 2 fix: getAccountBalance = opening_balance + SUM(CREDIT) - SUM(DEBIT) ----
@@ -215,7 +247,7 @@ class AccountServiceTest {
         Account account = service.createAccount(null,
                 cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
 
-        Account updated = service.updateAccountClassification(account.getId(),
+        Account updated = service.updateAccountClassification(account.getId(), null,
                 new UpdateAccountClassificationCommand("EMERGENCY_FUND", "LIQUID", "SAFETY_NET", null, null, null, null, null));
 
         assertEquals("EMERGENCY_FUND", updated.getMetadata().get("category"));
@@ -228,7 +260,7 @@ class AccountServiceTest {
         Account account = service.createAccount(null,
                 cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
 
-        Account updated = service.updateAccountClassification(account.getId(),
+        Account updated = service.updateAccountClassification(account.getId(), null,
                 new UpdateAccountClassificationCommand("INVESTMENT", null, null, null, null, null, null, null));
 
         assertEquals("INVESTMENT", updated.getMetadata().get("category"));
@@ -241,9 +273,9 @@ class AccountServiceTest {
         Account account = service.createAccount(null,
                 cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
 
-        service.updateAccountClassification(account.getId(),
+        service.updateAccountClassification(account.getId(), null,
                 new UpdateAccountClassificationCommand("INVESTMENT", null, null, null, null, null, null, null));
-        Account updated = service.updateAccountClassification(account.getId(),
+        Account updated = service.updateAccountClassification(account.getId(), null,
                 new UpdateAccountClassificationCommand(null, "LIQUID", null, null, null, null, null, null));
 
         assertEquals("INVESTMENT", updated.getMetadata().get("category"));
@@ -256,7 +288,20 @@ class AccountServiceTest {
         UpdateAccountClassificationCommand command =
                 new UpdateAccountClassificationCommand("INVESTMENT", null, null, null, null, null, null, null);
         assertThrows(NotFoundException.class,
-                () -> service.updateAccountClassification(randomId, command));
+                () -> service.updateAccountClassification(randomId, null, command));
+    }
+
+    @Test
+    void updateAccountClassification_wrongProfile_throwsNotFoundException() {
+        UUID ownerProfileId = UUID.randomUUID();
+        UUID otherProfileId = UUID.randomUUID();
+        Account account = service.createAccount(ownerProfileId,
+                cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
+        UpdateAccountClassificationCommand command =
+                new UpdateAccountClassificationCommand("INVESTMENT", null, null, null, null, null, null, null);
+
+        assertThrows(NotFoundException.class,
+                () -> service.updateAccountClassification(account.getId(), otherProfileId, command));
     }
 
     @Test
@@ -266,7 +311,7 @@ class AccountServiceTest {
         String ownerA = UUID.randomUUID().toString();
         String ownerB = UUID.randomUUID().toString();
 
-        Account updated = service.updateAccountClassification(account.getId(),
+        Account updated = service.updateAccountClassification(account.getId(), null,
                 new UpdateAccountClassificationCommand(null, null, null, List.of(ownerA, ownerB), null, null, null, null));
 
         assertEquals(ownerA + "," + ownerB, updated.getMetadata().get("joint_owners"));
@@ -277,7 +322,7 @@ class AccountServiceTest {
         Account account = service.createAccount(null,
                 cmd("Home Loan", AccountType.HOME_LOAN, "SBI", new java.math.BigDecimal("5000000"), null, new java.math.BigDecimal("8.75"), new java.math.BigDecimal("45000")));
 
-        Account updated = service.updateAccountClassification(account.getId(),
+        Account updated = service.updateAccountClassification(account.getId(), null,
                 new UpdateAccountClassificationCommand(null, null, null, null, "5000000", "2023-04-01", "240", "savings-uuid-123"));
 
         assertEquals("5000000", updated.getMetadata().get("original_principal"));
@@ -321,6 +366,17 @@ class AccountServiceTest {
         @Override
         public Optional<Account> findById(UUID id) {
             return Optional.ofNullable(store.get(id));
+        }
+
+        @Override
+        public Optional<Account> findById(UUID id, UUID profileId) {
+            Account account = store.get(id);
+            if (account == null) return Optional.empty();
+            // null profileId in tests means "no scoping requested" — permissive, matching
+            // the many pre-existing tests that don't exercise profile isolation. A non-null
+            // profileId must match the stored account's profileId exactly (cross-profile test).
+            if (profileId != null && !profileId.equals(account.getProfileId())) return Optional.empty();
+            return Optional.of(account);
         }
 
         @Override

@@ -37,6 +37,7 @@ public class PhysicalAssetResource {
             @QueryParam("profile_id") UUID profileId,
             @QueryParam("page") Integer pageParam,
             @QueryParam("size") Integer sizeParam) {
+        profileId = ResourceUtils.requireProfileId(profileId);
         AssetType assetType = parseAssetType(assetTypeParam);
         int page = ResourceUtils.parsePage(pageParam);
         int size = ResourceUtils.parseSize(sizeParam);
@@ -50,6 +51,7 @@ public class PhysicalAssetResource {
     public Response createAsset(
             @QueryParam("profile_id") UUID profileId,
             CreatePhysicalAssetRequest request) {
+        profileId = ResourceUtils.requireProfileId(profileId);
         if (request == null) throw new BadRequestException("Request body is required");
         AssetType assetType = parseAssetType(request.assetType);
         if (assetType == null) throw new BadRequestException("asset_type is required");
@@ -65,23 +67,33 @@ public class PhysicalAssetResource {
 
     @GET
     @Path("/{asset_id}")
-    public PhysicalAssetResponse getAsset(@PathParam("asset_id") UUID assetId) {
-        return PhysicalAssetResponse.from(useCase.getAsset(assetId));
+    public PhysicalAssetResponse getAsset(
+            @PathParam("asset_id") UUID assetId,
+            @QueryParam("profile_id") UUID profileId) {
+        profileId = ResourceUtils.requireProfileId(profileId);
+        return PhysicalAssetResponse.from(useCase.getAsset(assetId, profileId));
     }
 
     @PATCH
     @Path("/{asset_id}")
-    public PhysicalAssetResponse updateAsset(@PathParam("asset_id") UUID assetId, UpdatePhysicalAssetRequest request) {
+    public PhysicalAssetResponse updateAsset(
+            @PathParam("asset_id") UUID assetId,
+            @QueryParam("profile_id") UUID profileId,
+            UpdatePhysicalAssetRequest request) {
+        profileId = ResourceUtils.requireProfileId(profileId);
         if (request == null) throw new BadRequestException("Request body is required");
         return PhysicalAssetResponse.from(
-                useCase.updateAsset(assetId, request.assetName, request.make, request.model,
+                useCase.updateAsset(assetId, profileId, request.assetName, request.make, request.model,
                         request.metadata, request.active));
     }
 
     @DELETE
     @Path("/{asset_id}")
-    public Response deactivateAsset(@PathParam("asset_id") UUID assetId) {
-        useCase.deactivateAsset(assetId);
+    public Response deactivateAsset(
+            @PathParam("asset_id") UUID assetId,
+            @QueryParam("profile_id") UUID profileId) {
+        profileId = ResourceUtils.requireProfileId(profileId);
+        useCase.deactivateAsset(assetId, profileId);
         return Response.noContent().build();
     }
 

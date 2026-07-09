@@ -9,6 +9,7 @@ import {
 } from '../../api/household';
 import { Field } from '../../components/Field';
 import { Modal } from '../../components/Modal';
+import { useAuth } from '../../hooks/useAuth';
 
 const UNITS = ['KG', 'G', 'L', 'ML', 'UNITS', 'PACK', 'DOZEN', 'OTHER'];
 
@@ -189,11 +190,13 @@ export const Inventory = () => {
   const [editError, setEditError] = useState(null);
   const [editSaving, setEditSaving] = useState(false);
 
+  const { user } = useAuth();
+
   useEffect(() => {
-    listProfiles(null, null)
+    listProfiles(user?.admin_id, null)
       .then((data) => setProfiles(data.profiles ?? []))
       .catch(() => setProfiles([]));
-  }, []);
+  }, [user?.admin_id]);
 
   const loadItems = useCallback(async () => {
     if (!selectedProfileId) return;

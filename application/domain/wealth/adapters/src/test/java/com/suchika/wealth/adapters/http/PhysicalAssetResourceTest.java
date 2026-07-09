@@ -59,6 +59,11 @@ class PhysicalAssetResourceTest {
     }
 
     @Test
+    void listAssets_missingProfileId_throwsBadRequest() {
+        assertThrows(BadRequestException.class, () -> resource.listAssets(null, true, null, null, null));
+    }
+
+    @Test
     void listAssets_defaultsPageAndSizeWhenNotProvided() {
         useCase.assetsToReturn = List.of(buildAsset());
 
@@ -127,6 +132,15 @@ class PhysicalAssetResourceTest {
     }
 
     @Test
+    void createAsset_missingProfileId_throwsBadRequest() {
+        CreatePhysicalAssetRequest request = new CreatePhysicalAssetRequest();
+        request.assetName = "Tata Nexon";
+        request.assetType = "VEHICLE";
+        request.registrationType = "PRIVATE";
+        assertThrows(BadRequestException.class, () -> resource.createAsset(null, request));
+    }
+
+    @Test
     void createAsset_missingAssetType_throwsBadRequest() {
         CreatePhysicalAssetRequest request = new CreatePhysicalAssetRequest();
         request.assetName = "No Type";
@@ -146,9 +160,15 @@ class PhysicalAssetResourceTest {
     void getAsset_returnsAssetResponse() {
         useCase.assetToReturn = buildAsset();
 
-        PhysicalAssetResponse response = resource.getAsset(ASSET_ID);
+        PhysicalAssetResponse response = resource.getAsset(ASSET_ID, PROFILE_ID);
 
         assertEquals("Tata Nexon", response.assetName);
+        assertEquals(PROFILE_ID, useCase.lastGetProfileId);
+    }
+
+    @Test
+    void getAsset_missingProfileId_throwsBadRequest() {
+        assertThrows(BadRequestException.class, () -> resource.getAsset(ASSET_ID, null));
     }
 
     @Test
@@ -157,24 +177,38 @@ class PhysicalAssetResourceTest {
         request.metadata = Map.of("puc_expiry", "2027-01-01");
         useCase.assetToReturn = buildAsset();
 
-        PhysicalAssetResponse response = resource.updateAsset(ASSET_ID, request);
+        PhysicalAssetResponse response = resource.updateAsset(ASSET_ID, PROFILE_ID, request);
 
         assertEquals("Tata Nexon", response.assetName);
         assertEquals(ASSET_ID, useCase.lastUpdateAssetId);
+        assertEquals(PROFILE_ID, useCase.lastUpdateProfileId);
         assertEquals("2027-01-01", useCase.lastUpdateMetadata.get("puc_expiry"));
     }
 
     @Test
     void updateAsset_nullBody_throwsBadRequest() {
-        assertThrows(BadRequestException.class, () -> resource.updateAsset(ASSET_ID, null));
+        assertThrows(BadRequestException.class, () -> resource.updateAsset(ASSET_ID, PROFILE_ID, null));
+    }
+
+    @Test
+    void updateAsset_missingProfileId_throwsBadRequest() {
+        UpdatePhysicalAssetRequest request = new UpdatePhysicalAssetRequest();
+        request.metadata = Map.of("puc_expiry", "2027-01-01");
+        assertThrows(BadRequestException.class, () -> resource.updateAsset(ASSET_ID, null, request));
     }
 
     @Test
     void deactivateAsset_returns204() {
-        Response response = resource.deactivateAsset(ASSET_ID);
+        Response response = resource.deactivateAsset(ASSET_ID, PROFILE_ID);
 
         assertEquals(204, response.getStatus());
         assertEquals(ASSET_ID, useCase.lastDeactivateAssetId);
+        assertEquals(PROFILE_ID, useCase.lastDeactivateProfileId);
+    }
+
+    @Test
+    void deactivateAsset_missingProfileId_throwsBadRequest() {
+        assertThrows(BadRequestException.class, () -> resource.deactivateAsset(ASSET_ID, null));
     }
 
     private PhysicalAsset buildAsset() {
@@ -195,8 +229,11 @@ class PhysicalAssetResourceTest {
 
         CreatePhysicalAssetCommand lastCreateCommand;
         UUID lastUpdateAssetId;
+        UUID lastUpdateProfileId;
         Map<String, String> lastUpdateMetadata;
         UUID lastDeactivateAssetId;
+        UUID lastDeactivateProfileId;
+        UUID lastGetProfileId;
 
         UUID lastListProfileId;
         AssetType lastListAssetType;
@@ -211,7 +248,8 @@ class PhysicalAssetResourceTest {
         }
 
         @Override
-        public PhysicalAsset getAsset(UUID id) {
+        public PhysicalAsset getAsset(UUID id, UUID profileId) {
+            lastGetProfileId = profileId;
             return assetToReturn;
         }
 
@@ -232,16 +270,18 @@ class PhysicalAssetResourceTest {
         }
 
         @Override
-        public PhysicalAsset updateAsset(UUID id, String assetName, String make, String model,
+        public PhysicalAsset updateAsset(UUID id, UUID profileId, String assetName, String make, String model,
                                           Map<String, String> metadata, Boolean isActive) {
             lastUpdateAssetId = id;
+            lastUpdateProfileId = profileId;
             lastUpdateMetadata = metadata;
             return assetToReturn;
         }
 
         @Override
-        public void deactivateAsset(UUID id) {
+        public void deactivateAsset(UUID id, UUID profileId) {
             lastDeactivateAssetId = id;
+            lastDeactivateProfileId = profileId;
         }
     }
 }

@@ -12,7 +12,7 @@ public class ListGoalsResponse {
     public List<GoalDto> goals;
 
     @JsonProperty("total_size")
-    public int totalSize;
+    public long totalSize;
 
     @JsonProperty("page")
     public Integer page;
@@ -31,7 +31,7 @@ public class ListGoalsResponse {
      */
     public ListGoalsResponse(List<GoalDto> goals, long totalSize, int page, int size) {
         this.goals = goals;
-        this.totalSize = (int) totalSize;
+        this.totalSize = totalSize;
         this.page = page;
         this.size = size;
     }

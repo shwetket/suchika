@@ -36,6 +36,7 @@ public class VitalReadingResource {
             @QueryParam("page") Integer pageParam,
             @QueryParam("size") Integer sizeParam) {
 
+        profileId = ResourceUtils.requireProfileId(profileId);
         VitalType vitalType = parseVitalType(vitalTypeParam);
         int page = ResourceUtils.parsePage(pageParam);
         int size = ResourceUtils.parseSize(sizeParam);
@@ -44,8 +45,6 @@ public class VitalReadingResource {
         List<VitalReadingResponse> readings = result.readings().stream().map(VitalReadingResponse::from).toList();
         return Response.ok(new ListVitalReadingsResponse(readings, result.totalCount(), page, size)).build();
     }
-
-
 
     @POST
     public Response recordVitalReading(RecordVitalReadingRequest request) {

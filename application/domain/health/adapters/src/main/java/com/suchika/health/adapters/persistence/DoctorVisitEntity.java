@@ -29,13 +29,13 @@ public class DoctorVisitEntity extends PanacheEntityBase {
     @Column(name = "visited_doctor", nullable = false)
     public boolean visitedDoctor = true;
 
-    @Column(name = "doctor_name", length = 100)
+    @Column(name = "doctor_name", length = 50)
     public String doctorName;
 
-    @Column(name = "hospital_name", length = 200)
+    @Column(name = "hospital_name", length = 50)
     public String hospitalName;
 
-    @Column(name = "speciality", length = 100)
+    @Column(name = "speciality", length = 50)
     public String speciality;
 
     @Column(name = "symptoms")

@@ -5,7 +5,7 @@
 | **Type** | Reference |
 | **Audience** | All developers |
 | **Status** | Active |
-| **Last updated** | 2026-06-23 |
+| **Last updated** | 2026-07-08 |
 
 ## Objective
 
@@ -39,12 +39,21 @@ Verifies no Flyway migration files exist inside `*/adapters/**/db/migration/`. A
 
 ### 2. `backend` (needs: migration-location-check)
 
+Runs as a 6-way matrix job (`Backend (${{ matrix.domain }})`), one job per domain: `shared`, `profile`, `wealth`, `health`, `household`, `web-gateway`. `fail-fast: false` — one domain failing doesn't cancel the others. Each matrix entry runs its own domain-scoped Gradle test tasks, e.g.:
+
 ```bash
-./gradlew test --continuous=false
+# profile
+./gradlew --no-daemon :application:domain:profile:domain:test :application:domain:profile:ports:test :application:domain:profile:adapters:test
+
+# web-gateway
+./gradlew --no-daemon :application:web-gateway:test
 ```
 
-Runs all JUnit and ArchUnit tests across every module. Requires Java 21 (Temurin).
-ArchUnit enforces domain layer purity — any `@Inject`, JPA annotation, or HTTP type inside `domain/` fails here.
+Requires Java 21 (Temurin). ArchUnit enforces domain layer purity — any `@Inject`, JPA annotation, or HTTP type inside `domain/` fails here.
+
+**Postgres per matrix job:** The four domains with a database (`profile`, `wealth`, `health`, `household` — `needs-postgres: true`) each get their own isolated `postgres:16` GitHub Actions service container (`shared` and `web-gateway` don't need one). For those four, the job first bootstraps the database (`psql ... CREATE DATABASE app_db` + `application/flyway/00_bootstrap.sql`), matching the one-time manual setup step a developer runs locally.
+
+**Profile schema pre-application (wealth/health/household only, not profile):** `wealth`, `health`, and `household` migrations carry FK `REFERENCES profile.profile`, so their matrix jobs apply the profile schema directly via `psql` (running `V1__init_profile_consolidated.sql` plus the profile test-seed file) before their own Gradle test task runs. The `profile` matrix job itself skips this step — its own test suite (`SetupWizardIT`, a `@QuarkusTest`) runs profile's Flyway migration for real, and pre-applying the schema via raw `psql` first would bypass `flyway_schema_history`, causing Flyway to refuse to start with "Found non-empty schema(s) profile but no schema history table." This is called out as an inline comment in `ci.yml`.
 
 ### 3. `frontend` (needs: backend)
 
@@ -147,19 +156,20 @@ Four additional workflows and two config files run on every pull request (not on
 
 Validates the source branch name before any code is reviewed.
 
-**Required pattern:** `<type>/<description>`
+**Required pattern:** `^[a-zA-Z][a-zA-Z0-9_-]{3,}$` — starts with a letter, followed by 3 or more letters, digits, hyphens, or underscores (min 4 characters total). No slash, no required type prefix. Uppercase letters and underscores are both allowed.
 
-| Segment | Rule |
-|---|---|
-| `type` | One of: `feat`, `fix`, `docs`, `refactor`, `chore`, `test`, `ci`, `hotfix`, `perf` |
-| `description` | Lowercase letters, numbers, and hyphens only — no uppercase, no underscores, no slashes |
-
-**Valid examples:**
+**Valid examples** (from the workflow's own error message):
 ```
-feat/wealth-csv-upload
-fix/health-negative-weight-validation
-ci/add-branch-enforcement
-hotfix/profile-null-pointer
+feat-wealth-upload
+fix-health-bp
+my-feature-123
+```
+
+**Invalid examples:**
+```
+123-branch     (starts with a digit)
+ab             (too short)
+feat branch    (contains a space)
 ```
 
 **What happens on failure:** the workflow prints the rejected branch name and the required format, then exits 1. You must create a new branch with a conforming name — you cannot rename an existing branch after a PR is open.
@@ -214,6 +224,6 @@ Example mappings:
 - All domain services use the same PostgreSQL database (`app_db`) with separate schemas per domain.
 - No cross-domain SQL joins, ever.
 - CI triggers on `main` branch only — `master` trigger was removed.
-- Branch names must match `<type>/<description>` — allowed types: `feat`, `fix`, `docs`, `refactor`, `chore`, `test`, `ci`, `hotfix`, `perf`.
+- Branch names must match `^[a-zA-Z][a-zA-Z0-9_-]{3,}$` — starts with a letter, min 4 chars, letters/digits/hyphens/underscores only. No type prefix or slash required.
 - PR titles must follow Conventional Commits format — same type list, optional scope from the allowed scope list.
 - See [CONTRIBUTING.md](../CONTRIBUTING.md) for the full branch/PR quick-reference with examples.

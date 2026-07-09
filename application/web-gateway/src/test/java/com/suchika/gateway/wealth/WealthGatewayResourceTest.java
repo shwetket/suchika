@@ -15,6 +15,7 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -29,7 +30,7 @@ class WealthGatewayResourceTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        when(wealthServiceClient.getAccount(UUID.fromString("f3b90000-0000-0000-0000-000000000000")))
+        when(wealthServiceClient.getAccount(eq(UUID.fromString("f3b90000-0000-0000-0000-000000000000")), any()))
                 .thenReturn(mapper.readTree(
                         "{\"account_id\":\"f3b90000-0000-0000-0000-000000000000\","
                         + "\"account_name\":\"Test Account\","

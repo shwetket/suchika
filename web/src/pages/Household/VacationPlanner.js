@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import { useMutation } from '@tanstack/react-query';
 import { listProfiles } from '../../api/profiles';
 import { checkVacationBudget } from '../../api/vacationPlanner';
+import { useAuth } from '../../hooks/useAuth';
 
 const inputClass =
   'border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
@@ -123,11 +124,13 @@ export const VacationPlanner = () => {
   const [tripStartDate, setTripStartDate] = useState('');
   const [tripEndDate, setTripEndDate] = useState('');
 
+  const { user } = useAuth();
+
   useEffect(() => {
-    listProfiles(null, null)
+    listProfiles(user?.admin_id, null)
       .then((data) => setProfiles(data.profiles ?? []))
       .catch(() => setProfiles([]));
-  }, []);
+  }, [user?.admin_id]);
 
   const checkMutation = useMutation({
     mutationFn: () =>

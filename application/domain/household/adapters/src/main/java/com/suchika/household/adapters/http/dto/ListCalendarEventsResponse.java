@@ -12,7 +12,7 @@ public class ListCalendarEventsResponse {
     public List<CalendarEventDto> calendarEvents;
 
     @JsonProperty("total_size")
-    public int totalSize;
+    public long totalSize;
 
     @JsonProperty("page")
     public Integer page;
@@ -31,7 +31,7 @@ public class ListCalendarEventsResponse {
      */
     public ListCalendarEventsResponse(List<CalendarEventDto> calendarEvents, long totalSize, int page, int size) {
         this.calendarEvents = calendarEvents;
-        this.totalSize = (int) totalSize;
+        this.totalSize = totalSize;
         this.page = page;
         this.size = size;
     }

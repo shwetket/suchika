@@ -35,6 +35,13 @@ public class AccountPanacheRepository implements AccountRepository {
     }
 
     @Override
+    public Optional<Account> findById(UUID id, UUID profileId) {
+        return dao.find("id = ?1 and profileId = ?2", id, profileId)
+                .firstResultOptional()
+                .map(AccountEntity::toDomain);
+    }
+
+    @Override
     public List<Account> findAll(UUID profileId, AccountType accountType, Boolean isActive) {
         StringBuilder query = new StringBuilder();
         List<Object> params = new java.util.ArrayList<>();

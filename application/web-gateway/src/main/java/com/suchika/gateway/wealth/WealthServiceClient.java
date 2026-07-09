@@ -29,7 +29,9 @@ public interface WealthServiceClient {
 
     @GET
     @Path("/accounts/{accountId}")
-    JsonNode getAccount(@PathParam("accountId") UUID accountId);
+    JsonNode getAccount(
+            @PathParam("accountId") UUID accountId,
+            @QueryParam("profile_id") String profileId);
 
     @GET
     @Path("/accounts/{accountId}/balance")
@@ -39,15 +41,23 @@ public interface WealthServiceClient {
 
     @PATCH
     @Path("/accounts/{accountId}")
-    JsonNode updateAccount(@PathParam("accountId") UUID accountId, JsonNode body);
+    JsonNode updateAccount(
+            @PathParam("accountId") UUID accountId,
+            @QueryParam("profile_id") String profileId,
+            JsonNode body);
 
     @PATCH
     @Path("/accounts/{accountId}/classification")
-    JsonNode updateAccountClassification(@PathParam("accountId") UUID accountId, JsonNode body);
+    JsonNode updateAccountClassification(
+            @PathParam("accountId") UUID accountId,
+            @QueryParam("profile_id") String profileId,
+            JsonNode body);
 
     @DELETE
     @Path("/accounts/{accountId}")
-    void deactivateAccount(@PathParam("accountId") UUID accountId);
+    void deactivateAccount(
+            @PathParam("accountId") UUID accountId,
+            @QueryParam("profile_id") String profileId);
 
     @POST
     @Path("/accounts/{accountId}/transactions")
@@ -121,15 +131,22 @@ public interface WealthServiceClient {
 
     @GET
     @Path("/physical-assets/{assetId}")
-    JsonNode getPhysicalAsset(@PathParam("assetId") UUID assetId);
+    JsonNode getPhysicalAsset(
+            @PathParam("assetId") UUID assetId,
+            @QueryParam("profile_id") String profileId);
 
     @PATCH
     @Path("/physical-assets/{assetId}")
-    JsonNode updatePhysicalAsset(@PathParam("assetId") UUID assetId, JsonNode body);
+    JsonNode updatePhysicalAsset(
+            @PathParam("assetId") UUID assetId,
+            @QueryParam("profile_id") String profileId,
+            JsonNode body);
 
     @DELETE
     @Path("/physical-assets/{assetId}")
-    void deactivatePhysicalAsset(@PathParam("assetId") UUID assetId);
+    void deactivatePhysicalAsset(
+            @PathParam("assetId") UUID assetId,
+            @QueryParam("profile_id") String profileId);
 
     @GET
     @Path("/accounts/{accountId}/amortization")

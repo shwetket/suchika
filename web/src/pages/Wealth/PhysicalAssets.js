@@ -9,6 +9,7 @@ import {
 } from '../../api/wealth';
 import { Field } from '../../components/Field';
 import { Modal } from '../../components/Modal';
+import { useAuth } from '../../hooks/useAuth';
 
 const ASSET_TYPES = ['VEHICLE'];
 const REGISTRATION_TYPES = ['PRIVATE', 'COMMERCIAL', 'GOVERNMENT', 'BH_SERIES'];
@@ -147,11 +148,13 @@ export const PhysicalAssets = () => {
   const [confirmTarget, setConfirmTarget] = useState(null);
   const [deactivating, setDeactivating] = useState(false);
 
+  const { user } = useAuth();
+
   useEffect(() => {
-    listProfiles(null, null)
+    listProfiles(user?.admin_id, null)
       .then((data) => setProfiles(data.profiles ?? []))
       .catch(() => setProfiles([]));
-  }, []);
+  }, [user?.admin_id]);
 
   const loadAssets = useCallback(async () => {
     if (!selectedProfileId) return;
@@ -257,7 +260,7 @@ export const PhysicalAssets = () => {
       setEditSaving(true);
       setEditError(null);
       try {
-        await updatePhysicalAsset(editingAsset.asset_id, {
+        await updatePhysicalAsset(editingAsset.asset_id, selectedProfileId, {
           asset_name: editForm.asset_name || null,
           make: editForm.make || null,
           model: editForm.model || null,
@@ -276,14 +279,14 @@ export const PhysicalAssets = () => {
         setEditSaving(false);
       }
     },
-    [editingAsset, editForm, loadAssets]
+    [editingAsset, editForm, loadAssets, selectedProfileId]
   );
 
   const handleDeactivate = useCallback(async () => {
     if (!confirmTarget) return;
     setDeactivating(true);
     try {
-      await deactivatePhysicalAsset(confirmTarget.asset_id);
+      await deactivatePhysicalAsset(confirmTarget.asset_id, selectedProfileId);
       setConfirmTarget(null);
       await loadAssets();
     } catch (err) {
@@ -292,7 +295,7 @@ export const PhysicalAssets = () => {
     } finally {
       setDeactivating(false);
     }
-  }, [confirmTarget, loadAssets]);
+  }, [confirmTarget, loadAssets, selectedProfileId]);
 
   return (
     <div className="p-6 max-w-5xl mx-auto">

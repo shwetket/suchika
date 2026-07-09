@@ -44,7 +44,7 @@ public class GoalResource {
             @QueryParam("status") String status,
             @QueryParam("page") Integer pageParam,
             @QueryParam("size") Integer sizeParam) {
-        if (profileId == null) throw new BadRequestException("profile_id is required");
+        profileId = ResourceUtils.requireProfileId(profileId);
         GoalStatus goalStatus = parseStatus(status);
         int page = ResourceUtils.parsePage(pageParam);
         int size = ResourceUtils.parseSize(sizeParam);

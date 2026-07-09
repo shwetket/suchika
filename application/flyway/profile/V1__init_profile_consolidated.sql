@@ -18,7 +18,6 @@ CREATE TABLE profile.profile (
     email_address     VARCHAR(255),
     gender            VARCHAR(30),
     blood_type        VARCHAR(10),
-    metadata          JSONB        NOT NULL DEFAULT '{}'::jsonb,
     is_active         BOOLEAN      NOT NULL DEFAULT TRUE,
     created_at        TIMESTAMPTZ  NOT NULL DEFAULT now(),
     CONSTRAINT pk_profile PRIMARY KEY (id),

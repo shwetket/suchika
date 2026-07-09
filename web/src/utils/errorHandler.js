@@ -69,6 +69,14 @@ export class ApplicationException extends Error {
  * @returns {ApplicationException} Parsed error
  */
 export const parseErrorResponse = (response) => {
+  // Already a parsed ApplicationException (e.g. re-thrown by retryWithBackoff) — pass through
+  // unchanged. Without this, response.statusCode wouldn't match the response.status check below
+  // (ApplicationException stores it as statusCode, not status) and the real error would be
+  // silently collapsed into a generic 500.
+  if (response instanceof ApplicationException) {
+    return response;
+  }
+
   let errorData = {
     status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
     errorCode: ERROR_CODES.INTERNAL_SERVER_ERROR,

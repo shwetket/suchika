@@ -60,6 +60,35 @@ class AccountPanacheRepositoryTest {
         assertTrue(repository.findById(UUID.randomUUID()).isEmpty());
     }
 
+    // ---- v0.5.1 remediation (Tier B): profile-scoped findById ----
+
+    @Test
+    void findByIdProfileScoped_ownerProfile_returnsAccount() {
+        UUID seededProfileId = UUID.fromString("00000000-0000-0000-0000-000000000002");
+        Account saved = repository.save(accountWithProfile("Scoped Find Acc", AccountType.SAVINGS, "Bank A", seededProfileId));
+
+        Optional<Account> found = repository.findById(saved.getId(), seededProfileId);
+
+        assertTrue(found.isPresent());
+        assertEquals("Scoped Find Acc", found.get().getAccountName());
+    }
+
+    @Test
+    void findByIdProfileScoped_wrongProfile_returnsEmpty() {
+        UUID seededProfileId = UUID.fromString("00000000-0000-0000-0000-000000000002");
+        UUID otherProfileId = UUID.randomUUID();
+        Account saved = repository.save(accountWithProfile("Cross Profile Acc", AccountType.SAVINGS, "Bank A", seededProfileId));
+
+        Optional<Account> found = repository.findById(saved.getId(), otherProfileId);
+
+        assertTrue(found.isEmpty(), "A different profile_id must not be able to fetch another profile's account");
+    }
+
+    @Test
+    void findByIdProfileScoped_notFound_returnsEmpty() {
+        assertTrue(repository.findById(UUID.randomUUID(), UUID.randomUUID()).isEmpty());
+    }
+
     @Test
     void findAll_filtersByAccountType() {
         repository.save(account("Savings Acc", AccountType.SAVINGS, "HDFC Bank", null));

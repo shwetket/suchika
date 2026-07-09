@@ -13,6 +13,13 @@ public interface PhysicalAssetRepository {
 
     Optional<PhysicalAsset> findById(UUID id);
 
+    /**
+     * Profile-scoped lookup — v0.5.1 remediation (Tier B). Returns empty both when
+     * the id doesn't exist at all AND when it exists but belongs to a different
+     * profile, so callers can 404 without leaking cross-profile existence.
+     */
+    Optional<PhysicalAsset> findById(UUID id, UUID profileId);
+
     List<PhysicalAsset> findAll(UUID profileId, AssetType assetType, Boolean isActive);
 
     /**

@@ -112,6 +112,12 @@ class DoctorVisitResourceTest {
     }
 
     @Test
+    void listVisits_missingProfileId_throwsBadRequest() {
+        assertThrows(BadRequestException.class,
+                () -> resource.listVisits(null, null, null, null, null));
+    }
+
+    @Test
     void create_returns201_withCreatedVisit() {
         CreateDoctorVisitRequest request = new CreateDoctorVisitRequest();
         request.profileId = PROFILE_ID;

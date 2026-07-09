@@ -68,3 +68,7 @@ __pycache__/
 web/test-results/*
 web/test-results
 web/test-results/.last-run.json
+.referance/*
+review-*.md
+/web/test-results/
+/web/test-results/*

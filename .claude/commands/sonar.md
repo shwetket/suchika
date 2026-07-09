@@ -44,7 +44,7 @@ Then wait 15 seconds for background processing before querying results.
 ## Step 4 — Pull Results
 
 ```powershell
-$token = "sqp_67feaac2593aeeda89632d4dbbdc5f828c1c5437"
+$token = $env:SONAR_TOKEN  # set this first: $env:SONAR_TOKEN = "sqp_..." (get one at http://localhost:9000/account/security)
 $issues = Invoke-RestMethod "http://localhost:9000/api/issues/search?componentKeys=suchika&resolved=false&ps=100" `
   -Headers @{Authorization = "Bearer $token"}
 Write-Host "Open issues: $($issues.total)"

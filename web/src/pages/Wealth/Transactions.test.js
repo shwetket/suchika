@@ -2,6 +2,11 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { WealthTransactions } from './Transactions';
 
+const mockUseAuth = jest.fn();
+jest.mock('../../hooks/useAuth', () => ({
+  useAuth: () => mockUseAuth(),
+}));
+
 jest.mock('../../api/profiles', () => ({
   listProfiles: jest.fn(),
 }));
@@ -38,6 +43,7 @@ const MOCK_ACCOUNTS = [
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockUseAuth.mockReturnValue({ user: { admin_id: 'admin-1' } });
   listProfiles.mockResolvedValue({ profiles: MOCK_PROFILES });
   listAccounts.mockResolvedValue({ accounts: MOCK_ACCOUNTS });
   listTransactions.mockResolvedValue({ transactions: [] });

@@ -54,10 +54,10 @@ describe('createAccount', () => {
 });
 
 describe('getAccount', () => {
-  it('calls get with account id path', () => {
+  it('calls get with account id path and profile_id', () => {
     get.mockResolvedValue({});
-    getAccount('acc-123');
-    expect(get).toHaveBeenCalledWith('/v1/accounts/acc-123');
+    getAccount('acc-123', 'p1');
+    expect(get).toHaveBeenCalledWith('/v1/accounts/acc-123?profile_id=p1');
   });
 });
 
@@ -65,16 +65,16 @@ describe('updateAccount', () => {
   it('calls patch with correct path and data', () => {
     patch.mockResolvedValue({});
     const data = { account_name: 'Updated' };
-    updateAccount('acc-123', data);
-    expect(patch).toHaveBeenCalledWith('/v1/accounts/acc-123', data);
+    updateAccount('acc-123', 'p1', data);
+    expect(patch).toHaveBeenCalledWith('/v1/accounts/acc-123?profile_id=p1', data);
   });
 });
 
 describe('deactivateAccount', () => {
   it('calls del with correct path', () => {
     del.mockResolvedValue(null);
-    deactivateAccount('acc-123');
-    expect(del).toHaveBeenCalledWith('/v1/accounts/acc-123');
+    deactivateAccount('acc-123', 'p1');
+    expect(del).toHaveBeenCalledWith('/v1/accounts/acc-123?profile_id=p1');
   });
 });
 

@@ -11,6 +11,7 @@ import {
   updateAccount,
   updateAccountClassification,
 } from '../../api/wealth';
+import { useAuth } from '../../hooks/useAuth';
 
 const ACCOUNT_TYPES = [
   'SAVINGS',
@@ -272,11 +273,13 @@ export const Accounts = () => {
   const [confirmTarget, setConfirmTarget] = useState(null);
   const [deactivating, setDeactivating] = useState(false);
 
+  const { user } = useAuth();
+
   useEffect(() => {
-    listProfiles(null, null)
+    listProfiles(user?.admin_id, null)
       .then((data) => setProfiles(data.profiles ?? []))
       .catch(() => setProfiles([]));
-  }, []);
+  }, [user?.admin_id]);
 
   const loadAccounts = useCallback(async () => {
     if (!selectedProfileId) return;
@@ -399,7 +402,7 @@ export const Accounts = () => {
       setEditSaving(true);
       setEditError(null);
       try {
-        await updateAccount(editingAccount.account_id, {
+        await updateAccount(editingAccount.account_id, selectedProfileId, {
           account_name: editForm.account_name || null,
           opening_balance:
             editForm.opening_balance === '' ? null : Number(editForm.opening_balance),
@@ -411,7 +414,7 @@ export const Accounts = () => {
         if (LOAN_TYPES.has(editingAccount.account_type)) {
           const loanMeta = buildLoanMetadataPatch(editForm);
           if (Object.keys(loanMeta).length > 0) {
-            await updateAccountClassification(editingAccount.account_id, loanMeta);
+            await updateAccountClassification(editingAccount.account_id, selectedProfileId, loanMeta);
           }
         }
         setEditingAccount(null);
@@ -422,14 +425,14 @@ export const Accounts = () => {
         setEditSaving(false);
       }
     },
-    [editingAccount, editForm, loadAccounts]
+    [editingAccount, editForm, loadAccounts, selectedProfileId]
   );
 
   const handleDeactivate = useCallback(async () => {
     if (!confirmTarget) return;
     setDeactivating(true);
     try {
-      await deactivateAccount(confirmTarget.account_id);
+      await deactivateAccount(confirmTarget.account_id, selectedProfileId);
       setConfirmTarget(null);
       await loadAccounts();
     } catch (err) {
@@ -438,7 +441,7 @@ export const Accounts = () => {
     } finally {
       setDeactivating(false);
     }
-  }, [confirmTarget, loadAccounts]);
+  }, [confirmTarget, loadAccounts, selectedProfileId]);
 
   return (
     <div className="p-6 max-w-5xl mx-auto">

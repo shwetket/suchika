@@ -11,6 +11,7 @@ import com.suchika.wealth.domain.AccountType;
 import com.suchika.wealth.ports.input.AccountUseCase;
 import com.suchika.wealth.ports.input.CreateAccountCommand;
 import com.suchika.shared.exception.BadRequestException;
+import com.suchika.shared.utils.ResourceUtils;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -34,6 +35,7 @@ public class AccountResource {
             @QueryParam("account_type") String accountTypeParam,
             @QueryParam("is_active") Boolean isActive,
             @QueryParam("profile_id") UUID profileId) {
+        profileId = ResourceUtils.requireProfileId(profileId);
         AccountType accountType = parseAccountType(accountTypeParam);
         List<AccountResponse> accounts = useCase.listAccounts(profileId, accountType, isActive)
                 .stream().map(AccountResponse::from).toList();
@@ -44,6 +46,7 @@ public class AccountResource {
     public Response createAccount(
             @QueryParam("profile_id") UUID profileId,
             CreateAccountRequest request) {
+        profileId = ResourceUtils.requireProfileId(profileId);
         if (request == null) throw new BadRequestException("Request body is required");
         AccountType accountType = parseAccountType(request.accountType);
         if (accountType == null) throw new BadRequestException("account_type is required");
@@ -55,23 +58,33 @@ public class AccountResource {
 
     @GET
     @Path("/{account_id}")
-    public AccountResponse getAccount(@PathParam("account_id") UUID accountId) {
-        return AccountResponse.from(useCase.getAccount(accountId));
+    public AccountResponse getAccount(
+            @PathParam("account_id") UUID accountId,
+            @QueryParam("profile_id") UUID profileId) {
+        profileId = ResourceUtils.requireProfileId(profileId);
+        return AccountResponse.from(useCase.getAccount(accountId, profileId));
     }
 
     @PATCH
     @Path("/{account_id}")
-    public AccountResponse updateAccount(@PathParam("account_id") UUID accountId, UpdateAccountRequest request) {
+    public AccountResponse updateAccount(
+            @PathParam("account_id") UUID accountId,
+            @QueryParam("profile_id") UUID profileId,
+            UpdateAccountRequest request) {
+        profileId = ResourceUtils.requireProfileId(profileId);
         if (request == null) throw new BadRequestException("Request body is required");
         return AccountResponse.from(
-                useCase.updateAccount(accountId, request.accountName, request.openingBalance,
+                useCase.updateAccount(accountId, profileId, request.accountName, request.openingBalance,
                         request.creditLimit, request.interestRate, request.emiAmount, request.active));
     }
 
     @DELETE
     @Path("/{account_id}")
-    public Response deactivateAccount(@PathParam("account_id") UUID accountId) {
-        useCase.deactivateAccount(accountId);
+    public Response deactivateAccount(
+            @PathParam("account_id") UUID accountId,
+            @QueryParam("profile_id") UUID profileId) {
+        profileId = ResourceUtils.requireProfileId(profileId);
+        useCase.deactivateAccount(accountId, profileId);
         return Response.noContent().build();
     }
 
@@ -80,6 +93,7 @@ public class AccountResource {
     public AccountBalanceResponse getAccountBalance(
             @PathParam("account_id") UUID accountId,
             @QueryParam("profile_id") UUID profileId) {
+        profileId = ResourceUtils.requireProfileId(profileId);
         return AccountBalanceResponse.from(useCase.getAccountBalance(accountId, profileId));
     }
 
@@ -87,9 +101,11 @@ public class AccountResource {
     @Path("/{account_id}/classification")
     public AccountResponse updateAccountClassification(
             @PathParam("account_id") UUID accountId,
+            @QueryParam("profile_id") UUID profileId,
             UpdateAccountClassificationRequest request) {
+        profileId = ResourceUtils.requireProfileId(profileId);
         if (request == null) throw new BadRequestException("Request body is required");
-        return AccountResponse.from(useCase.updateAccountClassification(accountId,
+        return AccountResponse.from(useCase.updateAccountClassification(accountId, profileId,
                 new com.suchika.wealth.ports.input.UpdateAccountClassificationCommand(
                         request.category, request.liquidityTier, request.purposeTag, request.jointOwners,
                         request.loanOriginalPrincipal, request.loanStartDate, request.loanTenureMonths,
@@ -101,6 +117,7 @@ public class AccountResource {
     public AmortizationSummaryResponse getAmortization(
             @PathParam("account_id") UUID accountId,
             @QueryParam("profile_id") UUID profileId) {
+        profileId = ResourceUtils.requireProfileId(profileId);
         return AmortizationSummaryResponse.from(useCase.getAmortization(accountId, profileId));
     }
 

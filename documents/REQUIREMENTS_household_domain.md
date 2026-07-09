@@ -5,11 +5,11 @@
 | **Type** | Requirements |
 | **Audience** | Developers, product |
 | **Status** | Active |
-| **Last updated** | 2026-06-23 |
+| **Last updated** | 2026-07-08 |
 
 ## Objective
 
-Define all functional requirements, epics, and acceptance criteria for the Household domain across every version milestone. This domain is not yet implemented (v0.3 planned). This document is the source of truth for what must be built — calendar events, inventory, goals, and home automation.
+Define all functional requirements, epics, and acceptance criteria for the Household domain across every version milestone. This domain has been fully implemented and live since v0.3 (2026-07-02/03) — backend, gateway, and frontend all complete for calendar events, inventory, and goals; home automation (Epic 5) remains unbuilt. This document is the source of truth for what must be built — calendar events, inventory, goals, and home automation.
 
 ## Use Cases
 
