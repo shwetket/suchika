@@ -47,14 +47,19 @@ public class WealthGatewayResource {
 
     @GET
     @Path("/accounts/{accountId}")
-    public JsonNode getAccount(@PathParam("accountId") UUID accountId) {
-        return wealthServiceClient.getAccount(accountId);
+    public JsonNode getAccount(
+            @PathParam("accountId") UUID accountId,
+            @QueryParam("profile_id") String profileId) {
+        return wealthServiceClient.getAccount(accountId, profileId);
     }
 
     @PATCH
     @Path("/accounts/{accountId}")
-    public JsonNode updateAccount(@PathParam("accountId") UUID accountId, JsonNode body) {
-        return wealthServiceClient.updateAccount(accountId, body);
+    public JsonNode updateAccount(
+            @PathParam("accountId") UUID accountId,
+            @QueryParam("profile_id") String profileId,
+            JsonNode body) {
+        return wealthServiceClient.updateAccount(accountId, profileId, body);
     }
 
     @GET
@@ -67,14 +72,19 @@ public class WealthGatewayResource {
 
     @PATCH
     @Path("/accounts/{accountId}/classification")
-    public JsonNode updateAccountClassification(@PathParam("accountId") UUID accountId, JsonNode body) {
-        return wealthServiceClient.updateAccountClassification(accountId, body);
+    public JsonNode updateAccountClassification(
+            @PathParam("accountId") UUID accountId,
+            @QueryParam("profile_id") String profileId,
+            JsonNode body) {
+        return wealthServiceClient.updateAccountClassification(accountId, profileId, body);
     }
 
     @DELETE
     @Path("/accounts/{accountId}")
-    public Response deactivateAccount(@PathParam("accountId") UUID accountId) {
-        wealthServiceClient.deactivateAccount(accountId);
+    public Response deactivateAccount(
+            @PathParam("accountId") UUID accountId,
+            @QueryParam("profile_id") String profileId) {
+        wealthServiceClient.deactivateAccount(accountId, profileId);
         return Response.noContent().build();
     }
 
@@ -191,20 +201,27 @@ public class WealthGatewayResource {
 
     @GET
     @Path("/physical-assets/{assetId}")
-    public JsonNode getPhysicalAsset(@PathParam("assetId") UUID assetId) {
-        return wealthServiceClient.getPhysicalAsset(assetId);
+    public JsonNode getPhysicalAsset(
+            @PathParam("assetId") UUID assetId,
+            @QueryParam("profile_id") String profileId) {
+        return wealthServiceClient.getPhysicalAsset(assetId, profileId);
     }
 
     @PATCH
     @Path("/physical-assets/{assetId}")
-    public JsonNode updatePhysicalAsset(@PathParam("assetId") UUID assetId, JsonNode body) {
-        return wealthServiceClient.updatePhysicalAsset(assetId, body);
+    public JsonNode updatePhysicalAsset(
+            @PathParam("assetId") UUID assetId,
+            @QueryParam("profile_id") String profileId,
+            JsonNode body) {
+        return wealthServiceClient.updatePhysicalAsset(assetId, profileId, body);
     }
 
     @DELETE
     @Path("/physical-assets/{assetId}")
-    public Response deactivatePhysicalAsset(@PathParam("assetId") UUID assetId) {
-        wealthServiceClient.deactivatePhysicalAsset(assetId);
+    public Response deactivatePhysicalAsset(
+            @PathParam("assetId") UUID assetId,
+            @QueryParam("profile_id") String profileId) {
+        wealthServiceClient.deactivatePhysicalAsset(assetId, profileId);
         return Response.noContent().build();
     }
 

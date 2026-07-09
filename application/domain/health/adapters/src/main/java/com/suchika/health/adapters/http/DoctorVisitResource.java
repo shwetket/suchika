@@ -37,6 +37,7 @@ public class DoctorVisitResource {
             @QueryParam("to") String toParam,
             @QueryParam("page") Integer pageParam,
             @QueryParam("size") Integer sizeParam) {
+        profileId = ResourceUtils.requireProfileId(profileId);
         LocalDate from = ResourceUtils.parseDate(fromParam, "from");
         LocalDate to = ResourceUtils.parseDate(toParam, "to");
         int page = ResourceUtils.parsePage(pageParam);

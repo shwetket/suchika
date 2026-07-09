@@ -111,6 +111,7 @@ paths:
       description: Follows AIP-131.
       parameters:
         - $ref: '#/components/parameters/AccountId'
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
       responses:
         '200':
           description: OK
@@ -133,6 +134,7 @@ paths:
         Follows AIP-134.
       parameters:
         - $ref: '#/components/parameters/AccountId'
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
       requestBody:
         required: true
         content:
@@ -163,6 +165,7 @@ paths:
         Follows AIP-135.
       parameters:
         - $ref: '#/components/parameters/AccountId'
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
       responses:
         '204':
           description: Account deactivated
@@ -234,6 +237,7 @@ paths:
         Decision 2) into the account's existing metadata map. All fields optional.
       parameters:
         - $ref: '#/components/parameters/AccountId'
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
       requestBody:
         required: true
         content:
@@ -603,6 +607,7 @@ paths:
       description: Follows AIP-131.
       parameters:
         - $ref: '#/components/parameters/AssetId'
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
       responses:
         '200':
           description: OK
@@ -626,6 +631,7 @@ paths:
         Follows AIP-134.
       parameters:
         - $ref: '#/components/parameters/AssetId'
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
       requestBody:
         required: true
         content:
@@ -653,6 +659,7 @@ paths:
       description: Soft-deletes a physical asset (is_active = false). Follows AIP-135.
       parameters:
         - $ref: '#/components/parameters/AssetId'
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
       responses:
         '204':
           description: Physical asset deactivated

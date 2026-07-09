@@ -36,6 +36,7 @@ public class VitalReadingResource {
             @QueryParam("page") Integer pageParam,
             @QueryParam("size") Integer sizeParam) {
 
+        profileId = ResourceUtils.requireProfileId(profileId);
         VitalType vitalType = parseVitalType(vitalTypeParam);
         int page = ResourceUtils.parsePage(pageParam);
         int size = ResourceUtils.parseSize(sizeParam);

@@ -65,6 +65,35 @@ class PhysicalAssetPanacheRepositoryTest {
         assertTrue(repository.findById(UUID.randomUUID()).isEmpty());
     }
 
+    // ---- v0.5.1 remediation (Tier B): profile-scoped findById ----
+
+    @Test
+    void findByIdProfileScoped_ownerProfile_returnsAsset() {
+        UUID profileId = saveProfile("Scoped Find Owner");
+        PhysicalAsset saved = repository.save(asset(profileId, "Scoped Find Car", "KA-05-AB-0001"));
+
+        Optional<PhysicalAsset> found = repository.findById(saved.getId(), profileId);
+
+        assertTrue(found.isPresent());
+        assertEquals("Scoped Find Car", found.get().getAssetName());
+    }
+
+    @Test
+    void findByIdProfileScoped_wrongProfile_returnsEmpty() {
+        UUID ownerProfileId = saveProfile("Cross Profile Owner");
+        UUID otherProfileId = saveProfile("Cross Profile Other");
+        PhysicalAsset saved = repository.save(asset(ownerProfileId, "Cross Profile Car", "KA-05-AB-0002"));
+
+        Optional<PhysicalAsset> found = repository.findById(saved.getId(), otherProfileId);
+
+        assertTrue(found.isEmpty(), "A different profile_id must not be able to fetch another profile's asset");
+    }
+
+    @Test
+    void findByIdProfileScoped_notFound_returnsEmpty() {
+        assertTrue(repository.findById(UUID.randomUUID(), UUID.randomUUID()).isEmpty());
+    }
+
     // ---- v1.0 pagination extension (Q54): physical asset list pagination ----
 
     @Test

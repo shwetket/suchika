@@ -2,6 +2,11 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { Calendar } from './Calendar';
 
+const mockUseAuth = jest.fn();
+jest.mock('../../hooks/useAuth', () => ({
+  useAuth: () => mockUseAuth(),
+}));
+
 jest.mock('../../api/profiles', () => ({
   listProfiles: jest.fn(),
 }));
@@ -47,6 +52,7 @@ const MOCK_EVENTS = [
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockUseAuth.mockReturnValue({ user: { admin_id: 'admin-1' } });
   listProfiles.mockResolvedValue({ profiles: MOCK_PROFILES });
   listCalendarEvents.mockResolvedValue({ calendar_events: [] });
 });

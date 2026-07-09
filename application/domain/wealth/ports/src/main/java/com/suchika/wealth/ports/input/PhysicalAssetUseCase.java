@@ -11,7 +11,11 @@ public interface PhysicalAssetUseCase {
 
     PhysicalAsset createAsset(UUID profileId, CreatePhysicalAssetCommand command);
 
-    PhysicalAsset getAsset(UUID id);
+    /**
+     * Profile-scoped lookup — v0.5.1 remediation (Tier B). Throws NotFoundException
+     * both when the id doesn't exist AND when it belongs to a different profile.
+     */
+    PhysicalAsset getAsset(UUID id, UUID profileId);
 
     List<PhysicalAsset> listAssets(UUID profileId, AssetType assetType, Boolean isActive);
 
@@ -28,8 +32,8 @@ public interface PhysicalAssetUseCase {
      * non-null, is merged into the existing metadata map (compliance deadlines etc.) —
      * mirrors the Account.metadata merge pattern, never a wholesale replace.
      */
-    PhysicalAsset updateAsset(UUID id, String assetName, String make, String model,
+    PhysicalAsset updateAsset(UUID id, UUID profileId, String assetName, String make, String model,
                                Map<String, String> metadata, Boolean isActive);
 
-    void deactivateAsset(UUID id);
+    void deactivateAsset(UUID id, UUID profileId);
 }

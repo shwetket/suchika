@@ -116,6 +116,12 @@ class TransactionResourceTest {
     }
 
     @Test
+    void listTransactions_missingProfileId_throwsBadRequest() {
+        assertThrows(BadRequestException.class,
+                () -> resource.listTransactions(ACCOUNT_ID, null, null, null, null, null, null));
+    }
+
+    @Test
     void createTransaction_returns201_withCreatedTransaction() {
         CreateTransactionRequest request = new CreateTransactionRequest();
         request.txnDate = "2026-02-01";
@@ -135,6 +141,15 @@ class TransactionResourceTest {
     @Test
     void createTransaction_nullBody_throwsBadRequest() {
         assertThrows(BadRequestException.class, () -> resource.createTransaction(ACCOUNT_ID, PROFILE_ID, null));
+    }
+
+    @Test
+    void createTransaction_missingProfileId_throwsBadRequest() {
+        CreateTransactionRequest request = new CreateTransactionRequest();
+        request.txnDate = "2026-02-01";
+        request.amount = BigDecimal.valueOf(500);
+        request.txnType = "DEBIT";
+        assertThrows(BadRequestException.class, () -> resource.createTransaction(ACCOUNT_ID, null, request));
     }
 
     @Test

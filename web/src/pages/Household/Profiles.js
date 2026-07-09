@@ -4,6 +4,7 @@ import { listAdmins } from '../../api/admins';
 import { createProfile, deactivateProfile, listProfiles, updateProfile } from '../../api/profiles';
 import { Field } from '../../components/Field';
 import { Modal } from '../../components/Modal';
+import { useAuth } from '../../hooks/useAuth';
 
 const RELATIONS = [
   'SELF',
@@ -132,12 +133,14 @@ export const Profiles = () => {
   const [confirmTarget, setConfirmTarget] = useState(null);
   const [deactivating, setDeactivating] = useState(false);
 
+  const { user } = useAuth();
+
   const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const [profileData, adminData] = await Promise.all([
-        listProfiles(null, filterActive),
+        listProfiles(user?.admin_id, filterActive),
         listAdmins(),
       ]);
       setProfiles(profileData.profiles ?? []);
@@ -147,7 +150,7 @@ export const Profiles = () => {
     } finally {
       setLoading(false);
     }
-  }, [filterActive]);
+  }, [filterActive, user?.admin_id]);
 
   useEffect(() => {
     loadData();

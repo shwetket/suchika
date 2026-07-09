@@ -4,6 +4,7 @@ import { listProfiles } from '../../api/profiles';
 import { deleteVital, listVitals, recordVital, updateVital } from '../../api/health';
 import { Field } from '../../components/Field';
 import { Modal } from '../../components/Modal';
+import { useAuth } from '../../hooks/useAuth';
 
 const VITAL_TYPES = [
   'WEIGHT',
@@ -155,11 +156,13 @@ export const Vitals = () => {
   const [editError, setEditError] = useState(null);
   const [editSaving, setEditSaving] = useState(false);
 
+  const { user } = useAuth();
+
   useEffect(() => {
-    listProfiles(null, null)
+    listProfiles(user?.admin_id, null)
       .then((data) => setProfiles(data.profiles ?? []))
       .catch(() => setProfiles([]));
-  }, []);
+  }, [user?.admin_id]);
 
   const loadVitals = useCallback(async () => {
     if (!selectedProfileId) return;

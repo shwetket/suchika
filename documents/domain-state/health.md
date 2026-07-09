@@ -12,7 +12,7 @@ Give any agent or developer instant context on the health domain — vital readi
 
 ---
 
-**Last updated:** 2026-07-08 (v0.5.1 remediation — fixed Vitals list page zero-rows bug, `data.vitals` → `data.vital_readings`)
+**Last updated:** 2026-07-08 (v0.5.1 remediation Workstream 2, Tier A — `profile_id` required-but-unenforced gap fixed on health's two list endpoints; also fixed Vitals list page zero-rows bug, `data.vitals` → `data.vital_readings`)
 **Version:** v0.2 complete — UAT-ready; v0.5 Phase 0 vitals edit endpoint added; pre-v1.0 pagination pass complete
 **Port:** 8083
 
@@ -137,6 +137,17 @@ Multi-model code review (Workstream 1, item 2 of the v0.5.1 remediation plan) fo
 - **Root cause in the test suite too:** every existing `Vitals.test.js` mock returned `{ vitals: MOCK_VITALS }` — i.e. the tests were asserting against the same wrong field name the buggy code happened to read, so they passed against broken production code. Fixed all 14 mock call sites to return `{ vital_readings: ... }`, matching the real contract shape.
 - **New regression test added:** `renders actual rows (not just the total count) matching the real API response shape` — mocks `{ vital_readings: MOCK_VITALS, total_size: 2 }`, asserts both the `Page 1 of 1 (2 total)` count text AND actual `<td>` row content (`within(screen.getByRole('table'))` scoped, to avoid colliding with the identical option text in the type-filter `<select>`). Verified this test fails against the pre-fix code (`git stash` of just `Vitals.js` — 8/16 tests failed including this one) and passes against the fix.
 - **Test results:** `npx react-scripts test src/pages/Health/Vitals --watchAll=false` → 16/16 passed.
+
+---
+
+## v0.5.1 Remediation Workstream 2 — `profile_id` enforcement gap, Tier A fixed (2026-07-08)
+
+Multi-model code review found `profile_id` documented as a `required: true` OpenAPI query param everywhere (`shared.yaml#/components/parameters/ProfileIdRequiredQueryParam`), but the resource methods that accept `@QueryParam("profile_id") UUID profileId` for filtering never actually rejected an omitted value at the HTTP layer — the underlying repository filter just silently no-op'd, so a request that left off `profile_id` got unfiltered, cross-profile data back instead of a 400. A shared helper, `com.suchika.shared.utils.ResourceUtils.requireProfileId(UUID)` (throws `BadRequestException` → 400 via `ApplicationExceptionMapper`), was added centrally and health is one of the domains wired up to it in this pass.
+
+- **Tier A (list endpoints) — done for health.** `VitalReadingResource.listVitals` and `DoctorVisitResource.listVisits` (the only list methods in either resource — no separate paginated/unpaginated variants remain since the Q54 pagination pass) now call `profileId = ResourceUtils.requireProfileId(profileId);` as the first line before using the value. `ResourceUtils` was already imported in both files (from prior work); no new import needed. `create`/`update` methods take `profile_id` from the request body (`RecordVitalReadingRequest.profileId`, `CreateDoctorVisitRequest.profileId`), not as a query param, so they were correctly left untouched — they're out of scope for this query-param-specific gap.
+- **Tests added:** `VitalReadingResourceTest.listVitals_missingProfileId_throwsBadRequest` and `DoctorVisitResourceTest.listVisits_missingProfileId_throwsBadRequest`, both asserting `BadRequestException` when `profile_id` is passed as `null`, following the existing stub-use-case pattern in each test file.
+- **Tier B (single-resource-by-id endpoints) — explicitly OUT of scope for v0.5.1, planned fast-follow.** `GET/PATCH/DELETE /vitals/{id}` and `/doctor-visits/{id}` currently look up by `id` alone with no `profile_id` filtering/ownership check at all (not even the silent-no-op version — there's no `profile_id` param on these methods today). Wealth is the sole Tier B pilot domain for this release; extending id-scoped ownership checks to health's single-resource endpoints is deferred to a fast-follow pass once the wealth pilot pattern is proven out.
+- **Verification:** `./gradlew :application:domain:health:adapters:compileTestJava` — BUILD SUCCESSFUL (both main and test sources compile). `./gradlew :application:domain:health:domain:test` — BUILD SUCCESSFUL (domain layer unaffected, as expected — this change is adapter-only). `./gradlew :application:domain:health:adapters:test` — **not verified this session**: a separate, already-known, in-progress workstream had just edited `V1__init_health_consolidated.sql` directly (narrowing `doctor_name`/`hospital_name`/`speciality` to `VARCHAR(50)`, see the entry above), which leaves the local dev DB's Flyway checksum stale until a human runs `db-reset.ps1 -Force` (blocked on the Postgres superuser password). Per that blocker, the adapter test run for this Tier A change was not executed/confirmed; the new tests are expected to pass once the reset happens, since they follow the exact same stub-use-case pattern as the ~10 pre-existing, previously-green tests in each file.
 
 ---
 

@@ -93,7 +93,7 @@ class PhysicalAssetServiceTest {
         PhysicalAsset created = service.createAsset(null,
                 cmd("Family Car", AssetType.VEHICLE, "Maruti", "Swift", "KA-01-AB-1234", RegistrationType.PRIVATE));
 
-        PhysicalAsset found = service.getAsset(created.getId());
+        PhysicalAsset found = service.getAsset(created.getId(), null);
 
         assertEquals(created.getId(), found.getId());
     }
@@ -101,7 +101,17 @@ class PhysicalAssetServiceTest {
     @Test
     void getAsset_notFound_throwsNotFoundException() {
         UUID randomId = UUID.randomUUID();
-        assertThrows(NotFoundException.class, () -> service.getAsset(randomId));
+        assertThrows(NotFoundException.class, () -> service.getAsset(randomId, null));
+    }
+
+    @Test
+    void getAsset_wrongProfile_throwsNotFoundException() {
+        UUID ownerProfileId = UUID.randomUUID();
+        UUID otherProfileId = UUID.randomUUID();
+        PhysicalAsset created = service.createAsset(ownerProfileId,
+                cmd("Family Car", AssetType.VEHICLE, "Maruti", "Swift", "KA-01-AB-1234", RegistrationType.PRIVATE));
+
+        assertThrows(NotFoundException.class, () -> service.getAsset(created.getId(), otherProfileId));
     }
 
     @Test
@@ -118,7 +128,7 @@ class PhysicalAssetServiceTest {
         PhysicalAsset asset = service.createAsset(null,
                 cmd("Family Car", AssetType.VEHICLE, "Maruti", "Swift", "KA-01-AB-1234", RegistrationType.PRIVATE));
 
-        PhysicalAsset updated = service.updateAsset(asset.getId(), "Renamed Car", null, null, null, null);
+        PhysicalAsset updated = service.updateAsset(asset.getId(), null, "Renamed Car", null, null, null, null);
 
         assertEquals("Renamed Car", updated.getAssetName());
         assertEquals("Maruti", updated.getMake());
@@ -130,7 +140,7 @@ class PhysicalAssetServiceTest {
                 cmd("Family Car", AssetType.VEHICLE, "Maruti", "Swift", "KA-01-AB-1234", RegistrationType.PRIVATE));
         UUID assetId = asset.getId();
 
-        assertThrows(BadRequestException.class, () -> service.updateAsset(assetId, "  ", null, null, null, null));
+        assertThrows(BadRequestException.class, () -> service.updateAsset(assetId, null, "  ", null, null, null, null));
     }
 
     @Test
@@ -138,8 +148,8 @@ class PhysicalAssetServiceTest {
         PhysicalAsset asset = service.createAsset(null,
                 cmd("Family Car", AssetType.VEHICLE, "Maruti", "Swift", "KA-01-AB-1234", RegistrationType.PRIVATE));
 
-        service.updateAsset(asset.getId(), null, null, null, Map.of("puc_expiry", "2026-12-31"), null);
-        PhysicalAsset updated = service.updateAsset(asset.getId(), null, null, null, Map.of("insurance_expiry", "2027-01-15"), null);
+        service.updateAsset(asset.getId(), null, null, null, null, Map.of("puc_expiry", "2026-12-31"), null);
+        PhysicalAsset updated = service.updateAsset(asset.getId(), null, null, null, null, Map.of("insurance_expiry", "2027-01-15"), null);
 
         assertEquals("2026-12-31", updated.getMetadata().get("puc_expiry"));
         assertEquals("2027-01-15", updated.getMetadata().get("insurance_expiry"));
@@ -148,7 +158,18 @@ class PhysicalAssetServiceTest {
     @Test
     void updateAsset_notFound_throwsNotFoundException() {
         UUID randomId = UUID.randomUUID();
-        assertThrows(NotFoundException.class, () -> service.updateAsset(randomId, "Renamed", null, null, null, null));
+        assertThrows(NotFoundException.class, () -> service.updateAsset(randomId, null, "Renamed", null, null, null, null));
+    }
+
+    @Test
+    void updateAsset_wrongProfile_throwsNotFoundException() {
+        UUID ownerProfileId = UUID.randomUUID();
+        UUID otherProfileId = UUID.randomUUID();
+        PhysicalAsset asset = service.createAsset(ownerProfileId,
+                cmd("Family Car", AssetType.VEHICLE, "Maruti", "Swift", "KA-01-AB-1234", RegistrationType.PRIVATE));
+
+        assertThrows(NotFoundException.class,
+                () -> service.updateAsset(asset.getId(), otherProfileId, "Renamed", null, null, null, null));
     }
 
     @Test
@@ -156,15 +177,25 @@ class PhysicalAssetServiceTest {
         PhysicalAsset asset = service.createAsset(null,
                 cmd("Family Car", AssetType.VEHICLE, "Maruti", "Swift", "KA-01-AB-1234", RegistrationType.PRIVATE));
 
-        service.deactivateAsset(asset.getId());
+        service.deactivateAsset(asset.getId(), null);
 
-        assertFalse(service.getAsset(asset.getId()).isActive());
+        assertFalse(service.getAsset(asset.getId(), null).isActive());
     }
 
     @Test
     void deactivateAsset_notFound_throwsNotFoundException() {
         UUID randomId = UUID.randomUUID();
-        assertThrows(NotFoundException.class, () -> service.deactivateAsset(randomId));
+        assertThrows(NotFoundException.class, () -> service.deactivateAsset(randomId, null));
+    }
+
+    @Test
+    void deactivateAsset_wrongProfile_throwsNotFoundException() {
+        UUID ownerProfileId = UUID.randomUUID();
+        UUID otherProfileId = UUID.randomUUID();
+        PhysicalAsset asset = service.createAsset(ownerProfileId,
+                cmd("Family Car", AssetType.VEHICLE, "Maruti", "Swift", "KA-01-AB-1234", RegistrationType.PRIVATE));
+
+        assertThrows(NotFoundException.class, () -> service.deactivateAsset(asset.getId(), otherProfileId));
     }
 
     // ---- v1.0 pagination extension (Q54): physical asset list pagination ----
@@ -229,6 +260,17 @@ class PhysicalAssetServiceTest {
         @Override
         public Optional<PhysicalAsset> findById(UUID id) {
             return Optional.ofNullable(store.get(id));
+        }
+
+        @Override
+        public Optional<PhysicalAsset> findById(UUID id, UUID profileId) {
+            PhysicalAsset asset = store.get(id);
+            if (asset == null) return Optional.empty();
+            // null profileId in tests means "no scoping requested" — permissive, matching
+            // the many pre-existing tests that don't exercise profile isolation. A non-null
+            // profileId must match the stored asset's profileId exactly (cross-profile test).
+            if (profileId != null && !profileId.equals(asset.getProfileId())) return Optional.empty();
+            return Optional.of(asset);
         }
 
         @Override

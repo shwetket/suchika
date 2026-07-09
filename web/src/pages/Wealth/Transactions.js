@@ -10,6 +10,7 @@ import {
   rollbackUpload,
   uploadStatement,
 } from '../../api/wealth';
+import { useAuth } from '../../hooks/useAuth';
 
 const TXN_TYPES = ['ALL', 'CREDIT', 'DEBIT'];
 const UPLOAD_STATUS_CLASSES = {
@@ -750,11 +751,13 @@ export const WealthTransactions = () => {
   const [selectedAccountId, setSelectedAccountId] = useState('');
   const [activeTab, setActiveTab] = useState('transactions');
 
+  const { user } = useAuth();
+
   useEffect(() => {
-    listProfiles(null, null)
+    listProfiles(user?.admin_id, null)
       .then((data) => setProfiles(data.profiles ?? []))
       .catch(() => setProfiles([]));
-  }, []);
+  }, [user?.admin_id]);
 
   useEffect(() => {
     if (!selectedProfileId) {

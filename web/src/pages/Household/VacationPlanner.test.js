@@ -3,6 +3,11 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { VacationPlanner } from './VacationPlanner';
 
+const mockUseAuth = jest.fn();
+jest.mock('../../hooks/useAuth', () => ({
+  useAuth: () => mockUseAuth(),
+}));
+
 jest.mock('../../api/profiles', () => ({
   listProfiles: jest.fn(),
 }));
@@ -35,6 +40,7 @@ async function fillAndSubmit({ tripCost = '50000', tripEndDate = '2026-08-10' } 
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockUseAuth.mockReturnValue({ user: { admin_id: 'admin-1' } });
   listProfiles.mockResolvedValue({ profiles: MOCK_PROFILES });
 });
 

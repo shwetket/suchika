@@ -7,6 +7,7 @@ import com.suchika.profile.domain.Profile;
 import com.suchika.profile.domain.RelationToAdmin;
 import com.suchika.profile.ports.input.ProfileUseCase;
 import com.suchika.shared.exception.BadRequestException;
+import com.suchika.shared.utils.ResourceUtils;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -29,6 +30,7 @@ public class ProfileResource {
     public ListProfilesResponse listProfiles(
             @QueryParam("admin_id") UUID adminId,
             @QueryParam("is_active") Boolean isActive) {
+        adminId = ResourceUtils.requireAdminId(adminId);
         List<ProfileResponse> profiles = profileUseCase.listProfiles(adminId, isActive)
             .stream().map(ProfileResponse::from).toList();
         return new ListProfilesResponse(profiles);

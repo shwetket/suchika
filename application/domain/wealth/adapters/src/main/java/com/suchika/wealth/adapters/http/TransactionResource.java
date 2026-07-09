@@ -42,6 +42,7 @@ public class TransactionResource {
             @QueryParam("page") Integer pageParam,
             @QueryParam("size") Integer sizeParam) {
 
+        profileId = ResourceUtils.requireProfileId(profileId);
         LocalDate from = ResourceUtils.parseDate(fromParam, "from");
         LocalDate to = ResourceUtils.parseDate(toParam, "to");
         TxnType txnType = parseTxnType(txnTypeParam);
@@ -58,6 +59,7 @@ public class TransactionResource {
             @PathParam("account_id") UUID accountId,
             @QueryParam("profile_id") UUID profileId,
             CreateTransactionRequest request) {
+        profileId = ResourceUtils.requireProfileId(profileId);
         if (request == null) throw new BadRequestException("Request body is required");
         TxnType txnType = parseTxnType(request.txnType);
         if (txnType == null) throw new BadRequestException("txn_type is required");

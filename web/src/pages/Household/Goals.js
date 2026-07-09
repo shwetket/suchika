@@ -4,6 +4,7 @@ import { listProfiles } from '../../api/profiles';
 import { createGoal, deleteGoal, listGoals, updateGoal } from '../../api/household';
 import { Field } from '../../components/Field';
 import { Modal } from '../../components/Modal';
+import { useAuth } from '../../hooks/useAuth';
 
 const GOAL_STATUSES = ['ACTIVE', 'ACHIEVED', 'PAUSED'];
 
@@ -187,11 +188,13 @@ export const Goals = () => {
   const [editError, setEditError] = useState(null);
   const [editSaving, setEditSaving] = useState(false);
 
+  const { user } = useAuth();
+
   useEffect(() => {
-    listProfiles(null, null)
+    listProfiles(user?.admin_id, null)
       .then((data) => setProfiles(data.profiles ?? []))
       .catch(() => setProfiles([]));
-  }, []);
+  }, [user?.admin_id]);
 
   const loadGoals = useCallback(async () => {
     if (!selectedProfileId) return;

@@ -16,23 +16,28 @@ export function createAccount(profileId, data) {
   return post(url, data);
 }
 
-export const getAccount = (accountId) => get(`${API_ENDPOINTS.ACCOUNTS}/${accountId}`);
+export const getAccount = (accountId, profileId) =>
+  get(`${API_ENDPOINTS.ACCOUNTS}/${accountId}?profile_id=${encodeURIComponent(profileId)}`);
 
 export const getAccountBalance = (accountId, profileId) =>
   get(`${API_ENDPOINTS.ACCOUNTS}/${accountId}/balance?profile_id=${encodeURIComponent(profileId)}`);
 
-export const updateAccount = (accountId, data) =>
-  patch(`${API_ENDPOINTS.ACCOUNTS}/${accountId}`, data);
+export const updateAccount = (accountId, profileId, data) =>
+  patch(`${API_ENDPOINTS.ACCOUNTS}/${accountId}?profile_id=${encodeURIComponent(profileId)}`, data);
 
-export const updateAccountClassification = (accountId, data) =>
-  patch(`${API_ENDPOINTS.ACCOUNTS}/${accountId}/classification`, data);
+export const updateAccountClassification = (accountId, profileId, data) =>
+  patch(
+    `${API_ENDPOINTS.ACCOUNTS}/${accountId}/classification?profile_id=${encodeURIComponent(profileId)}`,
+    data
+  );
 
 export const getAmortization = (accountId, profileId) =>
   get(
     `${API_ENDPOINTS.ACCOUNTS}/${accountId}/amortization?profile_id=${encodeURIComponent(profileId)}`
   );
 
-export const deactivateAccount = (accountId) => del(`${API_ENDPOINTS.ACCOUNTS}/${accountId}`);
+export const deactivateAccount = (accountId, profileId) =>
+  del(`${API_ENDPOINTS.ACCOUNTS}/${accountId}?profile_id=${encodeURIComponent(profileId)}`);
 
 export function createTransaction(accountId, profileId, data) {
   const url = `${API_ENDPOINTS.ACCOUNTS}/${accountId}/transactions?profile_id=${encodeURIComponent(profileId)}`;
@@ -83,10 +88,14 @@ export function createPhysicalAsset(profileId, data) {
   return post(url, data);
 }
 
-export const getPhysicalAsset = (assetId) => get(`${API_ENDPOINTS.PHYSICAL_ASSETS}/${assetId}`);
+export const getPhysicalAsset = (assetId, profileId) =>
+  get(`${API_ENDPOINTS.PHYSICAL_ASSETS}/${assetId}?profile_id=${encodeURIComponent(profileId)}`);
 
-export const updatePhysicalAsset = (assetId, data) =>
-  patch(`${API_ENDPOINTS.PHYSICAL_ASSETS}/${assetId}`, data);
+export const updatePhysicalAsset = (assetId, profileId, data) =>
+  patch(
+    `${API_ENDPOINTS.PHYSICAL_ASSETS}/${assetId}?profile_id=${encodeURIComponent(profileId)}`,
+    data
+  );
 
-export const deactivatePhysicalAsset = (assetId) =>
-  del(`${API_ENDPOINTS.PHYSICAL_ASSETS}/${assetId}`);
+export const deactivatePhysicalAsset = (assetId, profileId) =>
+  del(`${API_ENDPOINTS.PHYSICAL_ASSETS}/${assetId}?profile_id=${encodeURIComponent(profileId)}`);

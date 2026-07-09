@@ -37,6 +37,13 @@ public class PhysicalAssetPanacheRepository implements PhysicalAssetRepository {
     }
 
     @Override
+    public Optional<PhysicalAsset> findById(UUID id, UUID profileId) {
+        return dao.find("id = ?1 and profileId = ?2", id, profileId)
+                .firstResultOptional()
+                .map(PhysicalAssetEntity::toDomain);
+    }
+
+    @Override
     public List<PhysicalAsset> findAll(UUID profileId, AssetType assetType, Boolean isActive) {
         PanacheQueryFilter filter = buildFilter(profileId, assetType, isActive);
         return dao.find(filter.query(), filter.params().toArray())

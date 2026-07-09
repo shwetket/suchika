@@ -211,6 +211,7 @@ paths:
         and validation engines) but accepted and stored now. See ADR-016.
       parameters:
         - $ref: '#/components/parameters/AccountId'
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
       requestBody:
         required: true
         content:
@@ -423,6 +424,7 @@ paths:
         Follows AIP-131 (Standard Get).
       parameters:
         - $ref: '#/components/parameters/AccountId'
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
       responses:
         '200':
           description: Account found
@@ -446,6 +448,7 @@ paths:
         account_type and institution_name are immutable after creation.
       parameters:
         - $ref: '#/components/parameters/AccountId'
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
       requestBody:
         required: true
         content:
@@ -476,6 +479,7 @@ paths:
         Accounts with transactions cannot be hard deleted.
       parameters:
         - $ref: '#/components/parameters/AccountId'
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
       responses:
         '204':
           description: Account deactivated successfully
@@ -559,6 +563,7 @@ paths:
       description: Returns a single physical asset by ID. Follows AIP-131 (Standard Get).
       parameters:
         - $ref: '#/components/parameters/AssetId'
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
       responses:
         '200':
           description: Physical asset found
@@ -582,6 +587,7 @@ paths:
         registration_number are immutable after creation.
       parameters:
         - $ref: '#/components/parameters/AssetId'
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
       requestBody:
         required: true
         content:
@@ -611,6 +617,7 @@ paths:
         Follows AIP-135 (Standard Delete).
       parameters:
         - $ref: '#/components/parameters/AssetId'
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
       responses:
         '204':
           description: Physical asset deactivated successfully

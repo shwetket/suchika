@@ -9,6 +9,7 @@ import {
 } from '../../api/health';
 import { Field } from '../../components/Field';
 import { Modal } from '../../components/Modal';
+import { useAuth } from '../../hooks/useAuth';
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -318,11 +319,13 @@ export const DoctorVisits = () => {
   const [confirmTarget, setConfirmTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
+  const { user } = useAuth();
+
   useEffect(() => {
-    listProfiles(null, null)
+    listProfiles(user?.admin_id, null)
       .then((data) => setProfiles(data.profiles ?? []))
       .catch(() => setProfiles([]));
-  }, []);
+  }, [user?.admin_id]);
 
   const loadVisits = useCallback(async () => {
     if (!selectedProfileId) return;

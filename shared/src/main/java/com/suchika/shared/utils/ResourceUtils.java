@@ -3,6 +3,7 @@ package com.suchika.shared.utils;
 import com.suchika.shared.exception.BadRequestException;
 
 import java.time.LocalDate;
+import java.util.UUID;
 
 public final class ResourceUtils {
 
@@ -11,6 +12,31 @@ public final class ResourceUtils {
 
     private ResourceUtils() {
         // Utility class
+    }
+
+    /**
+     * Rejects a request that omits profile_id instead of silently falling through to an
+     * unfiltered, cross-profile query. Every resource method that accepts profile_id for
+     * scoping must call this before using the value (v0.5.1 remediation).
+     */
+    public static UUID requireProfileId(UUID profileId) {
+        if (profileId == null) {
+            throw new BadRequestException("profile_id is required");
+        }
+        return profileId;
+    }
+
+    /**
+     * Same guard as {@link #requireProfileId(UUID)}, for the profile domain's own scoping
+     * parameter. Profile is the identity anchor domain — it has no profile_id of its own to
+     * scope by, but its "tenant" concept is admin_id, and omitting it must 400 rather than
+     * silently returning every profile across every admin (v0.5.1 remediation).
+     */
+    public static UUID requireAdminId(UUID adminId) {
+        if (adminId == null) {
+            throw new BadRequestException("admin_id is required");
+        }
+        return adminId;
     }
 
     public static int parsePage(Integer pageParam) {

@@ -102,6 +102,12 @@ class VitalReadingResourceTest {
     }
 
     @Test
+    void listVitals_missingProfileId_throwsBadRequest() {
+        assertThrows(BadRequestException.class,
+                () -> resource.listVitals(null, "WEIGHT", null, null));
+    }
+
+    @Test
     void recordVitalReading_returns201_withCreatedReading() {
         RecordVitalReadingRequest request = new RecordVitalReadingRequest();
         request.profileId = PROFILE_ID;

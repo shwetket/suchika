@@ -2,6 +2,11 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { Reports } from './Reports';
 
+const mockUseAuth = jest.fn();
+jest.mock('../../hooks/useAuth', () => ({
+  useAuth: () => mockUseAuth(),
+}));
+
 jest.mock('../../api/profiles', () => ({
   listProfiles: jest.fn(),
 }));
@@ -42,6 +47,7 @@ const MOCK_ACCOUNTS = [
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockUseAuth.mockReturnValue({ user: { admin_id: 'admin-1' } });
   listProfiles.mockResolvedValue({ profiles: MOCK_PROFILES });
   listAccounts.mockResolvedValue({ accounts: [] });
   getDashboard.mockResolvedValue({ snapshots: [] });

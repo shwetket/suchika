@@ -3,6 +3,11 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Profiles } from './Profiles';
 
+const mockUseAuth = jest.fn();
+jest.mock('../../hooks/useAuth', () => ({
+  useAuth: () => mockUseAuth(),
+}));
+
 jest.mock('../../api/profiles');
 jest.mock('../../api/admins');
 
@@ -37,6 +42,7 @@ const MOCK_ADMINS = [{ admin_id: 'a1', display_name: 'Admin One' }];
 describe('Profiles page', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockUseAuth.mockReturnValue({ user: { admin_id: 'admin-1' } });
   });
 
   it('shows loading state initially', () => {
@@ -258,6 +264,6 @@ describe('Profiles page', () => {
     });
 
     await userEvent.click(screen.getByRole('button', { name: 'Active' }));
-    expect(profilesApi.listProfiles).toHaveBeenCalledWith(null, true);
+    expect(profilesApi.listProfiles).toHaveBeenCalledWith('admin-1', true);
   });
 });

@@ -783,6 +783,9 @@ export interface operations {
    */
   getAccount: {
     parameters: {
+      query: {
+        profile_id: external["shared.yaml"]["components"]["parameters"]["ProfileIdRequiredQueryParam"];
+      };
       path: {
         accountId: components["parameters"]["AccountId"];
       };
@@ -804,6 +807,9 @@ export interface operations {
    */
   deactivateAccount: {
     parameters: {
+      query: {
+        profile_id: external["shared.yaml"]["components"]["parameters"]["ProfileIdRequiredQueryParam"];
+      };
       path: {
         accountId: components["parameters"]["AccountId"];
       };
@@ -824,6 +830,9 @@ export interface operations {
    */
   updateAccount: {
     parameters: {
+      query: {
+        profile_id: external["shared.yaml"]["components"]["parameters"]["ProfileIdRequiredQueryParam"];
+      };
       path: {
         accountId: components["parameters"]["AccountId"];
       };
@@ -900,6 +909,9 @@ export interface operations {
    */
   updateAccountClassification: {
     parameters: {
+      query: {
+        profile_id: external["shared.yaml"]["components"]["parameters"]["ProfileIdRequiredQueryParam"];
+      };
       path: {
         accountId: components["parameters"]["AccountId"];
       };
@@ -1204,6 +1216,9 @@ export interface operations {
    */
   getPhysicalAsset: {
     parameters: {
+      query: {
+        profile_id: external["shared.yaml"]["components"]["parameters"]["ProfileIdRequiredQueryParam"];
+      };
       path: {
         assetId: components["parameters"]["AssetId"];
       };
@@ -1225,6 +1240,9 @@ export interface operations {
    */
   deactivatePhysicalAsset: {
     parameters: {
+      query: {
+        profile_id: external["shared.yaml"]["components"]["parameters"]["ProfileIdRequiredQueryParam"];
+      };
       path: {
         assetId: components["parameters"]["AssetId"];
       };
@@ -1244,6 +1262,9 @@ export interface operations {
    */
   updatePhysicalAsset: {
     parameters: {
+      query: {
+        profile_id: external["shared.yaml"]["components"]["parameters"]["ProfileIdRequiredQueryParam"];
+      };
       path: {
         assetId: components["parameters"]["AssetId"];
       };

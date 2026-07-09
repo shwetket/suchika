@@ -47,6 +47,11 @@ class ProfileResourceTest {
     }
 
     @Test
+    void listProfiles_missingAdminId_throwsBadRequest() {
+        assertThrows(BadRequestException.class, () -> resource.listProfiles(null, true));
+    }
+
+    @Test
     void createProfile_returns201_withCreatedProfile() {
         CreateProfileRequest request = new CreateProfileRequest();
         request.adminId = ADMIN_ID;

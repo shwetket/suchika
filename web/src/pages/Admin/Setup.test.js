@@ -168,6 +168,7 @@ describe('Setup wizard', () => {
     await waitFor(() =>
       expect(updateAccountClassification).toHaveBeenCalledWith(
         'acc-2',
+        'profile-1',
         expect.objectContaining({ loan_original_principal: '4000000' })
       )
     );

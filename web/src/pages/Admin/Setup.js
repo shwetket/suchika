@@ -170,7 +170,7 @@ export const Setup = () => {
             loanMeta.loan_tenure_months = accountForm.loan_tenure_months;
           }
           if (Object.keys(loanMeta).length > 0) {
-            await updateAccountClassification(created.account_id, loanMeta);
+            await updateAccountClassification(created.account_id, profileId, loanMeta);
           }
         }
         setAddedAccounts((prev) => [...prev, created]);

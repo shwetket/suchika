@@ -45,7 +45,7 @@ public class InventoryItemResource {
             @QueryParam("category") String category,
             @QueryParam("page") Integer pageParam,
             @QueryParam("size") Integer sizeParam) {
-        if (profileId == null) throw new BadRequestException("profile_id is required");
+        profileId = ResourceUtils.requireProfileId(profileId);
         SourcePlatform platform = parseSourcePlatform(sourcePlatform);
         int page = ResourceUtils.parsePage(pageParam);
         int size = ResourceUtils.parseSize(sizeParam);

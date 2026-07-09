@@ -12,14 +12,18 @@ public interface AccountUseCase {
 
     Account createAccount(UUID profileId, CreateAccountCommand command);
 
-    Account getAccount(UUID id);
+    /**
+     * Profile-scoped lookup — v0.5.1 remediation (Tier B). Throws NotFoundException
+     * both when the id doesn't exist AND when it belongs to a different profile.
+     */
+    Account getAccount(UUID id, UUID profileId);
 
     List<Account> listAccounts(UUID profileId, AccountType accountType, Boolean isActive);
 
-    Account updateAccount(UUID id, String accountName, BigDecimal openingBalance, BigDecimal creditLimit,
+    Account updateAccount(UUID id, UUID profileId, String accountName, BigDecimal openingBalance, BigDecimal creditLimit,
                            BigDecimal interestRate, BigDecimal emiAmount, Boolean isActive);
 
-    void deactivateAccount(UUID id);
+    void deactivateAccount(UUID id, UUID profileId);
 
     /**
      * Computes the current balance for an account: opening_balance + SUM(CREDIT) - SUM(DEBIT)
@@ -45,7 +49,7 @@ public interface AccountUseCase {
      * <p>Loan fields (loanOriginalPrincipal, loanStartDate, loanTenureMonths,
      * linkedOffsetAccountId) are Epic 8 Phase 3 prerequisites for amortization calculation.
      */
-    Account updateAccountClassification(UUID id, UpdateAccountClassificationCommand command);
+    Account updateAccountClassification(UUID id, UUID profileId, UpdateAccountClassificationCommand command);
 
     /**
      * Computes the amortization schedule summary for a loan account.

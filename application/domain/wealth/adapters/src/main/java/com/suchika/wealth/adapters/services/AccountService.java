@@ -71,8 +71,8 @@ public class AccountService implements AccountUseCase {
     }
 
     @Override
-    public Account getAccount(UUID id) {
-        return repository.findById(id)
+    public Account getAccount(UUID id, UUID profileId) {
+        return repository.findById(id, profileId)
                 .orElseThrow(() -> new NotFoundException(ACCOUNT_NOT_FOUND + id));
     }
 
@@ -83,9 +83,9 @@ public class AccountService implements AccountUseCase {
 
     @Override
     @Transactional
-    public Account updateAccount(UUID id, String accountName, BigDecimal openingBalance, BigDecimal creditLimit,
+    public Account updateAccount(UUID id, UUID profileId, String accountName, BigDecimal openingBalance, BigDecimal creditLimit,
                                   BigDecimal interestRate, BigDecimal emiAmount, Boolean isActive) {
-        Account account = repository.findById(id)
+        Account account = repository.findById(id, profileId)
                 .orElseThrow(() -> new NotFoundException(ACCOUNT_NOT_FOUND + id));
 
         if (accountName != null) {
@@ -107,8 +107,8 @@ public class AccountService implements AccountUseCase {
 
     @Override
     @Transactional
-    public void deactivateAccount(UUID id) {
-        Account account = repository.findById(id)
+    public void deactivateAccount(UUID id, UUID profileId) {
+        Account account = repository.findById(id, profileId)
                 .orElseThrow(() -> new NotFoundException(ACCOUNT_NOT_FOUND + id));
 
         requireNoTransactions(id);
@@ -126,7 +126,7 @@ public class AccountService implements AccountUseCase {
 
     @Override
     public AccountBalance getAccountBalance(UUID accountId, UUID profileId) {
-        Account account = repository.findById(accountId)
+        Account account = repository.findById(accountId, profileId)
                 .orElseThrow(() -> new NotFoundException(ACCOUNT_NOT_FOUND + accountId));
 
         BigDecimal opening = account.getOpeningBalance() != null ? account.getOpeningBalance() : BigDecimal.ZERO;
@@ -142,8 +142,8 @@ public class AccountService implements AccountUseCase {
 
     @Override
     @Transactional
-    public Account updateAccountClassification(UUID id, UpdateAccountClassificationCommand command) {
-        Account account = repository.findById(id)
+    public Account updateAccountClassification(UUID id, UUID profileId, UpdateAccountClassificationCommand command) {
+        Account account = repository.findById(id, profileId)
                 .orElseThrow(() -> new NotFoundException(ACCOUNT_NOT_FOUND + id));
 
         Map<String, String> metadata = new HashMap<>(account.getMetadata());
@@ -164,7 +164,7 @@ public class AccountService implements AccountUseCase {
 
     @Override
     public AmortizationSummary getAmortization(UUID accountId, UUID profileId) {
-        Account account = repository.findById(accountId)
+        Account account = repository.findById(accountId, profileId)
                 .orElseThrow(() -> new NotFoundException(ACCOUNT_NOT_FOUND + accountId));
 
         if (!LOAN_TYPES.contains(account.getAccountType())) {

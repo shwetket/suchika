@@ -47,7 +47,7 @@ public class CalendarEventResource {
             @QueryParam("to_date") LocalDate toDate,
             @QueryParam("page") Integer pageParam,
             @QueryParam("size") Integer sizeParam) {
-        if (profileId == null) throw new BadRequestException("profile_id is required");
+        profileId = ResourceUtils.requireProfileId(profileId);
         EventType type = parseEventType(eventType);
         int page = ResourceUtils.parsePage(pageParam);
         int size = ResourceUtils.parseSize(sizeParam);
