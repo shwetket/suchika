@@ -128,6 +128,46 @@ class StatementUploadServiceTest {
         assertThrows(NotFoundException.class, () -> service.getUpload(randomId));
     }
 
+    // ---- Reference number → transaction metadata pass-through ----
+
+    @Test
+    void upload_referenceNumberPresent_endsUpInTransactionMetadata() {
+        String csv = """
+                Date,Narration,Chq./Ref.No.,Deposit Amt.
+                01/06/2026,SALARY,UPI/REF/998877,50000.00""";
+
+        service.uploadStatement(ACCOUNT_ID, "with-ref.csv", csv);
+
+        assertEquals(1, txnRepo.saved.size());
+        Map<String, String> metadata = txnRepo.saved.get(0).getMetadata();
+        assertNotNull(metadata);
+        assertEquals("UPI/REF/998877", metadata.get("reference_number"));
+    }
+
+    @Test
+    void upload_referenceNumberAbsent_metadataIsNull() {
+        String csv = """
+                Date,Narration,Deposit Amt.
+                01/06/2026,SALARY,50000.00""";
+
+        service.uploadStatement(ACCOUNT_ID, "no-ref.csv", csv);
+
+        assertEquals(1, txnRepo.saved.size());
+        assertNull(txnRepo.saved.get(0).getMetadata());
+    }
+
+    @Test
+    void upload_referenceNumberBlank_metadataIsNull() {
+        String csv = """
+                Date,Narration,Chq./Ref.No.,Deposit Amt.
+                01/06/2026,SALARY,,50000.00""";
+
+        service.uploadStatement(ACCOUNT_ID, "blank-ref.csv", csv);
+
+        assertEquals(1, txnRepo.saved.size());
+        assertNull(txnRepo.saved.get(0).getMetadata());
+    }
+
     // ---- Phase 1: CsvParseException → error log + FAILED status ----
 
     @Test
@@ -256,6 +296,7 @@ class StatementUploadServiceTest {
                     .amount(transaction.getAmount())
                     .txnType(transaction.getTxnType())
                     .description(transaction.getDescription())
+                    .metadata(transaction.getMetadata())
                     .build();
             saved.add(built);
             return built;

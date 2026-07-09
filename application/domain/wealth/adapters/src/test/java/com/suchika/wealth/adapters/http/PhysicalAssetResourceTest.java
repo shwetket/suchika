@@ -11,10 +11,13 @@ import com.suchika.wealth.domain.RegistrationType;
 import com.suchika.wealth.ports.input.CreatePhysicalAssetCommand;
 import com.suchika.wealth.ports.input.PagedPhysicalAssets;
 import com.suchika.wealth.ports.input.PhysicalAssetUseCase;
+import com.suchika.wealth.ports.input.UpdatePhysicalAssetCommand;
 import jakarta.ws.rs.core.Response;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDate;
+import java.time.Month;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -149,11 +152,35 @@ class PhysicalAssetResourceTest {
     }
 
     @Test
-    void createAsset_missingRegistrationType_throwsBadRequest() {
+    void createAsset_missingRegistrationType_isAllowed() {
+        // v1.0 net-worth-model pass: registration_type (and make/model/registration_number)
+        // are now genuinely optional — only asset_type is required. Non-vehicle assets
+        // (REAL_ESTATE, GOLD_JEWELRY, GOLD_BOND) never set these fields.
         CreatePhysicalAssetRequest request = new CreatePhysicalAssetRequest();
         request.assetName = "No Registration Type";
-        request.assetType = "VEHICLE";
-        assertThrows(BadRequestException.class, () -> resource.createAsset(PROFILE_ID, request));
+        request.assetType = "REAL_ESTATE";
+        useCase.assetToReturn = buildAsset();
+
+        Response response = resource.createAsset(PROFILE_ID, request);
+
+        assertEquals(201, response.getStatus());
+        assertEquals(AssetType.REAL_ESTATE, useCase.lastCreateCommand.assetType());
+        assertEquals(null, useCase.lastCreateCommand.registrationType());
+    }
+
+    @Test
+    void createAsset_withCurrentValueAndValuationDate_passesThroughToCommand() {
+        CreatePhysicalAssetRequest request = new CreatePhysicalAssetRequest();
+        request.assetName = "Self-Occupied Flat";
+        request.assetType = "REAL_ESTATE";
+        request.currentValue = new java.math.BigDecimal("9500000.00");
+        request.valuationDate = LocalDate.of(2026, Month.JUNE, 1);
+        useCase.assetToReturn = buildAsset();
+
+        resource.createAsset(PROFILE_ID, request);
+
+        assertEquals(new java.math.BigDecimal("9500000.00"), useCase.lastCreateCommand.currentValue());
+        assertEquals(LocalDate.of(2026, Month.JUNE, 1), useCase.lastCreateCommand.valuationDate());
     }
 
     @Test
@@ -270,11 +297,10 @@ class PhysicalAssetResourceTest {
         }
 
         @Override
-        public PhysicalAsset updateAsset(UUID id, UUID profileId, String assetName, String make, String model,
-                                          Map<String, String> metadata, Boolean isActive) {
+        public PhysicalAsset updateAsset(UUID id, UUID profileId, UpdatePhysicalAssetCommand command) {
             lastUpdateAssetId = id;
             lastUpdateProfileId = profileId;
-            lastUpdateMetadata = metadata;
+            lastUpdateMetadata = command.metadata();
             return assetToReturn;
         }
 

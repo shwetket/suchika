@@ -8,10 +8,14 @@ import com.suchika.wealth.domain.PhysicalAsset;
 import com.suchika.wealth.domain.RegistrationType;
 import com.suchika.wealth.ports.input.CreatePhysicalAssetCommand;
 import com.suchika.wealth.ports.input.PagedPhysicalAssets;
+import com.suchika.wealth.ports.input.UpdatePhysicalAssetCommand;
 import com.suchika.wealth.ports.output.PhysicalAssetRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.Month;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -29,7 +33,14 @@ class PhysicalAssetServiceTest {
 
     private static CreatePhysicalAssetCommand cmd(String assetName, AssetType assetType, String make, String model,
                                                     String registrationNumber, RegistrationType registrationType) {
-        return new CreatePhysicalAssetCommand(assetName, assetType, make, model, registrationNumber, registrationType);
+        return new CreatePhysicalAssetCommand(assetName, assetType, make, model, registrationNumber, registrationType,
+                null, null);
+    }
+
+    private static CreatePhysicalAssetCommand cmdWithValuation(String assetName, AssetType assetType,
+                                                                 BigDecimal currentValue, LocalDate valuationDate) {
+        return new CreatePhysicalAssetCommand(assetName, assetType, null, null, null, null,
+                currentValue, valuationDate);
     }
 
     @Test
@@ -56,28 +67,47 @@ class PhysicalAssetServiceTest {
         assertThrows(BadRequestException.class, () -> service.createAsset(null, command));
     }
 
+    // ---- v1.0 net-worth-model pass: make/model/registration_number/registration_type
+    // are genuinely optional now (the DB never had NOT NULL on these) — only make sense
+    // for AssetType.VEHICLE. Non-vehicle assets (REAL_ESTATE, GOLD_JEWELRY, GOLD_BOND)
+    // must be creatable with none of the four set. ----
+
     @Test
-    void createAsset_blankMake_throwsBadRequest() {
-        CreatePhysicalAssetCommand command = cmd("Family Car", AssetType.VEHICLE, " ", "Swift", "KA-01-AB-1234", RegistrationType.PRIVATE);
-        assertThrows(BadRequestException.class, () -> service.createAsset(null, command));
+    void createAsset_realEstate_noMakeModelRegistration_succeeds() {
+        PhysicalAsset result = service.createAsset(null,
+                cmdWithValuation("Self-Occupied Flat", AssetType.REAL_ESTATE,
+                        new BigDecimal("9000000.00"), LocalDate.of(2026, Month.JUNE, 1)));
+
+        assertNotNull(result.getId());
+        assertEquals(AssetType.REAL_ESTATE, result.getAssetType());
+        assertNull(result.getMake());
+        assertNull(result.getModel());
+        assertNull(result.getRegistrationNumber());
+        assertNull(result.getRegistrationType());
+        assertEquals(new BigDecimal("9000000.00"), result.getCurrentValue());
+        assertEquals(LocalDate.of(2026, Month.JUNE, 1), result.getValuationDate());
     }
 
     @Test
-    void createAsset_blankModel_throwsBadRequest() {
-        CreatePhysicalAssetCommand command = cmd("Family Car", AssetType.VEHICLE, "Maruti", " ", "KA-01-AB-1234", RegistrationType.PRIVATE);
-        assertThrows(BadRequestException.class, () -> service.createAsset(null, command));
+    void createAsset_goldJewelry_noMakeModelRegistration_succeeds() {
+        PhysicalAsset result = service.createAsset(null,
+                cmdWithValuation("Gold Jewellery", AssetType.GOLD_JEWELRY,
+                        new BigDecimal("500000.00"), LocalDate.of(2026, Month.JUNE, 1)));
+
+        assertNotNull(result.getId());
+        assertEquals(AssetType.GOLD_JEWELRY, result.getAssetType());
+        assertNull(result.getRegistrationNumber());
     }
 
     @Test
-    void createAsset_blankRegistrationNumber_throwsBadRequest() {
-        CreatePhysicalAssetCommand command = cmd("Family Car", AssetType.VEHICLE, "Maruti", "Swift", " ", RegistrationType.PRIVATE);
-        assertThrows(BadRequestException.class, () -> service.createAsset(null, command));
-    }
+    void createAsset_blankRegistrationNumber_uniquenessCheckSkipped() {
+        // Two assets both with a blank/absent registration_number must NOT collide —
+        // the existsByRegistrationNumber guard only runs when registrationNumber is
+        // non-blank (Postgres itself allows multiple NULLs under a UNIQUE constraint).
+        service.createAsset(null, cmdWithValuation("Flat 1", AssetType.REAL_ESTATE, null, null));
 
-    @Test
-    void createAsset_nullRegistrationType_throwsBadRequest() {
-        CreatePhysicalAssetCommand command = cmd("Family Car", AssetType.VEHICLE, "Maruti", "Swift", "KA-01-AB-1234", null);
-        assertThrows(BadRequestException.class, () -> service.createAsset(null, command));
+        assertDoesNotThrow(() ->
+                service.createAsset(null, cmdWithValuation("Flat 2", AssetType.REAL_ESTATE, null, null)));
     }
 
     @Test
@@ -128,7 +158,8 @@ class PhysicalAssetServiceTest {
         PhysicalAsset asset = service.createAsset(null,
                 cmd("Family Car", AssetType.VEHICLE, "Maruti", "Swift", "KA-01-AB-1234", RegistrationType.PRIVATE));
 
-        PhysicalAsset updated = service.updateAsset(asset.getId(), null, "Renamed Car", null, null, null, null);
+        PhysicalAsset updated = service.updateAsset(asset.getId(), null,
+                new UpdatePhysicalAssetCommand("Renamed Car", null, null, null, null, null, null));
 
         assertEquals("Renamed Car", updated.getAssetName());
         assertEquals("Maruti", updated.getMake());
@@ -140,7 +171,9 @@ class PhysicalAssetServiceTest {
                 cmd("Family Car", AssetType.VEHICLE, "Maruti", "Swift", "KA-01-AB-1234", RegistrationType.PRIVATE));
         UUID assetId = asset.getId();
 
-        assertThrows(BadRequestException.class, () -> service.updateAsset(assetId, null, "  ", null, null, null, null));
+        assertThrows(BadRequestException.class,
+                () -> service.updateAsset(assetId, null,
+                        new UpdatePhysicalAssetCommand("  ", null, null, null, null, null, null)));
     }
 
     @Test
@@ -148,8 +181,10 @@ class PhysicalAssetServiceTest {
         PhysicalAsset asset = service.createAsset(null,
                 cmd("Family Car", AssetType.VEHICLE, "Maruti", "Swift", "KA-01-AB-1234", RegistrationType.PRIVATE));
 
-        service.updateAsset(asset.getId(), null, null, null, null, Map.of("puc_expiry", "2026-12-31"), null);
-        PhysicalAsset updated = service.updateAsset(asset.getId(), null, null, null, null, Map.of("insurance_expiry", "2027-01-15"), null);
+        service.updateAsset(asset.getId(), null,
+                new UpdatePhysicalAssetCommand(null, null, null, Map.of("puc_expiry", "2026-12-31"), null, null, null));
+        PhysicalAsset updated = service.updateAsset(asset.getId(), null,
+                new UpdatePhysicalAssetCommand(null, null, null, Map.of("insurance_expiry", "2027-01-15"), null, null, null));
 
         assertEquals("2026-12-31", updated.getMetadata().get("puc_expiry"));
         assertEquals("2027-01-15", updated.getMetadata().get("insurance_expiry"));
@@ -158,7 +193,9 @@ class PhysicalAssetServiceTest {
     @Test
     void updateAsset_notFound_throwsNotFoundException() {
         UUID randomId = UUID.randomUUID();
-        assertThrows(NotFoundException.class, () -> service.updateAsset(randomId, null, "Renamed", null, null, null, null));
+        assertThrows(NotFoundException.class,
+                () -> service.updateAsset(randomId, null,
+                        new UpdatePhysicalAssetCommand("Renamed", null, null, null, null, null, null)));
     }
 
     @Test
@@ -169,7 +206,22 @@ class PhysicalAssetServiceTest {
                 cmd("Family Car", AssetType.VEHICLE, "Maruti", "Swift", "KA-01-AB-1234", RegistrationType.PRIVATE));
 
         assertThrows(NotFoundException.class,
-                () -> service.updateAsset(asset.getId(), otherProfileId, "Renamed", null, null, null, null));
+                () -> service.updateAsset(asset.getId(), otherProfileId,
+                        new UpdatePhysicalAssetCommand("Renamed", null, null, null, null, null, null)));
+    }
+
+    @Test
+    void updateAsset_currentValueAndValuationDate_updatesLater() {
+        PhysicalAsset asset = service.createAsset(null,
+                cmdWithValuation("Self-Occupied Flat", AssetType.REAL_ESTATE,
+                        new BigDecimal("9000000.00"), LocalDate.of(2026, Month.JANUARY, 1)));
+
+        PhysicalAsset updated = service.updateAsset(asset.getId(), null,
+                new UpdatePhysicalAssetCommand(null, null, null, null, null,
+                        new BigDecimal("9500000.00"), LocalDate.of(2026, Month.JULY, 1)));
+
+        assertEquals(new BigDecimal("9500000.00"), updated.getCurrentValue());
+        assertEquals(LocalDate.of(2026, Month.JULY, 1), updated.getValuationDate());
     }
 
     @Test
@@ -249,6 +301,8 @@ class PhysicalAssetServiceTest {
                         .model(asset.getModel())
                         .registrationNumber(asset.getRegistrationNumber())
                         .registrationType(asset.getRegistrationType())
+                        .currentValue(asset.getCurrentValue())
+                        .valuationDate(asset.getValuationDate())
                         .active(asset.isActive())
                         .metadata(asset.getMetadata())
                         .build();

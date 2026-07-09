@@ -1661,6 +1661,7 @@ components:
         - NPS
         - PPF
         - FD
+        - EPF
 
     TransactionType:
       type: string
@@ -1679,6 +1680,9 @@ components:
       type: string
       enum:
         - VEHICLE
+        - REAL_ESTATE
+        - GOLD_JEWELRY
+        - GOLD_BOND
 
     RegistrationType:
       type: string
@@ -1904,6 +1908,17 @@ components:
           type: string
         registration_type:
           $ref: '#/components/schemas/RegistrationType'
+        current_value:
+          type: number
+          format: double
+          nullable: true
+          description: >
+            Current market value — summed into WEALTH_NET_WORTH for active assets;
+            deliberately excluded from goal-progress liquidity math.
+        valuation_date:
+          type: string
+          format: date
+          nullable: true
         is_active:
           type: boolean
         created_at:
@@ -1920,13 +1935,12 @@ components:
 
     CreatePhysicalAssetRequest:
       type: object
+      description: >
+        Only asset_name and asset_type are required. make/model/registration_number/
+        registration_type are VEHICLE-only and optional.
       required:
         - asset_name
         - asset_type
-        - make
-        - model
-        - registration_number
-        - registration_type
       properties:
         asset_name:
           type: string
@@ -1948,6 +1962,14 @@ components:
           maxLength: 50
         registration_type:
           $ref: '#/components/schemas/RegistrationType'
+        current_value:
+          type: number
+          format: double
+          nullable: true
+        valuation_date:
+          type: string
+          format: date
+          nullable: true
 
     UpdatePhysicalAssetRequest:
       type: object
@@ -1969,6 +1991,14 @@ components:
             type: string
         is_active:
           type: boolean
+        current_value:
+          type: number
+          format: double
+          nullable: true
+        valuation_date:
+          type: string
+          format: date
+          nullable: true
 
     ListPhysicalAssetsResponse:
       type: object

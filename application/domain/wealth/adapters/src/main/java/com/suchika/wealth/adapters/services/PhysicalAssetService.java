@@ -9,6 +9,7 @@ import com.suchika.wealth.domain.PhysicalAsset;
 import com.suchika.wealth.ports.input.CreatePhysicalAssetCommand;
 import com.suchika.wealth.ports.input.PagedPhysicalAssets;
 import com.suchika.wealth.ports.input.PhysicalAssetUseCase;
+import com.suchika.wealth.ports.input.UpdatePhysicalAssetCommand;
 import com.suchika.wealth.ports.output.PhysicalAssetRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
@@ -38,19 +39,11 @@ public class PhysicalAssetService implements PhysicalAssetUseCase {
         if (command.assetType() == null) {
             throw new BadRequestException("asset_type is required");
         }
-        if (command.make() == null || command.make().isBlank()) {
-            throw new BadRequestException("make is required");
-        }
-        if (command.model() == null || command.model().isBlank()) {
-            throw new BadRequestException("model is required");
-        }
-        if (command.registrationNumber() == null || command.registrationNumber().isBlank()) {
-            throw new BadRequestException("registration_number is required");
-        }
-        if (command.registrationType() == null) {
-            throw new BadRequestException("registration_type is required");
-        }
-        if (repository.existsByRegistrationNumber(command.registrationNumber())) {
+        // make/model/registration_number/registration_type are genuinely optional — they
+        // only make sense for AssetType.VEHICLE. Non-vehicle assets (REAL_ESTATE,
+        // GOLD_JEWELRY, GOLD_BOND) legitimately have none of these set.
+        if (command.registrationNumber() != null && !command.registrationNumber().isBlank()
+                && repository.existsByRegistrationNumber(command.registrationNumber())) {
             throw new ConflictException("Asset already registered: " + command.registrationNumber());
         }
 
@@ -62,6 +55,8 @@ public class PhysicalAssetService implements PhysicalAssetUseCase {
                 .model(command.model())
                 .registrationNumber(command.registrationNumber())
                 .registrationType(command.registrationType())
+                .currentValue(command.currentValue())
+                .valuationDate(command.valuationDate())
                 .build();
 
         PhysicalAsset saved = repository.save(asset);
@@ -90,23 +85,25 @@ public class PhysicalAssetService implements PhysicalAssetUseCase {
 
     @Override
     @Transactional
-    public PhysicalAsset updateAsset(UUID id, UUID profileId, String assetName, String make, String model,
-                                       Map<String, String> metadata, Boolean isActive) {
+    public PhysicalAsset updateAsset(UUID id, UUID profileId, UpdatePhysicalAssetCommand command) {
         PhysicalAsset asset = repository.findById(id, profileId)
                 .orElseThrow(() -> new NotFoundException(ASSET_NOT_FOUND + id));
 
+        String assetName = command.assetName();
         if (assetName != null) {
             if (assetName.isBlank()) throw new BadRequestException("asset_name must not be blank");
             asset.setAssetName(assetName);
         }
-        if (make != null) asset.setMake(make);
-        if (model != null) asset.setModel(model);
-        if (metadata != null) {
+        if (command.make() != null) asset.setMake(command.make());
+        if (command.model() != null) asset.setModel(command.model());
+        if (command.metadata() != null) {
             Map<String, String> merged = new HashMap<>(asset.getMetadata());
-            merged.putAll(metadata);
+            merged.putAll(command.metadata());
             asset.setMetadata(merged);
         }
-        if (isActive != null) asset.setActive(isActive);
+        if (command.isActive() != null) asset.setActive(command.isActive());
+        if (command.currentValue() != null) asset.setCurrentValue(command.currentValue());
+        if (command.valuationDate() != null) asset.setValuationDate(command.valuationDate());
 
         return repository.save(asset);
     }

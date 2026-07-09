@@ -10,6 +10,7 @@ import com.suchika.wealth.domain.RegistrationType;
 import com.suchika.wealth.ports.input.CreatePhysicalAssetCommand;
 import com.suchika.wealth.ports.input.PagedPhysicalAssets;
 import com.suchika.wealth.ports.input.PhysicalAssetUseCase;
+import com.suchika.wealth.ports.input.UpdatePhysicalAssetCommand;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -56,10 +57,10 @@ public class PhysicalAssetResource {
         AssetType assetType = parseAssetType(request.assetType);
         if (assetType == null) throw new BadRequestException("asset_type is required");
         RegistrationType registrationType = parseRegistrationType(request.registrationType);
-        if (registrationType == null) throw new BadRequestException("registration_type is required");
         CreatePhysicalAssetCommand command = new CreatePhysicalAssetCommand(
                 request.assetName, assetType, request.make, request.model,
-                request.registrationNumber, registrationType);
+                request.registrationNumber, registrationType,
+                request.currentValue, request.valuationDate);
         return Response.status(201)
                 .entity(PhysicalAssetResponse.from(useCase.createAsset(profileId, command)))
                 .build();
@@ -82,9 +83,10 @@ public class PhysicalAssetResource {
             UpdatePhysicalAssetRequest request) {
         profileId = ResourceUtils.requireProfileId(profileId);
         if (request == null) throw new BadRequestException("Request body is required");
-        return PhysicalAssetResponse.from(
-                useCase.updateAsset(assetId, profileId, request.assetName, request.make, request.model,
-                        request.metadata, request.active));
+        UpdatePhysicalAssetCommand command = new UpdatePhysicalAssetCommand(
+                request.assetName, request.make, request.model, request.metadata,
+                request.active, request.currentValue, request.valuationDate);
+        return PhysicalAssetResponse.from(useCase.updateAsset(assetId, profileId, command));
     }
 
     @DELETE

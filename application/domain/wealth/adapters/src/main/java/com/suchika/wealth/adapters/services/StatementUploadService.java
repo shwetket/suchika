@@ -69,8 +69,11 @@ public class StatementUploadService implements StatementUploadUseCase {
                 if (insertedThisBatch.contains(dedupKey) || txnRepo.existsByDeduplicationKey(accountId, profileId, row.date(), row.amount(), row.txnType())) {
                     skipped.add(new UploadResult.SkippedRow(row.date(), row.amount(), row.description()));
                 } else {
+                    Map<String, String> metadata = row.referenceNumber() != null && !row.referenceNumber().isBlank()
+                            ? Map.of("reference_number", row.referenceNumber())
+                            : null;
                     txnRepo.save(Transaction.create(accountId, uploadId, row.date(), row.amount(),
-                            row.txnType(), row.description(), null));
+                            row.txnType(), row.description(), metadata));
                     insertedThisBatch.add(dedupKey);
                     insertedCount++;
                 }

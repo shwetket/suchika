@@ -12,6 +12,7 @@ import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.Month;
 import java.util.List;
@@ -63,6 +64,38 @@ class PhysicalAssetPanacheRepositoryTest {
     @Test
     void findById_notFound_returnsEmpty() {
         assertTrue(repository.findById(UUID.randomUUID()).isEmpty());
+    }
+
+    // ---- v1.0 net-worth-model pass: non-vehicle asset round-trip ----
+
+    @Test
+    void save_realEstateShapedAsset_roundTripsWithNullVehicleOnlyColumns() {
+        UUID profileId = saveProfile("Real Estate Owner");
+
+        PhysicalAsset realEstate = PhysicalAsset.builder()
+                .profileId(profileId)
+                .assetName("Self-Occupied Flat")
+                .assetType(AssetType.REAL_ESTATE)
+                .currentValue(new BigDecimal("9500000.0000"))
+                .valuationDate(LocalDate.of(2026, Month.JUNE, 1))
+                .build();
+
+        PhysicalAsset saved = repository.save(realEstate);
+
+        assertNotNull(saved.getId());
+        assertEquals(AssetType.REAL_ESTATE, saved.getAssetType());
+        assertNull(saved.getMake());
+        assertNull(saved.getModel());
+        assertNull(saved.getRegistrationNumber());
+        assertNull(saved.getRegistrationType());
+        assertEquals(0, new BigDecimal("9500000.0000").compareTo(saved.getCurrentValue()));
+        assertEquals(LocalDate.of(2026, Month.JUNE, 1), saved.getValuationDate());
+
+        Optional<PhysicalAsset> found = repository.findById(saved.getId());
+        assertTrue(found.isPresent());
+        assertNull(found.get().getMake());
+        assertEquals(0, new BigDecimal("9500000.0000").compareTo(found.get().getCurrentValue()));
+        assertEquals(LocalDate.of(2026, Month.JUNE, 1), found.get().getValuationDate());
     }
 
     // ---- v0.5.1 remediation (Tier B): profile-scoped findById ----

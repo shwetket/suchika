@@ -1,6 +1,8 @@
 package com.suchika.wealth.domain;
 
+import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -15,6 +17,8 @@ public class PhysicalAsset {
     private String model;
     private String registrationNumber;
     private RegistrationType registrationType;
+    private BigDecimal currentValue;
+    private LocalDate valuationDate;
     private boolean active;
     private Instant createdAt;
     private Map<String, String> metadata;
@@ -30,6 +34,8 @@ public class PhysicalAsset {
         this.model = builder.model;
         this.registrationNumber = builder.registrationNumber;
         this.registrationType = builder.registrationType;
+        this.currentValue = builder.currentValue;
+        this.valuationDate = builder.valuationDate;
         this.active = builder.active;
         this.createdAt = builder.createdAt;
         this.metadata = builder.metadata;
@@ -46,6 +52,8 @@ public class PhysicalAsset {
         private String model;
         private String registrationNumber;
         private RegistrationType registrationType;
+        private BigDecimal currentValue;
+        private LocalDate valuationDate;
         private boolean active = true;
         private Instant createdAt;
         private Map<String, String> metadata = new HashMap<>();
@@ -58,6 +66,8 @@ public class PhysicalAsset {
         public Builder model(String model) { this.model = model; return this; }
         public Builder registrationNumber(String registrationNumber) { this.registrationNumber = registrationNumber; return this; }
         public Builder registrationType(RegistrationType registrationType) { this.registrationType = registrationType; return this; }
+        public Builder currentValue(BigDecimal currentValue) { this.currentValue = currentValue; return this; }
+        public Builder valuationDate(LocalDate valuationDate) { this.valuationDate = valuationDate; return this; }
         public Builder active(boolean active) { this.active = active; return this; }
         public Builder createdAt(Instant createdAt) { this.createdAt = createdAt; return this; }
         public Builder metadata(Map<String, String> metadata) { this.metadata = metadata; return this; }
@@ -72,6 +82,8 @@ public class PhysicalAsset {
     public String getModel() { return model; }
     public String getRegistrationNumber() { return registrationNumber; }
     public RegistrationType getRegistrationType() { return registrationType; }
+    public BigDecimal getCurrentValue() { return currentValue; }
+    public LocalDate getValuationDate() { return valuationDate; }
     public boolean isActive() { return active; }
     public Instant getCreatedAt() { return createdAt; }
     public Map<String, String> getMetadata() { return metadata; }
@@ -79,6 +91,8 @@ public class PhysicalAsset {
     public void setAssetName(String assetName) { this.assetName = assetName; }
     public void setMake(String make) { this.make = make; }
     public void setModel(String model) { this.model = model; }
+    public void setCurrentValue(BigDecimal currentValue) { this.currentValue = currentValue; }
+    public void setValuationDate(LocalDate valuationDate) { this.valuationDate = valuationDate; }
     public void setActive(boolean active) { this.active = active; }
     public void setMetadata(Map<String, String> metadata) { this.metadata = metadata; }
 }

@@ -8,7 +8,9 @@ import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 
 @Entity
@@ -29,17 +31,27 @@ public class PhysicalAssetEntity extends PanacheEntityBase {
     @Column(name = "asset_type", nullable = false, length = 50)
     public String assetType;
 
-    @Column(name = "make", nullable = false, length = 100)
+    // make/model/registration_number/registration_type are genuinely optional — the DB
+    // itself never had NOT NULL on these (see V1__init_wealth_consolidated.sql); they only
+    // make sense for AssetType.VEHICLE. Non-vehicle assets (REAL_ESTATE, GOLD_JEWELRY,
+    // GOLD_BOND) leave all four null.
+    @Column(name = "make", length = 100)
     public String make;
 
-    @Column(name = "model", nullable = false, length = 100)
+    @Column(name = "model", length = 100)
     public String model;
 
-    @Column(name = "registration_number", nullable = false, length = 50)
+    @Column(name = "registration_number", length = 50)
     public String registrationNumber;
 
-    @Column(name = "registration_type", nullable = false, length = 50)
+    @Column(name = "registration_type", length = 50)
     public String registrationType;
+
+    @Column(name = "current_value", precision = 19, scale = 4)
+    public BigDecimal currentValue;
+
+    @Column(name = "valuation_date")
+    public LocalDate valuationDate;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "metadata", columnDefinition = "jsonb", nullable = false)
@@ -66,6 +78,8 @@ public class PhysicalAssetEntity extends PanacheEntityBase {
         e.model = asset.getModel();
         e.registrationNumber = asset.getRegistrationNumber();
         e.registrationType = asset.getRegistrationType() != null ? asset.getRegistrationType().name() : null;
+        e.currentValue = asset.getCurrentValue();
+        e.valuationDate = asset.getValuationDate();
         e.active = asset.isActive();
         e.createdAt = asset.getCreatedAt();
         e.metadata = JsonbMetadataUtil.write(asset.getMetadata());
@@ -81,7 +95,9 @@ public class PhysicalAssetEntity extends PanacheEntityBase {
                 .make(make)
                 .model(model)
                 .registrationNumber(registrationNumber)
-                .registrationType(RegistrationType.valueOf(registrationType))
+                .registrationType(registrationType != null ? RegistrationType.valueOf(registrationType) : null)
+                .currentValue(currentValue)
+                .valuationDate(valuationDate)
                 .active(active)
                 .createdAt(createdAt)
                 .metadata(JsonbMetadataUtil.read(metadata))

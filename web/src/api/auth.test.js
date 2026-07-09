@@ -67,4 +67,21 @@ describe('signIn', () => {
     const result = await signIn({ username: 'bob' });
     expect(result.role).toBe('user');
   });
+
+  it('falls back to demo when error body is not valid JSON', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: jest.fn().mockRejectedValue(new Error('not json')),
+    });
+
+    const result = await signIn({ username: 'carol', role: 'admin' });
+    expect(result).toMatchObject({ username: 'carol', role: 'admin' });
+  });
+
+  it('re-throws an error that already carries a status property', async () => {
+    global.fetch = jest.fn().mockRejectedValue({ status: 503, message: 'Service down' });
+
+    await expect(signIn({ username: 'dave' })).rejects.toMatchObject({ status: 503 });
+  });
 });

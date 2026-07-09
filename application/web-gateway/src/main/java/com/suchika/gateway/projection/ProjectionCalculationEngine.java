@@ -202,10 +202,39 @@ public class ProjectionCalculationEngine {
             }
         }
 
+        double physicalAssetValue = physicalAssetValueFor(profileId);
+        netWorth += physicalAssetValue;
+
         ObjectNode payload = MAPPER.createObjectNode();
         payload.put("net_worth", netWorth);
         payload.put("account_count", accountCount);
+        payload.put("physical_asset_value", physicalAssetValue);
         snapshotRepository.upsert(profileId, SnapshotKey.WEALTH_NET_WORTH, payload.toString());
+    }
+
+    /**
+     * Sums current_value across all active physical assets (real estate, gold, vehicles
+     * with a set value, etc.) for {@link #computeNetWorth(UUID)} — closes the v1.0
+     * net-worth-model gap where real estate (85.7% of the reference household's net
+     * worth) and gold had no path into WEALTH_NET_WORTH at all.
+     *
+     * <p><b>Deliberately NOT wired into {@link #computeTotalBalance(UUID)}</b> (which
+     * backs {@link #computeGoalProgress(UUID)}) — that method feeds goals like Freedom
+     * Runway that are specifically about liquid/liquid-adjacent capital per
+     * Financial_Data.md's own liquidity tiering; blending in illiquid real estate/gold
+     * value there would silently distort those goals. This is a deliberate scope
+     * boundary, not an oversight.
+     */
+    private double physicalAssetValueFor(UUID profileId) {
+        JsonNode assetsResponse = wealthServiceClient.listPhysicalAssets(null, true, profileId.toString(), null, null);
+        JsonNode assetsArray = assetsResponse.path(PHYSICAL_ASSETS_FIELD);
+        double total = 0.0;
+        if (assetsArray.isArray()) {
+            for (JsonNode asset : assetsArray) {
+                total += asset.path(CURRENT_VALUE_FIELD).asDouble(0.0);
+            }
+        }
+        return total;
     }
 
     /**

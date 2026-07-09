@@ -13,6 +13,7 @@ import com.suchika.wealth.ports.input.AccountBalance;
 import com.suchika.wealth.ports.input.AccountUseCase;
 import com.suchika.wealth.ports.input.CreateAccountCommand;
 import com.suchika.wealth.ports.input.UpdateAccountClassificationCommand;
+import com.suchika.wealth.ports.input.UpdateAccountCommand;
 import jakarta.ws.rs.core.Response;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -269,11 +270,10 @@ class AccountResourceTest {
         }
 
         @Override
-        public Account updateAccount(UUID id, UUID profileId, String accountName, BigDecimal openingBalance, BigDecimal creditLimit,
-                                      BigDecimal interestRate, BigDecimal emiAmount, Boolean isActive) {
+        public Account updateAccount(UUID id, UUID profileId, UpdateAccountCommand command) {
             lastUpdateAccountId = id;
             lastUpdateProfileId = profileId;
-            lastUpdateAccountName = accountName;
+            lastUpdateAccountName = command.accountName();
             return accountToReturn;
         }
 

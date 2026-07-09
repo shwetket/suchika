@@ -66,4 +66,61 @@ class ProfileTest {
         assertEquals(RelationToAdmin.SPOUSE, profile.getRelationToAdmin());
         assertEquals(true, profile.isActive());
     }
+
+    @Test
+    void setAdminId_updatesAdminId() {
+        Profile profile = new Profile();
+        UUID adminId = UUID.randomUUID();
+
+        profile.setAdminId(adminId);
+
+        assertEquals(adminId, profile.getAdminId());
+    }
+
+    @Test
+    void setDob_updatesDob() {
+        Profile profile = new Profile();
+        LocalDate dob = LocalDate.of(1985, Month.MARCH, 12);
+
+        profile.setDob(dob);
+
+        assertEquals(dob, profile.getDob());
+    }
+
+    @Test
+    void setEmailAddress_updatesEmailAddress() {
+        Profile profile = new Profile();
+
+        profile.setEmailAddress("shweta@example.com");
+
+        assertEquals("shweta@example.com", profile.getEmailAddress());
+    }
+
+    @Test
+    void setGender_updatesGender() {
+        Profile profile = new Profile();
+
+        profile.setGender(Gender.FEMALE);
+
+        assertEquals(Gender.FEMALE, profile.getGender());
+    }
+
+    @Test
+    void setBloodType_updatesBloodType() {
+        Profile profile = new Profile();
+
+        profile.setBloodType(BloodType.A_POSITIVE);
+
+        assertEquals(BloodType.A_POSITIVE, profile.getBloodType());
+    }
+
+    @Test
+    void setCreatedAt_updatesCreatedAt() {
+        Profile profile = new Profile();
+        Instant createdAt = Instant.parse("2026-02-01T00:00:00Z");
+
+        profile.setCreatedAt(createdAt);
+
+        assertEquals(createdAt, profile.getCreatedAt());
+    }
 }

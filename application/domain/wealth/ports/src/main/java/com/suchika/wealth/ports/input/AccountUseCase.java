@@ -4,7 +4,6 @@ import com.suchika.wealth.domain.Account;
 import com.suchika.wealth.domain.AccountType;
 import com.suchika.wealth.domain.AmortizationSummary;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -20,8 +19,7 @@ public interface AccountUseCase {
 
     List<Account> listAccounts(UUID profileId, AccountType accountType, Boolean isActive);
 
-    Account updateAccount(UUID id, UUID profileId, String accountName, BigDecimal openingBalance, BigDecimal creditLimit,
-                           BigDecimal interestRate, BigDecimal emiAmount, Boolean isActive);
+    Account updateAccount(UUID id, UUID profileId, UpdateAccountCommand command);
 
     void deactivateAccount(UUID id, UUID profileId);
 

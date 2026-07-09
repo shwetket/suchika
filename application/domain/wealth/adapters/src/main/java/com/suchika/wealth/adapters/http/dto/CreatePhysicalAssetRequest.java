@@ -3,6 +3,9 @@ package com.suchika.wealth.adapters.http.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+
 @RegisterForReflection
 public class CreatePhysicalAssetRequest {
 
@@ -23,4 +26,10 @@ public class CreatePhysicalAssetRequest {
 
     @JsonProperty("registration_type")
     public String registrationType;
+
+    @JsonProperty("current_value")
+    public BigDecimal currentValue;
+
+    @JsonProperty("valuation_date")
+    public LocalDate valuationDate;
 }

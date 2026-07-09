@@ -377,13 +377,13 @@ export interface components {
       asset_compliance?: components["schemas"]["VacationPlannerAssetCompliance"];
     };
     /** @enum {string} */
-    AccountType: "SAVINGS" | "CURRENT" | "CREDIT_CARD" | "HOME_LOAN" | "PERSONAL_LOAN" | "CAR_LOAN" | "MUTUAL_FUND" | "NPS" | "PPF" | "FD";
+    AccountType: "SAVINGS" | "CURRENT" | "CREDIT_CARD" | "HOME_LOAN" | "PERSONAL_LOAN" | "CAR_LOAN" | "MUTUAL_FUND" | "NPS" | "PPF" | "FD" | "EPF";
     /** @enum {string} */
     TransactionType: "CREDIT" | "DEBIT";
     /** @enum {string} */
     UploadStatus: "PENDING" | "COMPLETED" | "FAILED";
     /** @enum {string} */
-    AssetType: "VEHICLE";
+    AssetType: "VEHICLE" | "REAL_ESTATE" | "GOLD_JEWELRY" | "GOLD_BOND";
     /** @enum {string} */
     RegistrationType: "PRIVATE" | "COMMERCIAL" | "GOVERNMENT" | "BH_SERIES";
     AccountResponse: {
@@ -489,6 +489,13 @@ export interface components {
       model?: string;
       registration_number?: string;
       registration_type?: components["schemas"]["RegistrationType"];
+      /**
+       * Format: double
+       * @description Current market value — summed into WEALTH_NET_WORTH for active assets; deliberately excluded from goal-progress liquidity math.
+       */
+      current_value?: number | null;
+      /** Format: date */
+      valuation_date?: string | null;
       is_active?: boolean;
       /** Format: date-time */
       created_at?: string;
@@ -497,13 +504,18 @@ export interface components {
         [key: string]: string;
       };
     };
+    /** @description Only asset_name and asset_type are required. make/model/registration_number/ registration_type are VEHICLE-only and optional. */
     CreatePhysicalAssetRequest: {
       asset_name: string;
       asset_type: components["schemas"]["AssetType"];
-      make: string;
-      model: string;
-      registration_number: string;
-      registration_type: components["schemas"]["RegistrationType"];
+      make?: string;
+      model?: string;
+      registration_number?: string;
+      registration_type?: components["schemas"]["RegistrationType"];
+      /** Format: double */
+      current_value?: number | null;
+      /** Format: date */
+      valuation_date?: string | null;
     };
     /** @description All fields optional. Only provided fields are updated. metadata is merged into the existing map, never replaced wholesale. */
     UpdatePhysicalAssetRequest: {
@@ -514,6 +526,10 @@ export interface components {
         [key: string]: string;
       };
       is_active?: boolean;
+      /** Format: double */
+      current_value?: number | null;
+      /** Format: date */
+      valuation_date?: string | null;
     };
     ListPhysicalAssetsResponse: {
       physical_assets?: components["schemas"]["PhysicalAssetResponse"][];

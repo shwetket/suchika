@@ -414,7 +414,11 @@ export const Accounts = () => {
         if (LOAN_TYPES.has(editingAccount.account_type)) {
           const loanMeta = buildLoanMetadataPatch(editForm);
           if (Object.keys(loanMeta).length > 0) {
-            await updateAccountClassification(editingAccount.account_id, selectedProfileId, loanMeta);
+            await updateAccountClassification(
+              editingAccount.account_id,
+              selectedProfileId,
+              loanMeta
+            );
           }
         }
         setEditingAccount(null);
