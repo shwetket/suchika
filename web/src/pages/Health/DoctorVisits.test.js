@@ -409,7 +409,8 @@ describe('DoctorVisits page', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'Delete' })[0]);
     expect(screen.getByRole('heading', { name: 'Delete Visit' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    const deleteButtons = screen.getAllByRole('button', { name: 'Delete' });
+    fireEvent.click(deleteButtons[deleteButtons.length - 1]);
 
     await waitFor(() => {
       expect(deleteDoctorVisit).toHaveBeenCalledWith('dv1');
@@ -440,7 +441,8 @@ describe('DoctorVisits page', () => {
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
     await waitFor(() => screen.getAllByRole('button', { name: 'Delete' })[0]);
     fireEvent.click(screen.getAllByRole('button', { name: 'Delete' })[0]);
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    const deleteButtons = screen.getAllByRole('button', { name: 'Delete' });
+    fireEvent.click(deleteButtons[deleteButtons.length - 1]);
 
     await waitFor(() => {
       expect(screen.getByText('Delete failed')).toBeInTheDocument();

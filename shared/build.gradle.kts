@@ -20,6 +20,5 @@ dependencies {
     testImplementation(project(":application:domain:wealth:domain"))
     testImplementation(project(":application:domain:health:domain"))
     testImplementation(project(":application:domain:household:domain"))
-    testImplementation("io.quarkus:quarkus-junit5")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
