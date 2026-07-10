@@ -72,3 +72,7 @@ web/test-results/.last-run.json
 review-*.md
 /web/test-results/
 /web/test-results/*
+
+### Local real-data seeds — local-only "seed-data" branch (2026-07-10), never push/merge ###
+### these carry real household names/account numbers/balances for local test realism  ###
+application/flyway/test-seed/
