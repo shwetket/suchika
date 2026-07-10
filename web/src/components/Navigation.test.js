@@ -118,6 +118,70 @@ describe('Navigation', () => {
     expect(logout).toHaveBeenCalledTimes(1);
   });
 
+  it('shows Admin dropdown with links when user has admin role', () => {
+    mockUseAuth.mockReturnValue({
+      user: { username: 'admin1', role: 'admin' },
+      logout: jest.fn(),
+      isAuthenticated: true,
+      hasRole: (role) => role === 'admin',
+    });
+    render(
+      <MemoryRouter>
+        <Navigation {...defaultProps} />
+      </MemoryRouter>
+    );
+    const adminBtn = screen.getByRole('button', { name: /admin/i });
+    fireEvent.click(adminBtn);
+    expect(screen.getByRole('link', { name: 'Household Setup' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Policy Settings' })).toBeInTheDocument();
+  });
+
+  it('hides Admin dropdown when user does not have admin role', () => {
+    renderNav({
+      user: { username: 'alice', role: 'user' },
+      logout: jest.fn(),
+      isAuthenticated: true,
+    });
+    expect(screen.queryByRole('button', { name: /^admin$/i })).not.toBeInTheDocument();
+  });
+
+  it('shows "Light" label on the theme button when theme is dark', () => {
+    renderNav({ user: null, logout: jest.fn(), isAuthenticated: false });
+    render(
+      <MemoryRouter>
+        <Navigation theme="dark" onToggleTheme={jest.fn()} />
+      </MemoryRouter>
+    );
+    expect(screen.getByRole('button', { name: /light/i })).toBeInTheDocument();
+  });
+
+  it('closes a dropdown when clicking outside of it', () => {
+    renderNav({
+      user: { username: 'alice', role: 'user' },
+      logout: jest.fn(),
+      isAuthenticated: true,
+    });
+    const householdBtn = screen.getByRole('button', { name: /household/i });
+    fireEvent.click(householdBtn);
+    expect(screen.getByRole('link', { name: 'Calendar' })).toBeInTheDocument();
+
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByRole('link', { name: 'Calendar' })).not.toBeInTheDocument();
+  });
+
+  it('closes a dropdown when clicking its toggle button again', () => {
+    renderNav({
+      user: { username: 'alice', role: 'user' },
+      logout: jest.fn(),
+      isAuthenticated: true,
+    });
+    const householdBtn = screen.getByRole('button', { name: /household/i });
+    fireEvent.click(householdBtn);
+    expect(screen.getByRole('link', { name: 'Calendar' })).toBeInTheDocument();
+    fireEvent.click(householdBtn);
+    expect(screen.queryByRole('link', { name: 'Calendar' })).not.toBeInTheDocument();
+  });
+
   it('calls onToggleTheme when theme button clicked', () => {
     const onToggleTheme = jest.fn();
     mockUseAuth.mockReturnValue({

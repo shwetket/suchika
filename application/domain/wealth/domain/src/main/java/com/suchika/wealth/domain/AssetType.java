@@ -1,5 +1,5 @@
 package com.suchika.wealth.domain;
 
 public enum AssetType {
-    VEHICLE
+    VEHICLE, REAL_ESTATE, GOLD_JEWELRY, GOLD_BOND
 }

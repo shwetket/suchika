@@ -137,6 +137,73 @@ describe('AuthContext', () => {
     });
   });
 
+  it('login() carries forward admin_id/profile_id for the same returning username', async () => {
+    localStorage.setItem(
+      'user',
+      JSON.stringify({ username: 'bob', role: 'user', admin_id: 'admin-9', profile_id: 'p-9' })
+    );
+    authApi.signIn.mockResolvedValue({
+      username: 'bob',
+      role: 'user',
+      token: 'tok-new',
+      issued_at: '2024-02-01T00:00:00Z',
+    });
+
+    const { result } = renderHook(() => React.useContext(AuthContext), { wrapper });
+    await act(async () => {});
+
+    await act(async () => {
+      await result.current.login('bob', 'user');
+    });
+
+    expect(result.current.user).toMatchObject({
+      username: 'bob',
+      admin_id: 'admin-9',
+      profile_id: 'p-9',
+    });
+  });
+
+  it('login() does not carry forward admin_id when the returning username differs', async () => {
+    localStorage.setItem(
+      'user',
+      JSON.stringify({ username: 'alice', role: 'user', admin_id: 'admin-9' })
+    );
+    authApi.signIn.mockResolvedValue({
+      username: 'carol',
+      role: 'user',
+      token: 'tok-new',
+      issued_at: '2024-02-01T00:00:00Z',
+    });
+
+    const { result } = renderHook(() => React.useContext(AuthContext), { wrapper });
+    await act(async () => {});
+
+    await act(async () => {
+      await result.current.login('carol', 'user');
+    });
+
+    expect(result.current.user.admin_id).toBeUndefined();
+  });
+
+  it('login() ignores invalid JSON previously stored in localStorage', async () => {
+    localStorage.setItem('user', 'not-valid-json');
+    authApi.signIn.mockResolvedValue({
+      username: 'dave',
+      role: 'user',
+      token: 'tok-new',
+      issued_at: '2024-02-01T00:00:00Z',
+    });
+
+    const { result } = renderHook(() => React.useContext(AuthContext), { wrapper });
+    await act(async () => {});
+
+    await act(async () => {
+      await result.current.login('dave', 'user');
+    });
+
+    expect(result.current.user).toMatchObject({ username: 'dave' });
+  });
+
   it('handles invalid JSON in localStorage gracefully', async () => {
     localStorage.setItem('user', 'not-valid-json');
     const { result } = renderHook(() => React.useContext(AuthContext), { wrapper });

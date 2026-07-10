@@ -58,7 +58,9 @@ describe('parseErrorResponse', () => {
 
   it('unwraps an axios-style error (response.data)', () => {
     const err = parseErrorResponse({
-      response: { data: { status: 422, errorCode: 'UNPROCESSABLE_ENTITY', message: 'Bad payload' } },
+      response: {
+        data: { status: 422, errorCode: 'UNPROCESSABLE_ENTITY', message: 'Bad payload' },
+      },
     });
     expect(err.statusCode).toBe(422);
     expect(err.errorCode).toBe('UNPROCESSABLE_ENTITY');
@@ -120,18 +122,23 @@ describe('getErrorMessage', () => {
 
   it('prefers the error message over the generic validation message for 400/422', () => {
     Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
-    expect(getErrorMessage({ statusCode: HTTP_STATUS.BAD_REQUEST, message: 'account_name is required' }))
-      .toBe('account_name is required');
+    expect(
+      getErrorMessage({ statusCode: HTTP_STATUS.BAD_REQUEST, message: 'account_name is required' })
+    ).toBe('account_name is required');
   });
 
   it('falls back to the generic validation message for 400 with no message', () => {
     Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
-    expect(getErrorMessage({ statusCode: HTTP_STATUS.BAD_REQUEST })).toBe(ERROR_MESSAGES.VALIDATION_ERROR);
+    expect(getErrorMessage({ statusCode: HTTP_STATUS.BAD_REQUEST })).toBe(
+      ERROR_MESSAGES.VALIDATION_ERROR
+    );
   });
 
   it('reads an axios-style nested response.data.message', () => {
     Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
-    expect(getErrorMessage({ response: { data: { message: 'nested message' } } })).toBe('nested message');
+    expect(getErrorMessage({ response: { data: { message: 'nested message' } } })).toBe(
+      'nested message'
+    );
   });
 
   it('reads a plain Error.message', () => {
@@ -208,7 +215,9 @@ describe('handleAPIResponse', () => {
     const response = {
       ok: false,
       status: 404,
-      json: jest.fn().mockResolvedValue({ status: 404, errorCode: 'NOT_FOUND', message: 'Account not found' }),
+      json: jest
+        .fn()
+        .mockResolvedValue({ status: 404, errorCode: 'NOT_FOUND', message: 'Account not found' }),
     };
     await expect(handleAPIResponse(response)).rejects.toMatchObject({
       statusCode: 404,

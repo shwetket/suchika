@@ -81,4 +81,68 @@ class DoctorVisitTest {
         assertThrows(IllegalArgumentException.class, () ->
                 DoctorVisit.create(PROFILE_ID, TODAY, null, true, "   ", details));
     }
+
+    @Test
+    void create_populatesAllOptionalDetailFields_getterReturnEachValue() {
+        DoctorVisit visit = DoctorVisit.create(PROFILE_ID, TODAY, TOMORROW, true, "Dr. Sharma",
+                new DoctorVisit.VisitDetails("Apollo", "Cardiology",
+                        "Chest pain", "Angina", "Follow up in 2 weeks", TOMORROW));
+
+        assertEquals("Cardiology", visit.getSpeciality());
+        assertEquals("Chest pain", visit.getSymptoms());
+        assertEquals("Angina", visit.getDiagnosis());
+        assertEquals("Follow up in 2 weeks", visit.getNotes());
+        assertEquals(TOMORROW, visit.getFollowUpDate());
+    }
+
+    @Test
+    void create_nullDetails_defaultsToEmptyDetails() {
+        DoctorVisit visit = DoctorVisit.create(PROFILE_ID, TODAY, null, false, null, null);
+
+        assertNull(visit.getHospitalName());
+        assertNull(visit.getSpeciality());
+        assertNull(visit.getSymptoms());
+        assertNull(visit.getDiagnosis());
+        assertNull(visit.getNotes());
+        assertNull(visit.getFollowUpDate());
+    }
+
+    @Test
+    void create_fromDateNull_toDateProvided_succeeds() {
+        DoctorVisit visit = DoctorVisit.create(PROFILE_ID, null, TOMORROW, false, null,
+                DoctorVisit.VisitDetails.empty());
+
+        assertNull(visit.getFromDate());
+        assertEquals(TOMORROW, visit.getToDate());
+    }
+
+    @Test
+    void noArgsConstructor_createsEmptyInstanceWithNullDefaults() {
+        DoctorVisit visit = new DoctorVisit();
+
+        assertNull(visit.getId());
+        assertNull(visit.getProfileId());
+        assertNull(visit.getFromDate());
+        assertNull(visit.getToDate());
+        assertFalse(visit.isVisitedDoctor());
+        assertNull(visit.getDoctorName());
+        assertNull(visit.getCreatedAt());
+    }
+
+    @Test
+    void builder_setsIdAndCreatedAt_returnsVisitWithExplicitValues() {
+        java.time.Instant createdAt = java.time.Instant.parse("2026-07-05T10:00:00Z");
+        java.util.UUID id = UUID.randomUUID();
+
+        DoctorVisit visit = DoctorVisit.builder()
+                .id(id)
+                .profileId(PROFILE_ID)
+                .fromDate(TODAY)
+                .visitedDoctor(false)
+                .createdAt(createdAt)
+                .build();
+
+        assertEquals(id, visit.getId());
+        assertEquals(createdAt, visit.getCreatedAt());
+    }
 }

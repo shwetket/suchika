@@ -3,6 +3,7 @@ package com.suchika.household.domain;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.Month;
 import java.util.UUID;
@@ -112,5 +113,41 @@ class InventoryItemTest {
         BigDecimal one = new BigDecimal("1");
         assertThrows(IllegalArgumentException.class, () ->
                 InventoryItem.create(PROFILE_ID, "Item", one, ItemUnit.KG, SourcePlatform.MANUAL, null, null));
+    }
+
+    @Test
+    void create_nullQuantity_throwsIllegalArgumentException() {
+        assertThrows(IllegalArgumentException.class, () ->
+                InventoryItem.create(PROFILE_ID, "Milk", null, ItemUnit.L, SourcePlatform.MANUAL, PURCHASE_DATE, null));
+    }
+
+    @Test
+    void builder_allFieldsSet_gettersReflectBuilderValues() {
+        UUID id = UUID.randomUUID();
+        Instant createdAt = Instant.parse("2026-01-01T00:00:00Z");
+
+        InventoryItem item = InventoryItem.builder()
+                .id(id)
+                .profileId(PROFILE_ID)
+                .itemName("Curd")
+                .quantity(new BigDecimal("1.0"))
+                .unit(ItemUnit.KG)
+                .sourcePlatform(SourcePlatform.ZEPTO)
+                .purchaseDate(PURCHASE_DATE)
+                .category("Dairy")
+                .consumed(true)
+                .createdAt(createdAt)
+                .build();
+
+        assertEquals(id, item.getId());
+        assertEquals(PROFILE_ID, item.getProfileId());
+        assertEquals("Curd", item.getItemName());
+        assertEquals(0, new BigDecimal("1.0").compareTo(item.getQuantity()));
+        assertEquals(ItemUnit.KG, item.getUnit());
+        assertEquals(SourcePlatform.ZEPTO, item.getSourcePlatform());
+        assertEquals(PURCHASE_DATE, item.getPurchaseDate());
+        assertEquals("Dairy", item.getCategory());
+        assertEquals(true, item.isConsumed());
+        assertEquals(createdAt, item.getCreatedAt());
     }
 }

@@ -2,6 +2,7 @@ package com.suchika.household.domain;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.Month;
 import java.util.UUID;
@@ -87,5 +88,33 @@ class CalendarEventTest {
         assertThrows(IllegalArgumentException.class, () ->
                 CalendarEvent.create(PROFILE_ID, "Event", null,
                         TODAY, null, null, null));
+    }
+
+    @Test
+    void builder_allFieldsSet_gettersReflectBuilderValues() {
+        UUID id = UUID.randomUUID();
+        Instant createdAt = Instant.parse("2026-01-01T00:00:00Z");
+
+        CalendarEvent event = CalendarEvent.builder()
+                .id(id)
+                .profileId(PROFILE_ID)
+                .title("Anniversary")
+                .eventType(EventType.FAMILY)
+                .startDate(TODAY)
+                .endDate(TOMORROW)
+                .location("Restaurant")
+                .notes("Book a table")
+                .createdAt(createdAt)
+                .build();
+
+        assertEquals(id, event.getId());
+        assertEquals(PROFILE_ID, event.getProfileId());
+        assertEquals("Anniversary", event.getTitle());
+        assertEquals(EventType.FAMILY, event.getEventType());
+        assertEquals(TODAY, event.getStartDate());
+        assertEquals(TOMORROW, event.getEndDate());
+        assertEquals("Restaurant", event.getLocation());
+        assertEquals("Book a table", event.getNotes());
+        assertEquals(createdAt, event.getCreatedAt());
     }
 }

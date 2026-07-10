@@ -132,6 +132,61 @@ class DoctorVisitPanacheRepositoryTest {
         assertEquals(1, count);
     }
 
+    @Test
+    void findById_existingId_returnsVisit() {
+        DoctorVisit saved = repository.save(visit(LocalDate.of(2026, Month.JULY, 20), "Findable visit"));
+
+        java.util.Optional<DoctorVisit> found = repository.findById(saved.getId());
+
+        assertTrue(found.isPresent());
+        assertEquals("Findable visit", found.get().getDiagnosis());
+    }
+
+    @Test
+    void findById_unknownId_returnsEmpty() {
+        java.util.Optional<DoctorVisit> found = repository.findById(java.util.UUID.randomUUID());
+
+        assertTrue(found.isEmpty());
+    }
+
+    @Test
+    void save_withExistingId_updatesVisitInPlace() {
+        DoctorVisit saved = repository.save(visit(LocalDate.of(2026, Month.JULY, 21), "Original diagnosis"));
+
+        DoctorVisit updated = DoctorVisit.builder()
+                .id(saved.getId())
+                .profileId(saved.getProfileId())
+                .fromDate(saved.getFromDate())
+                .visitedDoctor(saved.isVisitedDoctor())
+                .diagnosis("Updated diagnosis")
+                .createdAt(saved.getCreatedAt())
+                .build();
+
+        DoctorVisit result = repository.save(updated);
+
+        assertEquals(saved.getId(), result.getId());
+        java.util.Optional<DoctorVisit> found = repository.findById(saved.getId());
+        assertTrue(found.isPresent());
+        assertEquals("Updated diagnosis", found.get().getDiagnosis());
+    }
+
+    @Test
+    void deleteById_removesVisit() {
+        DoctorVisit saved = repository.save(visit(LocalDate.of(2026, Month.JULY, 22), "To be deleted"));
+        java.util.UUID id = saved.getId();
+        assertTrue(repository.existsById(id));
+
+        repository.deleteById(id);
+
+        assertFalse(repository.existsById(id));
+        assertTrue(repository.findById(id).isEmpty());
+    }
+
+    @Test
+    void existsById_returnsFalseForUnknownId() {
+        assertFalse(repository.existsById(java.util.UUID.randomUUID()));
+    }
+
     private DoctorVisit visit(LocalDate fromDate, String diagnosis) {
         return DoctorVisit.builder()
                 .profileId(SEED_PROFILE_ID)

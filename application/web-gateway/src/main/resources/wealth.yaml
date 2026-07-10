@@ -761,13 +761,21 @@ components:
         - NPS
         - PPF
         - FD
+        - EPF
       description: Type of the account
 
     AssetType:
       type: string
       enum:
         - VEHICLE
-      description: Category discriminator for physical assets. Only VEHICLE currently.
+        - REAL_ESTATE
+        - GOLD_JEWELRY
+        - GOLD_BOND
+      description: >
+        Category discriminator for physical assets. VEHICLE-only fields
+        (make/model/registration_number/registration_type) are not applicable to
+        REAL_ESTATE/GOLD_JEWELRY/GOLD_BOND — those types rely on current_value/
+        valuation_date instead.
 
     RegistrationType:
       type: string
@@ -1154,6 +1162,21 @@ components:
           example: "KA-01-AB-1234"
         registration_type:
           $ref: '#/components/schemas/RegistrationType'
+        current_value:
+          type: number
+          format: double
+          nullable: true
+          description: >
+            Current market value — applicable to any asset type, not just
+            REAL_ESTATE/GOLD_JEWELRY/GOLD_BOND. Summed into WEALTH_NET_WORTH for
+            active assets by the web-gateway; deliberately excluded from goal-progress
+            liquidity math (illiquid asset, not liquid capital).
+          example: 9500000.00
+        valuation_date:
+          type: string
+          format: date
+          nullable: true
+          description: Date the current_value figure was last confirmed/updated.
         is_active:
           type: boolean
           default: true
@@ -1166,19 +1189,22 @@ components:
           description: >
             Compliance deadlines and optional vehicle details (puc_expiry,
             insurance_expiry, insurance_provider, road_tax_expiry, chassis_number,
-            etc.). See V2__physical_assets.sql for the full key list.
+            etc.). See V2__physical_asset_valuation.sql for the current_value/
+            valuation_date columns and the consolidated V1 migration for the
+            metadata column itself.
           additionalProperties:
             type: string
 
     CreatePhysicalAssetRequest:
       type: object
+      description: >
+        Only asset_name and asset_type are required. make/model/registration_number/
+        registration_type are VEHICLE-only fields and are optional — non-vehicle
+        assets (REAL_ESTATE/GOLD_JEWELRY/GOLD_BOND) omit them and use current_value/
+        valuation_date instead.
       required:
         - asset_name
         - asset_type
-        - make
-        - model
-        - registration_number
-        - registration_type
       properties:
         asset_name:
           type: string
@@ -1201,6 +1227,15 @@ components:
           maxLength: 50
         registration_type:
           $ref: '#/components/schemas/RegistrationType'
+        current_value:
+          type: number
+          format: double
+          nullable: true
+          example: 9500000.00
+        valuation_date:
+          type: string
+          format: date
+          nullable: true
 
     UpdatePhysicalAssetRequest:
       type: object
@@ -1223,6 +1258,15 @@ components:
             type: string
         is_active:
           type: boolean
+        current_value:
+          type: number
+          format: double
+          nullable: true
+          description: Refreshes a periodically-updated valuation (property, gold, etc.).
+        valuation_date:
+          type: string
+          format: date
+          nullable: true
 
     ListPhysicalAssetsResponse:
       type: object

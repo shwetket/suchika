@@ -4,7 +4,6 @@ import com.suchika.wealth.domain.AssetType;
 import com.suchika.wealth.domain.PhysicalAsset;
 
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 public interface PhysicalAssetUseCase {
@@ -30,10 +29,10 @@ public interface PhysicalAssetUseCase {
     /**
      * Partial update. Non-null scalar fields replace the existing value. metadata, if
      * non-null, is merged into the existing metadata map (compliance deadlines etc.) —
-     * mirrors the Account.metadata merge pattern, never a wholesale replace.
+     * mirrors the Account.metadata merge pattern, never a wholesale replace. currentValue/
+     * valuationDate let a property or gold holding's value be refreshed periodically.
      */
-    PhysicalAsset updateAsset(UUID id, UUID profileId, String assetName, String make, String model,
-                               Map<String, String> metadata, Boolean isActive);
+    PhysicalAsset updateAsset(UUID id, UUID profileId, UpdatePhysicalAssetCommand command);
 
     void deactivateAsset(UUID id, UUID profileId);
 }

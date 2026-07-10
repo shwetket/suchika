@@ -65,6 +65,8 @@ class ProjectionCalculationEngineTest {
         MockitoAnnotations.openMocks(this);
         engine = new ProjectionCalculationEngine(wealthClient, healthClient, householdClient, profileClient, snapshotRepo);
         when(wealthClient.listAccounts(isNull(), eq(true), anyString())).thenReturn(buildEmptyAccountsResponse());
+        when(wealthClient.listPhysicalAssets(isNull(), eq(true), anyString(), isNull(), isNull()))
+                .thenReturn(MAPPER.createObjectNode().set("physical_assets", MAPPER.createArrayNode()));
         when(householdClient.listGoals(any(), isNull(), isNull(), isNull())).thenReturn(MAPPER.createObjectNode().set("goals", MAPPER.createArrayNode()));
     }
 
@@ -131,6 +133,95 @@ class ProjectionCalculationEngineTest {
 
         assertEquals(9999.0, payload.path("net_worth").asDouble(), 0.001);
         verify(wealthClient).getAccountBalance(accountId, PROFILE_ID.toString());
+    }
+
+    // ── computeNetWorth: physical asset value (v1.0 net-worth-model gap) ────────
+
+    @Test
+    void computeNetWorth_includesActivePhysicalAssetValue() throws Exception {
+        UUID accountId = UUID.fromString("11111111-0000-0000-0000-000000000009");
+        when(wealthClient.listAccounts(isNull(), eq(true), eq(PROFILE_ID.toString())))
+                .thenReturn(buildAccountsResponse(accountId));
+        stubBalance(accountId, 1000.0);
+        when(wealthClient.listPhysicalAssets(isNull(), eq(true), eq(PROFILE_ID.toString()), isNull(), isNull()))
+                .thenReturn(buildPhysicalAssetsWithValueResponse(9000000.0));
+
+        engine.computeNetWorth(PROFILE_ID);
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_NET_WORTH), payloadCaptor.capture());
+        JsonNode payload = MAPPER.readTree(payloadCaptor.getValue());
+
+        assertEquals(9001000.0, payload.path("net_worth").asDouble(), 0.001);
+        assertEquals(9000000.0, payload.path("physical_asset_value").asDouble(), 0.001);
+    }
+
+    @Test
+    void computeNetWorth_excludesInactivePhysicalAssets() throws Exception {
+        // The engine requests only active assets (is_active=true) — an inactive asset's
+        // current_value is filtered out server-side and never reaches this summation.
+        UUID accountId = UUID.fromString("11111111-0000-0000-0000-00000000000a");
+        when(wealthClient.listAccounts(isNull(), eq(true), eq(PROFILE_ID.toString())))
+                .thenReturn(buildAccountsResponse(accountId));
+        stubBalance(accountId, 1000.0);
+        when(wealthClient.listPhysicalAssets(isNull(), eq(true), eq(PROFILE_ID.toString()), isNull(), isNull()))
+                .thenReturn(MAPPER.createObjectNode().set("physical_assets", MAPPER.createArrayNode()));
+
+        engine.computeNetWorth(PROFILE_ID);
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_NET_WORTH), payloadCaptor.capture());
+        JsonNode payload = MAPPER.readTree(payloadCaptor.getValue());
+
+        assertEquals(1000.0, payload.path("net_worth").asDouble(), 0.001);
+        assertEquals(0.0, payload.path("physical_asset_value").asDouble(), 0.001);
+        verify(wealthClient).listPhysicalAssets(isNull(), eq(true), eq(PROFILE_ID.toString()), isNull(), isNull());
+    }
+
+    @Test
+    void computeGoalProgress_ignoresPhysicalAssetValue_regressionGuardForLiquidityScopeBoundary() throws Exception {
+        // Deliberate scope boundary: physical asset value must count toward WEALTH_NET_WORTH
+        // but NOT toward computeTotalBalance/goal-progress math (illiquid vs. liquid capital).
+        // Stub a huge physical asset value for this profile — if computeTotalBalance ever
+        // started summing it in, this goal's progress_percent would jump well past what the
+        // account balance alone justifies.
+        UUID goalId = UUID.fromString("cccccccc-0000-0000-0000-000000000001");
+        JsonNode goalsResponse = buildGoalsResponse(goalId, "Vacation Fund", 1000.0);
+        UUID accountId = UUID.fromString("11111111-0000-0000-0000-00000000000b");
+        JsonNode accountsResponse = buildAccountsResponse(accountId);
+
+        when(householdClient.listGoals(PROFILE_ID, null, null, null)).thenReturn(goalsResponse);
+        when(wealthClient.listAccounts(isNull(), eq(true), eq(PROFILE_ID.toString())))
+                .thenReturn(accountsResponse);
+        stubBalance(accountId, 600.0);
+        when(householdClient.updateGoalCurrentAmount(eq(goalId), any()))
+                .thenReturn(MAPPER.createObjectNode());
+        when(wealthClient.listPhysicalAssets(isNull(), eq(true), eq(PROFILE_ID.toString()), isNull(), isNull()))
+                .thenReturn(buildPhysicalAssetsWithValueResponse(9000000.0));
+
+        engine.computeGoalProgress(PROFILE_ID);
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_GOAL_PROGRESS), payloadCaptor.capture());
+        JsonNode payload = MAPPER.readTree(payloadCaptor.getValue());
+
+        // Unchanged from the pre-existing 60% (600/1000) behavior — no physical asset bleed-through.
+        assertEquals(60.0, payload.path("goals").get(0).path("progress_percent").asDouble(), 0.001);
+        assertEquals(600.0, payload.path("goals").get(0).path("current_amount").asDouble(), 0.001);
+        // computeTotalBalance (used here) never calls listPhysicalAssets at all.
+        verify(wealthClient, never()).listPhysicalAssets(any(), any(), any(), any(), any());
+    }
+
+    private JsonNode buildPhysicalAssetsWithValueResponse(double currentValue) {
+        ObjectNode root = MAPPER.createObjectNode();
+        ArrayNode assets = MAPPER.createArrayNode();
+        ObjectNode asset = MAPPER.createObjectNode();
+        asset.put("asset_id", UUID.randomUUID().toString());
+        asset.put("asset_name", "Self-Occupied Flat");
+        asset.put("current_value", currentValue);
+        assets.add(asset);
+        root.set("physical_assets", assets);
+        return root;
     }
 
     // ── computeVitalsSummary ─────────────────────────────────────────────────

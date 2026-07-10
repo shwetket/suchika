@@ -98,6 +98,45 @@ class AmortizationCalculatorTest {
     }
 
     @Test
+    void compute_fullyPaidOffWithRoundingDrift_interestPaidClampedToZeroNotNegative() {
+        // 100000 / 3 = 33333.333..., rounded HALF_UP to 33333.33 per installment.
+        // 33333.33 * 3 = 99999.99, one cent short of the 100000 principal, so the
+        // naive "emi * tenure - principal" total-interest calc goes to -0.01. This
+        // exercises the defensive clamp in computeTotalInterestPaid (never surfaced
+        // by the earlier tests, which all used tenures/principals that divide evenly).
+        BigDecimal principal = new BigDecimal("100000");
+        LocalDate startDate = LocalDate.of(2020, Month.JANUARY, 1);
+        LocalDate asOfDate = LocalDate.of(2021, Month.JANUARY, 1);
+
+        AmortizationSummary summary =
+                AmortizationCalculator.compute(principal, ZERO_RATE, 3, startDate, asOfDate);
+
+        assertEquals(0, summary.getRemainingMonths());
+        assertEquals(0, summary.getInterestPaid().compareTo(BigDecimal.ZERO.setScale(2)));
+    }
+
+    @Test
+    void compute_negativeAnnualRate_defensiveClampsPreventNegativeAmounts() {
+        // The calculator does not validate annualRatePercent >= 0 (a real, documented
+        // gap — see documents/domain-state/wealth.md Open Issues). A negative rate
+        // pushes the raw totalInterestRemaining/principalPaid/interestPaid formulas
+        // below zero, exercising the three defensive "clamp to ZERO" branches that a
+        // realistic non-negative-rate loan never reaches.
+        BigDecimal principal = new BigDecimal("120000");
+        BigDecimal negativeRate = new BigDecimal("-5");
+        LocalDate startDate = LocalDate.of(2020, Month.JANUARY, 1);
+        LocalDate asOfDate = LocalDate.of(2020, Month.JULY, 1);
+
+        AmortizationSummary summary =
+                AmortizationCalculator.compute(principal, negativeRate, 12, startDate, asOfDate);
+
+        assertEquals(6, summary.getRemainingMonths());
+        assertTrue(summary.getTotalInterestRemaining().compareTo(BigDecimal.ZERO) >= 0);
+        assertTrue(summary.getPrincipalPaid().compareTo(BigDecimal.ZERO) >= 0);
+        assertTrue(summary.getInterestPaid().compareTo(BigDecimal.ZERO) >= 0);
+    }
+
+    @Test
     void compute_calledTwiceWithSameFixedAsOfDate_isDeterministic() {
         BigDecimal principal = new BigDecimal("500000");
         BigDecimal annualRate = new BigDecimal("8.75");

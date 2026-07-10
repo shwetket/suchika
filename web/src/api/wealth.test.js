@@ -1,13 +1,22 @@
 import {
   createAccount,
+  createPhysicalAsset,
+  createTransaction,
   deactivateAccount,
+  deactivatePhysicalAsset,
   getAccount,
+  getAccountBalance,
+  getAmortization,
+  getPhysicalAsset,
   getUploadErrors,
   listAccounts,
+  listPhysicalAssets,
   listTransactions,
   listUploads,
   rollbackUpload,
   updateAccount,
+  updateAccountClassification,
+  updatePhysicalAsset,
   uploadStatement,
 } from './wealth';
 
@@ -138,5 +147,89 @@ describe('getUploadErrors', () => {
     get.mockResolvedValue([]);
     getUploadErrors('acc-123', 'upload-456');
     expect(get).toHaveBeenCalledWith('/v1/accounts/acc-123/uploads/upload-456/errors');
+  });
+});
+
+describe('getAccountBalance', () => {
+  it('calls get with balance path and profile_id', () => {
+    get.mockResolvedValue({ current_balance: 100 });
+    getAccountBalance('acc-123', 'p1');
+    expect(get).toHaveBeenCalledWith('/v1/accounts/acc-123/balance?profile_id=p1');
+  });
+});
+
+describe('updateAccountClassification', () => {
+  it('calls patch with classification path and data', () => {
+    patch.mockResolvedValue({});
+    const data = { loan_original_principal: 500000 };
+    updateAccountClassification('acc-123', 'p1', data);
+    expect(patch).toHaveBeenCalledWith('/v1/accounts/acc-123/classification?profile_id=p1', data);
+  });
+});
+
+describe('getAmortization', () => {
+  it('calls get with amortization path and profile_id', () => {
+    get.mockResolvedValue({ schedule: [] });
+    getAmortization('acc-123', 'p1');
+    expect(get).toHaveBeenCalledWith('/v1/accounts/acc-123/amortization?profile_id=p1');
+  });
+});
+
+describe('createTransaction', () => {
+  it('calls post with transactions path and data', () => {
+    post.mockResolvedValue({});
+    const data = { amount: 100, txn_type: 'DEBIT' };
+    createTransaction('acc-123', 'p1', data);
+    expect(post).toHaveBeenCalledWith('/v1/accounts/acc-123/transactions?profile_id=p1', data);
+  });
+});
+
+describe('listPhysicalAssets', () => {
+  it('builds URL with all query params', () => {
+    get.mockResolvedValue({ physical_assets: [] });
+    listPhysicalAssets('p1', 'VEHICLE', true, 0, 20);
+    expect(get).toHaveBeenCalledWith(
+      '/v1/physical-assets?profile_id=p1&asset_type=VEHICLE&is_active=true&page=0&size=20'
+    );
+  });
+
+  it('calls base URL when all params are null', () => {
+    get.mockResolvedValue({ physical_assets: [] });
+    listPhysicalAssets(null, null, null, null, null);
+    expect(get).toHaveBeenCalledWith('/v1/physical-assets');
+  });
+});
+
+describe('createPhysicalAsset', () => {
+  it('calls post with profile_id in query and data in body', () => {
+    post.mockResolvedValue({});
+    const data = { asset_name: 'Family Car' };
+    createPhysicalAsset('p1', data);
+    expect(post).toHaveBeenCalledWith('/v1/physical-assets?profile_id=p1', data);
+  });
+});
+
+describe('getPhysicalAsset', () => {
+  it('calls get with asset id path and profile_id', () => {
+    get.mockResolvedValue({});
+    getPhysicalAsset('asset-1', 'p1');
+    expect(get).toHaveBeenCalledWith('/v1/physical-assets/asset-1?profile_id=p1');
+  });
+});
+
+describe('updatePhysicalAsset', () => {
+  it('calls patch with correct path and data', () => {
+    patch.mockResolvedValue({});
+    const data = { asset_name: 'Updated Car' };
+    updatePhysicalAsset('asset-1', 'p1', data);
+    expect(patch).toHaveBeenCalledWith('/v1/physical-assets/asset-1?profile_id=p1', data);
+  });
+});
+
+describe('deactivatePhysicalAsset', () => {
+  it('calls del with correct path', () => {
+    del.mockResolvedValue(null);
+    deactivatePhysicalAsset('asset-1', 'p1');
+    expect(del).toHaveBeenCalledWith('/v1/physical-assets/asset-1?profile_id=p1');
   });
 });

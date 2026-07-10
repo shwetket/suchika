@@ -84,7 +84,15 @@ function AssetCard({ asset, onEdit, onDeactivate }) {
         {asset.registration_number}
       </span>
       <div className="text-sm text-gray-600 space-y-1">
-        <p>Registration: {asset.registration_type.replaceAll('_', ' ')}</p>
+        {asset.registration_type && (
+          <p>Registration: {asset.registration_type.replaceAll('_', ' ')}</p>
+        )}
+        {asset.current_value !== null && asset.current_value !== undefined && (
+          <p>
+            Current Value: {Number(asset.current_value).toLocaleString('en-IN')}
+            {asset.valuation_date ? ` (as of ${asset.valuation_date})` : ''}
+          </p>
+        )}
         <ComplianceRow label="PUC" value={metadata.puc_expiry} />
         <ComplianceRow label="Insurance" value={metadata.insurance_expiry} />
         <ComplianceRow label="Road Tax" value={metadata.road_tax_expiry} />
@@ -114,10 +122,14 @@ AssetCard.propTypes = {
   asset: PropTypes.shape({
     asset_id: PropTypes.string.isRequired,
     asset_name: PropTypes.string.isRequired,
-    make: PropTypes.string.isRequired,
-    model: PropTypes.string.isRequired,
-    registration_number: PropTypes.string.isRequired,
-    registration_type: PropTypes.string.isRequired,
+    // make/model/registration_number/registration_type are VEHICLE-only fields —
+    // genuinely null for REAL_ESTATE/GOLD_JEWELRY/GOLD_BOND assets (v1.0 net-worth-model pass).
+    make: PropTypes.string,
+    model: PropTypes.string,
+    registration_number: PropTypes.string,
+    registration_type: PropTypes.string,
+    current_value: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    valuation_date: PropTypes.string,
     is_active: PropTypes.bool.isRequired,
     metadata: PropTypes.object,
   }).isRequired,

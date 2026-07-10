@@ -10,6 +10,7 @@ import com.suchika.wealth.adapters.http.dto.UpdateAccountRequest;
 import com.suchika.wealth.domain.AccountType;
 import com.suchika.wealth.ports.input.AccountUseCase;
 import com.suchika.wealth.ports.input.CreateAccountCommand;
+import com.suchika.wealth.ports.input.UpdateAccountCommand;
 import com.suchika.shared.exception.BadRequestException;
 import com.suchika.shared.utils.ResourceUtils;
 import jakarta.ws.rs.*;
@@ -73,9 +74,10 @@ public class AccountResource {
             UpdateAccountRequest request) {
         profileId = ResourceUtils.requireProfileId(profileId);
         if (request == null) throw new BadRequestException("Request body is required");
-        return AccountResponse.from(
-                useCase.updateAccount(accountId, profileId, request.accountName, request.openingBalance,
-                        request.creditLimit, request.interestRate, request.emiAmount, request.active));
+        UpdateAccountCommand command = new UpdateAccountCommand(
+                request.accountName, request.openingBalance, request.creditLimit,
+                request.interestRate, request.emiAmount, request.active);
+        return AccountResponse.from(useCase.updateAccount(accountId, profileId, command));
     }
 
     @DELETE

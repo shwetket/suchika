@@ -13,6 +13,7 @@ import com.suchika.wealth.ports.input.AccountBalance;
 import com.suchika.wealth.ports.input.AccountUseCase;
 import com.suchika.wealth.ports.input.CreateAccountCommand;
 import com.suchika.wealth.ports.input.UpdateAccountClassificationCommand;
+import com.suchika.wealth.ports.input.UpdateAccountCommand;
 import com.suchika.wealth.ports.output.AccountRepository;
 import com.suchika.wealth.ports.output.TransactionRepository;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -83,20 +84,21 @@ public class AccountService implements AccountUseCase {
 
     @Override
     @Transactional
-    public Account updateAccount(UUID id, UUID profileId, String accountName, BigDecimal openingBalance, BigDecimal creditLimit,
-                                  BigDecimal interestRate, BigDecimal emiAmount, Boolean isActive) {
+    public Account updateAccount(UUID id, UUID profileId, UpdateAccountCommand command) {
         Account account = repository.findById(id, profileId)
                 .orElseThrow(() -> new NotFoundException(ACCOUNT_NOT_FOUND + id));
 
+        String accountName = command.accountName();
         if (accountName != null) {
             if (accountName.isBlank()) throw new BadRequestException("account_name must not be blank");
             account.setAccountName(accountName);
         }
-        if (openingBalance != null) account.setOpeningBalance(openingBalance);
-        if (creditLimit != null) account.setCreditLimit(creditLimit);
-        if (interestRate != null) account.setInterestRate(interestRate);
-        if (emiAmount != null) account.setEmiAmount(emiAmount);
+        if (command.openingBalance() != null) account.setOpeningBalance(command.openingBalance());
+        if (command.creditLimit() != null) account.setCreditLimit(command.creditLimit());
+        if (command.interestRate() != null) account.setInterestRate(command.interestRate());
+        if (command.emiAmount() != null) account.setEmiAmount(command.emiAmount());
 
+        Boolean isActive = command.isActive();
         if (Boolean.FALSE.equals(isActive)) {
             requireNoTransactions(id);
         }

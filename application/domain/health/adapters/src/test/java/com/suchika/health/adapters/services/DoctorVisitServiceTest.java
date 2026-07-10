@@ -83,6 +83,33 @@ class DoctorVisitServiceTest {
     }
 
     @Test
+    void create_rejects_blank_doctor_name_when_visited() {
+        CreateDoctorVisitCommand command = visitCmd(UUID.randomUUID(), true, "   ", null, null);
+
+        assertThrows(BadRequestException.class, () -> service.create(command));
+    }
+
+    @Test
+    void create_withValidToDate_onOrAfterFromDate_succeeds() {
+        CreateDoctorVisitCommand command = new CreateDoctorVisitCommand(
+                UUID.randomUUID(), TODAY, TODAY, true, "Dr. Sharma", null, null, null, null, null, null);
+
+        DoctorVisit visit = service.create(command);
+
+        assertEquals(TODAY, visit.getToDate());
+    }
+
+    @Test
+    void getById_happy_path_returnsVisit() {
+        DoctorVisit created = service.create(visitCmd(UUID.randomUUID(), true, "Dr. Sharma", null, null));
+
+        DoctorVisit found = service.getById(created.getId());
+
+        assertEquals(created.getId(), found.getId());
+        assertEquals("Dr. Sharma", found.getDoctorName());
+    }
+
+    @Test
     void update_partial_fields() {
         DoctorVisit created = service.create(visitCmd(UUID.randomUUID(), true, "Dr. Sharma", null, null));
 

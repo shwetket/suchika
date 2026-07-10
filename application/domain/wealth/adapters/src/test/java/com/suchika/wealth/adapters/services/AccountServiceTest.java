@@ -10,6 +10,7 @@ import com.suchika.wealth.domain.TxnType;
 import com.suchika.wealth.ports.input.AccountBalance;
 import com.suchika.wealth.ports.input.CreateAccountCommand;
 import com.suchika.wealth.ports.input.UpdateAccountClassificationCommand;
+import com.suchika.wealth.ports.input.UpdateAccountCommand;
 import com.suchika.wealth.ports.output.AccountRepository;
 import com.suchika.wealth.ports.output.TransactionRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -121,7 +122,8 @@ class AccountServiceTest {
         Account account = service.createAccount(null,
                 cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", new BigDecimal("1000"), null, null, null));
 
-        Account updated = service.updateAccount(account.getId(), null, "HDFC Salary", null, null, null, null, null);
+        Account updated = service.updateAccount(account.getId(), null,
+                new UpdateAccountCommand("HDFC Salary", null, null, null, null, null));
 
         assertEquals("HDFC Salary", updated.getAccountName());
         assertEquals(0, new BigDecimal("1000").compareTo(updated.getOpeningBalance()));
@@ -132,9 +134,9 @@ class AccountServiceTest {
         Account account = service.createAccount(null,
                 cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
         UUID accountId = account.getId();
+        UpdateAccountCommand command = new UpdateAccountCommand("  ", null, null, null, null, null);
 
-        assertThrows(BadRequestException.class,
-                () -> service.updateAccount(accountId, null, "  ", null, null, null, null, null));
+        assertThrows(BadRequestException.class, () -> service.updateAccount(accountId, null, command));
     }
 
     @Test
@@ -142,7 +144,8 @@ class AccountServiceTest {
         Account account = service.createAccount(null,
                 cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
 
-        Account updated = service.updateAccount(account.getId(), null, null, null, null, null, null, false);
+        Account updated = service.updateAccount(account.getId(), null,
+                new UpdateAccountCommand(null, null, null, null, null, false));
 
         assertFalse(updated.isActive());
     }
@@ -153,9 +156,9 @@ class AccountServiceTest {
                 cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
         UUID accountId = account.getId();
         repo.markHasTransactions(accountId);
+        UpdateAccountCommand command = new UpdateAccountCommand(null, null, null, null, null, false);
 
-        assertThrows(ConflictException.class,
-                () -> service.updateAccount(accountId, null, null, null, null, null, null, false));
+        assertThrows(ConflictException.class, () -> service.updateAccount(accountId, null, command));
     }
 
     @Test
@@ -165,9 +168,9 @@ class AccountServiceTest {
         Account account = service.createAccount(ownerProfileId,
                 cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
         UUID accountId = account.getId();
+        UpdateAccountCommand command = new UpdateAccountCommand("Renamed", null, null, null, null, null);
 
-        assertThrows(NotFoundException.class,
-                () -> service.updateAccount(accountId, otherProfileId, "Renamed", null, null, null, null, null));
+        assertThrows(NotFoundException.class, () -> service.updateAccount(accountId, otherProfileId, command));
     }
 
     @Test

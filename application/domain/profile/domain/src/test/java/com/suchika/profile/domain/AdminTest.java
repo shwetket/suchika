@@ -67,4 +67,23 @@ class AdminTest {
         assertEquals("Ketan Verma", admin.getDisplayName());
         assertEquals(true, admin.isActive());
     }
+
+    @Test
+    void setEmailAddress_updatesEmailAddress() {
+        Admin admin = new Admin();
+
+        admin.setEmailAddress("test-admin@example.com");
+
+        assertEquals("test-admin@example.com", admin.getEmailAddress());
+    }
+
+    @Test
+    void setCreatedAt_updatesCreatedAt() {
+        Admin admin = new Admin();
+        Instant createdAt = Instant.parse("2026-02-01T00:00:00Z");
+
+        admin.setCreatedAt(createdAt);
+
+        assertEquals(createdAt, admin.getCreatedAt());
+    }
 }
