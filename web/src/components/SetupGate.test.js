@@ -94,4 +94,21 @@ describe('SetupGate', () => {
 
     await waitFor(() => expect(screen.getByText('Setup Page')).toBeInTheDocument());
   });
+
+  it('renders a blocking error and does not redirect when household_conflict is true', async () => {
+    useAuth.mockReturnValue({
+      user: { username: 'alice', role: 'admin', household_conflict: true },
+    });
+
+    renderWithRouter(
+      <SetupGate>
+        <div>Dashboard Content</div>
+      </SetupGate>
+    );
+
+    await waitFor(() => expect(screen.getByText(/multiple households found/i)).toBeInTheDocument());
+    expect(screen.queryByText('Setup Page')).not.toBeInTheDocument();
+    expect(screen.queryByText('Dashboard Content')).not.toBeInTheDocument();
+    expect(getAdmin).not.toHaveBeenCalled();
+  });
 });

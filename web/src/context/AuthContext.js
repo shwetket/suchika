@@ -1,7 +1,11 @@
 import React, { createContext, useState, useEffect, useCallback, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { signIn } from '../api/auth';
+import { listAdmins } from '../api/admins';
+import { listProfiles } from '../api/profiles';
 import { logError } from '../utils/errorHandler';
+
+const SELF_RELATION = 'SELF';
 
 export const AuthContext = createContext();
 
@@ -24,29 +28,36 @@ export const AuthProvider = ({ children }) => {
   const login = useCallback(async (username, role = 'user') => {
     const response = await signIn({ username, role });
 
-    // Carry forward admin_id/profile_id from a prior session for the same
-    // username, so re-authenticating doesn't send an already-set-up admin
-    // back through the setup wizard (SetupGate gates on user.admin_id).
-    let carryForward = {};
-    const stored = localStorage.getItem('user');
-    if (stored) {
-      try {
-        const previous = JSON.parse(stored);
-        if (previous.username === response.username) {
-          carryForward = { admin_id: previous.admin_id, profile_id: previous.profile_id };
-        }
-      } catch (e) {
-        logError('AuthContext', e);
-      }
-    }
-
     const newUser = {
-      ...carryForward,
       username: response.username,
       role: response.role,
       token: response.token,
       loginTime: response.issued_at,
     };
+
+    // ADR-021: resolve admin_id/profile_id from the backend's actual admin
+    // list on every login, instead of carrying forward whatever happened to
+    // be sitting in localStorage for the same username (removed — that
+    // heuristic always failed on a fresh browser/session).
+    const admins = await listAdmins();
+
+    if (admins.length === 1 && admins[0].is_active === true) {
+      const adminId = admins[0].admin_id;
+      newUser.admin_id = adminId;
+
+      const profiles = await listProfiles(adminId, true);
+      const selfProfile = profiles.find((profile) => profile.relation_to_admin === SELF_RELATION);
+      if (selfProfile && newUser.role === 'admin') {
+        newUser.profile_id = selfProfile.profile_id;
+      }
+    } else if (admins.length > 1) {
+      // More than one admin: single-household is a hard assumption, not a
+      // stopgap — never guess, never auto-create, never build a picker.
+      newUser.household_conflict = true;
+    }
+    // 0 admins: leave admin_id/profile_id unset — true first-run, SetupGate
+    // already routes this to /admin/setup.
+
     setUser(newUser);
     localStorage.setItem('user', JSON.stringify(newUser));
     return newUser;

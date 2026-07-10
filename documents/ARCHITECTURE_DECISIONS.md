@@ -5,7 +5,7 @@
 | **Type** | Reference — ADR Log |
 | **Audience** | All developers |
 | **Status** | Active |
-| **Last updated** | 2026-07-05 (ADR-020 added) |
+| **Last updated** | 2026-07-10 (ADR-021 added) |
 
 ## Objective
 
@@ -41,6 +41,7 @@ Record every significant architectural decision made for this project, along wit
 | [ADR-018](#adr-018-react-query-for-frontend-server-state) | React Query for Frontend Server State | Accepted — 2026-07-02 |
 | [ADR-019](#adr-019-profileid-as-a-plain-field-on-domain-entities-adr-006-addendum) | `profileId` as a Plain Field on Domain Entities (ADR-006 addendum) | Accepted — 2026-06-30, documented 2026-07-03 |
 | [ADR-020](#adr-020-flyway-consolidation--db-constraint-policy-keep-fkuniquepknot-null-drop-check-only) | Flyway Consolidation & DB Constraint Policy: Keep FK/UNIQUE/PK/NOT NULL, Drop CHECK Only | Accepted — 2026-07-05 |
+| [ADR-021](#adr-021-login-auto-attaches-to-the-single-existing-admin-no-client-side-carry-forward) | Login Auto-Attaches to the Single Existing Admin (No Client-Side Carry-Forward) | Accepted — 2026-07-10 |
 
 ---
 
@@ -469,5 +470,54 @@ This was flagged during the v0.4 architect review (Q1): "the current `CalendarEv
 **Rationale for CHECK-only removal (vs. the plan's original FK+CHECK+UNIQUE removal):** Adding a new discriminator or business rule now requires only a domain/contract change, no Flyway migration — the original goal. But referential integrity and natural-key uniqueness are structural invariants worth keeping at the DB layer as a last line of defense; recreating them at the application layer (existence-check REST calls for cross-service FKs, pre-insert uniqueness checks) trades a free, atomic DB guarantee for a slower, non-atomic, easy-to-forget application-layer approximation with real gaps (multi-step delete atomicity, network-call coupling for cross-service checks). Not a good trade at this project's scale.
 
 **Rejected alternative:** Drop FK/UNIQUE too (the plan's original draft direction) — rejected per the reasoning above; see `documents/flyway-consolidation-plan.md` Section 2 for the full accepted-risk table that was drafted for this alternative before it was overridden.
+
+---
+
+## ADR-021: Login Auto-Attaches to the Single Existing Admin (No Client-Side Carry-Forward)
+
+**Status:** Accepted — decided 2026-07-10
+
+**Decision:** On login, the frontend resolves `admin_id`/`profile_id` by asking the backend "does exactly one admin already exist?" (`GET /v1/admins` via the existing `listAdmins()`), not by matching against a prior `localStorage` session for the same username. Concretely, in `AuthContext.login()`:
+
+1. Call `listAdmins()`.
+2. **Exactly one admin, and its `is_active === true`:** auto-attach — set `admin_id` to that admin's id. Then call `listProfiles(adminId, true)` and find the member with `relation_to_admin === 'SELF'`; if `role === 'admin'`, attach that profile's `profile_id` too. This is the household's one and only admin — there is nothing to choose.
+3. **Zero admins:** leave `admin_id`/`profile_id` unset. `SetupGate` correctly routes to `/admin/setup`, which creates the first (and, by this app's model, only) admin + SELF profile. True first-run, unchanged from existing behavior.
+4. **More than one admin:** do **not** guess, do **not** auto-create a second household, do **not** build a picker UI. Set `household_conflict: true` on the user object instead. `SetupGate` renders a blocking error state ("multiple households found — this app supports exactly one") rather than either redirecting to setup (which would silently spawn a duplicate household) or picking arbitrarily.
+5. If the `listAdmins()` call itself fails (network/server error), the exception propagates out of `login()` uncaught — `SignIn.js` already surfaces `err.message` and the user stays on the sign-in screen. This is deliberate: silently treating a transient fetch failure as "zero admins" would risk auto-creating a duplicate household on nothing more than a dropped request.
+
+The previous mechanism — carry forward `admin_id`/`profile_id` from whatever `localStorage.user` blob happened to be sitting in the browser, matched only by username string equality — is removed outright.
+
+**Context — the confirmed bug:** A real household was seeded directly into Postgres (4 profiles under 1 admin) to pilot the app end-to-end. The actual household member could not log into the running frontend and see it:
+
+- `web/src/api/auth.js` `signIn()` calls a backend endpoint that doesn't exist (`/v1/auth/signin`, 404) and silently falls back to a demo stub returning only `{username, role, token, issued_at}` — expected and accepted per ADR-005 (real OIDC auth is deferred to v1.0); not itself the bug.
+- The bug was one layer up: `AuthContext.login()` had no backend lookup at all for `admin_id`/`profile_id` — it only "carried forward" those fields from a previous `localStorage` session matching the same username. A fresh browser or a new username has no prior session to carry forward from, so `admin_id` is `undefined`, always.
+- Role `admin` + no `admin_id` → `SetupGate` force-redirects to `/admin/setup`, whose step 1 unconditionally calls `createAdmin()` + `createProfile()` — it always creates a **brand-new** admin+profile row. There was no "attach me to the household that already exists" path anywhere in the codebase. Every fresh login as admin silently spawned another empty household.
+- Role `user` bypasses `SetupGate` but every page sources `admin_id` from `user.admin_id` for its API calls (v0.5.1 Workstream 2 fix, `profile.md`), so it 400s (`ProfileResource.java` `admin_id is required`) with a raw error surfaced to the user.
+- A prior QA pass had "confirmed real data renders correctly" only by hand-patching `localStorage.user.admin_id` in devtools — never exercising a real login path.
+
+**Why auto-attach-to-the-sole-admin is the right direction, not just a stopgap patched over the real fix (checked against roadmap, not assumed):**
+
+- `README.md` states the app is "owned and run locally" — one deployment, one household.
+- ADR-017 records the product owner's own framing, stated twice: he is *the only person who ever logs into the app*; other household members are data-attribution targets inside his one session, never independent authenticated users. This is a direct product statement, not an inference.
+- `ROADMAP.md`'s only multi-tenant item is "Multi-tenant PostgreSQL (row-level security or per-tenant schemas)" under a distant, unscheduled future features list — about hosting *multiple separate deployments* efficiently, not about one running instance serving multiple households or multiple concurrent admins. It sits alongside "Public domain deployment," "CDN," "99.5% SLA" — infra scaling ambitions, not a near-term product requirement.
+- ADR-005 defers all real identity/auth (OIDC/OAuth2, RBAC) to v1.0 and is still unimplemented. Nothing currently maps an arbitrary login username to a specific household member — `SignIn.js` is a free-text username + role dropdown with zero backend credential check.
+- Given all of the above, "exactly one admin exists, attach to it" is a correct model of *this app's actual current shape*, not a speculative guess about a future multi-tenant world. It is intentionally cheap to delete once real OIDC auth in v1.0 makes it obsolete — auto-attach is replaced by a real authenticated identity lookup at that point, same shape of change ADR-005 already anticipates.
+
+**Why the fix lives in `AuthContext.login()`, not `SetupGate` or `Setup.js`:**
+
+- `AuthContext` is the app's one established home for auth/global session state (ADR-018 confirms this explicitly — Context API stays for auth/global state, React Query for server data). Identity resolution ("who is this user, which household do they belong to") is a session-establishment concern, squarely inside that responsibility.
+- `SetupGate` is a route guard. Its job is "is setup complete, yes/no" — it should stay a dumb boolean check on already-resolved `admin_id`. Teaching it to also resolve identity would duplicate logic that belongs in one place and couple a route guard to backend admin-listing semantics.
+- `Setup.js` step 1 is, and remains, "create the first admin." It needs zero changes — it is only ever reached once `admin_id` genuinely doesn't exist anywhere (the zero-admin case), which is the one case it was always correctly built for. Adding an "or attach to an existing household" branch *inside* the wizard would create two divergent code paths solving the same problem in two places.
+
+**The 2-vs-many-admin question:** the current single-household model is enforced, not opened into a picker. Building a multi-admin picker UI now would be scope creep against a scenario nothing in `ROADMAP.md`/`BUSINESS_REQUIREMENTS.md` asks for today, and would quietly legitimize "many households, one app instance" as a supported shape before any of the multi-tenant data-isolation work (row-level security, per-tenant schema routing) that would actually make that safe exists. Surfacing `household_conflict` as a hard-stop error is the honest signal: this state means the data is inconsistent with the app's current single-household assumption and needs a human, not a UI affordance.
+
+**Known pre-existing gap, explicitly not solved by this ADR:** the `role: 'user'` login option has no defined mechanism to map an arbitrary typed username to a specific household member's `profile_id` — there is no username/credential field on `profile.profile` at all. This was already true before this fix and is not introduced by it. Recommended follow-up (product decision, not engineering guesswork): either hide the "User" role option in `SignIn.js` until real per-member auth exists in v1.0, or explicitly scope what a "user" session is allowed to do without a `profile_id`. Tracked as an open issue in `documents/domain-state/profile.md` rather than guessed at here.
+
+**Rejected alternatives:**
+- **Keep localStorage carry-forward, just fix the matching key:** rejected — any client-side-only heuristic fails identically on a fresh browser/device, which is the exact failure mode that surfaced this bug. The backend, not the browser, is the source of truth for "does this household already exist."
+- **Auto-attach silently even when `listAdmins()` returns >1:** rejected — picking arbitrarily (e.g., first admin returned) risks silently attaching a real user to the wrong household's financial/health data. Wrong-tenant data exposure is a worse failure mode than a blocked login screen.
+- **Solve it in `Setup.js` with an "attach to existing household" step added to the wizard:** rejected — this duplicates identity-resolution logic in the onboarding UI instead of the auth layer, and still requires `AuthContext`/`SetupGate` to somehow know not to redirect there in the first place, which is circular.
+
+**Impact:** `web/src/context/AuthContext.js` (`login()` rewritten, carry-forward block removed), `web/src/components/SetupGate.js` (new `household_conflict` branch), no backend change (`listAdmins()`/`listProfiles()` already exist and already support this). No new Flyway migration, no contract change.
 
 **Supersedes:** The DB constraint philosophy previously documented in `CLAUDE.md` prior to 2026-07-05 (which additionally allowed business-rule CHECKs like `amount >= 0` to stay in the DB). This ADR's policy is now the one recorded in `CLAUDE.md`'s "DB constraint philosophy" section.

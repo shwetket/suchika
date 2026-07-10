@@ -44,6 +44,17 @@ export const SetupGate = ({ children }) => {
     };
   }, [user]);
 
+  if (user?.household_conflict) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <p className="text-red-600 text-sm text-center max-w-md px-4">
+          Multiple households found. This app supports exactly one household — contact your
+          administrator.
+        </p>
+      </div>
+    );
+  }
+
   if (checking) {
     return <div className="flex justify-center items-center h-screen">Loading...</div>;
   }
