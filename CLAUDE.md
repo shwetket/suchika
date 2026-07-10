@@ -140,7 +140,7 @@ The calculation engine lives in `web-gateway` (the BFF), which has read access t
 ## GitHub Codespaces
 
 This repo is Codespaces-ready. The `.devcontainer/` directory configures a two-container environment:
-- **app** — Java 17 + Node 18 + PowerShell Core (for `.ps1` scripts)
+- **app** — Java 17 + Node 24 + PowerShell Core (for `.ps1` scripts)
 - **db** — PostgreSQL 16 in IST timezone
 
 **First time in Codespaces:**

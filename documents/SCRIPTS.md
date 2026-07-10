@@ -327,7 +327,7 @@ Runs check-prerequisites, creates `application/finance/.env` from `infrastructur
 
 ### `check-prerequisites.ps1` / `.sh` — Tool verification
 
-Checks Java 17+, Gradle, Node 18+, npm, psql, sonar-scanner. Reports PASS/WARN/FAIL per tool.
+Checks Java 21+ (17-20 warns, matches CI at 21), Gradle, Node 20+ (24 matches CI), npm, psql, sonar-scanner. Reports PASS/WARN/FAIL per tool.
 
 ```powershell
 .\scripts\check-prerequisites.ps1
