@@ -23,8 +23,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    # Node 18 is NOT in the base Java image — it is installed by the PowerShell feature
-    # and the onCreateCommand script via nvm
+    # Node 24 is NOT in the base Java image — it is installed via the devcontainer.json
+    # "features" entry (ghcr.io/devcontainers/features/node:1), not by any script here.
 
   db:
     image: postgres:16

@@ -196,7 +196,7 @@ suchika/
 │   │   └── pr-labeler.yml
 │   ├── labeler.yml
 │   └── pull_request_template.md
-├── .devcontainer/                 ← Codespaces: app container (Java 17 + Node 18) + db container (PG 16)
+├── .devcontainer/                 ← Codespaces: app container (Java 17 + Node 24) + db container (PG 16)
 ├── README.md
 ├── CONTRIBUTING.md
 ├── CLAUDE.md

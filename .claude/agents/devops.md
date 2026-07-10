@@ -156,7 +156,7 @@ This is the primary developer interface. Dot-source once per session:
 | `gapi` | `generate-api` | Regenerate web/src/api/generated.ts |
 | `sa` | `stop-all` | Kill all services by port (3000, 8080–8084) |
 | — | `status` | HTTP/TCP health check for all services |
-| — | `check` | Verify all tools (Java 17+, Node 18+, psql, sonar-scanner) |
+| — | `check` | Verify all tools (Java 21+, Node 20+, psql, sonar-scanner) |
 | — | `db-start` | Ensure PostgreSQL running + open psql |
 | — | `db-reset` | Drop + recreate app_db (-Force to skip prompt) |
 | — | `db-shell` | psql as app_user (-AsAdmin for postgres) |

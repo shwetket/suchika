@@ -1,14 +1,20 @@
 {
   "name": "Suchika",
 
-  // Multi-container: app (Java 17 + Node 18 + pwsh) + db (PostgreSQL 16 in IST)
+  // Multi-container: app (Java 17 + Node 24 + pwsh) + db (PostgreSQL 16 in IST)
   "dockerComposeFile": "docker-compose.yml",
   "service": "app",
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
 
-  // Install PowerShell Core so all existing .ps1 scripts work unchanged
+  // Install PowerShell Core so all existing .ps1 scripts work unchanged.
+  // Node via the official feature, pinned to 24 to match CI (.github/workflows/ci.yml)
+  // and scripts/check-prerequisites.sh's Node floor — the base java image has no
+  // Node/npm at all, and nothing else in this config installs it (see download-deps.sh
+  // history). Java stays at 17 here (base image); CI uses 21 — a separate, pre-existing,
+  // non-blocking drift (check-prerequisites.sh only warns, doesn't fail, on Java 17).
   "features": {
-    "ghcr.io/devcontainers/features/powershell:1": {}
+    "ghcr.io/devcontainers/features/powershell:1": {},
+    "ghcr.io/devcontainers/features/node:1": { "version": "24" }
   },
 
   // One-time prebuild: downloads Gradle + npm deps (the slow part — ~5 min).
