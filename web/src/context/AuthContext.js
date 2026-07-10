@@ -39,13 +39,18 @@ export const AuthProvider = ({ children }) => {
     // list on every login, instead of carrying forward whatever happened to
     // be sitting in localStorage for the same username (removed — that
     // heuristic always failed on a fresh browser/session).
-    const admins = await listAdmins();
+    // listAdmins()/listProfiles() return the ListXResponse wrapper shape
+    // ({admins: [...], total_size} / {profiles: [...], total_size}), same as
+    // every other caller (e.g. Profiles.js) — not a bare array.
+    const adminsResponse = await listAdmins();
+    const admins = adminsResponse.admins ?? [];
 
     if (admins.length === 1 && admins[0].is_active === true) {
       const adminId = admins[0].admin_id;
       newUser.admin_id = adminId;
 
-      const profiles = await listProfiles(adminId, true);
+      const profilesResponse = await listProfiles(adminId, true);
+      const profiles = profilesResponse.profiles ?? [];
       const selfProfile = profiles.find((profile) => profile.relation_to_admin === SELF_RELATION);
       if (selfProfile && newUser.role === 'admin') {
         newUser.profile_id = selfProfile.profile_id;

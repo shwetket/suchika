@@ -18,8 +18,8 @@ describe('AuthContext', () => {
     localStorage.clear();
     jest.clearAllMocks();
     jest.spyOn(console, 'error').mockImplementation(() => {});
-    adminsApi.listAdmins.mockResolvedValue([]);
-    profilesApi.listProfiles.mockResolvedValue([]);
+    adminsApi.listAdmins.mockResolvedValue({ admins: [], total_size: 0 });
+    profilesApi.listProfiles.mockResolvedValue({ profiles: [], total_size: 0 });
   });
 
   afterEach(() => {
@@ -153,7 +153,7 @@ describe('AuthContext', () => {
 
     it('leaves admin_id/profile_id unset when zero admins exist (true first-run)', async () => {
       authApi.signIn.mockResolvedValue(signInResponse('admin'));
-      adminsApi.listAdmins.mockResolvedValue([]);
+      adminsApi.listAdmins.mockResolvedValue({ admins: [], total_size: 0 });
 
       const { result } = renderHook(() => React.useContext(AuthContext), { wrapper });
       await act(async () => {});
@@ -170,13 +170,17 @@ describe('AuthContext', () => {
 
     it('auto-attaches admin_id and the SELF profile_id when exactly one active admin exists', async () => {
       authApi.signIn.mockResolvedValue(signInResponse('admin'));
-      adminsApi.listAdmins.mockResolvedValue([
-        { admin_id: 'admin-1', is_active: true, display_name: 'Ketan' },
-      ]);
-      profilesApi.listProfiles.mockResolvedValue([
-        { profile_id: 'profile-1', relation_to_admin: 'SELF' },
-        { profile_id: 'profile-2', relation_to_admin: 'SPOUSE' },
-      ]);
+      adminsApi.listAdmins.mockResolvedValue({
+        admins: [{ admin_id: 'admin-1', is_active: true, display_name: 'Ketan' }],
+        total_size: 1,
+      });
+      profilesApi.listProfiles.mockResolvedValue({
+        profiles: [
+          { profile_id: 'profile-1', relation_to_admin: 'SELF' },
+          { profile_id: 'profile-2', relation_to_admin: 'SPOUSE' },
+        ],
+        total_size: 2,
+      });
 
       const { result } = renderHook(() => React.useContext(AuthContext), { wrapper });
       await act(async () => {});
@@ -194,12 +198,14 @@ describe('AuthContext', () => {
 
     it('does not attach profile_id when the login role is not admin', async () => {
       authApi.signIn.mockResolvedValue(signInResponse('user'));
-      adminsApi.listAdmins.mockResolvedValue([
-        { admin_id: 'admin-1', is_active: true, display_name: 'Ketan' },
-      ]);
-      profilesApi.listProfiles.mockResolvedValue([
-        { profile_id: 'profile-1', relation_to_admin: 'SELF' },
-      ]);
+      adminsApi.listAdmins.mockResolvedValue({
+        admins: [{ admin_id: 'admin-1', is_active: true, display_name: 'Ketan' }],
+        total_size: 1,
+      });
+      profilesApi.listProfiles.mockResolvedValue({
+        profiles: [{ profile_id: 'profile-1', relation_to_admin: 'SELF' }],
+        total_size: 1,
+      });
 
       const { result } = renderHook(() => React.useContext(AuthContext), { wrapper });
       await act(async () => {});
@@ -214,9 +220,10 @@ describe('AuthContext', () => {
 
     it('does not auto-attach when the sole admin is inactive', async () => {
       authApi.signIn.mockResolvedValue(signInResponse('admin'));
-      adminsApi.listAdmins.mockResolvedValue([
-        { admin_id: 'admin-1', is_active: false, display_name: 'Ketan' },
-      ]);
+      adminsApi.listAdmins.mockResolvedValue({
+        admins: [{ admin_id: 'admin-1', is_active: false, display_name: 'Ketan' }],
+        total_size: 1,
+      });
 
       const { result } = renderHook(() => React.useContext(AuthContext), { wrapper });
       await act(async () => {});
@@ -231,10 +238,13 @@ describe('AuthContext', () => {
 
     it('sets household_conflict and does not guess when more than one admin exists', async () => {
       authApi.signIn.mockResolvedValue(signInResponse('admin'));
-      adminsApi.listAdmins.mockResolvedValue([
-        { admin_id: 'admin-1', is_active: true, display_name: 'Ketan' },
-        { admin_id: 'admin-2', is_active: true, display_name: 'Someone Else' },
-      ]);
+      adminsApi.listAdmins.mockResolvedValue({
+        admins: [
+          { admin_id: 'admin-1', is_active: true, display_name: 'Ketan' },
+          { admin_id: 'admin-2', is_active: true, display_name: 'Someone Else' },
+        ],
+        total_size: 2,
+      });
 
       const { result } = renderHook(() => React.useContext(AuthContext), { wrapper });
       await act(async () => {});
