@@ -6,9 +6,12 @@
   "service": "app",
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
 
-  // Install PowerShell Core so all existing .ps1 scripts work unchanged
+  // Install PowerShell Core so all existing .ps1 scripts work unchanged.
+  // Node 18 via the official feature — the base java image has no Node/npm at all,
+  // and nothing else in this config installs it (see download-deps.sh history).
   "features": {
-    "ghcr.io/devcontainers/features/powershell:1": {}
+    "ghcr.io/devcontainers/features/powershell:1": {},
+    "ghcr.io/devcontainers/features/node:1": { "version": "18" }
   },
 
   // One-time prebuild: downloads Gradle + npm deps (the slow part — ~5 min).

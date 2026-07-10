@@ -8,10 +8,9 @@ set -e
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-echo "==> Installing Node 18 via nvm..."
-export NVM_DIR="/usr/local/share/nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
-nvm install 18 --default 2>/dev/null || true
+echo "==> Verifying Node (installed via the devcontainer node feature)..."
+node --version
+npm --version
 
 echo "==> Downloading Gradle wrapper..."
 chmod +x gradlew
