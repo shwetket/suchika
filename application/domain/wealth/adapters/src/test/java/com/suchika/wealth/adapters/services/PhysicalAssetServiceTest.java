@@ -170,10 +170,10 @@ class PhysicalAssetServiceTest {
         PhysicalAsset asset = service.createAsset(null,
                 cmd("Family Car", AssetType.VEHICLE, "Maruti", "Swift", "KA-01-AB-1234", RegistrationType.PRIVATE));
         UUID assetId = asset.getId();
+        UpdatePhysicalAssetCommand command =
+                new UpdatePhysicalAssetCommand("  ", null, null, null, null, null, null);
 
-        assertThrows(BadRequestException.class,
-                () -> service.updateAsset(assetId, null,
-                        new UpdatePhysicalAssetCommand("  ", null, null, null, null, null, null)));
+        assertThrows(BadRequestException.class, () -> service.updateAsset(assetId, null, command));
     }
 
     @Test
@@ -193,9 +193,10 @@ class PhysicalAssetServiceTest {
     @Test
     void updateAsset_notFound_throwsNotFoundException() {
         UUID randomId = UUID.randomUUID();
-        assertThrows(NotFoundException.class,
-                () -> service.updateAsset(randomId, null,
-                        new UpdatePhysicalAssetCommand("Renamed", null, null, null, null, null, null)));
+        UpdatePhysicalAssetCommand command =
+                new UpdatePhysicalAssetCommand("Renamed", null, null, null, null, null, null);
+
+        assertThrows(NotFoundException.class, () -> service.updateAsset(randomId, null, command));
     }
 
     @Test
@@ -204,10 +205,10 @@ class PhysicalAssetServiceTest {
         UUID otherProfileId = UUID.randomUUID();
         PhysicalAsset asset = service.createAsset(ownerProfileId,
                 cmd("Family Car", AssetType.VEHICLE, "Maruti", "Swift", "KA-01-AB-1234", RegistrationType.PRIVATE));
+        UpdatePhysicalAssetCommand command =
+                new UpdatePhysicalAssetCommand("Renamed", null, null, null, null, null, null);
 
-        assertThrows(NotFoundException.class,
-                () -> service.updateAsset(asset.getId(), otherProfileId,
-                        new UpdatePhysicalAssetCommand("Renamed", null, null, null, null, null, null)));
+        assertThrows(NotFoundException.class, () -> service.updateAsset(asset.getId(), otherProfileId, command));
     }
 
     @Test

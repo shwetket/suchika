@@ -134,10 +134,9 @@ class AccountServiceTest {
         Account account = service.createAccount(null,
                 cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
         UUID accountId = account.getId();
+        UpdateAccountCommand command = new UpdateAccountCommand("  ", null, null, null, null, null);
 
-        assertThrows(BadRequestException.class,
-                () -> service.updateAccount(accountId, null,
-                        new UpdateAccountCommand("  ", null, null, null, null, null)));
+        assertThrows(BadRequestException.class, () -> service.updateAccount(accountId, null, command));
     }
 
     @Test
@@ -157,10 +156,9 @@ class AccountServiceTest {
                 cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
         UUID accountId = account.getId();
         repo.markHasTransactions(accountId);
+        UpdateAccountCommand command = new UpdateAccountCommand(null, null, null, null, null, false);
 
-        assertThrows(ConflictException.class,
-                () -> service.updateAccount(accountId, null,
-                        new UpdateAccountCommand(null, null, null, null, null, false)));
+        assertThrows(ConflictException.class, () -> service.updateAccount(accountId, null, command));
     }
 
     @Test
@@ -170,10 +168,9 @@ class AccountServiceTest {
         Account account = service.createAccount(ownerProfileId,
                 cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
         UUID accountId = account.getId();
+        UpdateAccountCommand command = new UpdateAccountCommand("Renamed", null, null, null, null, null);
 
-        assertThrows(NotFoundException.class,
-                () -> service.updateAccount(accountId, otherProfileId,
-                        new UpdateAccountCommand("Renamed", null, null, null, null, null)));
+        assertThrows(NotFoundException.class, () -> service.updateAccount(accountId, otherProfileId, command));
     }
 
     @Test
