@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -18,7 +19,7 @@ class PhysicalAssetTest {
         UUID id = UUID.randomUUID();
         UUID profileId = UUID.randomUUID();
         Instant createdAt = Instant.parse("2026-06-01T10:00:00Z");
-        LocalDate valuationDate = LocalDate.of(2026, 6, 1);
+        LocalDate valuationDate = LocalDate.of(2026, Month.JUNE, 1);
         Map<String, String> metadata = Map.of("puc_expiry", "2027-01-01");
 
         PhysicalAsset asset = PhysicalAsset.builder()
@@ -58,7 +59,7 @@ class PhysicalAssetTest {
                 .assetName("Flat 402, Skyline Apartments")
                 .assetType(AssetType.REAL_ESTATE)
                 .currentValue(new BigDecimal("9500000.00"))
-                .valuationDate(LocalDate.of(2026, 1, 1))
+                .valuationDate(LocalDate.of(2026, Month.JANUARY, 1))
                 .build();
 
         assertNull(asset.getMake());
@@ -94,7 +95,7 @@ class PhysicalAssetTest {
         asset.setMake("N/A");
         asset.setModel("N/A");
         asset.setCurrentValue(new BigDecimal("300000.00"));
-        asset.setValuationDate(LocalDate.of(2026, 7, 1));
+        asset.setValuationDate(LocalDate.of(2026, Month.JULY, 1));
         asset.setActive(false);
         asset.setMetadata(newMetadata);
 
@@ -102,7 +103,7 @@ class PhysicalAssetTest {
         assertEquals("N/A", asset.getMake());
         assertEquals("N/A", asset.getModel());
         assertEquals(0, new BigDecimal("300000.00").compareTo(asset.getCurrentValue()));
-        assertEquals(LocalDate.of(2026, 7, 1), asset.getValuationDate());
+        assertEquals(LocalDate.of(2026, Month.JULY, 1), asset.getValuationDate());
         assertFalse(asset.isActive());
         assertEquals(newMetadata, asset.getMetadata());
     }
