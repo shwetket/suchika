@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 @RegisterForReflection
 public class CreateAccountRequest {
@@ -31,4 +32,7 @@ public class CreateAccountRequest {
 
     @JsonProperty("emi_amount")
     public BigDecimal emiAmount;
+
+    @JsonProperty("balance_as_of")
+    public LocalDate balanceAsOf;
 }

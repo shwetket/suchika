@@ -9,6 +9,7 @@ import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 
 @Entity
@@ -54,6 +55,9 @@ public class AccountEntity extends PanacheEntityBase {
     @Column(name = "created_at", nullable = false, updatable = false)
     public Instant createdAt;
 
+    @Column(name = "balance_as_of")
+    public LocalDate balanceAsOf;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "metadata", columnDefinition = "jsonb", nullable = false)
     public String metadata = "{}";
@@ -77,6 +81,7 @@ public class AccountEntity extends PanacheEntityBase {
         e.emiAmount = account.getEmiAmount();
         e.active = account.isActive();
         e.createdAt = account.getCreatedAt();
+        e.balanceAsOf = account.getBalanceAsOf();
         e.metadata = JsonbMetadataUtil.write(account.getMetadata());
         return e;
     }
@@ -95,6 +100,7 @@ public class AccountEntity extends PanacheEntityBase {
                 .emiAmount(emiAmount)
                 .active(active)
                 .createdAt(createdAt)
+                .balanceAsOf(balanceAsOf)
                 .metadata(JsonbMetadataUtil.read(metadata))
                 .build();
     }

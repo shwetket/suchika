@@ -53,7 +53,8 @@ public class AccountResource {
         if (accountType == null) throw new BadRequestException("account_type is required");
         CreateAccountCommand command = new CreateAccountCommand(
                 request.accountName, accountType, request.institutionName, request.currency,
-                request.openingBalance, request.creditLimit, request.interestRate, request.emiAmount);
+                request.openingBalance, request.creditLimit, request.interestRate, request.emiAmount,
+                request.balanceAsOf);
         return Response.status(201).entity(AccountResponse.from(useCase.createAccount(profileId, command))).build();
     }
 
@@ -76,7 +77,7 @@ public class AccountResource {
         if (request == null) throw new BadRequestException("Request body is required");
         UpdateAccountCommand command = new UpdateAccountCommand(
                 request.accountName, request.openingBalance, request.creditLimit,
-                request.interestRate, request.emiAmount, request.active);
+                request.interestRate, request.emiAmount, request.active, request.balanceAsOf);
         return AccountResponse.from(useCase.updateAccount(accountId, profileId, command));
     }
 

@@ -400,6 +400,11 @@ export interface components {
       interest_rate?: number | null;
       /** Format: double */
       emi_amount?: number | null;
+      /**
+       * Format: date
+       * @description Date the opening_balance was last known accurate. For manually tracked accounts with no live transaction feed, this is the only honest answer to "how current is this balance?" Null when never recorded.
+       */
+      balance_as_of?: string | null;
       is_active?: boolean;
       /** Format: date-time */
       created_at?: string;
@@ -419,6 +424,11 @@ export interface components {
       total_debits?: number;
       /** Format: double */
       current_balance?: number;
+      /**
+       * Format: date
+       * @description Date the account's opening_balance was last known accurate. Does not advance as transactions are added — only describes the opening_balance snapshot itself. Null when never recorded.
+       */
+      balance_as_of?: string | null;
     };
     /** @description All fields optional. Only provided keys are merged into metadata. */
     UpdateAccountClassificationRequest: {
@@ -461,6 +471,11 @@ export interface components {
       interest_rate?: number | null;
       /** Format: double */
       emi_amount?: number | null;
+      /**
+       * Format: date
+       * @description Date the opening_balance is accurate as of.
+       */
+      balance_as_of?: string | null;
     };
     /** @description All fields optional. Only provided fields are updated. */
     UpdateAccountRequest: {
@@ -474,6 +489,11 @@ export interface components {
       /** Format: double */
       emi_amount?: number | null;
       is_active?: boolean;
+      /**
+       * Format: date
+       * @description Date the opening_balance is accurate as of.
+       */
+      balance_as_of?: string | null;
     };
     ListAccountsResponse: {
       accounts?: components["schemas"]["AccountResponse"][];

@@ -2,6 +2,7 @@ package com.suchika.wealth.domain;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -20,6 +21,7 @@ public class Account {
     private BigDecimal emiAmount;
     private boolean active;
     private Instant createdAt;
+    private LocalDate balanceAsOf;
     private Map<String, String> metadata;
 
     public Account() {}
@@ -37,6 +39,7 @@ public class Account {
         this.emiAmount = builder.emiAmount;
         this.active = builder.active;
         this.createdAt = builder.createdAt;
+        this.balanceAsOf = builder.balanceAsOf;
         this.metadata = builder.metadata;
     }
 
@@ -55,6 +58,7 @@ public class Account {
         private BigDecimal emiAmount;
         private boolean active = true;
         private Instant createdAt;
+        private LocalDate balanceAsOf;
         private Map<String, String> metadata = new HashMap<>();
 
         public Builder id(UUID id) { this.id = id; return this; }
@@ -69,6 +73,7 @@ public class Account {
         public Builder emiAmount(BigDecimal emiAmount) { this.emiAmount = emiAmount; return this; }
         public Builder active(boolean active) { this.active = active; return this; }
         public Builder createdAt(Instant createdAt) { this.createdAt = createdAt; return this; }
+        public Builder balanceAsOf(LocalDate balanceAsOf) { this.balanceAsOf = balanceAsOf; return this; }
         public Builder metadata(Map<String, String> metadata) { this.metadata = metadata; return this; }
         public Account build() { return new Account(this); }
     }
@@ -85,6 +90,7 @@ public class Account {
     public BigDecimal getEmiAmount() { return emiAmount; }
     public boolean isActive() { return active; }
     public Instant getCreatedAt() { return createdAt; }
+    public LocalDate getBalanceAsOf() { return balanceAsOf; }
     public Map<String, String> getMetadata() { return metadata; }
 
     public void setAccountName(String accountName) { this.accountName = accountName; }
@@ -93,5 +99,6 @@ public class Account {
     public void setInterestRate(BigDecimal interestRate) { this.interestRate = interestRate; }
     public void setEmiAmount(BigDecimal emiAmount) { this.emiAmount = emiAmount; }
     public void setActive(boolean active) { this.active = active; }
+    public void setBalanceAsOf(LocalDate balanceAsOf) { this.balanceAsOf = balanceAsOf; }
     public void setMetadata(Map<String, String> metadata) { this.metadata = metadata; }
 }

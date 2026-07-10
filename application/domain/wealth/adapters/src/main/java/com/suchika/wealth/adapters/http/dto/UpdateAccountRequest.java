@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 @RegisterForReflection
 public class UpdateAccountRequest {
@@ -25,4 +26,7 @@ public class UpdateAccountRequest {
 
     @JsonProperty("is_active")
     public Boolean active;
+
+    @JsonProperty("balance_as_of")
+    public LocalDate balanceAsOf;
 }

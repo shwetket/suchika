@@ -1,6 +1,7 @@
 package com.suchika.wealth.ports.input;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 /**
  * Partial-update payload for {@link AccountUseCase#updateAccount}. Bundles the
@@ -16,5 +17,6 @@ public record UpdateAccountCommand(
         BigDecimal creditLimit,
         BigDecimal interestRate,
         BigDecimal emiAmount,
-        Boolean isActive
+        Boolean isActive,
+        LocalDate balanceAsOf
 ) {}
