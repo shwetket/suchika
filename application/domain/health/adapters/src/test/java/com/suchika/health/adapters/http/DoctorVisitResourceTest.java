@@ -153,6 +153,19 @@ class DoctorVisitResourceTest {
     }
 
     @Test
+    void create_visitedDoctorExplicitlyFalse_staysFalse() {
+        CreateDoctorVisitRequest request = new CreateDoctorVisitRequest();
+        request.profileId = PROFILE_ID;
+        request.fromDate = LocalDate.of(2026, Month.JUNE, 1);
+        request.visitedDoctor = Boolean.FALSE;
+        useCase.visitToReturn = buildVisit();
+
+        resource.create(request);
+
+        assertEquals(false, useCase.lastCreateCommand.visitedDoctor());
+    }
+
+    @Test
     void getById_returnsVisitResponse() {
         useCase.visitToReturn = buildVisit();
 

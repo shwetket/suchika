@@ -9,6 +9,7 @@ import io.quarkus.test.junit.TestProfile;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.Month;
 import java.util.List;
@@ -168,6 +169,28 @@ class DoctorVisitPanacheRepositoryTest {
         java.util.Optional<DoctorVisit> found = repository.findById(saved.getId());
         assertTrue(found.isPresent());
         assertEquals("Updated diagnosis", found.get().getDiagnosis());
+    }
+
+    @Test
+    void save_withExplicitCreatedAt_doesNotOverwriteProvidedTimestamp() {
+        // onPrePersist only backfills createdAt when it is null; a freshly-built
+        // visit that already carries a createdAt must have that exact timestamp
+        // preserved on insert rather than stamped with Instant.now().
+        Instant explicitCreatedAt = Instant.parse("2020-01-01T00:00:00Z");
+        DoctorVisit visit = DoctorVisit.builder()
+                .profileId(SEED_PROFILE_ID)
+                .fromDate(LocalDate.of(2026, Month.AUGUST, 1))
+                .visitedDoctor(false)
+                .diagnosis("Backfilled visit")
+                .createdAt(explicitCreatedAt)
+                .build();
+
+        DoctorVisit saved = repository.save(visit);
+
+        assertEquals(explicitCreatedAt, saved.getCreatedAt());
+        java.util.Optional<DoctorVisit> found = repository.findById(saved.getId());
+        assertTrue(found.isPresent());
+        assertEquals(explicitCreatedAt, found.get().getCreatedAt());
     }
 
     @Test

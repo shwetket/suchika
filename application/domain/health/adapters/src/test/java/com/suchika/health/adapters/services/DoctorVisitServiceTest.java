@@ -133,6 +133,35 @@ class DoctorVisitServiceTest {
     }
 
     @Test
+    void update_accepts_toDate_onOrAfter_fromDate() {
+        DoctorVisit created = service.create(noVisitCmd(UUID.randomUUID(), null));
+
+        UpdateDoctorVisitCommand command = new UpdateDoctorVisitCommand(
+                TODAY, null, null, null, null, null, null, null);
+        DoctorVisit updated = service.update(created.getId(), command);
+
+        assertEquals(TODAY, updated.getToDate());
+    }
+
+    @Test
+    void update_overwrites_remaining_fields_when_others_are_null() {
+        DoctorVisit created = service.create(noVisitCmd(UUID.randomUUID(), "Fever"));
+        LocalDate followUp = LocalDate.of(2024, Month.FEBRUARY, 1);
+
+        UpdateDoctorVisitCommand command = new UpdateDoctorVisitCommand(
+                null, "Dr. Mehta", null, "Cardiology", "Cough", null, "Better now", followUp);
+        DoctorVisit updated = service.update(created.getId(), command);
+
+        assertEquals("Dr. Mehta", updated.getDoctorName());
+        assertNull(updated.getHospitalName());
+        assertEquals("Cardiology", updated.getSpeciality());
+        assertEquals("Cough", updated.getSymptoms());
+        assertNull(updated.getDiagnosis());
+        assertEquals("Better now", updated.getNotes());
+        assertEquals(followUp, updated.getFollowUpDate());
+    }
+
+    @Test
     void getById_throws_not_found() {
         UUID unknownId = UUID.randomUUID();
         assertThrows(NotFoundException.class, () -> service.getById(unknownId));
@@ -160,6 +189,15 @@ class DoctorVisitServiceTest {
     void delete_throws_not_found_for_unknown_id() {
         UUID unknownId = UUID.randomUUID();
         assertThrows(NotFoundException.class, () -> service.delete(unknownId));
+    }
+
+    @Test
+    void delete_removes_existing_visit() {
+        DoctorVisit created = service.create(noVisitCmd(UUID.randomUUID(), "Fever"));
+
+        service.delete(created.getId());
+
+        assertFalse(repository.existsById(created.getId()));
     }
 
     @Test

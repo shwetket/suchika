@@ -84,6 +84,34 @@ class VitalReadingServiceTest {
     }
 
     @Test
+    void record_rejects_null_unit() {
+        assertThrows(BadRequestException.class, () ->
+                service.recordReading(UUID.randomUUID(), VitalType.WEIGHT,
+                        LocalDate.of(2024, Month.JANUARY, 15), new BigDecimal("70"), null, null, null));
+    }
+
+    @Test
+    void record_rejects_null_vital_type() {
+        assertThrows(BadRequestException.class, () ->
+                service.recordReading(UUID.randomUUID(), null,
+                        LocalDate.of(2024, Month.JANUARY, 15), new BigDecimal("70"), null, "kg", null));
+    }
+
+    @Test
+    void record_rejects_null_reading_date() {
+        assertThrows(BadRequestException.class, () ->
+                service.recordReading(UUID.randomUUID(), VitalType.WEIGHT,
+                        null, new BigDecimal("70"), null, "kg", null));
+    }
+
+    @Test
+    void record_rejects_null_value_primary() {
+        assertThrows(BadRequestException.class, () ->
+                service.recordReading(UUID.randomUUID(), VitalType.WEIGHT,
+                        LocalDate.of(2024, Month.JANUARY, 15), null, null, "kg", null));
+    }
+
+    @Test
     void getById_throws_not_found_for_unknown_id() {
         UUID unknownId = UUID.randomUUID();
         assertThrows(NotFoundException.class, () -> service.getById(unknownId));
@@ -108,6 +136,17 @@ class VitalReadingServiceTest {
     void delete_throws_not_found_for_unknown_id() {
         UUID unknownId = UUID.randomUUID();
         assertThrows(NotFoundException.class, () -> service.delete(unknownId));
+    }
+
+    @Test
+    void delete_removes_existing_reading() {
+        UUID profileId = UUID.randomUUID();
+        VitalReading created = service.recordReading(profileId, VitalType.WEIGHT,
+                LocalDate.of(2024, Month.JANUARY, 15), new BigDecimal("72.5"), null, "kg", null);
+
+        service.delete(created.getId());
+
+        assertFalse(repository.existsById(created.getId()));
     }
 
     @Test
@@ -168,6 +207,23 @@ class VitalReadingServiceTest {
         UpdateVitalReadingCommand command = new UpdateVitalReadingCommand(
                 null, BigDecimal.ZERO, null, null, null);
         assertThrows(BadRequestException.class, () -> service.update(createdId, command));
+    }
+
+    @Test
+    void update_overwrites_readingDate_valueSecondary_and_unit_when_valuePrimary_omitted() {
+        UUID profileId = UUID.randomUUID();
+        VitalReading created = service.recordReading(profileId, VitalType.BLOOD_PRESSURE,
+                LocalDate.of(2024, Month.JANUARY, 15), new BigDecimal("120"), new BigDecimal("80"), "mmHg", "morning");
+
+        UpdateVitalReadingCommand command = new UpdateVitalReadingCommand(
+                LocalDate.of(2024, Month.FEBRUARY, 1), null, new BigDecimal("82"), "kPa", null);
+        VitalReading updated = service.update(created.getId(), command);
+
+        assertEquals(LocalDate.of(2024, Month.FEBRUARY, 1), updated.getReadingDate());
+        assertEquals(new BigDecimal("120"), updated.getValuePrimary());
+        assertEquals(new BigDecimal("82"), updated.getValueSecondary());
+        assertEquals("kPa", updated.getUnit());
+        assertEquals("morning", updated.getNotes());
     }
 
     @Test

@@ -11,6 +11,7 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.Month;
 import java.util.List;
@@ -148,6 +149,29 @@ class VitalReadingPanacheRepositoryTest {
         assertTrue(found.isPresent());
         assertEquals(0, new BigDecimal("74.2").compareTo(found.get().getValuePrimary()));
         assertEquals("adjusted", found.get().getNotes());
+    }
+
+    @Test
+    void save_withExplicitCreatedAt_doesNotOverwriteProvidedTimestamp() {
+        // onPrePersist only backfills createdAt when it is null; a freshly-built
+        // reading that already carries a createdAt (e.g. reconstructed from an
+        // existing aggregate) must have that exact timestamp preserved on insert.
+        Instant explicitCreatedAt = Instant.parse("2020-01-01T00:00:00Z");
+        VitalReading reading = VitalReading.builder()
+                .profileId(SEED_PROFILE_ID)
+                .vitalType(VitalType.WEIGHT)
+                .readingDate(LocalDate.of(2026, Month.OCTOBER, 15))
+                .valuePrimary(new BigDecimal("70.0"))
+                .unit("kg")
+                .createdAt(explicitCreatedAt)
+                .build();
+
+        VitalReading saved = repository.save(reading);
+
+        assertEquals(explicitCreatedAt, saved.getCreatedAt());
+        Optional<VitalReading> found = repository.findById(saved.getId());
+        assertTrue(found.isPresent());
+        assertEquals(explicitCreatedAt, found.get().getCreatedAt());
     }
 
     @Test
