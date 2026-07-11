@@ -9,6 +9,7 @@ import {
 } from '../../api/wealth';
 import { Field } from '../../components/Field';
 import { Modal } from '../../components/Modal';
+import { EditIcon } from '../../components/shared/EditIcon';
 import { useAuth } from '../../hooks/useAuth';
 
 const ASSET_TYPES = ['VEHICLE'];

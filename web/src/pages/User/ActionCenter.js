@@ -97,7 +97,7 @@ export const ActionCenter = () => {
     <div className="p-6 max-w-4xl mx-auto">
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Action Center</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Action Center</h1>
           <p className="text-sm text-gray-500 mt-1">
             Alerts across the household — upcoming events, vehicle compliance, and health tracking
             gaps.
