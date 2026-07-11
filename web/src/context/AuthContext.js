@@ -42,10 +42,15 @@ export const AuthProvider = ({ children }) => {
     // listAdmins()/listProfiles() return the ListXResponse wrapper shape
     // ({admins: [...], total_size} / {profiles: [...], total_size}), same as
     // every other caller (e.g. Profiles.js) — not a bare array.
+    // GET /v1/admins ignores ?is_active and always returns every admin regardless
+    // of status, so deactivated admins (e.g. leftover test/onboarding artifacts)
+    // must be filtered out here before counting — otherwise one active admin
+    // alongside any deactivated one would still look like a multi-household
+    // conflict.
     const adminsResponse = await listAdmins();
-    const admins = adminsResponse.admins ?? [];
+    const admins = (adminsResponse.admins ?? []).filter((admin) => admin.is_active === true);
 
-    if (admins.length === 1 && admins[0].is_active === true) {
+    if (admins.length === 1) {
       const adminId = admins[0].admin_id;
       newUser.admin_id = adminId;
 

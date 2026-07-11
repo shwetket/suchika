@@ -101,7 +101,7 @@ jobs:
 
   frontend:
     runs-on: ubuntu-latest
-    needs: backend
+    needs: migration-location-check
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v5
