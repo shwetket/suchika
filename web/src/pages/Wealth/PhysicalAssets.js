@@ -238,7 +238,8 @@ export const PhysicalAssets = () => {
           asset_type: addForm.asset_type,
           make: addForm.asset_type === 'VEHICLE' ? addForm.make.trim() : null,
           model: addForm.asset_type === 'VEHICLE' ? addForm.model.trim() : null,
-          registration_number: addForm.asset_type === 'VEHICLE' ? addForm.registration_number.trim() : null,
+          registration_number:
+            addForm.asset_type === 'VEHICLE' ? addForm.registration_number.trim() : null,
           registration_type: addForm.asset_type === 'VEHICLE' ? addForm.registration_type : null,
           current_value: addForm.current_value ? Number(addForm.current_value) : null,
         });
@@ -284,13 +285,15 @@ export const PhysicalAssets = () => {
       try {
         await updatePhysicalAsset(editingAsset.asset_id, selectedProfileId, {
           asset_name: editForm.asset_name || null,
-          make: editForm.asset_type === 'VEHICLE' ? (editForm.make || null) : null,
-          model: editForm.asset_type === 'VEHICLE' ? (editForm.model || null) : null,
+          make: editForm.asset_type === 'VEHICLE' ? editForm.make || null : null,
+          model: editForm.asset_type === 'VEHICLE' ? editForm.model || null : null,
           current_value: editForm.current_value ? Number(editForm.current_value) : null,
           metadata: {
-            puc_expiry: editForm.asset_type === 'VEHICLE' ? (editForm.puc_expiry || '') : '',
-            insurance_expiry: editForm.asset_type === 'VEHICLE' ? (editForm.insurance_expiry || '') : '',
-            road_tax_expiry: editForm.asset_type === 'VEHICLE' ? (editForm.road_tax_expiry || '') : '',
+            puc_expiry: editForm.asset_type === 'VEHICLE' ? editForm.puc_expiry || '' : '',
+            insurance_expiry:
+              editForm.asset_type === 'VEHICLE' ? editForm.insurance_expiry || '' : '',
+            road_tax_expiry:
+              editForm.asset_type === 'VEHICLE' ? editForm.road_tax_expiry || '' : '',
           },
           is_active: editForm.is_active,
         });
