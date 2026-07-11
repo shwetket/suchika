@@ -179,12 +179,15 @@ suchika/
 │   ├── LOGGING_AND_EXCEPTIONS.md
 │   ├── OpenQuestions.md
 │   ├── QA_API_TEST_RESULTS.md
+│   ├── qa-findings-seed-data-ui-2026-07-10.md
 │   ├── REQUIREMENTS_cross_domain.md
 │   ├── REQUIREMENTS_health_domain.md
 │   ├── REQUIREMENTS_household_domain.md
 │   ├── REQUIREMENTS_wealth_domain.md
+│   ├── review-claude-2026-07-08.md
 │   ├── ROADMAP.md
 │   ├── SCRIPTS.md
+│   ├── UX_DECISIONS.md
 │   ├── V02_DEVELOPMENT_PLAN.md
 │   └── web_e2e_README.md
 ├── .github/
@@ -201,7 +204,8 @@ suchika/
 ├── CONTRIBUTING.md
 ├── CLAUDE.md
 ├── CODE_OF_CONDUCT.md
-└── SECURITY.md
+├── SECURITY.md
+└── LICENSE
 ```
 
 Each domain follows three layers: `domain/` (pure Java, zero framework deps) → `ports/` (interfaces) → `adapters/` (Quarkus/JPA/HTTP).

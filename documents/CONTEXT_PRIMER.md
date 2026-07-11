@@ -5,7 +5,7 @@
 | **Type** | Reference |
 | **Audience** | AI agents, new developers |
 | **Status** | Active |
-| **Last updated** | 2026-07-06 |
+| **Last updated** | 2026-07-11 |
 
 ## Objective
 
@@ -45,7 +45,15 @@ Hexagonal Architecture (Ports & Adapters). Single PostgreSQL database (`app_db`)
 
 **Pre-v1.0 retrospective — 2026-07-06:** full-repo review (architect, business-analyst, all domain/infra/frontend agents); no version bump. See `ROADMAP.md`'s "Architect Review — 2026-07-06" and "Business Analyst Review — 2026-07-06" sections; all four `domain-state/*.md` files were refreshed the same day.
 
-Quality gates (v0.6): all Gradle tests green (512 backend tests total), ArchUnit clean including a new port-interface test-coverage rule, Jest branch coverage gate enforced (branches 70%, lines 80%). 413 JS tests, 30 gateway projection tests.
+**Post-retrospective UX/data pass — 2026-07-08 through 2026-07-11 (no version bump, still v0.6):**
+- v0.5.1 Workstream (2026-07-08/09): `profile_id`/`admin_id` enforcement (Tier A all domains, Tier B wealth-only pilot), Flyway V2→V1 merges (profile/wealth/household), ADR-021 (login auto-attaches to the sole active admin instead of a broken `localStorage` carry-forward).
+- Real seeded household data loaded (2026-07-10) — `application/flyway/test-seed/{health,household,profile,wealth}/R__seed_*_test_data.sql`, 4 real profiles + 46 real wealth accounts + 8 real physical assets. **Flag:** each seed file's own header comment claims it is "gitignored... on the seed-data branch, never pushed/merged," but on this branch (`UX-Updates`) `.gitignore` has no `test-seed` entry and all four files are tracked/committed — real names, a real email address, real bank/account details, and real financial figures are currently in git history on this branch. Worth a deliberate decision (gitignore + untrack, or replace with synthetic data) before this branch merges — see `documents/qa-findings-seed-data-ui-2026-07-10.md` for the QA pass run against this same real data and `documents/domain-state/profile.md` Open Issues for the same flag.
+- `AuthContext.login()` now filters out inactive admins before the single-vs-multiple-admin check (2026-07-11) — closes a real bug where one active admin alongside any deactivated admin was wrongly treated as a multi-household conflict.
+- Shared `Badge` (`web/src/components/shared/Badge.js`) and `EditIcon` (`web/src/components/shared/EditIcon.js`) components introduced and adopted across Profiles, Accounts, Dashboard, PhysicalAssets, Reports, and several Public/Admin pages — icon-only edit actions, deactivate-moved-into-edit-modal, and reactivate-from-edit-modal patterns are now consistent across Profile and Wealth pages. New CSS design tokens/`card-hover` utility added in `web/src/index.css` + `tailwind.config.js`.
+- Wealth UX pass (UX-001 through UX-018, `documents/UX_DECISIONS.md`) plus new `wealth.account.balance_as_of` field (Flyway V3) — see `documents/domain-state/wealth.md` for full detail, already current as of 2026-07-11.
+- A prior full-repo AI review is filed at `documents/review-claude-2026-07-08.md` (moved from repo root during doc consolidation — architecture/business-logic/devops/documentation/quality/per-domain findings, several already fixed by the passes above).
+
+Quality gates (v0.6): all Gradle tests green (512+ backend tests total), ArchUnit clean including a new port-interface test-coverage rule, Jest branch coverage gate enforced (branches 70%, lines 80%). 539+ JS tests as of the 2026-07-11 wealth UX pass, 30 gateway projection tests.
 
 **v0.6 key additions (Testing Foundation, re-scoped, all complete):**
 
