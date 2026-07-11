@@ -15,6 +15,7 @@ jest.mock('../../api/wealth', () => ({
   listAccounts: jest.fn(),
   createAccount: jest.fn(),
   updateAccount: jest.fn(),
+  updateAccountClassification: jest.fn(),
   deactivateAccount: jest.fn(),
   getAccountBalance: jest.fn(),
 }));
@@ -91,6 +92,31 @@ describe('Accounts page', () => {
     });
   });
 
+  it('shows the "as of" date next to balance when balance_as_of is present', async () => {
+    listAccounts.mockResolvedValue({
+      accounts: [{ ...MOCK_ACCOUNTS[0], balance_as_of: '2026-07-10' }],
+    });
+    render(<Accounts />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/as of/i)).toBeInTheDocument();
+    });
+  });
+
+  it('does not show an "as of" date when balance_as_of is absent', async () => {
+    listAccounts.mockResolvedValue({ accounts: MOCK_ACCOUNTS });
+    render(<Accounts />);
+    await waitFor(() => screen.getByText('Alice'));
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+
+    await waitFor(() => screen.getByText('SBI Savings'));
+    expect(screen.queryByText(/as of/i)).not.toBeInTheDocument();
+  });
+
   it('opens add account modal on button click', async () => {
     listAccounts.mockResolvedValue({ accounts: MOCK_ACCOUNTS });
     render(<Accounts />);
@@ -150,6 +176,65 @@ describe('Accounts page', () => {
 
     await waitFor(() => {
       expect(createAccount).toHaveBeenCalled();
+    });
+  });
+
+  describe('loan offset account linking', () => {
+    const LOAN_ACCOUNT = {
+      account_id: 'loan-1',
+      account_name: 'Home Loan 1 - BoB MaxGain',
+      account_type: 'HOME_LOAN',
+      institution_name: 'Bank of Baroda',
+      opening_balance: 3771120,
+      interest_rate: 7.2,
+      is_active: true,
+      metadata: {},
+    };
+
+    const CURRENT_ACCOUNT = {
+      account_id: 'current-1',
+      account_name: 'MaxGain Buffer - HL1',
+      account_type: 'CURRENT',
+      institution_name: 'Bank of Baroda',
+      opening_balance: 282995,
+      is_active: true,
+    };
+
+    const SAVINGS_ACCOUNT = {
+      account_id: 'savings-1',
+      account_name: 'SBI Savings',
+      account_type: 'SAVINGS',
+      institution_name: 'State Bank of India',
+      opening_balance: 50000,
+      is_active: true,
+    };
+
+    it('offers both SAVINGS and CURRENT accounts as linkable offset targets for a loan', async () => {
+      listAccounts.mockImplementation((profileId, accountType) => {
+        if (accountType === null || accountType === undefined) {
+          return Promise.resolve({
+            accounts: [LOAN_ACCOUNT, CURRENT_ACCOUNT, SAVINGS_ACCOUNT],
+          });
+        }
+        return Promise.resolve({ accounts: [LOAN_ACCOUNT] });
+      });
+
+      render(<Accounts />);
+      await waitFor(() => screen.getByText('Alice'));
+      fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+
+      await waitFor(() => screen.getByText('Home Loan 1 - BoB MaxGain'));
+      const editButtons = screen.getAllByRole('button', { name: 'Edit' });
+      fireEvent.click(editButtons[0]);
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('Linked Offset Account')).toBeInTheDocument();
+      });
+
+      const dropdown = screen.getByLabelText('Linked Offset Account');
+      expect(screen.getByRole('option', { name: /MaxGain Buffer - HL1/i })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: /SBI Savings/i })).toBeInTheDocument();
+      expect(dropdown).toBeInTheDocument();
     });
   });
 });

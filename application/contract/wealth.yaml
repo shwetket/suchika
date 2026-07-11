@@ -840,6 +840,14 @@ components:
           format: double
           nullable: true
           description: Fixed monthly EMI for loan accounts
+        balance_as_of:
+          type: string
+          format: date
+          nullable: true
+          description: >
+            Date the opening_balance was last known accurate. For manually tracked
+            accounts with no live transaction feed, this is the only honest answer
+            to "how current is this balance?" Null when never recorded.
         current_value:
           type: number
           format: double
@@ -901,6 +909,11 @@ components:
           type: number
           format: double
           nullable: true
+        balance_as_of:
+          type: string
+          format: date
+          nullable: true
+          description: Date the opening_balance is accurate as of.
 
     UpdateAccountRequest:
       type: object
@@ -929,6 +942,11 @@ components:
           nullable: true
         is_active:
           type: boolean
+        balance_as_of:
+          type: string
+          format: date
+          nullable: true
+          description: Date the opening_balance is accurate as of.
 
     AccountBalance:
       type: object
@@ -951,6 +969,14 @@ components:
           type: number
           format: double
           description: opening_balance + total_credits - total_debits
+        balance_as_of:
+          type: string
+          format: date
+          nullable: true
+          description: >
+            Date the account's opening_balance was last known accurate. Does not
+            advance as transactions are added — only describes the opening_balance
+            snapshot itself. Null when never recorded.
 
     UpdateAccountClassificationRequest:
       type: object

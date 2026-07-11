@@ -41,7 +41,7 @@ class AccountServiceTest {
     private static CreateAccountCommand cmd(String name, AccountType type, String institution,
                                             BigDecimal openingBalance, BigDecimal creditLimit,
                                             BigDecimal interestRate, BigDecimal emiAmount) {
-        return new CreateAccountCommand(name, type, institution, null, openingBalance, creditLimit, interestRate, emiAmount);
+        return new CreateAccountCommand(name, type, institution, null, openingBalance, creditLimit, interestRate, emiAmount, null);
     }
 
     @Test
@@ -123,7 +123,7 @@ class AccountServiceTest {
                 cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", new BigDecimal("1000"), null, null, null));
 
         Account updated = service.updateAccount(account.getId(), null,
-                new UpdateAccountCommand("HDFC Salary", null, null, null, null, null));
+                new UpdateAccountCommand("HDFC Salary", null, null, null, null, null, null));
 
         assertEquals("HDFC Salary", updated.getAccountName());
         assertEquals(0, new BigDecimal("1000").compareTo(updated.getOpeningBalance()));
@@ -134,7 +134,7 @@ class AccountServiceTest {
         Account account = service.createAccount(null,
                 cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
         UUID accountId = account.getId();
-        UpdateAccountCommand command = new UpdateAccountCommand("  ", null, null, null, null, null);
+        UpdateAccountCommand command = new UpdateAccountCommand("  ", null, null, null, null, null, null);
 
         assertThrows(BadRequestException.class, () -> service.updateAccount(accountId, null, command));
     }
@@ -145,7 +145,7 @@ class AccountServiceTest {
                 cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
 
         Account updated = service.updateAccount(account.getId(), null,
-                new UpdateAccountCommand(null, null, null, null, null, false));
+                new UpdateAccountCommand(null, null, null, null, null, false, null));
 
         assertFalse(updated.isActive());
     }
@@ -156,7 +156,7 @@ class AccountServiceTest {
                 cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
         UUID accountId = account.getId();
         repo.markHasTransactions(accountId);
-        UpdateAccountCommand command = new UpdateAccountCommand(null, null, null, null, null, false);
+        UpdateAccountCommand command = new UpdateAccountCommand(null, null, null, null, null, false, null);
 
         assertThrows(ConflictException.class, () -> service.updateAccount(accountId, null, command));
     }
@@ -168,7 +168,7 @@ class AccountServiceTest {
         Account account = service.createAccount(ownerProfileId,
                 cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
         UUID accountId = account.getId();
-        UpdateAccountCommand command = new UpdateAccountCommand("Renamed", null, null, null, null, null);
+        UpdateAccountCommand command = new UpdateAccountCommand("Renamed", null, null, null, null, null, null);
 
         assertThrows(NotFoundException.class, () -> service.updateAccount(accountId, otherProfileId, command));
     }
@@ -241,6 +241,52 @@ class AccountServiceTest {
     void getAccountBalance_notFound_throwsNotFoundException() {
         UUID randomId = UUID.randomUUID();
         assertThrows(NotFoundException.class, () -> service.getAccountBalance(randomId, null));
+    }
+
+    // ---- balance_as_of: manual-entry balances need a known-accurate-as-of date ----
+
+    @Test
+    void createAccount_withBalanceAsOf_persists() {
+        LocalDate asOf = LocalDate.of(2026, Month.JULY, 10);
+        CreateAccountCommand command = new CreateAccountCommand(
+                "HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null,
+                new BigDecimal("1000.00"), null, null, null, asOf);
+
+        Account result = service.createAccount(null, command);
+
+        assertEquals(asOf, result.getBalanceAsOf());
+    }
+
+    @Test
+    void createAccount_noBalanceAsOf_isNull() {
+        Account result = service.createAccount(null,
+                cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
+
+        assertNull(result.getBalanceAsOf());
+    }
+
+    @Test
+    void updateAccount_setsBalanceAsOf() {
+        Account account = service.createAccount(null,
+                cmd("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null, null, null, null));
+        LocalDate asOf = LocalDate.of(2026, Month.JULY, 10);
+
+        Account updated = service.updateAccount(account.getId(), null,
+                new UpdateAccountCommand(null, null, null, null, null, null, asOf));
+
+        assertEquals(asOf, updated.getBalanceAsOf());
+    }
+
+    @Test
+    void getAccountBalance_includesBalanceAsOf() {
+        LocalDate asOf = LocalDate.of(2026, Month.JULY, 10);
+        Account account = service.createAccount(null,
+                new CreateAccountCommand("HDFC Savings", AccountType.SAVINGS, "HDFC Bank", null,
+                        new BigDecimal("1000.00"), null, null, null, asOf));
+
+        AccountBalance balance = service.getAccountBalance(account.getId(), null);
+
+        assertEquals(asOf, balance.balanceAsOf());
     }
 
     // ---- Epic 8 Phase 1: account classification metadata write path ----
@@ -359,6 +405,7 @@ class AccountServiceTest {
                         .interestRate(account.getInterestRate())
                         .emiAmount(account.getEmiAmount())
                         .active(account.isActive())
+                        .balanceAsOf(account.getBalanceAsOf())
                         .metadata(account.getMetadata())
                         .build();
             }

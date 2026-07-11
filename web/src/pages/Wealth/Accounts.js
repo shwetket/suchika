@@ -12,6 +12,7 @@ import {
   updateAccountClassification,
 } from '../../api/wealth';
 import { useAuth } from '../../hooks/useAuth';
+import { formatDate } from '../../utils/formatters';
 
 const ACCOUNT_TYPES = [
   'SAVINGS',
@@ -27,6 +28,10 @@ const ACCOUNT_TYPES = [
 ];
 const TYPE_TABS = ['ALL', ...ACCOUNT_TYPES];
 const LOAN_TYPES = new Set(['HOME_LOAN', 'PERSONAL_LOAN', 'CAR_LOAN']);
+// Real-world loan offset/linked accounts are deposit accounts — savings or current
+// (e.g. a MaxGain buffer account is typed CURRENT) — never another loan, credit card,
+// or investment.
+const OFFSET_ACCOUNT_TYPES = new Set(['SAVINGS', 'CURRENT']);
 
 const EMPTY_ADD = {
   account_name: '',
@@ -36,6 +41,7 @@ const EMPTY_ADD = {
   credit_limit: '',
   interest_rate: '',
   emi_amount: '',
+  balance_as_of: '',
 };
 const EMPTY_EDIT = {
   account_name: '',
@@ -44,6 +50,7 @@ const EMPTY_EDIT = {
   interest_rate: '',
   emi_amount: '',
   is_active: true,
+  balance_as_of: '',
   loan_original_principal: '',
   loan_start_date: '',
   loan_tenure_months: '',
@@ -104,6 +111,12 @@ function AccountCard({ account, balance, onEdit, onDeactivate }) {
           {balance === undefined
             ? 'Loading...'
             : formatCurrency(balance ?? account.opening_balance)}
+          {account.balance_as_of && (
+            <span className="text-xs text-gray-400">
+              {' '}
+              (as of {formatDate(account.balance_as_of)})
+            </span>
+          )}
         </p>
         {account.credit_limit !== null &&
           account.credit_limit !== undefined &&
@@ -143,6 +156,7 @@ AccountCard.propTypes = {
     credit_limit: PropTypes.number,
     interest_rate: PropTypes.number,
     is_active: PropTypes.bool.isRequired,
+    balance_as_of: PropTypes.string,
   }).isRequired,
   balance: PropTypes.number,
   onEdit: PropTypes.func.isRequired,
@@ -204,6 +218,15 @@ function AccountFormFields({ form, onChange }) {
           className={inputClass}
         />
       </Field>
+      <Field label="Balance As Of">
+        <input
+          name="balance_as_of"
+          type="date"
+          value={form.balance_as_of}
+          onChange={onChange}
+          className={inputClass}
+        />
+      </Field>
       {isCredit && (
         <Field label="Credit Limit">
           <input
@@ -258,7 +281,7 @@ export const Accounts = () => {
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [activeFilter, setActiveFilter] = useState(null);
 
-  const [savingsAccounts, setSavingsAccounts] = useState([]);
+  const [offsetAccountOptions, setOffsetAccountOptions] = useState([]);
 
   const [showAdd, setShowAdd] = useState(false);
   const [addForm, setAddForm] = useState(EMPTY_ADD);
@@ -352,6 +375,7 @@ export const Accounts = () => {
           credit_limit: addForm.credit_limit === '' ? null : Number(addForm.credit_limit),
           interest_rate: addForm.interest_rate === '' ? null : Number(addForm.interest_rate),
           emi_amount: addForm.emi_amount === '' ? null : Number(addForm.emi_amount),
+          balance_as_of: addForm.balance_as_of === '' ? null : addForm.balance_as_of,
         });
         setShowAdd(false);
         setAddForm(EMPTY_ADD);
@@ -376,6 +400,7 @@ export const Accounts = () => {
         interest_rate: account.interest_rate ?? '',
         emi_amount: account.emi_amount ?? '',
         is_active: account.is_active,
+        balance_as_of: account.balance_as_of ?? '',
         loan_original_principal: meta.original_principal ?? '',
         loan_start_date: meta.loan_start_date ?? '',
         loan_tenure_months: meta.original_tenure_months ?? '',
@@ -383,9 +408,13 @@ export const Accounts = () => {
       });
       setEditError(null);
       if (LOAN_TYPES.has(account.account_type) && selectedProfileId) {
-        listAccounts(selectedProfileId, 'SAVINGS', true)
-          .then((data) => setSavingsAccounts(data.accounts ?? []))
-          .catch(() => setSavingsAccounts([]));
+        listAccounts(selectedProfileId, null, true)
+          .then((data) =>
+            setOffsetAccountOptions(
+              (data.accounts ?? []).filter((a) => OFFSET_ACCOUNT_TYPES.has(a.account_type))
+            )
+          )
+          .catch(() => setOffsetAccountOptions([]));
       }
     },
     [selectedProfileId]
@@ -410,6 +439,7 @@ export const Accounts = () => {
           interest_rate: editForm.interest_rate === '' ? null : Number(editForm.interest_rate),
           emi_amount: editForm.emi_amount === '' ? null : Number(editForm.emi_amount),
           is_active: editForm.is_active,
+          balance_as_of: editForm.balance_as_of === '' ? null : editForm.balance_as_of,
         });
         if (LOAN_TYPES.has(editingAccount.account_type)) {
           const loanMeta = buildLoanMetadataPatch(editForm);
@@ -649,7 +679,7 @@ export const Accounts = () => {
                       className={inputClass}
                     />
                   </div>
-                  {savingsAccounts.length > 0 && (
+                  {offsetAccountOptions.length > 0 && (
                     <div className="flex flex-col gap-1">
                       <label
                         htmlFor="edit-linked-offset-account"
@@ -665,7 +695,7 @@ export const Accounts = () => {
                         className={inputClass}
                       >
                         <option value="">None</option>
-                        {savingsAccounts.map((a) => (
+                        {offsetAccountOptions.map((a) => (
                           <option key={a.account_id} value={a.account_id}>
                             {a.account_name}
                           </option>

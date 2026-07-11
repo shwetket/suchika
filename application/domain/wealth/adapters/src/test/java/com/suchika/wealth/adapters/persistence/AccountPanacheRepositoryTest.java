@@ -56,6 +56,24 @@ class AccountPanacheRepositoryTest {
     }
 
     @Test
+    void save_andFindById_roundTripsBalanceAsOf() {
+        java.time.LocalDate asOf = java.time.LocalDate.of(2026, 7, 10);
+        Account toSave = Account.builder()
+                .accountName("Kotak Savings")
+                .accountType(AccountType.SAVINGS)
+                .institutionName("Kotak Mahindra Bank")
+                .openingBalance(new BigDecimal("11.00"))
+                .balanceAsOf(asOf)
+                .build();
+
+        Account saved = repository.save(toSave);
+
+        Optional<Account> found = repository.findById(saved.getId());
+        assertTrue(found.isPresent());
+        assertEquals(asOf, found.get().getBalanceAsOf());
+    }
+
+    @Test
     void findById_notFound_returnsEmpty() {
         assertTrue(repository.findById(UUID.randomUUID()).isEmpty());
     }

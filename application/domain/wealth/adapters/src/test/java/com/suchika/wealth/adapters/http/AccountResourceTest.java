@@ -164,7 +164,7 @@ class AccountResourceTest {
     void getAccountBalance_returnsBalanceResponse() {
         useCase.balanceToReturn = new AccountBalance(
                 ACCOUNT_ID, BigDecimal.valueOf(1000), BigDecimal.valueOf(500), BigDecimal.valueOf(200),
-                BigDecimal.valueOf(1300));
+                BigDecimal.valueOf(1300), null);
 
         var response = resource.getAccountBalance(ACCOUNT_ID, PROFILE_ID);
 

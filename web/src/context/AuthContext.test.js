@@ -2,8 +2,12 @@ import React from 'react';
 import { renderHook, act } from '@testing-library/react';
 import { AuthProvider, AuthContext } from './AuthContext';
 import * as authApi from '../api/auth';
+import * as adminsApi from '../api/admins';
+import * as profilesApi from '../api/profiles';
 
 jest.mock('../api/auth');
+jest.mock('../api/admins');
+jest.mock('../api/profiles');
 
 function wrapper({ children }) {
   return <AuthProvider>{children}</AuthProvider>;
@@ -14,6 +18,8 @@ describe('AuthContext', () => {
     localStorage.clear();
     jest.clearAllMocks();
     jest.spyOn(console, 'error').mockImplementation(() => {});
+    adminsApi.listAdmins.mockResolvedValue({ admins: [], total_size: 0 });
+    profilesApi.listProfiles.mockResolvedValue({ profiles: [], total_size: 0 });
   });
 
   afterEach(() => {
@@ -137,71 +143,166 @@ describe('AuthContext', () => {
     });
   });
 
-  it('login() carries forward admin_id/profile_id for the same returning username', async () => {
-    localStorage.setItem(
-      'user',
-      JSON.stringify({ username: 'bob', role: 'user', admin_id: 'admin-9', profile_id: 'p-9' })
-    );
-    authApi.signIn.mockResolvedValue({
-      username: 'bob',
-      role: 'user',
+  describe('ADR-021 admin auto-attach', () => {
+    const signInResponse = (role) => ({
+      username: 'alice',
+      role,
       token: 'tok-new',
       issued_at: '2024-02-01T00:00:00Z',
     });
 
-    const { result } = renderHook(() => React.useContext(AuthContext), { wrapper });
-    await act(async () => {});
+    it('leaves admin_id/profile_id unset when zero admins exist (true first-run)', async () => {
+      authApi.signIn.mockResolvedValue(signInResponse('admin'));
+      adminsApi.listAdmins.mockResolvedValue({ admins: [], total_size: 0 });
 
-    await act(async () => {
-      await result.current.login('bob', 'user');
+      const { result } = renderHook(() => React.useContext(AuthContext), { wrapper });
+      await act(async () => {});
+
+      await act(async () => {
+        await result.current.login('alice', 'admin');
+      });
+
+      expect(result.current.user.admin_id).toBeUndefined();
+      expect(result.current.user.profile_id).toBeUndefined();
+      expect(result.current.user.household_conflict).toBeUndefined();
+      expect(profilesApi.listProfiles).not.toHaveBeenCalled();
     });
 
-    expect(result.current.user).toMatchObject({
-      username: 'bob',
-      admin_id: 'admin-9',
-      profile_id: 'p-9',
-    });
-  });
+    it('auto-attaches admin_id and the SELF profile_id when exactly one active admin exists', async () => {
+      authApi.signIn.mockResolvedValue(signInResponse('admin'));
+      adminsApi.listAdmins.mockResolvedValue({
+        admins: [{ admin_id: 'admin-1', is_active: true, display_name: 'Ketan' }],
+        total_size: 1,
+      });
+      profilesApi.listProfiles.mockResolvedValue({
+        profiles: [
+          { profile_id: 'profile-1', relation_to_admin: 'SELF' },
+          { profile_id: 'profile-2', relation_to_admin: 'SPOUSE' },
+        ],
+        total_size: 2,
+      });
 
-  it('login() does not carry forward admin_id when the returning username differs', async () => {
-    localStorage.setItem(
-      'user',
-      JSON.stringify({ username: 'alice', role: 'user', admin_id: 'admin-9' })
-    );
-    authApi.signIn.mockResolvedValue({
-      username: 'carol',
-      role: 'user',
-      token: 'tok-new',
-      issued_at: '2024-02-01T00:00:00Z',
-    });
+      const { result } = renderHook(() => React.useContext(AuthContext), { wrapper });
+      await act(async () => {});
 
-    const { result } = renderHook(() => React.useContext(AuthContext), { wrapper });
-    await act(async () => {});
+      await act(async () => {
+        await result.current.login('alice', 'admin');
+      });
 
-    await act(async () => {
-      await result.current.login('carol', 'user');
-    });
-
-    expect(result.current.user.admin_id).toBeUndefined();
-  });
-
-  it('login() ignores invalid JSON previously stored in localStorage', async () => {
-    localStorage.setItem('user', 'not-valid-json');
-    authApi.signIn.mockResolvedValue({
-      username: 'dave',
-      role: 'user',
-      token: 'tok-new',
-      issued_at: '2024-02-01T00:00:00Z',
+      expect(profilesApi.listProfiles).toHaveBeenCalledWith('admin-1', true);
+      expect(result.current.user).toMatchObject({
+        admin_id: 'admin-1',
+        profile_id: 'profile-1',
+      });
     });
 
-    const { result } = renderHook(() => React.useContext(AuthContext), { wrapper });
-    await act(async () => {});
+    it('does not attach profile_id when the login role is not admin', async () => {
+      authApi.signIn.mockResolvedValue(signInResponse('user'));
+      adminsApi.listAdmins.mockResolvedValue({
+        admins: [{ admin_id: 'admin-1', is_active: true, display_name: 'Ketan' }],
+        total_size: 1,
+      });
+      profilesApi.listProfiles.mockResolvedValue({
+        profiles: [{ profile_id: 'profile-1', relation_to_admin: 'SELF' }],
+        total_size: 1,
+      });
 
-    await act(async () => {
-      await result.current.login('dave', 'user');
+      const { result } = renderHook(() => React.useContext(AuthContext), { wrapper });
+      await act(async () => {});
+
+      await act(async () => {
+        await result.current.login('alice', 'user');
+      });
+
+      expect(result.current.user.admin_id).toBe('admin-1');
+      expect(result.current.user.profile_id).toBeUndefined();
     });
 
-    expect(result.current.user).toMatchObject({ username: 'dave' });
+    it('does not auto-attach when the sole admin is inactive', async () => {
+      authApi.signIn.mockResolvedValue(signInResponse('admin'));
+      adminsApi.listAdmins.mockResolvedValue({
+        admins: [{ admin_id: 'admin-1', is_active: false, display_name: 'Ketan' }],
+        total_size: 1,
+      });
+
+      const { result } = renderHook(() => React.useContext(AuthContext), { wrapper });
+      await act(async () => {});
+
+      await act(async () => {
+        await result.current.login('alice', 'admin');
+      });
+
+      expect(result.current.user.admin_id).toBeUndefined();
+      expect(result.current.user.household_conflict).toBeUndefined();
+    });
+
+    it('auto-attaches to the sole ACTIVE admin when a deactivated admin also exists', async () => {
+      // GET /v1/admins ignores ?is_active and always returns every admin (active
+      // and deactivated) — a deactivated leftover must not count toward the
+      // multi-admin conflict check.
+      authApi.signIn.mockResolvedValue(signInResponse('admin'));
+      adminsApi.listAdmins.mockResolvedValue({
+        admins: [
+          { admin_id: 'admin-1', is_active: true, display_name: 'Ketan' },
+          { admin_id: 'admin-2', is_active: false, display_name: 'Old Test Admin' },
+        ],
+        total_size: 2,
+      });
+      profilesApi.listProfiles.mockResolvedValue({
+        profiles: [{ profile_id: 'profile-1', relation_to_admin: 'SELF' }],
+        total_size: 1,
+      });
+
+      const { result } = renderHook(() => React.useContext(AuthContext), { wrapper });
+      await act(async () => {});
+
+      await act(async () => {
+        await result.current.login('alice', 'admin');
+      });
+
+      expect(result.current.user.admin_id).toBe('admin-1');
+      expect(result.current.user.household_conflict).toBeUndefined();
+      expect(profilesApi.listProfiles).toHaveBeenCalledWith('admin-1', true);
+    });
+
+    it('sets household_conflict and does not guess when more than one admin exists', async () => {
+      authApi.signIn.mockResolvedValue(signInResponse('admin'));
+      adminsApi.listAdmins.mockResolvedValue({
+        admins: [
+          { admin_id: 'admin-1', is_active: true, display_name: 'Ketan' },
+          { admin_id: 'admin-2', is_active: true, display_name: 'Someone Else' },
+        ],
+        total_size: 2,
+      });
+
+      const { result } = renderHook(() => React.useContext(AuthContext), { wrapper });
+      await act(async () => {});
+
+      await act(async () => {
+        await result.current.login('alice', 'admin');
+      });
+
+      expect(result.current.user.household_conflict).toBe(true);
+      expect(result.current.user.admin_id).toBeUndefined();
+      expect(profilesApi.listProfiles).not.toHaveBeenCalled();
+    });
+
+    it('propagates the error and leaves user unset when listAdmins() throws', async () => {
+      authApi.signIn.mockResolvedValue(signInResponse('admin'));
+      adminsApi.listAdmins.mockRejectedValue(new Error('network error'));
+
+      const { result } = renderHook(() => React.useContext(AuthContext), { wrapper });
+      await act(async () => {});
+
+      await expect(
+        act(async () => {
+          await result.current.login('alice', 'admin');
+        })
+      ).rejects.toThrow('network error');
+
+      expect(result.current.user).toBeNull();
+      expect(localStorage.getItem('user')).toBeNull();
+    });
   });
 
   it('handles invalid JSON in localStorage gracefully', async () => {

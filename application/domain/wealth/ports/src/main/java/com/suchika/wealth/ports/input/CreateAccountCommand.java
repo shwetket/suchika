@@ -3,6 +3,7 @@ package com.suchika.wealth.ports.input;
 import com.suchika.wealth.domain.AccountType;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 public record CreateAccountCommand(
         String accountName,
@@ -12,5 +13,6 @@ public record CreateAccountCommand(
         BigDecimal openingBalance,
         BigDecimal creditLimit,
         BigDecimal interestRate,
-        BigDecimal emiAmount
+        BigDecimal emiAmount,
+        LocalDate balanceAsOf
 ) {}

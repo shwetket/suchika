@@ -40,6 +40,12 @@ public class ProfileGatewayResource {
         }
     }
 
+    @GET
+    @Path("/admins/{adminId}")
+    public JsonNode getAdmin(@PathParam("adminId") UUID adminId) {
+        return profileServiceClient.getAdmin(adminId);
+    }
+
     @PATCH
     @Path("/admins/{adminId}/policy")
     public JsonNode updatePolicySettings(@PathParam("adminId") UUID adminId, JsonNode body) {

@@ -5,6 +5,7 @@ import com.suchika.wealth.ports.input.AccountBalance;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.UUID;
 
 @RegisterForReflection
@@ -25,6 +26,9 @@ public class AccountBalanceResponse {
     @JsonProperty("current_balance")
     public BigDecimal currentBalance;
 
+    @JsonProperty("balance_as_of")
+    public LocalDate balanceAsOf;
+
     public static AccountBalanceResponse from(AccountBalance balance) {
         AccountBalanceResponse r = new AccountBalanceResponse();
         r.accountId = balance.accountId();
@@ -32,6 +36,7 @@ public class AccountBalanceResponse {
         r.totalCredits = balance.totalCredits();
         r.totalDebits = balance.totalDebits();
         r.currentBalance = balance.currentBalance();
+        r.balanceAsOf = balance.balanceAsOf();
         return r;
     }
 }

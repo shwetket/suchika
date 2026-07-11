@@ -7,6 +7,7 @@ import io.quarkus.runtime.annotations.RegisterForReflection;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Map;
 import java.util.UUID;
 
@@ -48,6 +49,14 @@ public class AccountResponse {
     public Instant createdAt;
 
     /**
+     * Date the account's opening_balance was last known accurate — for manually
+     * tracked accounts with no live transaction feed, this is the only honest
+     * answer to "how current is this balance?" Null when never recorded.
+     */
+    @JsonProperty("balance_as_of")
+    public LocalDate balanceAsOf;
+
+    /**
      * Epic 8 Phase 1 classification metadata (category, liquidity_tier, purpose_tag).
      * category is reserved and not populated until Phase 2 — will be an empty/absent
      * map for every account until then. See ADR-016.
@@ -68,6 +77,7 @@ public class AccountResponse {
         r.emiAmount = account.getEmiAmount();
         r.active = account.isActive();
         r.createdAt = account.getCreatedAt();
+        r.balanceAsOf = account.getBalanceAsOf();
         r.metadata = account.getMetadata();
         return r;
     }

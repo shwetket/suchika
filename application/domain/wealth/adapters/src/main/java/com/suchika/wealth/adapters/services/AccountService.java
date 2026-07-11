@@ -64,6 +64,7 @@ public class AccountService implements AccountUseCase {
                 .creditLimit(command.creditLimit())
                 .interestRate(command.interestRate())
                 .emiAmount(command.emiAmount())
+                .balanceAsOf(command.balanceAsOf())
                 .build();
 
         Account saved = repository.save(account);
@@ -97,6 +98,7 @@ public class AccountService implements AccountUseCase {
         if (command.creditLimit() != null) account.setCreditLimit(command.creditLimit());
         if (command.interestRate() != null) account.setInterestRate(command.interestRate());
         if (command.emiAmount() != null) account.setEmiAmount(command.emiAmount());
+        if (command.balanceAsOf() != null) account.setBalanceAsOf(command.balanceAsOf());
 
         Boolean isActive = command.isActive();
         if (Boolean.FALSE.equals(isActive)) {
@@ -136,7 +138,7 @@ public class AccountService implements AccountUseCase {
         BigDecimal totalDebits = transactionRepository.sumAmountByTxnType(accountId, profileId, TxnType.DEBIT);
         BigDecimal current = opening.add(totalCredits).subtract(totalDebits);
 
-        return new AccountBalance(accountId, opening, totalCredits, totalDebits, current);
+        return new AccountBalance(accountId, opening, totalCredits, totalDebits, current, account.getBalanceAsOf());
     }
 
     private static final Set<AccountType> LOAN_TYPES = Set.of(
