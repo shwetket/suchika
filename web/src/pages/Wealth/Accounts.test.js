@@ -193,6 +193,57 @@ describe('Accounts page', () => {
     });
   });
 
+  describe('Account type list (backlog item: stale ACCOUNT_TYPES)', () => {
+    const EXPECTED_ACCOUNT_TYPES = [
+      'SAVINGS',
+      'CURRENT',
+      'CREDIT_CARD',
+      'HOME_LOAN',
+      'PERSONAL_LOAN',
+      'CAR_LOAN',
+      'MUTUAL_FUND',
+      'NPS',
+      'PPF',
+      'FD',
+      'EPF',
+    ];
+
+    it('offers all 11 real AccountType values in the Add Account dropdown, not the stale 7-value set', async () => {
+      listAccounts.mockResolvedValue({ accounts: [] });
+      render(<Accounts />);
+      await waitFor(() => screen.getByText('Alice'));
+
+      fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+      await waitFor(() => screen.getByText('+ Add Account'));
+      fireEvent.click(screen.getByText('+ Add Account'));
+
+      const typeSelects = screen.getAllByRole('combobox');
+      const typeSelect = typeSelects.find((s) => s.getAttribute('name') === 'account_type');
+      const optionValues = Array.from(typeSelect.querySelectorAll('option'))
+        .map((o) => o.value)
+        .filter((v) => v !== '');
+
+      expect(optionValues).toEqual(EXPECTED_ACCOUNT_TYPES);
+      expect(optionValues).not.toContain('INVESTMENT');
+    });
+
+    it('offers all 11 real AccountType values as filter tabs', async () => {
+      listAccounts.mockResolvedValue({ accounts: [] });
+      render(<Accounts />);
+      await waitFor(() => screen.getByText('Alice'));
+      fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+
+      await waitFor(() => {
+        EXPECTED_ACCOUNT_TYPES.forEach((type) => {
+          expect(
+            screen.getByRole('button', { name: new RegExp(`^${type.replaceAll('_', ' ')}$`, 'i') })
+          ).toBeInTheDocument();
+        });
+      });
+      expect(screen.queryByRole('button', { name: /^INVESTMENT$/i })).not.toBeInTheDocument();
+    });
+  });
+
   describe('Edit affordance (UX-002)', () => {
     it('renders Edit as an icon-only button with an accessible label, not a labeled button', async () => {
       listAccounts.mockResolvedValue({ accounts: MOCK_ACCOUNTS });

@@ -28,6 +28,7 @@ const ACCOUNT_TYPES = [
   'NPS',
   'PPF',
   'FD',
+  'EPF',
 ];
 const TYPE_TABS = ['ALL', ...ACCOUNT_TYPES];
 const LOAN_TYPES = new Set(['HOME_LOAN', 'PERSONAL_LOAN', 'CAR_LOAN']);

@@ -169,6 +169,164 @@ describe('PhysicalAssets page', () => {
     });
   });
 
+  describe('Asset-type-conditional form fields', () => {
+    async function openAddModal() {
+      render(<PhysicalAssets />);
+      await waitFor(() => screen.getByText('Alice'));
+      fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+      await waitFor(() => screen.getByText('+ Add Asset'));
+      fireEvent.click(screen.getByText('+ Add Asset'));
+    }
+
+    function assetTypeSelect() {
+      return screen.getAllByRole('combobox').find((s) => s.getAttribute('name') === 'asset_type');
+    }
+
+    it('shows VEHICLE-only fields (make/model/registration) by default in the Add form', async () => {
+      listPhysicalAssets.mockResolvedValue({ physical_assets: [] });
+      await openAddModal();
+
+      expect(screen.getByText('Make')).toBeInTheDocument();
+      expect(screen.getByText('Model')).toBeInTheDocument();
+      expect(screen.getByText('Registration Number')).toBeInTheDocument();
+      expect(screen.getByText('Registration Type')).toBeInTheDocument();
+      expect(screen.getByText('Current Value')).toBeInTheDocument();
+      expect(screen.getByText('Valuation Date')).toBeInTheDocument();
+    });
+
+    it.each(['REAL_ESTATE', 'GOLD_JEWELRY', 'GOLD_BOND'])(
+      'hides VEHICLE-only fields and keeps current_value/valuation_date when asset_type is %s',
+      async (nonVehicleType) => {
+        listPhysicalAssets.mockResolvedValue({ physical_assets: [] });
+        await openAddModal();
+
+        fireEvent.change(assetTypeSelect(), { target: { value: nonVehicleType } });
+
+        expect(screen.queryByText('Make')).not.toBeInTheDocument();
+        expect(screen.queryByText('Model')).not.toBeInTheDocument();
+        expect(screen.queryByText('Registration Number')).not.toBeInTheDocument();
+        expect(screen.queryByText('Registration Type')).not.toBeInTheDocument();
+        expect(screen.getByText('Current Value')).toBeInTheDocument();
+        expect(screen.getByText('Valuation Date')).toBeInTheDocument();
+      }
+    );
+
+    it('submits a non-VEHICLE asset with current_value/valuation_date and null vehicle-only fields, without requiring make/model/registration', async () => {
+      listPhysicalAssets.mockResolvedValue({ physical_assets: [] });
+      createPhysicalAsset.mockResolvedValue({});
+      await openAddModal();
+
+      fireEvent.change(screen.getByPlaceholderText(/e\.g\. Family Car/i), {
+        target: { name: 'asset_name', value: 'Bangalore Flat' },
+      });
+      fireEvent.change(assetTypeSelect(), { target: { value: 'REAL_ESTATE' } });
+      fireEvent.change(screen.getByPlaceholderText(/e\.g\. 500000/i), {
+        target: { name: 'current_value', value: '9500000' },
+      });
+
+      const submitBtn = screen
+        .getAllByRole('button', { name: /Add Asset/i })
+        .find((b) => b.type === 'submit');
+      fireEvent.click(submitBtn);
+
+      await waitFor(() => {
+        expect(createPhysicalAsset).toHaveBeenCalledWith(
+          'p1',
+          expect.objectContaining({
+            asset_name: 'Bangalore Flat',
+            asset_type: 'REAL_ESTATE',
+            make: null,
+            model: null,
+            registration_number: null,
+            registration_type: null,
+            current_value: 9500000,
+          })
+        );
+      });
+    });
+
+    it('shows VEHICLE-only fields in the Edit modal for a VEHICLE asset', async () => {
+      listPhysicalAssets.mockResolvedValue({ physical_assets: MOCK_ASSETS });
+      await selectProfileAndWaitForAssets();
+
+      fireEvent.click(screen.getAllByRole('button', { name: 'Edit asset' })[0]);
+
+      expect(screen.getByText('PUC Expiry')).toBeInTheDocument();
+      expect(screen.getByText('Insurance Expiry')).toBeInTheDocument();
+      expect(screen.getByText('Road Tax Expiry')).toBeInTheDocument();
+      expect(screen.getByText('Valuation Date')).toBeInTheDocument();
+    });
+
+    it('hides VEHICLE-only fields in the Edit modal for a non-VEHICLE asset', async () => {
+      const realEstateAsset = {
+        asset_id: 'asset3',
+        asset_name: 'Bangalore Flat',
+        asset_type: 'REAL_ESTATE',
+        make: null,
+        model: null,
+        registration_number: null,
+        registration_type: null,
+        current_value: 9500000,
+        valuation_date: '2026-07-01',
+        is_active: true,
+        metadata: {},
+      };
+      listPhysicalAssets.mockResolvedValue({ physical_assets: [realEstateAsset] });
+      render(<PhysicalAssets />);
+      await waitFor(() => screen.getByText('Alice'));
+      fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+      await waitFor(() => screen.getByText('Bangalore Flat'));
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit asset' }));
+
+      expect(screen.queryByText('PUC Expiry')).not.toBeInTheDocument();
+      expect(screen.queryByText('Insurance Expiry')).not.toBeInTheDocument();
+      expect(screen.queryByText('Road Tax Expiry')).not.toBeInTheDocument();
+      expect(screen.getByText('Current Value')).toBeInTheDocument();
+      expect(screen.getByText('Valuation Date')).toBeInTheDocument();
+    });
+
+    it('submits edit for a non-VEHICLE asset carrying valuation_date through to updatePhysicalAsset', async () => {
+      const realEstateAsset = {
+        asset_id: 'asset3',
+        asset_name: 'Bangalore Flat',
+        asset_type: 'REAL_ESTATE',
+        make: null,
+        model: null,
+        registration_number: null,
+        registration_type: null,
+        current_value: 9500000,
+        valuation_date: '2026-07-01',
+        is_active: true,
+        metadata: {},
+      };
+      listPhysicalAssets.mockResolvedValue({ physical_assets: [realEstateAsset] });
+      updatePhysicalAsset.mockResolvedValue({});
+      render(<PhysicalAssets />);
+      await waitFor(() => screen.getByText('Alice'));
+      fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+      await waitFor(() => screen.getByText('Bangalore Flat'));
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit asset' }));
+      const submitBtn = screen
+        .getAllByRole('button', { name: /Save Changes/i })
+        .find((b) => b.type === 'submit');
+      fireEvent.click(submitBtn);
+
+      await waitFor(() => {
+        expect(updatePhysicalAsset).toHaveBeenCalledWith(
+          'asset3',
+          'p1',
+          expect.objectContaining({
+            valuation_date: '2026-07-01',
+            make: null,
+            model: null,
+          })
+        );
+      });
+    });
+  });
+
   it('requests page 0 and the default page size on first load', async () => {
     listPhysicalAssets.mockResolvedValue({ physical_assets: MOCK_ASSETS, total_size: 2 });
     render(<PhysicalAssets />);

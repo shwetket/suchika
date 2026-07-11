@@ -23,6 +23,7 @@ const EMPTY_ADD = {
   registration_number: '',
   registration_type: '',
   current_value: '',
+  valuation_date: '',
 };
 const EMPTY_EDIT = {
   asset_name: '',
@@ -33,6 +34,7 @@ const EMPTY_EDIT = {
   insurance_expiry: '',
   road_tax_expiry: '',
   current_value: '',
+  valuation_date: '',
   is_active: true,
 };
 
@@ -242,6 +244,7 @@ export const PhysicalAssets = () => {
             addForm.asset_type === 'VEHICLE' ? addForm.registration_number.trim() : null,
           registration_type: addForm.asset_type === 'VEHICLE' ? addForm.registration_type : null,
           current_value: addForm.current_value ? Number(addForm.current_value) : null,
+          valuation_date: addForm.valuation_date || null,
         });
         setShowAdd(false);
         setAddForm(EMPTY_ADD);
@@ -267,6 +270,7 @@ export const PhysicalAssets = () => {
       insurance_expiry: metadata.insurance_expiry ?? '',
       road_tax_expiry: metadata.road_tax_expiry ?? '',
       current_value: asset.current_value ?? '',
+      valuation_date: asset.valuation_date ?? '',
       is_active: asset.is_active,
     });
     setEditError(null);
@@ -288,6 +292,7 @@ export const PhysicalAssets = () => {
           make: editForm.asset_type === 'VEHICLE' ? editForm.make || null : null,
           model: editForm.asset_type === 'VEHICLE' ? editForm.model || null : null,
           current_value: editForm.current_value ? Number(editForm.current_value) : null,
+          valuation_date: editForm.valuation_date || null,
           metadata: {
             puc_expiry: editForm.asset_type === 'VEHICLE' ? editForm.puc_expiry || '' : '',
             insurance_expiry:
@@ -476,6 +481,15 @@ export const PhysicalAssets = () => {
                 className={inputClass}
               />
             </Field>
+            <Field label="Valuation Date">
+              <input
+                name="valuation_date"
+                type="date"
+                value={addForm.valuation_date}
+                onChange={handleAddChange}
+                className={inputClass}
+              />
+            </Field>
             {addForm.asset_type === 'VEHICLE' && (
               <>
                 <Field label="Make" required>
@@ -563,6 +577,15 @@ export const PhysicalAssets = () => {
                 name="current_value"
                 type="number"
                 value={editForm.current_value}
+                onChange={handleEditChange}
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Valuation Date">
+              <input
+                name="valuation_date"
+                type="date"
+                value={editForm.valuation_date}
                 onChange={handleEditChange}
                 className={inputClass}
               />

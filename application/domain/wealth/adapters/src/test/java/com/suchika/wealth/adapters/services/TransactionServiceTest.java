@@ -1,6 +1,7 @@
 package com.suchika.wealth.adapters.services;
 
 import com.suchika.shared.exception.BadRequestException;
+import com.suchika.shared.exception.ConflictException;
 import com.suchika.shared.exception.NotFoundException;
 import com.suchika.wealth.domain.ExpenseCategory;
 import com.suchika.wealth.domain.Transaction;
@@ -253,6 +254,39 @@ class TransactionServiceTest {
         assertThrows(BadRequestException.class, () -> service.create(accountId, null, cmd));
     }
 
+    // ---- Open Issues (2026-07-06 retrospective), problem 2: manual entry must fail cleanly
+    // (409, not a raw unmapped 500) when it collides on the 4-field dedup key. Manual entries
+    // still aren't silently skipped like CSV upload rows - a true collision is a hard error. ----
+
+    @Test
+    void create_collidesOnDeduplicationKey_throwsConflictException() {
+        UUID accountId = UUID.randomUUID();
+        UUID profileId = UUID.randomUUID();
+        repo.dedupCollision = true;
+        CreateTransactionCommand cmd = new CreateTransactionCommand(
+                LocalDate.of(2026, Month.JULY, 1), new BigDecimal("5000.00"), TxnType.CREDIT, "Salary");
+
+        assertThrows(ConflictException.class, () -> service.create(accountId, profileId, cmd));
+        assertTrue(repo.store.isEmpty(), "A colliding manual entry must not be persisted");
+    }
+
+    @Test
+    void create_dedupCheck_passesAccountProfileDateAmountAndTypeToRepo() {
+        UUID accountId = UUID.randomUUID();
+        UUID profileId = UUID.randomUUID();
+        LocalDate txnDate = LocalDate.of(2026, Month.JULY, 2);
+        BigDecimal amount = new BigDecimal("750.00");
+        CreateTransactionCommand cmd = new CreateTransactionCommand(txnDate, amount, TxnType.DEBIT, "Rent");
+
+        service.create(accountId, profileId, cmd);
+
+        assertEquals(accountId, repo.lastDedupAccountId);
+        assertEquals(profileId, repo.lastDedupProfileId);
+        assertEquals(txnDate, repo.lastDedupTxnDate);
+        assertEquals(0, amount.compareTo(repo.lastDedupAmount));
+        assertEquals(TxnType.DEBIT, repo.lastDedupTxnType);
+    }
+
     // ---- v0.6 UX: transaction list pagination ----
 
     @Test
@@ -308,6 +342,15 @@ class TransactionServiceTest {
          * findByAccountId returns no rows for that account.
          */
         UUID accountOwnerProfileId;
+
+        /** When true, existsByDeduplicationKey() reports a collision, simulating the real
+         * TransactionPanacheRepository finding a matching 4-field key. */
+        boolean dedupCollision;
+        UUID lastDedupAccountId;
+        UUID lastDedupProfileId;
+        LocalDate lastDedupTxnDate;
+        BigDecimal lastDedupAmount;
+        TxnType lastDedupTxnType;
 
         @Override
         public Transaction save(Transaction transaction) {
@@ -372,7 +415,12 @@ class TransactionServiceTest {
 
         @Override
         public boolean existsByDeduplicationKey(UUID accountId, UUID profileId, LocalDate txnDate, BigDecimal amount, TxnType txnType) {
-            return false;
+            this.lastDedupAccountId = accountId;
+            this.lastDedupProfileId = profileId;
+            this.lastDedupTxnDate = txnDate;
+            this.lastDedupAmount = amount;
+            this.lastDedupTxnType = txnType;
+            return dedupCollision;
         }
 
         @Override
