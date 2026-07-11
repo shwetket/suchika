@@ -266,10 +266,7 @@ describe('Dashboard', () => {
     );
 
     renderDashboard();
-    await waitFor(() => screen.getByRole('button', { name: /refresh live data/i }));
-
-    fireEvent.click(screen.getByRole('button', { name: /refresh live data/i }));
-    await waitFor(() => screen.getByText(/refreshing/i));
+    await waitFor(() => screen.getByRole('button', { name: /refreshing/i }));
 
     fireEvent.click(screen.getByRole('button', { name: /refreshing/i }));
     expect(refreshProjections).toHaveBeenCalledTimes(1);
@@ -325,7 +322,8 @@ describe('Dashboard', () => {
     renderDashboard();
 
     await waitFor(() => {
-      expect(screen.getByText(/data quality: warning/i)).toBeInTheDocument();
+      expect(screen.getByText('Data Quality')).toBeInTheDocument();
+      expect(screen.getByText('WARNING')).toBeInTheDocument();
       expect(screen.getByText(/3 warnings/i)).toBeInTheDocument();
     });
   });
@@ -348,7 +346,8 @@ describe('Dashboard', () => {
     renderDashboard();
 
     await waitFor(() => {
-      expect(screen.getByText(/data quality: pass/i)).toBeInTheDocument();
+      expect(screen.getByText('Data Quality')).toBeInTheDocument();
+      expect(screen.getByText('PASS')).toBeInTheDocument();
     });
   });
 });

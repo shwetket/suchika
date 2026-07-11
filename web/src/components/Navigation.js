@@ -75,7 +75,7 @@ export const Navigation = ({ theme, onToggleTheme }) => {
   const { user, logout, isAuthenticated, hasRole } = useAuth();
 
   return (
-    <nav className="bg-indigo-900 text-white px-6 py-3">
+    <nav className="bg-gray-800 text-white px-6 py-3 sticky top-0 z-40 border-b border-indigo-900/10">
       <div className="flex justify-between items-center max-w-7xl mx-auto">
         <Link to="/" className="text-lg font-bold tracking-tight text-white">
           Suchika

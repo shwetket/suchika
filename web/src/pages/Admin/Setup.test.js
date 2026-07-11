@@ -120,7 +120,7 @@ describe('Setup wizard', () => {
     fireEvent.change(screen.getByPlaceholderText('e.g. SBI Savings'), {
       target: { value: 'HDFC Savings' },
     });
-    fireEvent.change(screen.getByPlaceholderText('e.g. State Bank of India'), {
+    fireEvent.change(document.querySelector('select[name="institution_name"]'), {
       target: { value: 'HDFC Bank' },
     });
     fireEvent.click(screen.getByText('+ Add Account'));
@@ -157,7 +157,7 @@ describe('Setup wizard', () => {
     fireEvent.change(document.querySelector('select[name="account_type"]'), {
       target: { value: 'HOME_LOAN' },
     });
-    fireEvent.change(screen.getByPlaceholderText('e.g. State Bank of India'), {
+    fireEvent.change(document.querySelector('select[name="institution_name"]'), {
       target: { value: 'HDFC Bank' },
     });
     fireEvent.change(screen.getByPlaceholderText('e.g. 5000000'), {

@@ -10,6 +10,7 @@ import io.quarkus.test.junit.QuarkusTestProfile;
 import io.quarkus.test.junit.TestProfile;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceException;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -162,6 +163,44 @@ class TransactionPanacheRepositoryTest {
         repository.save(transaction(accountId, uploadId, txnDate, amount, TxnType.DEBIT, "Grocery store"));
 
         assertFalse(repository.existsByDeduplicationKey(accountId, null, txnDate, amount, TxnType.CREDIT));
+    }
+
+    // ---- Open Issues (2026-07-06 retrospective), problem 1: uq_transaction_dedup must be a
+    // 4-field constraint (account_id, txn_date, amount, txn_type), matching
+    // existsByDeduplicationKey() exactly and no longer also requiring description to match. ----
+
+    @Test
+    void save_fourFieldDuplicateWithDifferentDescription_violatesUniqueConstraint() {
+        UUID accountId = saveAccount();
+        UUID uploadId = saveUpload(accountId);
+        LocalDate txnDate = LocalDate.of(2026, Month.AUGUST, 1);
+        BigDecimal amount = new BigDecimal("450.00");
+
+        repository.save(transaction(accountId, uploadId, txnDate, amount, TxnType.DEBIT, "Original narration"));
+        em.flush();
+
+        repository.save(transaction(accountId, uploadId, txnDate, amount, TxnType.DEBIT,
+                "Different narration - same account/date/amount/type"));
+
+        assertThrows(PersistenceException.class, em::flush,
+                "uq_transaction_dedup must reject a second row matching on "
+                        + "(account_id, txn_date, amount, txn_type) even when description differs - "
+                        + "proves the DB constraint is the 4-field key matching existsByDeduplicationKey(), "
+                        + "not the old, stricter 5-field version that also required description to match");
+    }
+
+    @Test
+    void save_sameFourFieldKeyDifferentTxnType_bothPersistSuccessfully() {
+        UUID accountId = saveAccount();
+        UUID uploadId = saveUpload(accountId);
+        LocalDate txnDate = LocalDate.of(2026, Month.AUGUST, 2);
+        BigDecimal amount = new BigDecimal("300.00");
+
+        repository.save(transaction(accountId, uploadId, txnDate, amount, TxnType.DEBIT, "Debit leg"));
+        repository.save(transaction(accountId, uploadId, txnDate, amount, TxnType.CREDIT, "Credit leg"));
+
+        assertDoesNotThrow(em::flush,
+                "Rows differing on txn_type are not duplicates under the 4-field key and must both persist");
     }
 
     // ---- v0.6 UX: transaction list pagination ----

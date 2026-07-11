@@ -314,4 +314,128 @@ describe('WealthTransactions page', () => {
       expect(screen.getByText(/please check your file and try again/i)).toBeInTheDocument();
     });
   });
+
+  describe('Pagination stale-response guard (UX-015)', () => {
+    it('does not let a stale (late-resolving) response overwrite a newer one', async () => {
+      let resolveStale;
+      const stalePromise = new Promise((resolve) => {
+        resolveStale = resolve;
+      });
+
+      listTransactions
+        .mockImplementationOnce(() => stalePromise) // initial load (ALL, page 0) — resolves late
+        .mockImplementationOnce(() =>
+          Promise.resolve({
+            transactions: [
+              {
+                id: 'fresh-1',
+                txn_date: '2025-06-02',
+                amount: 200,
+                txn_type: 'DEBIT',
+                description: 'Fresh Row',
+              },
+            ],
+            total_size: 1,
+          })
+        );
+
+      render(<WealthTransactions />);
+      await selectAccount();
+
+      // Trigger a second, newer request before the first (stale) one resolves.
+      fireEvent.click(screen.getByRole('button', { name: 'DEBIT' }));
+
+      await waitFor(() => screen.getByText('Fresh Row'));
+
+      // Now let the stale first request resolve with older, different data.
+      resolveStale({
+        transactions: [
+          {
+            id: 'stale-1',
+            txn_date: '2025-06-01',
+            amount: 100,
+            txn_type: 'CREDIT',
+            description: 'Stale Row',
+          },
+        ],
+        total_size: 1,
+      });
+
+      await new Promise((resolve) => {
+        setTimeout(resolve, 0);
+      });
+
+      expect(screen.getByText('Fresh Row')).toBeInTheDocument();
+      expect(screen.queryByText('Stale Row')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Amount color-coding (UX-016)', () => {
+    it('renders CREDIT amounts and DEBIT amounts with distinct colors', async () => {
+      listTransactions.mockResolvedValue({
+        transactions: [
+          {
+            id: 'c1',
+            txn_date: '2025-06-01',
+            amount: 5000,
+            txn_type: 'CREDIT',
+            description: 'Salary',
+          },
+          {
+            id: 'd1',
+            txn_date: '2025-06-02',
+            amount: 1200,
+            txn_type: 'DEBIT',
+            description: 'Groceries',
+          },
+        ],
+      });
+      render(<WealthTransactions />);
+      await selectAccount();
+
+      await waitFor(() => screen.getByText('Salary'));
+
+      const creditAmountCell = screen.getByText(/5,000/);
+      const debitAmountCell = screen.getByText(/1,200/);
+      expect(creditAmountCell.className).toContain('text-green-800');
+      expect(debitAmountCell.className).toContain('text-red-800');
+    });
+  });
+
+  describe('Description tooltip (UX-017)', () => {
+    it('adds a title attribute with the full untruncated description', async () => {
+      const longDescription =
+        'UPI/P2A/123456789012/JOHN DOE/HDFC BANK/Payment for groceries and household supplies purchased this week';
+      listTransactions.mockResolvedValue({
+        transactions: [
+          {
+            id: 't1',
+            txn_date: '2025-06-01',
+            amount: 500,
+            txn_type: 'DEBIT',
+            description: longDescription,
+          },
+        ],
+      });
+      render(<WealthTransactions />);
+      await selectAccount();
+
+      await waitFor(() => {
+        const cell = screen.getByTitle(longDescription);
+        expect(cell).toBeInTheDocument();
+        expect(cell.textContent.length).toBeLessThan(longDescription.length);
+      });
+    });
+  });
+
+  describe('"+ Add Transaction" de-emphasis (UX-018)', () => {
+    it('renders as an outline/secondary button, not a solid primary button', async () => {
+      render(<WealthTransactions />);
+      await selectAccount();
+
+      const addButton = screen.getByRole('button', { name: '+ Add Transaction' });
+      expect(addButton.className).not.toContain('bg-blue-600');
+      expect(addButton.className).toContain('border-blue-600');
+    });
+  });
 });

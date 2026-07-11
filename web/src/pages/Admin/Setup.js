@@ -7,6 +7,7 @@ import { createProfile, updateAdminPolicy } from '../../api/profiles';
 import { createAccount, updateAccountClassification } from '../../api/wealth';
 import { recordVital } from '../../api/health';
 import { Field } from '../../components/Field';
+import { InstitutionSelect } from '../../components/InstitutionSelect';
 
 const inputClass =
   'border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
@@ -359,12 +360,10 @@ export const Setup = () => {
               </select>
             </Field>
             <Field label="Institution Name" required>
-              <input
+              <InstitutionSelect
                 name="institution_name"
-                type="text"
                 value={accountForm.institution_name}
                 onChange={handleAccountChange}
-                placeholder="e.g. State Bank of India"
                 className={inputClass}
               />
             </Field>

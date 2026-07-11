@@ -10,8 +10,9 @@ import {
 import { Field } from '../../components/Field';
 import { Modal } from '../../components/Modal';
 import { useAuth } from '../../hooks/useAuth';
+import { EditIcon } from '../../components/shared/EditIcon';
 
-const ASSET_TYPES = ['VEHICLE'];
+const ASSET_TYPES = ['VEHICLE', 'REAL_ESTATE', 'GOLD_JEWELRY', 'GOLD_BOND'];
 const REGISTRATION_TYPES = ['PRIVATE', 'COMMERCIAL', 'GOVERNMENT', 'BH_SERIES'];
 
 const EMPTY_ADD = {
@@ -21,14 +22,19 @@ const EMPTY_ADD = {
   model: '',
   registration_number: '',
   registration_type: '',
+  current_value: '',
+  valuation_date: '',
 };
 const EMPTY_EDIT = {
   asset_name: '',
+  asset_type: 'VEHICLE',
   make: '',
   model: '',
   puc_expiry: '',
   insurance_expiry: '',
   road_tax_expiry: '',
+  current_value: '',
+  valuation_date: '',
   is_active: true,
 };
 
@@ -74,17 +80,32 @@ function AssetCard({ asset, onEdit, onDeactivate }) {
       <div className="flex items-start justify-between">
         <div>
           <h3 className="font-semibold text-gray-900 text-lg">{asset.asset_name}</h3>
-          <p className="text-sm text-gray-500">
-            {asset.make} {asset.model}
-          </p>
+          {asset.asset_type === 'VEHICLE' && (
+            <p className="text-sm text-gray-500">
+              {asset.make} {asset.model}
+            </p>
+          )}
         </div>
-        <StatusBadge active={asset.is_active} />
+        <div className="flex items-center gap-2">
+          <StatusBadge active={asset.is_active} />
+          <button
+            type="button"
+            onClick={() => onEdit(asset)}
+            aria-label="Edit asset"
+            title="Edit asset"
+            className="text-gray-400 hover:text-blue-600 p-1 rounded hover:bg-blue-50"
+          >
+            <EditIcon />
+          </button>
+        </div>
       </div>
-      <span className="self-start px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-        {asset.registration_number}
-      </span>
+      {asset.asset_type === 'VEHICLE' && asset.registration_number && (
+        <span className="self-start px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+          {asset.registration_number}
+        </span>
+      )}
       <div className="text-sm text-gray-600 space-y-1">
-        {asset.registration_type && (
+        {asset.asset_type === 'VEHICLE' && asset.registration_type && (
           <p>Registration: {asset.registration_type.replaceAll('_', ' ')}</p>
         )}
         {asset.current_value !== null && asset.current_value !== undefined && (
@@ -93,26 +114,12 @@ function AssetCard({ asset, onEdit, onDeactivate }) {
             {asset.valuation_date ? ` (as of ${asset.valuation_date})` : ''}
           </p>
         )}
-        <ComplianceRow label="PUC" value={metadata.puc_expiry} />
-        <ComplianceRow label="Insurance" value={metadata.insurance_expiry} />
-        <ComplianceRow label="Road Tax" value={metadata.road_tax_expiry} />
-      </div>
-      <div className="flex gap-2 pt-2">
-        <button
-          type="button"
-          onClick={() => onEdit(asset)}
-          className="flex-1 border border-blue-600 text-blue-600 py-1.5 rounded text-sm font-medium hover:bg-blue-50"
-        >
-          Edit
-        </button>
-        {asset.is_active && (
-          <button
-            type="button"
-            onClick={() => onDeactivate(asset)}
-            className="flex-1 border border-red-500 text-red-500 py-1.5 rounded text-sm font-medium hover:bg-red-50"
-          >
-            Deactivate
-          </button>
+        {asset.asset_type === 'VEHICLE' && (
+          <>
+            <ComplianceRow label="PUC" value={metadata.puc_expiry} />
+            <ComplianceRow label="Insurance" value={metadata.insurance_expiry} />
+            <ComplianceRow label="Road Tax" value={metadata.road_tax_expiry} />
+          </>
         )}
       </div>
     </div>
@@ -207,21 +214,23 @@ export const PhysicalAssets = () => {
         setAddError('Asset name is required');
         return;
       }
-      if (!addForm.make.trim()) {
-        setAddError('Make is required');
-        return;
-      }
-      if (!addForm.model.trim()) {
-        setAddError('Model is required');
-        return;
-      }
-      if (!addForm.registration_number.trim()) {
-        setAddError('Registration number is required');
-        return;
-      }
-      if (!addForm.registration_type) {
-        setAddError('Registration type is required');
-        return;
+      if (addForm.asset_type === 'VEHICLE') {
+        if (!addForm.make.trim()) {
+          setAddError('Make is required');
+          return;
+        }
+        if (!addForm.model.trim()) {
+          setAddError('Model is required');
+          return;
+        }
+        if (!addForm.registration_number.trim()) {
+          setAddError('Registration number is required');
+          return;
+        }
+        if (!addForm.registration_type) {
+          setAddError('Registration type is required');
+          return;
+        }
       }
       setAddSaving(true);
       setAddError(null);
@@ -229,10 +238,13 @@ export const PhysicalAssets = () => {
         await createPhysicalAsset(selectedProfileId, {
           asset_name: addForm.asset_name.trim(),
           asset_type: addForm.asset_type,
-          make: addForm.make.trim(),
-          model: addForm.model.trim(),
-          registration_number: addForm.registration_number.trim(),
-          registration_type: addForm.registration_type,
+          make: addForm.asset_type === 'VEHICLE' ? addForm.make.trim() : null,
+          model: addForm.asset_type === 'VEHICLE' ? addForm.model.trim() : null,
+          registration_number:
+            addForm.asset_type === 'VEHICLE' ? addForm.registration_number.trim() : null,
+          registration_type: addForm.asset_type === 'VEHICLE' ? addForm.registration_type : null,
+          current_value: addForm.current_value ? Number(addForm.current_value) : null,
+          valuation_date: addForm.valuation_date || null,
         });
         setShowAdd(false);
         setAddForm(EMPTY_ADD);
@@ -250,12 +262,15 @@ export const PhysicalAssets = () => {
     const metadata = asset.metadata || {};
     setEditingAsset(asset);
     setEditForm({
-      asset_name: asset.asset_name,
-      make: asset.make,
-      model: asset.model,
+      asset_name: asset.asset_name || '',
+      asset_type: asset.asset_type || 'VEHICLE',
+      make: asset.make || '',
+      model: asset.model || '',
       puc_expiry: metadata.puc_expiry ?? '',
       insurance_expiry: metadata.insurance_expiry ?? '',
       road_tax_expiry: metadata.road_tax_expiry ?? '',
+      current_value: asset.current_value ?? '',
+      valuation_date: asset.valuation_date ?? '',
       is_active: asset.is_active,
     });
     setEditError(null);
@@ -274,12 +289,16 @@ export const PhysicalAssets = () => {
       try {
         await updatePhysicalAsset(editingAsset.asset_id, selectedProfileId, {
           asset_name: editForm.asset_name || null,
-          make: editForm.make || null,
-          model: editForm.model || null,
+          make: editForm.asset_type === 'VEHICLE' ? editForm.make || null : null,
+          model: editForm.asset_type === 'VEHICLE' ? editForm.model || null : null,
+          current_value: editForm.current_value ? Number(editForm.current_value) : null,
+          valuation_date: editForm.valuation_date || null,
           metadata: {
-            puc_expiry: editForm.puc_expiry || '',
-            insurance_expiry: editForm.insurance_expiry || '',
-            road_tax_expiry: editForm.road_tax_expiry || '',
+            puc_expiry: editForm.asset_type === 'VEHICLE' ? editForm.puc_expiry || '' : '',
+            insurance_expiry:
+              editForm.asset_type === 'VEHICLE' ? editForm.insurance_expiry || '' : '',
+            road_tax_expiry:
+              editForm.asset_type === 'VEHICLE' ? editForm.road_tax_expiry || '' : '',
           },
           is_active: editForm.is_active,
         });
@@ -452,51 +471,74 @@ export const PhysicalAssets = () => {
                 ))}
               </select>
             </Field>
-            <Field label="Make" required>
+            <Field label="Current Value">
               <input
-                name="make"
-                type="text"
-                value={addForm.make}
+                name="current_value"
+                type="number"
+                value={addForm.current_value}
                 onChange={handleAddChange}
-                placeholder="e.g. Maruti"
+                placeholder="e.g. 500000"
                 className={inputClass}
               />
             </Field>
-            <Field label="Model" required>
+            <Field label="Valuation Date">
               <input
-                name="model"
-                type="text"
-                value={addForm.model}
+                name="valuation_date"
+                type="date"
+                value={addForm.valuation_date}
                 onChange={handleAddChange}
-                placeholder="e.g. Swift"
                 className={inputClass}
               />
             </Field>
-            <Field label="Registration Number" required>
-              <input
-                name="registration_number"
-                type="text"
-                value={addForm.registration_number}
-                onChange={handleAddChange}
-                placeholder="e.g. KA-01-AB-1234"
-                className={inputClass}
-              />
-            </Field>
-            <Field label="Registration Type" required>
-              <select
-                name="registration_type"
-                value={addForm.registration_type}
-                onChange={handleAddChange}
-                className={inputClass}
-              >
-                <option value="">Select type</option>
-                {REGISTRATION_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t.replaceAll('_', ' ')}
-                  </option>
-                ))}
-              </select>
-            </Field>
+            {addForm.asset_type === 'VEHICLE' && (
+              <>
+                <Field label="Make" required>
+                  <input
+                    name="make"
+                    type="text"
+                    value={addForm.make}
+                    onChange={handleAddChange}
+                    placeholder="e.g. Maruti"
+                    className={inputClass}
+                  />
+                </Field>
+                <Field label="Model" required>
+                  <input
+                    name="model"
+                    type="text"
+                    value={addForm.model}
+                    onChange={handleAddChange}
+                    placeholder="e.g. Swift"
+                    className={inputClass}
+                  />
+                </Field>
+                <Field label="Registration Number" required>
+                  <input
+                    name="registration_number"
+                    type="text"
+                    value={addForm.registration_number}
+                    onChange={handleAddChange}
+                    placeholder="e.g. KA-01-AB-1234"
+                    className={inputClass}
+                  />
+                </Field>
+                <Field label="Registration Type" required>
+                  <select
+                    name="registration_type"
+                    value={addForm.registration_type}
+                    onChange={handleAddChange}
+                    className={inputClass}
+                  >
+                    <option value="">Select type</option>
+                    {REGISTRATION_TYPES.map((t) => (
+                      <option key={t} value={t}>
+                        {t.replaceAll('_', ' ')}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              </>
+            )}
             {addError && <p className="text-red-600 text-sm">{addError}</p>}
             <div className="flex justify-end gap-3 pt-2">
               <button
@@ -530,64 +572,111 @@ export const PhysicalAssets = () => {
                 className={inputClass}
               />
             </Field>
-            <Field label="Make">
+            <Field label="Current Value">
               <input
-                name="make"
-                type="text"
-                value={editForm.make}
+                name="current_value"
+                type="number"
+                value={editForm.current_value}
                 onChange={handleEditChange}
                 className={inputClass}
               />
             </Field>
-            <Field label="Model">
+            <Field label="Valuation Date">
               <input
-                name="model"
-                type="text"
-                value={editForm.model}
-                onChange={handleEditChange}
-                className={inputClass}
-              />
-            </Field>
-            <Field label="PUC Expiry">
-              <input
-                name="puc_expiry"
+                name="valuation_date"
                 type="date"
-                value={editForm.puc_expiry}
+                value={editForm.valuation_date}
                 onChange={handleEditChange}
                 className={inputClass}
               />
             </Field>
-            <Field label="Insurance Expiry">
-              <input
-                name="insurance_expiry"
-                type="date"
-                value={editForm.insurance_expiry}
-                onChange={handleEditChange}
-                className={inputClass}
-              />
-            </Field>
-            <Field label="Road Tax Expiry">
-              <input
-                name="road_tax_expiry"
-                type="date"
-                value={editForm.road_tax_expiry}
-                onChange={handleEditChange}
-                className={inputClass}
-              />
-            </Field>
-            <div className="flex items-center gap-3">
-              <input
-                id="edit-is-active"
-                name="is_active"
-                type="checkbox"
-                checked={editForm.is_active}
-                onChange={handleEditChange}
-                className="w-4 h-4"
-              />
-              <label htmlFor="edit-is-active" className="text-sm font-medium text-gray-700">
-                Active
-              </label>
-            </div>
+            {editForm.asset_type === 'VEHICLE' && (
+              <>
+                <Field label="Make">
+                  <input
+                    name="make"
+                    type="text"
+                    value={editForm.make}
+                    onChange={handleEditChange}
+                    className={inputClass}
+                  />
+                </Field>
+                <Field label="Model">
+                  <input
+                    name="model"
+                    type="text"
+                    value={editForm.model}
+                    onChange={handleEditChange}
+                    className={inputClass}
+                  />
+                </Field>
+                <Field label="PUC Expiry">
+                  <input
+                    name="puc_expiry"
+                    type="date"
+                    value={editForm.puc_expiry}
+                    onChange={handleEditChange}
+                    className={inputClass}
+                  />
+                </Field>
+                <Field label="Insurance Expiry">
+                  <input
+                    name="insurance_expiry"
+                    type="date"
+                    value={editForm.insurance_expiry}
+                    onChange={handleEditChange}
+                    className={inputClass}
+                  />
+                </Field>
+                <Field label="Road Tax Expiry">
+                  <input
+                    name="road_tax_expiry"
+                    type="date"
+                    value={editForm.road_tax_expiry}
+                    onChange={handleEditChange}
+                    className={inputClass}
+                  />
+                </Field>
+              </>
+            )}
+            {!editForm.is_active && (
+              <div className="flex justify-end pt-2 border-t">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setEditSaving(true);
+                    try {
+                      await updatePhysicalAsset(editingAsset.asset_id, selectedProfileId, {
+                        is_active: true,
+                      });
+                      setEditingAsset(null);
+                      await loadAssets();
+                    } catch (err) {
+                      setEditError(err.message || 'Failed to reactivate asset');
+                    } finally {
+                      setEditSaving(false);
+                    }
+                  }}
+                  className="text-sm font-medium text-blue-600 hover:text-blue-700"
+                >
+                  Reactivate asset
+                </button>
+              </div>
+            )}
+            {editForm.is_active && (
+              <div className="flex justify-end pt-2 border-t">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirmTarget(editingAsset);
+                    setEditingAsset(null);
+                  }}
+                  className="text-sm font-medium text-red-600 hover:text-red-700"
+                >
+                  Deactivate this asset
+                </button>
+              </div>
+            )}
             {editError && <p className="text-red-600 text-sm">{editError}</p>}
             <div className="flex justify-end gap-3 pt-2">
               <button

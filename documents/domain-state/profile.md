@@ -12,7 +12,7 @@ Give any agent or developer instant context on the profile domain — what's bui
 
 ---
 
-**Last updated:** 2026-07-10
+**Last updated:** 2026-07-11 (EditIcon/Badge UX pass on Profiles.js + ADR-021 inactive-admin filter fix — see Open Issues; real seed-data-in-git flag added)
 **Version:** v0.2 complete — UAT-ready; Epic 8 Phase 4 delivered; v0.6 adapter/domain test coverage added; Setup Wizard + gateway/contract fixes added; v1.0 retrospective/simplification pass complete (2026-07-06); v0.5.1 Workstream 2 Tier A (admin_id enforcement) added (2026-07-08); ADR-021 login auto-attach decided, implemented, AND live-verified end-to-end against the real running app (2026-07-10) — see the two follow-up bugs found/fixed under Open Issues
 **Port:** 8081
 
@@ -26,7 +26,7 @@ Give any agent or developer instant context on the profile domain — what's bui
 | Profile CRUD | ✅ Complete | All member operations |
 | Deactivate profile | ✅ Complete | Soft delete, `is_active` flag |
 | Profile list/filter | ✅ Complete | Filter by admin_id |
-| Frontend page | ✅ Complete | `web/src/pages/Household/Profiles.js` |
+| Frontend page | ✅ Complete | `web/src/pages/Household/Profiles.js` — icon-only Edit action (shared `EditIcon`) + Deactivate/Reactivate moved into the Edit modal (2026-07-11 UX pass, see Open Issues) |
 | Admin policy settings | ✅ Complete | Epic 8 Phase 4 — `PATCH /v1/admins/{id}/policy`, merge semantics, JSONB column |
 | Multi-admin support | 🔲 v1.1 | Single admin per household in v0.2 |
 
@@ -93,6 +93,9 @@ Gateway proxy: `application/web-gateway/.../profile/ProfileGatewayResource.java`
 
 ## Open Issues / v0.3+ Backlog
 
+- ✅ **NEW (2026-07-11): `Profiles.js` UX pass — icon-only Edit, Deactivate/Reactivate moved into the Edit modal.** Mirrors the same pattern already shipped on Wealth's Accounts/PhysicalAssets pages (`documents/domain-state/wealth.md` UX-001/002/003). `ProfileCard`'s footer Edit/Deactivate button row was removed; a new shared `EditIcon` (`web/src/components/shared/EditIcon.js`) renders as an icon-only button next to `StatusBadge` in the card header. The Edit modal's raw "Active" checkbox was replaced with mutually-exclusive controls gated on `editingProfile.is_active` — active shows a red "Deactivate this profile" text-link (`handleDeactivateFromEdit`, routes into the existing `confirmTarget`/`handleDeactivate` flow unchanged), inactive shows an unconfirmed "Reactivate profile" button (new `handleReactivate`) calling `updateProfile(profileId, { is_active: true })` directly. A second shared component, `Badge` (`web/src/components/shared/Badge.js`, variants: success/danger/warning/neutral/info), replaced the page's inline `StatusBadge` span classes and was also adopted on `Dashboard.js` (goal-status pills, data-quality banner). New CSS design tokens + a `card-hover` utility class were added in `web/src/index.css`/`tailwind.config.js` as part of the same pass and applied to `ProfileCard` and the Dashboard domain-card links. No backend/contract change.
+- ✅ **FIXED (2026-07-11): ADR-021's login auto-attach could wrongly report a multi-household conflict when a deactivated admin record existed alongside one real active admin.** `AuthContext.login()` previously checked `admins.length === 1 && admins[0].is_active === true` against the raw `GET /v1/admins` response — but that endpoint ignores `is_active` and returns every admin regardless of status, so a household with 1 active + 1 leftover deactivated admin (e.g. a test/onboarding artifact) had `admins.length === 2` and was routed into the `household_conflict` branch instead of auto-attaching to the one real active admin. Fixed: `AuthContext.login()` now filters to `admin.is_active === true` first, then checks `length === 1` on the filtered list. See `documents/domain-state/profile.md`'s own ADR-021 entry above for the full auto-attach mechanism this refines.
+- 🔲 **FLAG (2026-07-11, doc-consolidation pass): real personal/financial data is committed to git on this branch, contrary to the seed files' own header claims.** `application/flyway/test-seed/profile/R__seed_profile_test_data.sql` (and its wealth/household/health siblings) each open with "LOCAL-ONLY REAL DATA — this file is gitignored... on the 'seed-data' branch, never pushed/merged" — but on the current branch (`UX-Updates`), `.gitignore` has no `test-seed` entry and `git ls-files`/`git status` confirm all four files are tracked and already committed. The profile seed alone contains real full names, a real email address, and real dates of birth for the household; the wealth seed additionally contains real bank/institution names, partial account numbers, real balances, employer name, and third-party names appearing in transaction narrations (see `documents/domain-state/wealth.md` and the seed file itself). This directly contradicts the project's own "no real data in seeds" policy. Needs a product decision before this branch merges: gitignore + `git rm --cached` the `test-seed/` files (and scrub git history if this has ever been pushed anywhere shared), or deliberately replace the contents with synthetic data. Not fixed here — out of scope for a documentation-consolidation pass.
 - Pagination on profile list (v0.3)
 - Profile avatar/photo (v0.4 or later) — would need a new column/migration if picked up; the old speculative `metadata` column is gone (see below).
 - Admin authentication (v1.0)

@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../hooks/useAuth';
 import { getDashboard, refreshProjections } from '../../api/household';
+import { Badge } from '../../components/shared/Badge';
 
 const DOMAIN_CARDS = [
   {
@@ -68,9 +69,9 @@ function formatTimestamp(isoStr) {
 }
 
 function validationStatusClass(status) {
-  if (status === 'PASS') return 'bg-green-50 text-green-700';
-  if (status === 'WARNING') return 'bg-yellow-50 text-yellow-700';
-  return 'bg-red-50 text-red-700';
+  if (status === 'PASS') return 'success';
+  if (status === 'WARNING') return 'warning';
+  return 'danger';
 }
 
 function Spinner() {
@@ -236,27 +237,28 @@ function SnapshotSummary({ snapshots }) {
             {goalsPayload.goals.map((goal) => (
               <div key={goal.goal_id} className="flex items-center justify-between text-sm">
                 <span className="text-gray-600">{goal.goal_name}</span>
-                <span
-                  className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                    goal.status === 'ACHIEVED'
-                      ? 'bg-green-100 text-green-700'
-                      : 'bg-yellow-100 text-yellow-700'
-                  }`}
-                >
+                <Badge variant={goal.status === 'ACHIEVED' ? 'success' : 'warning'}>
                   {goal.status === 'ACHIEVED' ? 'Achieved' : 'In Progress'}
-                </span>
+                </Badge>
               </div>
             ))}
           </div>
         </div>
       )}
       {validationPayload && (
-        <div
-          className={`mt-3 rounded-lg px-4 py-2 text-sm ${validationStatusClass(validationPayload.overall_status)}`}
-        >
-          Data Quality: {validationPayload.overall_status}
-          {validationPayload.warning_count > 0 &&
-            ` · ${validationPayload.warning_count} warning${validationPayload.warning_count > 1 ? 's' : ''}`}
+        <div className="mt-3 rounded-lg px-4 py-3 text-sm bg-gray-50 border border-gray-100 flex items-center justify-between">
+          <span className="text-gray-700">Data Quality</span>
+          <div className="flex items-center gap-2">
+            <Badge variant={validationStatusClass(validationPayload.overall_status)}>
+              {validationPayload.overall_status}
+            </Badge>
+            {validationPayload.warning_count > 0 && (
+              <span className="text-xs text-gray-500">
+                {validationPayload.warning_count} warning
+                {validationPayload.warning_count > 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
         </div>
       )}
       {lastRefreshed && (
@@ -300,6 +302,16 @@ export const Dashboard = () => {
     },
   });
 
+  const [hasAutoRefreshed, setHasAutoRefreshed] = useState(false);
+
+  // Automatically refresh live data on mount to ensure user always sees the latest snapshot
+  useEffect(() => {
+    if (profileId && !hasAutoRefreshed && dashboardQuery.isSuccess) {
+      refreshMutation.mutate();
+      setHasAutoRefreshed(true);
+    }
+  }, [profileId, hasAutoRefreshed, dashboardQuery.isSuccess, refreshMutation]);
+
   const snapshots = dashboardQuery.data?.snapshots ?? [];
   const isRefreshing = refreshMutation.isPending;
   const refreshError = refreshMutation.isError
@@ -314,7 +326,7 @@ export const Dashboard = () => {
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-gray-900">Welcome back, {user?.username}</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Welcome back, {user?.username}</h1>
         <p className="text-sm text-gray-500 mt-1">What would you like to manage today?</p>
       </div>
 
@@ -323,7 +335,7 @@ export const Dashboard = () => {
           <Link
             key={to}
             to={to}
-            className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md hover:border-indigo-200 transition-all block"
+            className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 card-hover block"
           >
             <h2 className="text-base font-semibold text-gray-900 mb-1">{title}</h2>
             <p className="text-sm text-gray-500">{description}</p>

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { listProfiles } from '../../api/profiles';
 import {
@@ -53,6 +53,12 @@ function TxnTypeBadge({ type }) {
   return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${cls}`}>{type}</span>;
 }
 TxnTypeBadge.propTypes = { type: PropTypes.string.isRequired };
+
+// Reuses the same red/green palette TxnTypeBadge already defines (UX-016), so the
+// amount figure itself carries the CREDIT/DEBIT signal, not just the adjacent badge.
+function amountColorClass(txnType) {
+  return txnType === 'CREDIT' ? 'text-green-800' : 'text-red-800';
+}
 
 function SkippedDuplicatesPanel({ skippedDuplicates }) {
   if (!skippedDuplicates || skippedDuplicates.length === 0) return null;
@@ -158,11 +164,15 @@ function TransactionRow({ txn }) {
   return (
     <tr className="border-b border-gray-100 hover:bg-gray-50">
       <td className="py-3 px-4 text-sm text-gray-700">{formatDate(txn.txn_date)}</td>
-      <td className="py-3 px-4 text-sm text-gray-900 font-medium">{formatCurrency(txn.amount)}</td>
+      <td className={`py-3 px-4 text-sm font-medium ${amountColorClass(txn.txn_type)}`}>
+        {formatCurrency(txn.amount)}
+      </td>
       <td className="py-3 px-4">
         <TxnTypeBadge type={txn.txn_type} />
       </td>
-      <td className="py-3 px-4 text-sm text-gray-600 max-w-xs">{truncate(txn.description, 60)}</td>
+      <td className="py-3 px-4 text-sm text-gray-600 max-w-xs" title={txn.description || undefined}>
+        {truncate(txn.description, 60)}
+      </td>
     </tr>
   );
 }
@@ -195,8 +205,18 @@ function TransactionsTab({ accountId, profileId }) {
   const [addError, setAddError] = useState(null);
   const [addSaving, setAddSaving] = useState(false);
 
+  // Stale-response guard (UX-015): load() can be triggered both by the effect below
+  // (whenever page/filters change) and manually (after adding a transaction). An
+  // older in-flight request resolving after a newer one must never clobber state
+  // with outdated data — mirrors the `cancelled` flag Accounts.js uses for its
+  // balance-loading effect, using a request-id ref since this call site needs to
+  // guard both effect-triggered and manually-triggered invocations.
+  const loadRequestIdRef = useRef(0);
+
   const load = useCallback(async () => {
     if (!accountId) return;
+    const requestId = loadRequestIdRef.current + 1;
+    loadRequestIdRef.current = requestId;
     setLoading(true);
     setError(null);
     try {
@@ -209,12 +229,14 @@ function TransactionsTab({ accountId, profileId }) {
         page,
         PAGE_SIZE
       );
+      if (requestId !== loadRequestIdRef.current) return;
       setTransactions(data.transactions ?? []);
       setTotalSize(data.total_size ?? (data.transactions ?? []).length);
     } catch (err) {
+      if (requestId !== loadRequestIdRef.current) return;
       setError(err.message || 'Failed to load transactions');
     } finally {
-      setLoading(false);
+      if (requestId === loadRequestIdRef.current) setLoading(false);
     }
   }, [accountId, profileId, fromDate, toDate, txnType, page]);
 
@@ -311,7 +333,7 @@ function TransactionsTab({ accountId, profileId }) {
             setAddError(null);
             setShowAdd(true);
           }}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 whitespace-nowrap"
+          className="border border-blue-600 text-blue-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-50 whitespace-nowrap"
         >
           + Add Transaction
         </button>

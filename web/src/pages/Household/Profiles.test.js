@@ -155,7 +155,7 @@ describe('Profiles page', () => {
       expect(screen.getByText('Alice Smith')).toBeInTheDocument();
     });
 
-    const editButtons = screen.getAllByRole('button', { name: 'Edit' });
+    const editButtons = screen.getAllByRole('button', { name: 'Edit profile' });
     await userEvent.click(editButtons[0]);
 
     await waitFor(() => {
@@ -172,7 +172,7 @@ describe('Profiles page', () => {
       expect(screen.getByText('Alice Smith')).toBeInTheDocument();
     });
 
-    const editButtons = screen.getAllByRole('button', { name: 'Edit' });
+    const editButtons = screen.getAllByRole('button', { name: 'Edit profile' });
     await userEvent.click(editButtons[0]);
 
     await waitFor(() => {
@@ -193,7 +193,7 @@ describe('Profiles page', () => {
       expect(screen.getByText('Alice Smith')).toBeInTheDocument();
     });
 
-    const editButtons = screen.getAllByRole('button', { name: 'Edit' });
+    const editButtons = screen.getAllByRole('button', { name: 'Edit profile' });
     await userEvent.click(editButtons[0]);
 
     await waitFor(() => {
@@ -219,8 +219,14 @@ describe('Profiles page', () => {
       expect(screen.getByText('Alice Smith')).toBeInTheDocument();
     });
 
-    const deactivateButtons = screen.getAllByRole('button', { name: 'Deactivate' });
-    await userEvent.click(deactivateButtons[0]);
+    const editButtons = screen.getAllByRole('button', { name: 'Edit profile' });
+    await userEvent.click(editButtons[0]);
+
+    await waitFor(() => {
+      expect(screen.getByText('Deactivate this profile')).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByText('Deactivate this profile'));
 
     await waitFor(() => {
       expect(screen.getByText('Deactivate Profile')).toBeInTheDocument();
@@ -237,8 +243,14 @@ describe('Profiles page', () => {
       expect(screen.getByText('Alice Smith')).toBeInTheDocument();
     });
 
-    const deactivateButtons = screen.getAllByRole('button', { name: 'Deactivate' });
-    await userEvent.click(deactivateButtons[0]);
+    const editButtons = screen.getAllByRole('button', { name: 'Edit profile' });
+    await userEvent.click(editButtons[0]);
+
+    await waitFor(() => {
+      expect(screen.getByText('Deactivate this profile')).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByText('Deactivate this profile'));
 
     await waitFor(() => {
       expect(screen.getByText('Deactivate Profile')).toBeInTheDocument();

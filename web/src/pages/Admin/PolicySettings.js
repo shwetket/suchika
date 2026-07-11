@@ -134,7 +134,7 @@ export const PolicySettings = () => {
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
-      <h1 className="text-xl font-semibold text-gray-900 mb-1">Household Policy Settings</h1>
+      <h1 className="text-3xl font-bold text-gray-900 mb-1">Household Policy Settings</h1>
       <p className="text-sm text-gray-500 mb-6">
         These values drive formula-based wealth goals and validation checks on the dashboard.
       </p>

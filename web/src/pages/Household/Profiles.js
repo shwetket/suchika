@@ -4,6 +4,8 @@ import { listAdmins } from '../../api/admins';
 import { createProfile, deactivateProfile, listProfiles, updateProfile } from '../../api/profiles';
 import { Field } from '../../components/Field';
 import { Modal } from '../../components/Modal';
+import { Badge } from '../../components/shared/Badge';
+import { EditIcon } from '../../components/shared/EditIcon';
 import { useAuth } from '../../hooks/useAuth';
 
 const RELATIONS = [
@@ -45,25 +47,31 @@ function formatRelation(value) {
 }
 
 function StatusBadge({ active }) {
-  const classes = active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500';
-  return (
-    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${classes}`}>
-      {active ? 'Active' : 'Inactive'}
-    </span>
-  );
+  return <Badge variant={active ? 'success' : 'neutral'}>{active ? 'Active' : 'Inactive'}</Badge>;
 }
 
 StatusBadge.propTypes = { active: PropTypes.bool.isRequired };
 
 function ProfileCard({ profile, onEdit, onDeactivate }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-5 flex flex-col gap-2">
+    <div className="bg-white border border-gray-200 rounded-lg p-5 flex flex-col gap-2 card-hover">
       <div className="flex items-start justify-between">
         <div>
           <h3 className="font-semibold text-gray-900 text-lg">{profile.full_name}</h3>
           <p className="text-sm text-gray-500">{formatRelation(profile.relation_to_admin)}</p>
         </div>
-        <StatusBadge active={profile.is_active} />
+        <div className="flex items-center gap-2">
+          <StatusBadge active={profile.is_active} />
+          <button
+            type="button"
+            onClick={() => onEdit(profile)}
+            aria-label="Edit profile"
+            title="Edit profile"
+            className="text-gray-400 hover:text-blue-600 p-1 rounded hover:bg-blue-50"
+          >
+            <EditIcon />
+          </button>
+        </div>
       </div>
 
       <div className="text-sm text-gray-600 space-y-1">
@@ -71,25 +79,6 @@ function ProfileCard({ profile, onEdit, onDeactivate }) {
         {profile.email_address && <p>Email: {profile.email_address}</p>}
         {profile.gender && <p>Gender: {profile.gender.replaceAll('_', ' ')}</p>}
         {profile.blood_type && <p>Blood Type: {profile.blood_type}</p>}
-      </div>
-
-      <div className="flex gap-2 pt-2">
-        <button
-          type="button"
-          onClick={() => onEdit(profile)}
-          className="flex-1 border border-blue-600 text-blue-600 py-1.5 rounded text-sm font-medium hover:bg-blue-50"
-        >
-          Edit
-        </button>
-        {profile.is_active && (
-          <button
-            type="button"
-            onClick={() => onDeactivate(profile)}
-            className="flex-1 border border-red-500 text-red-500 py-1.5 rounded text-sm font-medium hover:bg-red-50"
-          >
-            Deactivate
-          </button>
-        )}
       </div>
     </div>
   );
@@ -107,7 +96,6 @@ ProfileCard.propTypes = {
     is_active: PropTypes.bool.isRequired,
   }).isRequired,
   onEdit: PropTypes.func.isRequired,
-  onDeactivate: PropTypes.func.isRequired,
 };
 
 const inputClass =
@@ -132,6 +120,7 @@ export const Profiles = () => {
 
   const [confirmTarget, setConfirmTarget] = useState(null);
   const [deactivating, setDeactivating] = useState(false);
+  const [reactivating, setReactivating] = useState(false);
 
   const { user } = useAuth();
 
@@ -272,6 +261,26 @@ export const Profiles = () => {
     }
   }, [confirmTarget, loadData]);
 
+  const handleDeactivateFromEdit = useCallback(() => {
+    setConfirmTarget(editingProfile);
+    setEditingProfile(null);
+  }, [editingProfile]);
+
+  const handleReactivate = useCallback(async () => {
+    if (!editingProfile) return;
+    setReactivating(true);
+    setEditError(null);
+    try {
+      await updateProfile(editingProfile.profile_id, { is_active: true });
+      setEditingProfile(null);
+      await loadData();
+    } catch (err) {
+      setEditError(err.message || 'Failed to reactivate profile');
+    } finally {
+      setReactivating(false);
+    }
+  }, [editingProfile, loadData]);
+
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6">
@@ -331,12 +340,7 @@ export const Profiles = () => {
       {!loading && profiles.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {profiles.map((p) => (
-            <ProfileCard
-              key={p.profile_id}
-              profile={p}
-              onEdit={handleEditOpen}
-              onDeactivate={setConfirmTarget}
-            />
+            <ProfileCard key={p.profile_id} profile={p} onEdit={handleEditOpen} />
           ))}
         </div>
       )}
@@ -508,18 +512,25 @@ export const Profiles = () => {
               </select>
             </Field>
 
-            <div className="flex items-center gap-3">
-              <input
-                id="edit-is-active"
-                name="is_active"
-                type="checkbox"
-                checked={editForm.is_active}
-                onChange={handleEditChange}
-                className="w-4 h-4"
-              />
-              <label htmlFor="edit-is-active" className="text-sm font-medium text-gray-700">
-                Active
-              </label>
+            <div className="border-t border-gray-200 pt-4">
+              {editingProfile.is_active ? (
+                <button
+                  type="button"
+                  onClick={handleDeactivateFromEdit}
+                  className="text-sm font-medium text-red-600 hover:text-red-700 hover:underline"
+                >
+                  Deactivate this profile
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleReactivate}
+                  disabled={reactivating}
+                  className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline disabled:opacity-50"
+                >
+                  {reactivating ? 'Reactivating...' : 'Reactivate profile'}
+                </button>
+              )}
             </div>
 
             {editError && <p className="text-red-600 text-sm">{editError}</p>}

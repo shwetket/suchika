@@ -21,7 +21,12 @@ jest.mock('../../api/wealth', () => ({
 }));
 
 const { listProfiles } = require('../../api/profiles');
-const { listAccounts, createAccount, getAccountBalance } = require('../../api/wealth');
+const {
+  listAccounts,
+  createAccount,
+  updateAccount,
+  getAccountBalance,
+} = require('../../api/wealth');
 
 const MOCK_PROFILES = [
   { profile_id: 'p1', full_name: 'Alice', is_active: true },
@@ -50,6 +55,13 @@ const MOCK_ACCOUNTS = [
     is_active: false,
   },
 ];
+
+async function selectProfileAndWaitForAccounts() {
+  render(<Accounts />);
+  await waitFor(() => screen.getByText('Alice'));
+  fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+  await waitFor(() => screen.getByText('SBI Savings'));
+}
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -159,9 +171,11 @@ describe('Accounts page', () => {
     fireEvent.change(screen.getByPlaceholderText(/e\.g\. SBI Savings/i), {
       target: { name: 'account_name', value: 'Test Account' },
     });
-    fireEvent.change(screen.getByPlaceholderText(/e\.g\. State Bank/i), {
-      target: { name: 'institution_name', value: 'Test Bank' },
-    });
+    const institutionSelects = screen.getAllByRole('combobox');
+    const institutionSelect = institutionSelects.find(
+      (s) => s.getAttribute('name') === 'institution_name'
+    );
+    fireEvent.change(institutionSelect, { target: { value: 'State Bank of India' } });
 
     const typeSelects = screen.getAllByRole('combobox');
     const typeSelect = typeSelects.find((s) => s.getAttribute('name') === 'account_type');
@@ -176,6 +190,218 @@ describe('Accounts page', () => {
 
     await waitFor(() => {
       expect(createAccount).toHaveBeenCalled();
+    });
+  });
+
+  describe('Account type list (backlog item: stale ACCOUNT_TYPES)', () => {
+    const EXPECTED_ACCOUNT_TYPES = [
+      'SAVINGS',
+      'CURRENT',
+      'CREDIT_CARD',
+      'HOME_LOAN',
+      'PERSONAL_LOAN',
+      'CAR_LOAN',
+      'MUTUAL_FUND',
+      'NPS',
+      'PPF',
+      'FD',
+      'EPF',
+    ];
+
+    it('offers all 11 real AccountType values in the Add Account dropdown, not the stale 7-value set', async () => {
+      listAccounts.mockResolvedValue({ accounts: [] });
+      render(<Accounts />);
+      await waitFor(() => screen.getByText('Alice'));
+
+      fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+      await waitFor(() => screen.getByText('+ Add Account'));
+      fireEvent.click(screen.getByText('+ Add Account'));
+
+      const typeSelects = screen.getAllByRole('combobox');
+      const typeSelect = typeSelects.find((s) => s.getAttribute('name') === 'account_type');
+      const optionValues = Array.from(typeSelect.querySelectorAll('option'))
+        .map((o) => o.value)
+        .filter((v) => v !== '');
+
+      expect(optionValues).toEqual(EXPECTED_ACCOUNT_TYPES);
+      expect(optionValues).not.toContain('INVESTMENT');
+    });
+
+    it('offers all 11 real AccountType values as filter tabs', async () => {
+      listAccounts.mockResolvedValue({ accounts: [] });
+      render(<Accounts />);
+      await waitFor(() => screen.getByText('Alice'));
+      fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+
+      await waitFor(() => {
+        EXPECTED_ACCOUNT_TYPES.forEach((type) => {
+          expect(
+            screen.getByRole('button', { name: new RegExp(`^${type.replaceAll('_', ' ')}$`, 'i') })
+          ).toBeInTheDocument();
+        });
+      });
+      expect(screen.queryByRole('button', { name: /^INVESTMENT$/i })).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Edit affordance (UX-002)', () => {
+    it('renders Edit as an icon-only button with an accessible label, not a labeled button', async () => {
+      listAccounts.mockResolvedValue({ accounts: MOCK_ACCOUNTS });
+      await selectProfileAndWaitForAccounts();
+
+      const editButtons = screen.getAllByRole('button', { name: 'Edit account' });
+      expect(editButtons.length).toBe(MOCK_ACCOUNTS.length);
+      // No visible text label "Edit" should render anywhere on the card.
+      expect(screen.queryByText(/^Edit$/)).not.toBeInTheDocument();
+      expect(editButtons[0]).toHaveAttribute('title', 'Edit account');
+    });
+  });
+
+  describe('Deactivate relocated to Edit modal (UX-001, UX-003)', () => {
+    it('does not render a Deactivate control directly on the account card', async () => {
+      listAccounts.mockResolvedValue({ accounts: MOCK_ACCOUNTS });
+      await selectProfileAndWaitForAccounts();
+
+      expect(screen.queryByRole('button', { name: /^Deactivate$/i })).not.toBeInTheDocument();
+      expect(screen.queryByText(/Deactivate this account/i)).not.toBeInTheDocument();
+    });
+
+    it('shows "Deactivate this account" link inside the Edit modal for an active account', async () => {
+      listAccounts.mockResolvedValue({ accounts: MOCK_ACCOUNTS });
+      await selectProfileAndWaitForAccounts();
+
+      const editButtons = screen.getAllByRole('button', { name: 'Edit account' });
+      fireEvent.click(editButtons[0]);
+
+      await waitFor(() => {
+        expect(screen.getByText('Deactivate this account')).toBeInTheDocument();
+      });
+      expect(screen.queryByText('Reactivate account')).not.toBeInTheDocument();
+    });
+
+    it('clicking the Deactivate link closes the edit modal and opens the confirm dialog', async () => {
+      listAccounts.mockResolvedValue({ accounts: MOCK_ACCOUNTS });
+      await selectProfileAndWaitForAccounts();
+
+      const editButtons = screen.getAllByRole('button', { name: 'Edit account' });
+      fireEvent.click(editButtons[0]);
+
+      await waitFor(() => screen.getByText('Deactivate this account'));
+      fireEvent.click(screen.getByText('Deactivate this account'));
+
+      expect(screen.queryByRole('heading', { name: /Edit —/i })).not.toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Deactivate Account' })).toBeInTheDocument();
+    });
+
+    it('shows "Reactivate account" (no confirmation) inside the Edit modal for an inactive account, mutually exclusive with Deactivate', async () => {
+      listAccounts.mockResolvedValue({ accounts: MOCK_ACCOUNTS });
+      await selectProfileAndWaitForAccounts();
+
+      const editButtons = screen.getAllByRole('button', { name: 'Edit account' });
+      fireEvent.click(editButtons[1]); // HDFC CC, is_active: false
+
+      await waitFor(() => {
+        expect(screen.getByText('Reactivate account')).toBeInTheDocument();
+      });
+      expect(screen.queryByText('Deactivate this account')).not.toBeInTheDocument();
+    });
+
+    it('clicking Reactivate calls updateAccount with is_active true and requires no confirmation dialog', async () => {
+      listAccounts.mockResolvedValue({ accounts: MOCK_ACCOUNTS });
+      updateAccount.mockResolvedValue({});
+      await selectProfileAndWaitForAccounts();
+
+      const editButtons = screen.getAllByRole('button', { name: 'Edit account' });
+      fireEvent.click(editButtons[1]);
+
+      await waitFor(() => screen.getByText('Reactivate account'));
+      fireEvent.click(screen.getByText('Reactivate account'));
+
+      await waitFor(() => {
+        expect(updateAccount).toHaveBeenCalledWith('a2', 'p1', { is_active: true });
+      });
+      expect(screen.queryByRole('heading', { name: 'Deactivate Account' })).not.toBeInTheDocument();
+    });
+
+    it('does not render a raw Active checkbox in the Edit modal', async () => {
+      listAccounts.mockResolvedValue({ accounts: MOCK_ACCOUNTS });
+      await selectProfileAndWaitForAccounts();
+
+      const editButtons = screen.getAllByRole('button', { name: 'Edit account' });
+      fireEvent.click(editButtons[0]);
+
+      await waitFor(() => screen.getByText('Deactivate this account'));
+      expect(screen.queryByLabelText('Active')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Balance states (UX-004)', () => {
+    it('shows a real balance when the fetch succeeds', async () => {
+      listAccounts.mockResolvedValue({ accounts: [MOCK_ACCOUNTS[0]] });
+      getAccountBalance.mockResolvedValue({ current_balance: 75000 });
+      await selectProfileAndWaitForAccounts();
+
+      await waitFor(() => {
+        expect(screen.getByText(/Balance: .*75,000/)).toBeInTheDocument();
+      });
+    });
+
+    it('shows "Balance unavailable" distinctly when the balance fetch fails, instead of falling back to opening_balance', async () => {
+      listAccounts.mockResolvedValue({ accounts: [MOCK_ACCOUNTS[0]] });
+      getAccountBalance.mockRejectedValue(new Error('boom'));
+      await selectProfileAndWaitForAccounts();
+
+      await waitFor(() => {
+        expect(screen.getByText('Balance unavailable')).toBeInTheDocument();
+      });
+      // Should not silently show the opening_balance (50,000) as if it were current.
+      expect(screen.queryByText(/50,000/)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Search filter (UX-005)', () => {
+    it('filters the account grid by account name', async () => {
+      listAccounts.mockResolvedValue({ accounts: MOCK_ACCOUNTS });
+      await selectProfileAndWaitForAccounts();
+
+      expect(screen.getByText('SBI Savings')).toBeInTheDocument();
+      expect(screen.getByText('HDFC CC')).toBeInTheDocument();
+
+      fireEvent.change(screen.getByLabelText('Search accounts'), {
+        target: { value: 'sbi' },
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('SBI Savings')).toBeInTheDocument();
+        expect(screen.queryByText('HDFC CC')).not.toBeInTheDocument();
+      });
+    });
+
+    it('filters the account grid by institution name', async () => {
+      listAccounts.mockResolvedValue({ accounts: MOCK_ACCOUNTS });
+      await selectProfileAndWaitForAccounts();
+
+      fireEvent.change(screen.getByLabelText('Search accounts'), {
+        target: { value: 'hdfc bank' },
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('HDFC CC')).toBeInTheDocument();
+        expect(screen.queryByText('SBI Savings')).not.toBeInTheDocument();
+      });
+    });
+
+    it('shows a no-match message when the search has no results', async () => {
+      listAccounts.mockResolvedValue({ accounts: MOCK_ACCOUNTS });
+      await selectProfileAndWaitForAccounts();
+
+      fireEvent.change(screen.getByLabelText('Search accounts'), {
+        target: { value: 'nonexistent-account-xyz' },
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText(/No accounts match your search/i)).toBeInTheDocument();
+      });
     });
   });
 
@@ -224,7 +450,7 @@ describe('Accounts page', () => {
       fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
 
       await waitFor(() => screen.getByText('Home Loan 1 - BoB MaxGain'));
-      const editButtons = screen.getAllByRole('button', { name: 'Edit' });
+      const editButtons = screen.getAllByRole('button', { name: 'Edit account' });
       fireEvent.click(editButtons[0]);
 
       await waitFor(() => {
