@@ -153,8 +153,18 @@ textarea {
 }
 
 /* Base border handling to soften the UI */
-.border, .border-b, .border-t, .border-l, .border-r {
-  border-color: var(--border);
+.border, .border-b, .border-t, .border-l, .border-r,
+.border-gray-100, .border-gray-200, .border-gray-300 {
+  border-color: var(--border) !important;
+}
+
+/* Text Colors */
+.text-gray-900, .text-gray-800, .text-gray-700, .text-slate-900 {
+  color: var(--text) !important;
+}
+
+.text-gray-600, .text-gray-500, .text-gray-400, .text-slate-500 {
+  color: var(--muted) !important;
 }
 .rounded-lg {
   border-radius: 0.75rem !important; /* Softer, slightly larger radius */
