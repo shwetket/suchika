@@ -9,6 +9,7 @@ import {
 } from '../../api/wealth';
 import { Field } from '../../components/Field';
 import { Modal } from '../../components/Modal';
+import { Badge } from '../../components/shared/Badge';
 import { EditIcon } from '../../components/shared/EditIcon';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -38,11 +39,10 @@ const inputClass =
 const PAGE_SIZE = 20;
 
 function StatusBadge({ active }) {
-  const cls = active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500';
   return (
-    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${cls}`}>
+    <Badge variant={active ? 'success' : 'neutral'}>
       {active ? 'Active' : 'Inactive'}
-    </span>
+    </Badge>
   );
 }
 StatusBadge.propTypes = { active: PropTypes.bool.isRequired };
@@ -70,7 +70,7 @@ ComplianceRow.defaultProps = { value: null };
 function AssetCard({ asset, onEdit }) {
   const metadata = asset.metadata || {};
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-5 flex flex-col gap-2">
+    <div className="bg-white border border-gray-200 rounded-lg p-5 flex flex-col gap-2 card-hover">
       <div className="flex items-start justify-between">
         <div>
           <h3 className="font-semibold text-gray-900 text-lg">{asset.asset_name}</h3>

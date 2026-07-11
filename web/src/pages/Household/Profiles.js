@@ -4,6 +4,7 @@ import { listAdmins } from '../../api/admins';
 import { createProfile, deactivateProfile, listProfiles, updateProfile } from '../../api/profiles';
 import { Field } from '../../components/Field';
 import { Modal } from '../../components/Modal';
+import { Badge } from '../../components/shared/Badge';
 import { EditIcon } from '../../components/shared/EditIcon';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -46,11 +47,10 @@ function formatRelation(value) {
 }
 
 function StatusBadge({ active }) {
-  const classes = active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500';
   return (
-    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${classes}`}>
+    <Badge variant={active ? 'success' : 'neutral'}>
       {active ? 'Active' : 'Inactive'}
-    </span>
+    </Badge>
   );
 }
 
@@ -58,7 +58,7 @@ StatusBadge.propTypes = { active: PropTypes.bool.isRequired };
 
 function ProfileCard({ profile, onEdit, onDeactivate }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-5 flex flex-col gap-2">
+    <div className="bg-white border border-gray-200 rounded-lg p-5 flex flex-col gap-2 card-hover">
       <div className="flex items-start justify-between">
         <div>
           <h3 className="font-semibold text-gray-900 text-lg">{profile.full_name}</h3>

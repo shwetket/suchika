@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import { Field } from '../../components/Field';
 import { InstitutionSelect } from '../../components/InstitutionSelect';
 import { Modal } from '../../components/Modal';
+import { Badge } from '../../components/shared/Badge';
 import { listProfiles } from '../../api/profiles';
 import {
   createAccount,
@@ -84,11 +85,10 @@ function formatCurrency(value) {
 }
 
 function StatusBadge({ active }) {
-  const cls = active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500';
   return (
-    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${cls}`}>
+    <Badge variant={active ? 'success' : 'neutral'}>
       {active ? 'Active' : 'Inactive'}
-    </span>
+    </Badge>
   );
 }
 StatusBadge.propTypes = { active: PropTypes.bool.isRequired };
@@ -109,7 +109,7 @@ BalanceLine.defaultProps = { balance: undefined };
 
 function AccountCard({ account, balance, onEdit }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-5 flex flex-col gap-2">
+    <div className="bg-white border border-gray-200 rounded-lg p-5 flex flex-col gap-2 card-hover">
       <div className="flex items-start justify-between">
         <div>
           <h3 className="font-semibold text-gray-900 text-lg">{account.account_name}</h3>
