@@ -294,7 +294,7 @@ describe('PhysicalAssets page', () => {
       listPhysicalAssets.mockResolvedValue({ physical_assets: MOCK_ASSETS });
       await selectProfileAndWaitForAssets();
 
-      const editButtons = screen.getAllByRole('button', { name: 'Edit' });
+      const editButtons = screen.getAllByRole('button', { name: /edit asset/i });
       fireEvent.click(editButtons[0]); // Family Car, is_active: true
 
       await waitFor(() => {
@@ -307,7 +307,7 @@ describe('PhysicalAssets page', () => {
       listPhysicalAssets.mockResolvedValue({ physical_assets: MOCK_ASSETS });
       await selectProfileAndWaitForAssets();
 
-      const editButtons = screen.getAllByRole('button', { name: 'Edit' });
+      const editButtons = screen.getAllByRole('button', { name: /edit asset/i });
       fireEvent.click(editButtons[0]);
 
       await waitFor(() => screen.getByText('Deactivate this asset'));
@@ -321,7 +321,7 @@ describe('PhysicalAssets page', () => {
       listPhysicalAssets.mockResolvedValue({ physical_assets: MOCK_ASSETS });
       await selectProfileAndWaitForAssets();
 
-      const editButtons = screen.getAllByRole('button', { name: 'Edit' });
+      const editButtons = screen.getAllByRole('button', { name: /edit asset/i });
       fireEvent.click(editButtons[1]); // Delivery Van, is_active: false
 
       await waitFor(() => {
@@ -335,7 +335,7 @@ describe('PhysicalAssets page', () => {
       updatePhysicalAsset.mockResolvedValue({});
       await selectProfileAndWaitForAssets();
 
-      const editButtons = screen.getAllByRole('button', { name: 'Edit' });
+      const editButtons = screen.getAllByRole('button', { name: /edit asset/i });
       fireEvent.click(editButtons[1]);
 
       await waitFor(() => screen.getByText('Reactivate asset'));
@@ -351,7 +351,7 @@ describe('PhysicalAssets page', () => {
       listPhysicalAssets.mockResolvedValue({ physical_assets: MOCK_ASSETS });
       await selectProfileAndWaitForAssets();
 
-      const editButtons = screen.getAllByRole('button', { name: 'Edit' });
+      const editButtons = screen.getAllByRole('button', { name: /edit asset/i });
       fireEvent.click(editButtons[0]);
 
       await waitFor(() => screen.getByText('Deactivate this asset'));

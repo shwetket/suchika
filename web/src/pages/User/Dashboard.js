@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -254,7 +254,8 @@ function SnapshotSummary({ snapshots }) {
             </Badge>
             {validationPayload.warning_count > 0 && (
               <span className="text-xs text-gray-500">
-                {validationPayload.warning_count} warning{validationPayload.warning_count > 1 ? 's' : ''}
+                {validationPayload.warning_count} warning
+                {validationPayload.warning_count > 1 ? 's' : ''}
               </span>
             )}
           </div>
@@ -300,6 +301,16 @@ export const Dashboard = () => {
       queryClient.setQueryData(['dashboard', profileId], data);
     },
   });
+
+  const [hasAutoRefreshed, setHasAutoRefreshed] = useState(false);
+
+  // Automatically refresh live data on mount to ensure user always sees the latest snapshot
+  useEffect(() => {
+    if (profileId && !hasAutoRefreshed && dashboardQuery.isSuccess) {
+      refreshMutation.mutate();
+      setHasAutoRefreshed(true);
+    }
+  }, [profileId, hasAutoRefreshed, dashboardQuery.isSuccess, refreshMutation]);
 
   const snapshots = dashboardQuery.data?.snapshots ?? [];
   const isRefreshing = refreshMutation.isPending;

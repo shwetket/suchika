@@ -55,11 +55,21 @@ html {
 body {
   margin: 0;
   min-height: 100%;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--bg);
-  background-image: radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.05) 0px, transparent 50%), radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.05) 0px, transparent 50%);
+  background-image:
+    radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.05) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.05) 0px, transparent 50%);
   background-attachment: fixed;
   color: var(--text);
 }
@@ -68,7 +78,12 @@ body {
   box-sizing: border-box;
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-family: 'Outfit', 'Inter', sans-serif;
   letter-spacing: -0.02em;
 }
@@ -80,7 +95,7 @@ a {
 
 a:hover,
 button:hover {
-  opacity: 0.90;
+  opacity: 0.9;
 }
 
 button,
@@ -93,11 +108,15 @@ textarea {
 
 /* Modern Card Lift Effect */
 .card-hover {
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition:
+    transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .card-hover:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.1), 0 8px 10px -6px rgba(99, 102, 241, 0.1);
+  box-shadow:
+    0 10px 25px -5px rgba(99, 102, 241, 0.1),
+    0 8px 10px -6px rgba(99, 102, 241, 0.1);
 }
 
 /* Maintain backwards compatibility with hardcoded classes while injecting variables */
@@ -122,10 +141,12 @@ textarea {
 .bg-blue-50 {
   background-color: rgba(99, 102, 241, 0.08) !important;
 }
-.text-blue-500, .text-blue-600 {
+.text-blue-500,
+.text-blue-600 {
   color: var(--primary) !important;
 }
-.border-blue-500, .border-blue-600 {
+.border-blue-500,
+.border-blue-600 {
   border-color: var(--primary) !important;
 }
 .bg-blue-600 {
@@ -138,32 +159,49 @@ textarea {
 .bg-green-50 {
   background-color: rgba(16, 185, 129, 0.08) !important;
 }
-.text-green-500, .text-green-600, .text-green-700, .text-green-800 {
+.text-green-500,
+.text-green-600,
+.text-green-700,
+.text-green-800 {
   color: var(--success-strong) !important;
 }
 
 .bg-red-50 {
   background-color: rgba(239, 68, 68, 0.08) !important;
 }
-.text-red-500, .text-red-600 {
+.text-red-500,
+.text-red-600 {
   color: var(--danger) !important;
 }
-.border-red-500, .border-red-600 {
+.border-red-500,
+.border-red-600 {
   border-color: var(--danger) !important;
 }
 
 /* Base border handling to soften the UI */
-.border, .border-b, .border-t, .border-l, .border-r,
-.border-gray-100, .border-gray-200, .border-gray-300 {
+.border,
+.border-b,
+.border-t,
+.border-l,
+.border-r,
+.border-gray-100,
+.border-gray-200,
+.border-gray-300 {
   border-color: var(--border) !important;
 }
 
 /* Text Colors */
-.text-gray-900, .text-gray-800, .text-gray-700, .text-slate-900 {
+.text-gray-900,
+.text-gray-800,
+.text-gray-700,
+.text-slate-900 {
   color: var(--text) !important;
 }
 
-.text-gray-600, .text-gray-500, .text-gray-400, .text-slate-500 {
+.text-gray-600,
+.text-gray-500,
+.text-gray-400,
+.text-slate-500 {
   color: var(--muted) !important;
 }
 .rounded-lg {
@@ -171,13 +209,16 @@ textarea {
 }
 
 /* Input Styles */
-input, select, textarea {
+input,
+select,
+textarea {
   border-color: var(--border) !important;
   transition: all 0.2s ease-in-out;
 }
-input:focus, select:focus, textarea:focus {
+input:focus,
+select:focus,
+textarea:focus {
   border-color: var(--primary) !important;
   box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2) !important;
   outline: none;
 }
-

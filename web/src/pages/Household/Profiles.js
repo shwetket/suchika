@@ -47,11 +47,7 @@ function formatRelation(value) {
 }
 
 function StatusBadge({ active }) {
-  return (
-    <Badge variant={active ? 'success' : 'neutral'}>
-      {active ? 'Active' : 'Inactive'}
-    </Badge>
-  );
+  return <Badge variant={active ? 'success' : 'neutral'}>{active ? 'Active' : 'Inactive'}</Badge>;
 }
 
 StatusBadge.propTypes = { active: PropTypes.bool.isRequired };
@@ -344,11 +340,7 @@ export const Profiles = () => {
       {!loading && profiles.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {profiles.map((p) => (
-            <ProfileCard
-              key={p.profile_id}
-              profile={p}
-              onEdit={handleEditOpen}
-            />
+            <ProfileCard key={p.profile_id} profile={p} onEdit={handleEditOpen} />
           ))}
         </div>
       )}

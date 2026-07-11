@@ -85,15 +85,9 @@ function formatCurrency(value) {
 }
 
 function StatusBadge({ active }) {
-  return (
-    <Badge variant={active ? 'success' : 'neutral'}>
-      {active ? 'Active' : 'Inactive'}
-    </Badge>
-  );
+  return <Badge variant={active ? 'success' : 'neutral'}>{active ? 'Active' : 'Inactive'}</Badge>;
 }
 StatusBadge.propTypes = { active: PropTypes.bool.isRequired };
-
-
 
 function BalanceLine({ balance }) {
   if (balance === undefined) {

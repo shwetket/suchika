@@ -266,10 +266,7 @@ describe('Dashboard', () => {
     );
 
     renderDashboard();
-    await waitFor(() => screen.getByRole('button', { name: /refresh live data/i }));
-
-    fireEvent.click(screen.getByRole('button', { name: /refresh live data/i }));
-    await waitFor(() => screen.getByText(/refreshing/i));
+    await waitFor(() => screen.getByRole('button', { name: /refreshing/i }));
 
     fireEvent.click(screen.getByRole('button', { name: /refreshing/i }));
     expect(refreshProjections).toHaveBeenCalledTimes(1);
