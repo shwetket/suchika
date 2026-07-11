@@ -19,7 +19,11 @@ jest.mock('../../api/wealth', () => ({
 }));
 
 const { listProfiles } = require('../../api/profiles');
-const { listPhysicalAssets, createPhysicalAsset } = require('../../api/wealth');
+const {
+  listPhysicalAssets,
+  createPhysicalAsset,
+  updatePhysicalAsset,
+} = require('../../api/wealth');
 
 const MOCK_PROFILES = [
   { profile_id: 'p1', full_name: 'Alice', is_active: true },
@@ -57,6 +61,13 @@ beforeEach(() => {
   listProfiles.mockResolvedValue({ profiles: MOCK_PROFILES });
   listPhysicalAssets.mockResolvedValue({ physical_assets: [] });
 });
+
+async function selectProfileAndWaitForAssets() {
+  render(<PhysicalAssets />);
+  await waitFor(() => screen.getByText('Alice'));
+  fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+  await waitFor(() => screen.getByText('Family Car'));
+}
 
 describe('PhysicalAssets page', () => {
   it('renders "Select a profile" message when no profile is selected', async () => {
@@ -215,5 +226,136 @@ describe('PhysicalAssets page', () => {
       expect(screen.getByText(/Page 1 of 1 \(2 total\)/i)).toBeInTheDocument();
     });
     expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
+  });
+
+  describe('Load stale-response guard (UX-015)', () => {
+    it('does not let a stale (late-resolving) response overwrite a newer one', async () => {
+      let resolveStale;
+      const stalePromise = new Promise((resolve) => {
+        resolveStale = resolve;
+      });
+
+      listPhysicalAssets
+        .mockImplementationOnce(() => stalePromise) // initial load (All filter) — resolves late
+        .mockImplementationOnce(() =>
+          Promise.resolve({
+            physical_assets: [
+              {
+                asset_id: 'fresh-1',
+                asset_name: 'Fresh Asset',
+                asset_type: 'VEHICLE',
+                make: 'Honda',
+                model: 'City',
+                registration_number: 'KA-05-XY-9999',
+                registration_type: 'PRIVATE',
+                is_active: true,
+                metadata: {},
+              },
+            ],
+            total_size: 1,
+          })
+        );
+
+      render(<PhysicalAssets />);
+      await waitFor(() => screen.getByText('Alice'));
+      fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+
+      // Trigger a second, newer request before the first (stale) one resolves.
+      await waitFor(() => screen.getByRole('button', { name: 'Active' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Active' }));
+
+      await waitFor(() => screen.getByText('Fresh Asset'));
+
+      // Now let the stale first request resolve with older, different data.
+      resolveStale({
+        physical_assets: [MOCK_ASSETS[0]],
+        total_size: 1,
+      });
+
+      await new Promise((resolve) => {
+        setTimeout(resolve, 0);
+      });
+
+      expect(screen.getByText('Fresh Asset')).toBeInTheDocument();
+      expect(screen.queryByText('Family Car')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Deactivate relocated to Edit modal (UX-006, UX-007)', () => {
+    it('does not render a Deactivate control directly on the asset card', async () => {
+      listPhysicalAssets.mockResolvedValue({ physical_assets: MOCK_ASSETS });
+      await selectProfileAndWaitForAssets();
+
+      expect(screen.queryByRole('button', { name: /^Deactivate$/i })).not.toBeInTheDocument();
+      expect(screen.queryByText(/Deactivate this asset/i)).not.toBeInTheDocument();
+    });
+
+    it('shows "Deactivate this asset" link inside the Edit modal for an active asset', async () => {
+      listPhysicalAssets.mockResolvedValue({ physical_assets: MOCK_ASSETS });
+      await selectProfileAndWaitForAssets();
+
+      const editButtons = screen.getAllByRole('button', { name: 'Edit' });
+      fireEvent.click(editButtons[0]); // Family Car, is_active: true
+
+      await waitFor(() => {
+        expect(screen.getByText('Deactivate this asset')).toBeInTheDocument();
+      });
+      expect(screen.queryByText('Reactivate asset')).not.toBeInTheDocument();
+    });
+
+    it('clicking the Deactivate link closes the edit modal and opens the confirm dialog', async () => {
+      listPhysicalAssets.mockResolvedValue({ physical_assets: MOCK_ASSETS });
+      await selectProfileAndWaitForAssets();
+
+      const editButtons = screen.getAllByRole('button', { name: 'Edit' });
+      fireEvent.click(editButtons[0]);
+
+      await waitFor(() => screen.getByText('Deactivate this asset'));
+      fireEvent.click(screen.getByText('Deactivate this asset'));
+
+      expect(screen.queryByRole('heading', { name: /Edit —/i })).not.toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Deactivate Asset' })).toBeInTheDocument();
+    });
+
+    it('shows "Reactivate asset" (no confirmation) inside the Edit modal for an inactive asset, mutually exclusive with Deactivate', async () => {
+      listPhysicalAssets.mockResolvedValue({ physical_assets: MOCK_ASSETS });
+      await selectProfileAndWaitForAssets();
+
+      const editButtons = screen.getAllByRole('button', { name: 'Edit' });
+      fireEvent.click(editButtons[1]); // Delivery Van, is_active: false
+
+      await waitFor(() => {
+        expect(screen.getByText('Reactivate asset')).toBeInTheDocument();
+      });
+      expect(screen.queryByText('Deactivate this asset')).not.toBeInTheDocument();
+    });
+
+    it('clicking Reactivate calls updatePhysicalAsset with is_active true and requires no confirmation dialog', async () => {
+      listPhysicalAssets.mockResolvedValue({ physical_assets: MOCK_ASSETS });
+      updatePhysicalAsset.mockResolvedValue({});
+      await selectProfileAndWaitForAssets();
+
+      const editButtons = screen.getAllByRole('button', { name: 'Edit' });
+      fireEvent.click(editButtons[1]);
+
+      await waitFor(() => screen.getByText('Reactivate asset'));
+      fireEvent.click(screen.getByText('Reactivate asset'));
+
+      await waitFor(() => {
+        expect(updatePhysicalAsset).toHaveBeenCalledWith('asset2', 'p1', { is_active: true });
+      });
+      expect(screen.queryByRole('heading', { name: 'Deactivate Asset' })).not.toBeInTheDocument();
+    });
+
+    it('does not render a raw Active checkbox in the Edit modal', async () => {
+      listPhysicalAssets.mockResolvedValue({ physical_assets: MOCK_ASSETS });
+      await selectProfileAndWaitForAssets();
+
+      const editButtons = screen.getAllByRole('button', { name: 'Edit' });
+      fireEvent.click(editButtons[0]);
+
+      await waitFor(() => screen.getByText('Deactivate this asset'));
+      expect(screen.queryByLabelText('Active')).not.toBeInTheDocument();
+    });
   });
 });

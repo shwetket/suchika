@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { listProfiles } from '../../api/profiles';
 import {
@@ -29,7 +29,6 @@ const EMPTY_EDIT = {
   puc_expiry: '',
   insurance_expiry: '',
   road_tax_expiry: '',
-  is_active: true,
 };
 
 const inputClass =
@@ -67,7 +66,7 @@ function ComplianceRow({ label, value }) {
 ComplianceRow.propTypes = { label: PropTypes.string.isRequired, value: PropTypes.string };
 ComplianceRow.defaultProps = { value: null };
 
-function AssetCard({ asset, onEdit, onDeactivate }) {
+function AssetCard({ asset, onEdit }) {
   const metadata = asset.metadata || {};
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-5 flex flex-col gap-2">
@@ -105,15 +104,6 @@ function AssetCard({ asset, onEdit, onDeactivate }) {
         >
           Edit
         </button>
-        {asset.is_active && (
-          <button
-            type="button"
-            onClick={() => onDeactivate(asset)}
-            className="flex-1 border border-red-500 text-red-500 py-1.5 rounded text-sm font-medium hover:bg-red-50"
-          >
-            Deactivate
-          </button>
-        )}
       </div>
     </div>
   );
@@ -134,7 +124,6 @@ AssetCard.propTypes = {
     metadata: PropTypes.object,
   }).isRequired,
   onEdit: PropTypes.func.isRequired,
-  onDeactivate: PropTypes.func.isRequired,
 };
 
 export const PhysicalAssets = () => {
@@ -159,6 +148,7 @@ export const PhysicalAssets = () => {
 
   const [confirmTarget, setConfirmTarget] = useState(null);
   const [deactivating, setDeactivating] = useState(false);
+  const [reactivating, setReactivating] = useState(false);
 
   const { user } = useAuth();
 
@@ -168,18 +158,29 @@ export const PhysicalAssets = () => {
       .catch(() => setProfiles([]));
   }, [user?.admin_id]);
 
+  // Stale-response guard (UX-015): loadAssets() runs on both the effect below and
+  // on manual reload after add/edit/deactivate. An older in-flight request
+  // resolving after a newer one must never clobber state with outdated data —
+  // same intent as Accounts.js's `cancelled` flag on its balance-loading effect,
+  // implemented with a request-id ref since this call site is also invoked manually.
+  const loadRequestIdRef = useRef(0);
+
   const loadAssets = useCallback(async () => {
     if (!selectedProfileId) return;
+    const requestId = loadRequestIdRef.current + 1;
+    loadRequestIdRef.current = requestId;
     setLoading(true);
     setError(null);
     try {
       const data = await listPhysicalAssets(selectedProfileId, null, activeFilter, page, PAGE_SIZE);
+      if (requestId !== loadRequestIdRef.current) return;
       setAssets(data.physical_assets ?? []);
       setTotalSize(data.total_size ?? (data.physical_assets ?? []).length);
     } catch (err) {
+      if (requestId !== loadRequestIdRef.current) return;
       setError(err.message || 'Failed to load physical assets');
     } finally {
-      setLoading(false);
+      if (requestId === loadRequestIdRef.current) setLoading(false);
     }
   }, [selectedProfileId, activeFilter, page]);
 
@@ -256,7 +257,6 @@ export const PhysicalAssets = () => {
       puc_expiry: metadata.puc_expiry ?? '',
       insurance_expiry: metadata.insurance_expiry ?? '',
       road_tax_expiry: metadata.road_tax_expiry ?? '',
-      is_active: asset.is_active,
     });
     setEditError(null);
   }, []);
@@ -281,7 +281,6 @@ export const PhysicalAssets = () => {
             insurance_expiry: editForm.insurance_expiry || '',
             road_tax_expiry: editForm.road_tax_expiry || '',
           },
-          is_active: editForm.is_active,
         });
         setEditingAsset(null);
         await loadAssets();
@@ -308,6 +307,26 @@ export const PhysicalAssets = () => {
       setDeactivating(false);
     }
   }, [confirmTarget, loadAssets, selectedProfileId]);
+
+  const handleDeactivateFromEdit = useCallback(() => {
+    setConfirmTarget(editingAsset);
+    setEditingAsset(null);
+  }, [editingAsset]);
+
+  const handleReactivate = useCallback(async () => {
+    if (!editingAsset) return;
+    setReactivating(true);
+    setEditError(null);
+    try {
+      await updatePhysicalAsset(editingAsset.asset_id, selectedProfileId, { is_active: true });
+      setEditingAsset(null);
+      await loadAssets();
+    } catch (err) {
+      setEditError(err.message || 'Failed to reactivate physical asset');
+    } finally {
+      setReactivating(false);
+    }
+  }, [editingAsset, loadAssets, selectedProfileId]);
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -388,12 +407,7 @@ export const PhysicalAssets = () => {
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {assets.map((a) => (
-                  <AssetCard
-                    key={a.asset_id}
-                    asset={a}
-                    onEdit={handleEditOpen}
-                    onDeactivate={setConfirmTarget}
-                  />
+                  <AssetCard key={a.asset_id} asset={a} onEdit={handleEditOpen} />
                 ))}
               </div>
 
@@ -575,18 +589,25 @@ export const PhysicalAssets = () => {
                 className={inputClass}
               />
             </Field>
-            <div className="flex items-center gap-3">
-              <input
-                id="edit-is-active"
-                name="is_active"
-                type="checkbox"
-                checked={editForm.is_active}
-                onChange={handleEditChange}
-                className="w-4 h-4"
-              />
-              <label htmlFor="edit-is-active" className="text-sm font-medium text-gray-700">
-                Active
-              </label>
+            <div className="border-t border-gray-200 pt-4">
+              {editingAsset.is_active ? (
+                <button
+                  type="button"
+                  onClick={handleDeactivateFromEdit}
+                  className="text-sm font-medium text-red-600 hover:text-red-700 hover:underline"
+                >
+                  Deactivate this asset
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleReactivate}
+                  disabled={reactivating}
+                  className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline disabled:opacity-50"
+                >
+                  {reactivating ? 'Reactivating...' : 'Reactivate asset'}
+                </button>
+              )}
             </div>
             {editError && <p className="text-red-600 text-sm">{editError}</p>}
             <div className="flex justify-end gap-3 pt-2">

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { Field } from '../../components/Field';
+import { InstitutionSelect } from '../../components/InstitutionSelect';
 import { Modal } from '../../components/Modal';
 import { listProfiles } from '../../api/profiles';
 import {
@@ -49,7 +50,6 @@ const EMPTY_EDIT = {
   credit_limit: '',
   interest_rate: '',
   emi_amount: '',
-  is_active: true,
   balance_as_of: '',
   loan_original_principal: '',
   loan_start_date: '',
@@ -92,7 +92,38 @@ function StatusBadge({ active }) {
 }
 StatusBadge.propTypes = { active: PropTypes.bool.isRequired };
 
-function AccountCard({ account, balance, onEdit, onDeactivate }) {
+function EditIcon() {
+  return (
+    <svg
+      className="w-4 h-4"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden="true"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+      />
+    </svg>
+  );
+}
+
+function BalanceLine({ balance }) {
+  if (balance === undefined) {
+    return <p className="text-lg font-semibold text-gray-900">Balance: Loading...</p>;
+  }
+  if (balance === null) {
+    return <p className="text-lg font-semibold text-amber-600">Balance unavailable</p>;
+  }
+  return <p className="text-lg font-semibold text-gray-900">Balance: {formatCurrency(balance)}</p>;
+}
+BalanceLine.propTypes = { balance: PropTypes.number };
+BalanceLine.defaultProps = { balance: undefined };
+
+function AccountCard({ account, balance, onEdit }) {
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-5 flex flex-col gap-2">
       <div className="flex items-start justify-between">
@@ -100,48 +131,35 @@ function AccountCard({ account, balance, onEdit, onDeactivate }) {
           <h3 className="font-semibold text-gray-900 text-lg">{account.account_name}</h3>
           <p className="text-sm text-gray-500">{account.institution_name}</p>
         </div>
-        <StatusBadge active={account.is_active} />
+        <div className="flex items-center gap-2">
+          <StatusBadge active={account.is_active} />
+          <button
+            type="button"
+            onClick={() => onEdit(account)}
+            aria-label="Edit account"
+            title="Edit account"
+            className="text-gray-400 hover:text-blue-600 p-1 rounded hover:bg-blue-50"
+          >
+            <EditIcon />
+          </button>
+        </div>
       </div>
       <span className="self-start px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
         {account.account_type.replaceAll('_', ' ')}
       </span>
-      <div className="text-sm text-gray-600 space-y-1">
-        <p>
-          Balance:{' '}
-          {balance === undefined
-            ? 'Loading...'
-            : formatCurrency(balance ?? account.opening_balance)}
+      <div className="space-y-1">
+        <BalanceLine balance={balance} />
+        <div className="text-sm text-gray-600 space-y-1">
           {account.balance_as_of && (
-            <span className="text-xs text-gray-400">
-              {' '}
-              (as of {formatDate(account.balance_as_of)})
-            </span>
+            <p className="text-xs text-gray-400">As of {formatDate(account.balance_as_of)}</p>
           )}
-        </p>
-        {account.credit_limit !== null &&
-          account.credit_limit !== undefined &&
-          account.credit_limit > 0 && <p>Credit Limit: {formatCurrency(account.credit_limit)}</p>}
-        {account.interest_rate !== null &&
-          account.interest_rate !== undefined &&
-          account.interest_rate > 0 && <p>Interest Rate: {account.interest_rate}%</p>}
-      </div>
-      <div className="flex gap-2 pt-2">
-        <button
-          type="button"
-          onClick={() => onEdit(account)}
-          className="flex-1 border border-blue-600 text-blue-600 py-1.5 rounded text-sm font-medium hover:bg-blue-50"
-        >
-          Edit
-        </button>
-        {account.is_active && (
-          <button
-            type="button"
-            onClick={() => onDeactivate(account)}
-            className="flex-1 border border-red-500 text-red-500 py-1.5 rounded text-sm font-medium hover:bg-red-50"
-          >
-            Deactivate
-          </button>
-        )}
+          {account.credit_limit !== null &&
+            account.credit_limit !== undefined &&
+            account.credit_limit > 0 && <p>Credit Limit: {formatCurrency(account.credit_limit)}</p>}
+          {account.interest_rate !== null &&
+            account.interest_rate !== undefined &&
+            account.interest_rate > 0 && <p>Interest Rate: {account.interest_rate}%</p>}
+        </div>
       </div>
     </div>
   );
@@ -160,7 +178,6 @@ AccountCard.propTypes = {
   }).isRequired,
   balance: PropTypes.number,
   onEdit: PropTypes.func.isRequired,
-  onDeactivate: PropTypes.func.isRequired,
 };
 AccountCard.defaultProps = { balance: undefined };
 
@@ -198,12 +215,10 @@ function AccountFormFields({ form, onChange }) {
       )}
       {'institution_name' in form && (
         <Field label="Institution Name" required>
-          <input
+          <InstitutionSelect
             name="institution_name"
-            type="text"
             value={form.institution_name}
             onChange={onChange}
-            placeholder="e.g. State Bank of India"
             className={inputClass}
           />
         </Field>
@@ -295,6 +310,9 @@ export const Accounts = () => {
 
   const [confirmTarget, setConfirmTarget] = useState(null);
   const [deactivating, setDeactivating] = useState(false);
+  const [reactivating, setReactivating] = useState(false);
+
+  const [searchQuery, setSearchQuery] = useState('');
 
   const { user } = useAuth();
 
@@ -399,7 +417,6 @@ export const Accounts = () => {
         credit_limit: account.credit_limit ?? '',
         interest_rate: account.interest_rate ?? '',
         emi_amount: account.emi_amount ?? '',
-        is_active: account.is_active,
         balance_as_of: account.balance_as_of ?? '',
         loan_original_principal: meta.original_principal ?? '',
         loan_start_date: meta.loan_start_date ?? '',
@@ -438,7 +455,6 @@ export const Accounts = () => {
           credit_limit: editForm.credit_limit === '' ? null : Number(editForm.credit_limit),
           interest_rate: editForm.interest_rate === '' ? null : Number(editForm.interest_rate),
           emi_amount: editForm.emi_amount === '' ? null : Number(editForm.emi_amount),
-          is_active: editForm.is_active,
           balance_as_of: editForm.balance_as_of === '' ? null : editForm.balance_as_of,
         });
         if (LOAN_TYPES.has(editingAccount.account_type)) {
@@ -476,6 +492,32 @@ export const Accounts = () => {
       setDeactivating(false);
     }
   }, [confirmTarget, loadAccounts, selectedProfileId]);
+
+  const handleDeactivateFromEdit = useCallback(() => {
+    setConfirmTarget(editingAccount);
+    setEditingAccount(null);
+  }, [editingAccount]);
+
+  const handleReactivate = useCallback(async () => {
+    if (!editingAccount) return;
+    setReactivating(true);
+    setEditError(null);
+    try {
+      await updateAccount(editingAccount.account_id, selectedProfileId, { is_active: true });
+      setEditingAccount(null);
+      await loadAccounts();
+    } catch (err) {
+      setEditError(err.message || 'Failed to reactivate account');
+    } finally {
+      setReactivating(false);
+    }
+  }, [editingAccount, loadAccounts, selectedProfileId]);
+
+  const filteredAccounts = accounts.filter((a) => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return true;
+    return a.account_name.toLowerCase().includes(q) || a.institution_name.toLowerCase().includes(q);
+  });
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -520,6 +562,17 @@ export const Accounts = () => {
 
       {selectedProfileId && (
         <>
+          <div className="mb-4">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by account or institution name..."
+              aria-label="Search accounts"
+              className={`${inputClass} w-full sm:w-72`}
+            />
+          </div>
+
           <div className="flex flex-wrap gap-2 mb-4">
             {TYPE_TABS.map((t) => {
               const sel = typeFilter === t;
@@ -571,15 +624,17 @@ export const Accounts = () => {
           {!loading && accounts.length === 0 && (
             <div className="text-center py-16 text-gray-400">No accounts found.</div>
           )}
-          {!loading && accounts.length > 0 && (
+          {!loading && accounts.length > 0 && filteredAccounts.length === 0 && (
+            <div className="text-center py-16 text-gray-400">No accounts match your search.</div>
+          )}
+          {!loading && filteredAccounts.length > 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {accounts.map((a) => (
+              {filteredAccounts.map((a) => (
                 <AccountCard
                   key={a.account_id}
                   account={a}
                   balance={balances[a.account_id]}
                   onEdit={handleEditOpen}
-                  onDeactivate={setConfirmTarget}
                 />
               ))}
             </div>
@@ -706,18 +761,25 @@ export const Accounts = () => {
                 </div>
               </div>
             )}
-            <div className="flex items-center gap-3">
-              <input
-                id="edit-is-active"
-                name="is_active"
-                type="checkbox"
-                checked={editForm.is_active}
-                onChange={handleEditChange}
-                className="w-4 h-4"
-              />
-              <label htmlFor="edit-is-active" className="text-sm font-medium text-gray-700">
-                Active
-              </label>
+            <div className="border-t border-gray-200 pt-4">
+              {editingAccount.is_active ? (
+                <button
+                  type="button"
+                  onClick={handleDeactivateFromEdit}
+                  className="text-sm font-medium text-red-600 hover:text-red-700 hover:underline"
+                >
+                  Deactivate this account
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleReactivate}
+                  disabled={reactivating}
+                  className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline disabled:opacity-50"
+                >
+                  {reactivating ? 'Reactivating...' : 'Reactivate account'}
+                </button>
+              )}
             </div>
             {editError && <p className="text-red-600 text-sm">{editError}</p>}
             <div className="flex justify-end gap-3 pt-2">

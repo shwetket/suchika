@@ -384,6 +384,12 @@ export interface components {
     UploadStatus: "PENDING" | "COMPLETED" | "FAILED";
     /** @enum {string} */
     AssetType: "VEHICLE" | "REAL_ESTATE" | "GOLD_JEWELRY" | "GOLD_BOND";
+    /**
+     * @description Curated reference list of standard Indian financial institutions, mirrored in the frontend as `web/src/utils/constants.js`'s FINANCIAL_INSTITUTIONS. NOT a constraint on institution_name fields, which stay plain unconstrained strings — the frontend offers this list via a dropdown with an "Other" free-text escape hatch (needed for e.g. EPF accounts, where institution_name is really an employer name). Developer-maintained for now; a v2.0 admin page is planned.
+     *
+     * @enum {string}
+     */
+    FinancialInstitution: "State Bank of India" | "Punjab National Bank" | "Bank of Baroda" | "Canara Bank" | "Union Bank of India" | "Bank of India" | "Indian Bank" | "Central Bank of India" | "Indian Overseas Bank" | "UCO Bank" | "Bank of Maharashtra" | ("Punjab & Sind Bank") | "HDFC Bank" | "ICICI Bank" | "Axis Bank" | "Kotak Mahindra Bank" | "IndusInd Bank" | "Yes Bank" | "IDFC FIRST Bank" | "Federal Bank" | "RBL Bank" | "South Indian Bank" | "Karur Vysya Bank" | "City Union Bank" | "Bandhan Bank" | "DCB Bank" | "CSB Bank" | "Tamilnad Mercantile Bank" | "IDBI Bank" | ("Jammu & Kashmir Bank") | "AU Small Finance Bank" | "Equitas Small Finance Bank" | "Ujjivan Small Finance Bank" | "HSBC" | "Standard Chartered Bank" | "Citibank" | "Deutsche Bank" | "SBI Mutual Fund" | "HDFC Mutual Fund" | "ICICI Prudential Mutual Fund" | "Axis Mutual Fund" | "Kotak Mahindra Mutual Fund" | "Aditya Birla Sun Life Mutual Fund" | "Nippon India Mutual Fund" | "DSP Mutual Fund" | "Franklin Templeton" | "UTI Mutual Fund" | "Tata Mutual Fund" | "Mirae Asset Mutual Fund" | "PPFAS Mutual Fund" | "Motilal Oswal Mutual Fund" | "Edelweiss Mutual Fund" | "Invesco Mutual Fund" | "Sundaram Mutual Fund" | "Canara Robeco Mutual Fund" | "Bandhan Mutual Fund" | "Quant Mutual Fund" | "HSBC Mutual Fund" | "Baroda BNP Paribas Mutual Fund" | "JM Financial Mutual Fund" | "LIC Mutual Fund" | "WhiteOak Capital Mutual Fund" | "Union Mutual Fund" | "NPS Trust" | "Employees' Provident Fund Organisation (EPFO)";
     /** @enum {string} */
     RegistrationType: "PRIVATE" | "COMMERCIAL" | "GOVERNMENT" | "BH_SERIES";
     AccountResponse: {

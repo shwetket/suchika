@@ -98,3 +98,93 @@ export const SUCCESS_MESSAGES = {
   UPDATE_SUCCESS: 'Updated successfully.',
   DELETE_SUCCESS: 'Deleted successfully.',
 };
+
+/**
+ * Curated list of standard Indian financial institutions for account
+ * institution_name selection (wealth.account.institution_name — see
+ * application/contract/wealth.yaml's FinancialInstitution schema, which
+ * documents this same list). This is a developer-maintained closed list for
+ * now — add a new entry here when a real account needs an institution not yet
+ * covered; v2.0 plans an admin page to manage this list from the UI instead.
+ *
+ * The field itself stays a free-form string end-to-end (no backend/DB
+ * enforcement) — selecting "Other" reveals a plain text input so an
+ * institution not on this list (or an employer name for EPF-type accounts,
+ * which are fundamentally not enumerable) can still be entered.
+ */
+export const FINANCIAL_INSTITUTIONS = {
+  'Public Sector Banks': [
+    'State Bank of India',
+    'Punjab National Bank',
+    'Bank of Baroda',
+    'Canara Bank',
+    'Union Bank of India',
+    'Bank of India',
+    'Indian Bank',
+    'Central Bank of India',
+    'Indian Overseas Bank',
+    'UCO Bank',
+    'Bank of Maharashtra',
+    'Punjab & Sind Bank',
+  ],
+  'Private Sector Banks': [
+    'HDFC Bank',
+    'ICICI Bank',
+    'Axis Bank',
+    'Kotak Mahindra Bank',
+    'IndusInd Bank',
+    'Yes Bank',
+    'IDFC FIRST Bank',
+    'Federal Bank',
+    'RBL Bank',
+    'South Indian Bank',
+    'Karur Vysya Bank',
+    'City Union Bank',
+    'Bandhan Bank',
+    'DCB Bank',
+    'CSB Bank',
+    'Tamilnad Mercantile Bank',
+    'IDBI Bank',
+    'Jammu & Kashmir Bank',
+  ],
+  'Small Finance Banks': [
+    'AU Small Finance Bank',
+    'Equitas Small Finance Bank',
+    'Ujjivan Small Finance Bank',
+  ],
+  'Foreign Banks': ['HSBC', 'Standard Chartered Bank', 'Citibank', 'Deutsche Bank'],
+  'Mutual Fund AMCs': [
+    'SBI Mutual Fund',
+    'HDFC Mutual Fund',
+    'ICICI Prudential Mutual Fund',
+    'Axis Mutual Fund',
+    'Kotak Mahindra Mutual Fund',
+    'Aditya Birla Sun Life Mutual Fund',
+    'Nippon India Mutual Fund',
+    'DSP Mutual Fund',
+    'Franklin Templeton',
+    'UTI Mutual Fund',
+    'Tata Mutual Fund',
+    'Mirae Asset Mutual Fund',
+    'PPFAS Mutual Fund',
+    'Motilal Oswal Mutual Fund',
+    'Edelweiss Mutual Fund',
+    'Invesco Mutual Fund',
+    'Sundaram Mutual Fund',
+    'Canara Robeco Mutual Fund',
+    'Bandhan Mutual Fund',
+    'Quant Mutual Fund',
+    'HSBC Mutual Fund',
+    'Baroda BNP Paribas Mutual Fund',
+    'JM Financial Mutual Fund',
+    'LIC Mutual Fund',
+    'WhiteOak Capital Mutual Fund',
+    'Union Mutual Fund',
+  ],
+  'Retirement / Pension': ['NPS Trust', "Employees' Provident Fund Organisation (EPFO)"],
+};
+
+/** Flat de-duplicated list, sentinel value, and lookup helper for the dropdown UI. */
+export const FINANCIAL_INSTITUTIONS_FLAT = Object.values(FINANCIAL_INSTITUTIONS).flat();
+export const OTHER_INSTITUTION_SENTINEL = '__OTHER__';
+export const isKnownInstitution = (value) => FINANCIAL_INSTITUTIONS_FLAT.includes(value);
