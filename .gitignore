@@ -76,3 +76,6 @@ review-*.md
 
 # SonarQube scanner working directory
 .scannerwork/
+
+# Local DB backups (may contain real data) - never commit
+.db-backups/

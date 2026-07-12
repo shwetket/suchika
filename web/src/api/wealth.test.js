@@ -307,10 +307,9 @@ describe('updateGoalPlanMilestoneAchieved', () => {
   it('calls patch with milestone path and is_achieved body', () => {
     patch.mockResolvedValue({});
     updateGoalPlanMilestoneAchieved('plan-1', 'm-1', 'admin-1', true);
-    expect(patch).toHaveBeenCalledWith(
-      '/v1/goal-plans/plan-1/milestones/m-1?admin_id=admin-1',
-      { is_achieved: true }
-    );
+    expect(patch).toHaveBeenCalledWith('/v1/goal-plans/plan-1/milestones/m-1?admin_id=admin-1', {
+      is_achieved: true,
+    });
   });
 });
 

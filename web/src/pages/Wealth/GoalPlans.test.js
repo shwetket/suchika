@@ -328,7 +328,10 @@ describe('GoalPlans page', () => {
       expect(updateGoalPlan).toHaveBeenCalledWith(
         'plan-1',
         'admin-1',
-        expect.objectContaining({ objective: 'Updated objective', target_state: 'Original target state' })
+        expect.objectContaining({
+          objective: 'Updated objective',
+          target_state: 'Original target state',
+        })
       );
     });
   });

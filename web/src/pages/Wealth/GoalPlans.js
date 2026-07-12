@@ -195,11 +195,7 @@ function PlanFormModal({
 
   return (
     <Modal
-      title={
-        isYearOne
-          ? `${actionVerb} Year One — ${beneficiaryName}`
-          : `${actionVerb} Goal Plan`
-      }
+      title={isYearOne ? `${actionVerb} Year One — ${beneficiaryName}` : `${actionVerb} Goal Plan`}
       onClose={onClose}
     >
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -456,8 +452,7 @@ function MilestoneEditor({ plan, adminId, milestones, setMilestones }) {
               type="checkbox"
               checked={m.is_manual_checklist}
               onChange={(e) => updateRow(m.localId, { is_manual_checklist: e.target.checked })}
-            />
-            {' '}
+            />{' '}
             Manual checklist item
           </label>
           {!m.is_manual_checklist && (
@@ -488,8 +483,7 @@ function MilestoneEditor({ plan, adminId, milestones, setMilestones }) {
                 checked={Boolean(m.is_achieved)}
                 onChange={() => handleToggleAchieved(m)}
                 aria-label={`Mark "${m.label}" achieved`}
-              />
-              {' '}
+              />{' '}
               Mark done (saves immediately)
             </label>
           )}
