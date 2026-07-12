@@ -140,10 +140,9 @@ class GoalPlanPanacheRepositoryTest {
         repository.save(GoalPlan.create(adminId, new GoalPlan.Spec(GoalType.DEBT_CROSSOVER, null, "First", null, null, null, null, null)));
         GoalPlan duplicate = GoalPlan.create(adminId, new GoalPlan.Spec(GoalType.DEBT_CROSSOVER, null, "Second (duplicate)", null, null, null, null, null));
 
-        assertThrows(jakarta.persistence.PersistenceException.class, () -> {
-            repository.save(duplicate);
-            em.flush();
-        }, "UNIQUE NULLS NOT DISTINCT must reject a second DEBT_CROSSOVER row with the same NULL beneficiary_profile_id");
+        repository.save(duplicate);
+        assertThrows(jakarta.persistence.PersistenceException.class, em::flush,
+                "UNIQUE NULLS NOT DISTINCT must reject a second DEBT_CROSSOVER row with the same NULL beneficiary_profile_id");
     }
 
     @Test
