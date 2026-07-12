@@ -80,8 +80,8 @@ describe('signIn', () => {
   });
 
   it('re-throws an error that already carries a status property', async () => {
-    global.fetch = jest.fn().mockRejectedValue({ status: 503, message: 'Service down' });
+    global.fetch = jest.fn().mockRejectedValue({ status: 500, message: 'Internal Server Error' });
 
-    await expect(signIn({ username: 'dave' })).rejects.toMatchObject({ status: 503 });
+    await expect(signIn({ username: 'dave' })).rejects.toMatchObject({ status: 500 });
   });
 });

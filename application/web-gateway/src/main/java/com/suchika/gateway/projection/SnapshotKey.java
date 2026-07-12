@@ -47,6 +47,22 @@ public final class SnapshotKey {
     public static final String WEALTH_FORMULA_GOALS_FAMILY = "WEALTH_FORMULA_GOALS_FAMILY";
 
     /**
+     * ADR-022 Phase 3 — merges each configured {@code wealth.goal_plan} row (objective,
+     * target_state, detail, milestones, rules, trigger_events) with its live
+     * WEALTH_FORMULA_GOALS_FAMILY entry (matched by goal_id, plus beneficiary_profile_id
+     * for YEAR_ONE). Milestone status is derived per-milestone: is_manual_checklist
+     * milestones keep their own admin-toggled is_achieved; formula-derived milestones
+     * compare the goal's live current_value against the milestone's target_value using
+     * the same per-goal-type achieved-direction lookup computeFormulaGoals() uses.
+     * INSURANCE_FREE additionally carries the household's active insurance_policy rows
+     * as a raw list (no blended total). A goal type with no configured goal_plan row is
+     * simply absent from this snapshot — WEALTH_FORMULA_GOALS_FAMILY is unaffected either
+     * way. Household-scoped; stored under the admin's own profile_id like every other
+     * _FAMILY key.
+     */
+    public static final String WEALTH_GOAL_DETAIL_FAMILY = "WEALTH_GOAL_DETAIL_FAMILY";
+
+    /**
      * v0.5 Phase 3 — Consolidated Action Center. Household-scoped, stored under
      * the admin's own profile_id like the other _FAMILY keys. Aggregates upcoming
      * calendar events, vehicle compliance deadlines, and biometric streak gaps

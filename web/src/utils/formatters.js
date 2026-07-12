@@ -8,14 +8,14 @@
  * @param {string} currency - Currency code (default: 'USD')
  * @returns {string} Formatted currency string
  */
-export const formatCurrency = (value, currency = 'USD') => {
-  if (typeof value !== 'number') return '—';
-  return new Intl.NumberFormat('en-US', {
+export const formatCurrency = (value, currency = 'INR', locale = 'en-IN', fractionDigits = 0) => {
+  if (value === null || value === undefined || isNaN(Number(value))) return '—';
+  return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
+  }).format(Number(value));
 };
 
 /**

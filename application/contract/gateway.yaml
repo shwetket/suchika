@@ -22,6 +22,12 @@ tags:
     description: CSV statement uploads
   - name: Physical Assets
     description: Vehicle and other physical asset registry with compliance tracking
+  - name: Goal Plans
+    description: >
+      ADR-022 Phase 1 — richer financial goal model, proxied from the wealth
+      service. Admin-scoped (not profile_id-scoped) authoring of goal
+      objectives/milestones/rules/trigger-events. Pure JsonNode passthrough,
+      same convention as Physical Assets — no new gateway-side Java shape.
   - name: Calendar Events
     description: Household calendar events proxied from the household service
   - name: Inventory Items
@@ -663,6 +669,436 @@ paths:
       responses:
         '204':
           description: Physical asset deactivated
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  # ============================================================
+  # GOAL PLANS (ADR-022 Phase 1) — pure JsonNode passthrough proxy
+  # ============================================================
+
+  /v1/goal-plans:
+
+    get:
+      tags: [Goal Plans]
+      operationId: listGoalPlans
+      summary: List goal plans for one admin's household
+      parameters:
+        - name: admin_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListGoalPlansResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    post:
+      tags: [Goal Plans]
+      operationId: createGoalPlan
+      summary: Create a goal plan
+      parameters:
+        - name: admin_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGoalPlanRequest'
+      responses:
+        '201':
+          description: Goal plan created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoalPlanResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '409':
+          $ref: './shared.yaml#/components/responses/Conflict'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/goal-plans/{goalPlanId}:
+
+    get:
+      tags: [Goal Plans]
+      operationId: getGoalPlan
+      summary: Get a goal plan
+      parameters:
+        - $ref: '#/components/parameters/GoalPlanId'
+        - name: admin_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoalPlanResponse'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    patch:
+      tags: [Goal Plans]
+      operationId: updateGoalPlan
+      summary: Update a goal plan
+      parameters:
+        - $ref: '#/components/parameters/GoalPlanId'
+        - name: admin_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateGoalPlanRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoalPlanResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    delete:
+      tags: [Goal Plans]
+      operationId: deactivateGoalPlan
+      summary: Deactivate a goal plan
+      parameters:
+        - $ref: '#/components/parameters/GoalPlanId'
+        - name: admin_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Goal plan deactivated
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/goal-plans/{goalPlanId}/milestones:
+
+    put:
+      tags: [Goal Plans]
+      operationId: replaceGoalPlanMilestones
+      summary: Bulk-replace a goal plan's milestones
+      parameters:
+        - $ref: '#/components/parameters/GoalPlanId'
+        - name: admin_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/GoalMilestoneResponse'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GoalMilestoneResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/goal-plans/{goalPlanId}/milestones/{milestoneId}:
+
+    patch:
+      tags: [Goal Plans]
+      operationId: updateGoalPlanMilestoneAchieved
+      summary: Toggle a manual-checklist milestone's achieved status
+      description: >
+        Only meaningful when is_manual_checklist is true on the target
+        milestone — 400 otherwise.
+      parameters:
+        - $ref: '#/components/parameters/GoalPlanId'
+        - $ref: '#/components/parameters/MilestoneId'
+        - name: admin_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [is_achieved]
+              properties:
+                is_achieved:
+                  type: boolean
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoalMilestoneResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/goal-plans/{goalPlanId}/rules:
+
+    put:
+      tags: [Goal Plans]
+      operationId: replaceGoalPlanRules
+      summary: Bulk-replace a goal plan's rules
+      parameters:
+        - $ref: '#/components/parameters/GoalPlanId'
+        - name: admin_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/GoalRuleResponse'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GoalRuleResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/goal-plans/{goalPlanId}/trigger-events:
+
+    put:
+      tags: [Goal Plans]
+      operationId: replaceGoalPlanTriggerEvents
+      summary: Bulk-replace a goal plan's trigger events
+      parameters:
+        - $ref: '#/components/parameters/GoalPlanId'
+        - name: admin_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/GoalTriggerEventResponse'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GoalTriggerEventResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  # ============================================================
+  # WEALTH — INSURANCE POLICIES (ADR-022 Phase 2)
+  # ============================================================
+
+  /v1/insurance-policies:
+
+    get:
+      tags: [Insurance Policies]
+      operationId: listInsurancePolicies
+      summary: List insurance policies for one admin's household
+      parameters:
+        - name: admin_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListInsurancePoliciesResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    post:
+      tags: [Insurance Policies]
+      operationId: createInsurancePolicy
+      summary: Create an insurance policy
+      parameters:
+        - name: admin_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInsurancePolicyRequest'
+      responses:
+        '201':
+          description: Insurance policy created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InsurancePolicyResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/insurance-policies/{insurancePolicyId}:
+
+    get:
+      tags: [Insurance Policies]
+      operationId: getInsurancePolicy
+      summary: Get an insurance policy
+      parameters:
+        - $ref: '#/components/parameters/InsurancePolicyId'
+        - name: admin_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InsurancePolicyResponse'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    patch:
+      tags: [Insurance Policies]
+      operationId: updateInsurancePolicy
+      summary: Update an insurance policy
+      parameters:
+        - $ref: '#/components/parameters/InsurancePolicyId'
+        - name: admin_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateInsurancePolicyRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InsurancePolicyResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    delete:
+      tags: [Insurance Policies]
+      operationId: deactivateInsurancePolicy
+      summary: Deactivate an insurance policy
+      parameters:
+        - $ref: '#/components/parameters/InsurancePolicyId'
+        - name: admin_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Insurance policy deactivated
         '404':
           $ref: './shared.yaml#/components/responses/NotFound'
         '500':
@@ -1395,6 +1831,33 @@ components:
         type: string
         format: uuid
 
+    GoalPlanId:
+      name: goalPlanId
+      in: path
+      required: true
+      description: Unique identifier of the goal plan
+      schema:
+        type: string
+        format: uuid
+
+    MilestoneId:
+      name: milestoneId
+      in: path
+      required: true
+      description: Unique identifier of the goal plan milestone
+      schema:
+        type: string
+        format: uuid
+
+    InsurancePolicyId:
+      name: insurancePolicyId
+      in: path
+      required: true
+      description: Unique identifier of the insurance policy
+      schema:
+        type: string
+        format: uuid
+
   schemas:
 
     # ----------------------------------------------------------
@@ -2115,6 +2578,367 @@ components:
           minimum: 0
 
     # ----------------------------------------------------------
+    # GOAL PLAN DTOs (ADR-022 Phase 1)
+    # ----------------------------------------------------------
+
+    GoalType:
+      type: string
+      enum:
+        - DEBT_CROSSOVER
+        - THIRTY_SEVENTY_TARGET
+        - FREEDOM_RUNWAY
+        - INSURANCE_FREE
+        - YEAR_ONE
+
+    GoalMilestoneResponse:
+      type: object
+      required:
+        - sequence_no
+        - label
+        - significance
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        sequence_no:
+          type: integer
+          minimum: 0
+        label:
+          type: string
+          maxLength: 50
+        target_value:
+          type: number
+          format: double
+          nullable: true
+        is_manual_checklist:
+          type: boolean
+          default: false
+        is_achieved:
+          type: boolean
+          default: false
+        significance:
+          type: string
+
+    GoalRuleResponse:
+      type: object
+      required:
+        - sequence_no
+        - rule_name
+        - rule_text
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        sequence_no:
+          type: integer
+          minimum: 0
+        rule_name:
+          type: string
+          maxLength: 50
+        rule_text:
+          type: string
+
+    GoalTriggerEventResponse:
+      type: object
+      required:
+        - sequence_no
+        - event_name
+        - trigger_condition
+        - resulting_change
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        sequence_no:
+          type: integer
+          minimum: 0
+        event_name:
+          type: string
+          maxLength: 50
+        trigger_condition:
+          type: string
+        resulting_change:
+          type: string
+
+    GoalPlanResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        admin_id:
+          type: string
+          format: uuid
+          readOnly: true
+        goal_type:
+          $ref: '#/components/schemas/GoalType'
+        beneficiary_profile_id:
+          type: string
+          format: uuid
+          nullable: true
+        objective:
+          type: string
+        target_state:
+          type: string
+          nullable: true
+        assumed_growth_rate:
+          type: number
+          format: double
+          nullable: true
+        education_base_cost:
+          type: number
+          format: double
+          nullable: true
+        education_inflation_rate:
+          type: number
+          format: double
+          nullable: true
+        education_years_to_entry:
+          type: integer
+          nullable: true
+        detail:
+          type: object
+          additionalProperties:
+            type: string
+        is_active:
+          type: boolean
+        milestones:
+          type: array
+          items:
+            $ref: '#/components/schemas/GoalMilestoneResponse'
+        rules:
+          type: array
+          items:
+            $ref: '#/components/schemas/GoalRuleResponse'
+        trigger_events:
+          type: array
+          items:
+            $ref: '#/components/schemas/GoalTriggerEventResponse'
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+
+    CreateGoalPlanRequest:
+      type: object
+      required:
+        - goal_type
+        - objective
+      properties:
+        goal_type:
+          $ref: '#/components/schemas/GoalType'
+        beneficiary_profile_id:
+          type: string
+          format: uuid
+          nullable: true
+        objective:
+          type: string
+          minLength: 1
+        target_state:
+          type: string
+          nullable: true
+        assumed_growth_rate:
+          type: number
+          format: double
+          nullable: true
+        education_base_cost:
+          type: number
+          format: double
+          nullable: true
+        education_inflation_rate:
+          type: number
+          format: double
+          nullable: true
+        education_years_to_entry:
+          type: integer
+          nullable: true
+
+    UpdateGoalPlanRequest:
+      type: object
+      properties:
+        objective:
+          type: string
+          minLength: 1
+        target_state:
+          type: string
+          nullable: true
+        assumed_growth_rate:
+          type: number
+          format: double
+          nullable: true
+        education_base_cost:
+          type: number
+          format: double
+          nullable: true
+        education_inflation_rate:
+          type: number
+          format: double
+          nullable: true
+        education_years_to_entry:
+          type: integer
+          nullable: true
+        detail:
+          type: object
+          additionalProperties:
+            type: string
+        is_active:
+          type: boolean
+
+    ListGoalPlansResponse:
+      type: object
+      properties:
+        goal_plans:
+          type: array
+          items:
+            $ref: '#/components/schemas/GoalPlanResponse'
+        total_size:
+          type: integer
+          minimum: 0
+
+    # ----------------------------------------------------------
+    # INSURANCE POLICY DTOs (ADR-022 Phase 2)
+    # ----------------------------------------------------------
+
+    PolicyType:
+      type: string
+      enum:
+        - TERM
+        - GROUP_TERM
+        - INVESTMENT_LINKED
+        - ENDOWMENT
+        - HEALTH
+
+    PremiumFrequency:
+      type: string
+      enum:
+        - MONTHLY
+        - ANNUAL
+
+    InsurancePolicyResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        admin_id:
+          type: string
+          format: uuid
+          readOnly: true
+        policy_name:
+          type: string
+          maxLength: 50
+        provider:
+          type: string
+          maxLength: 50
+        policy_type:
+          $ref: '#/components/schemas/PolicyType'
+        premium_amount:
+          type: number
+          format: double
+          minimum: 0
+        premium_frequency:
+          $ref: '#/components/schemas/PremiumFrequency'
+        coverage_amount:
+          type: number
+          format: double
+          nullable: true
+          minimum: 0
+        payout_structure:
+          type: object
+          additionalProperties:
+            type: string
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+
+    CreateInsurancePolicyRequest:
+      type: object
+      required:
+        - policy_name
+        - provider
+        - policy_type
+        - premium_amount
+        - premium_frequency
+      properties:
+        policy_name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        provider:
+          type: string
+          minLength: 1
+          maxLength: 50
+        policy_type:
+          $ref: '#/components/schemas/PolicyType'
+        premium_amount:
+          type: number
+          format: double
+          minimum: 0
+        premium_frequency:
+          $ref: '#/components/schemas/PremiumFrequency'
+        coverage_amount:
+          type: number
+          format: double
+          nullable: true
+          minimum: 0
+
+    UpdateInsurancePolicyRequest:
+      type: object
+      properties:
+        policy_name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        provider:
+          type: string
+          minLength: 1
+          maxLength: 50
+        premium_amount:
+          type: number
+          format: double
+          minimum: 0
+        premium_frequency:
+          $ref: '#/components/schemas/PremiumFrequency'
+        coverage_amount:
+          type: number
+          format: double
+          nullable: true
+          minimum: 0
+        payout_structure:
+          type: object
+          additionalProperties:
+            type: string
+        is_active:
+          type: boolean
+
+    ListInsurancePoliciesResponse:
+      type: object
+      properties:
+        insurance_policies:
+          type: array
+          items:
+            $ref: '#/components/schemas/InsurancePolicyResponse'
+        total_size:
+          type: integer
+          minimum: 0
+
+    # ----------------------------------------------------------
     # TRANSACTION DTOs
     # ----------------------------------------------------------
 
@@ -2177,7 +3001,13 @@ components:
         - MAINTENANCE
         - DISCRETIONARY
         - UNCATEGORIZED
-      description: Epic 8 Phase 2 hardcoded expense category enum (manual tagging only).
+        - SALARY
+        - RENTAL
+        - OTHER_INCOME
+      description: >
+        Epic 8 Phase 2 hardcoded expense category enum (manual tagging only).
+        Widened from 5 to 8 values in ADR-022 Phase 1 for THIRTY_SEVENTY_TARGET's
+        income-tagged CREDIT transaction filter.
 
     CreateTransactionRequest:
       type: object

@@ -232,4 +232,133 @@ public class WealthGatewayResource {
             @QueryParam("profile_id") String profileId) {
         return wealthServiceClient.getAmortization(accountId, profileId);
     }
+
+    // ── Goal Plans (ADR-022 Phase 1) — pure JsonNode passthrough ──────────────
+
+    @GET
+    @Path("/goal-plans")
+    public JsonNode listGoalPlans(@QueryParam("admin_id") UUID adminId) {
+        return wealthServiceClient.listGoalPlans(adminId);
+    }
+
+    @POST
+    @Path("/goal-plans")
+    public Response createGoalPlan(@QueryParam("admin_id") UUID adminId, JsonNode body) {
+        AppLogger.info("Gateway: creating goal plan for admin %s", adminId);
+        try (Response upstream = wealthServiceClient.createGoalPlan(adminId, body)) {
+            return Response.status(upstream.getStatus())
+                    .entity(upstream.readEntity(String.class))
+                    .type(MediaType.APPLICATION_JSON)
+                    .build();
+        }
+    }
+
+    @GET
+    @Path("/goal-plans/{goalPlanId}")
+    public JsonNode getGoalPlan(
+            @PathParam("goalPlanId") UUID goalPlanId,
+            @QueryParam("admin_id") UUID adminId) {
+        return wealthServiceClient.getGoalPlan(goalPlanId, adminId);
+    }
+
+    @PATCH
+    @Path("/goal-plans/{goalPlanId}")
+    public JsonNode updateGoalPlan(
+            @PathParam("goalPlanId") UUID goalPlanId,
+            @QueryParam("admin_id") UUID adminId,
+            JsonNode body) {
+        return wealthServiceClient.updateGoalPlan(goalPlanId, adminId, body);
+    }
+
+    @DELETE
+    @Path("/goal-plans/{goalPlanId}")
+    public Response deactivateGoalPlan(
+            @PathParam("goalPlanId") UUID goalPlanId,
+            @QueryParam("admin_id") UUID adminId) {
+        wealthServiceClient.deactivateGoalPlan(goalPlanId, adminId);
+        return Response.noContent().build();
+    }
+
+    @PUT
+    @Path("/goal-plans/{goalPlanId}/milestones")
+    public JsonNode replaceGoalPlanMilestones(
+            @PathParam("goalPlanId") UUID goalPlanId,
+            @QueryParam("admin_id") UUID adminId,
+            JsonNode body) {
+        return wealthServiceClient.replaceGoalPlanMilestones(goalPlanId, adminId, body);
+    }
+
+    @PATCH
+    @Path("/goal-plans/{goalPlanId}/milestones/{milestoneId}")
+    public JsonNode updateGoalPlanMilestoneAchieved(
+            @PathParam("goalPlanId") UUID goalPlanId,
+            @PathParam("milestoneId") UUID milestoneId,
+            @QueryParam("admin_id") UUID adminId,
+            JsonNode body) {
+        return wealthServiceClient.updateGoalPlanMilestoneAchieved(goalPlanId, milestoneId, adminId, body);
+    }
+
+    @PUT
+    @Path("/goal-plans/{goalPlanId}/rules")
+    public JsonNode replaceGoalPlanRules(
+            @PathParam("goalPlanId") UUID goalPlanId,
+            @QueryParam("admin_id") UUID adminId,
+            JsonNode body) {
+        return wealthServiceClient.replaceGoalPlanRules(goalPlanId, adminId, body);
+    }
+
+    @PUT
+    @Path("/goal-plans/{goalPlanId}/trigger-events")
+    public JsonNode replaceGoalPlanTriggerEvents(
+            @PathParam("goalPlanId") UUID goalPlanId,
+            @QueryParam("admin_id") UUID adminId,
+            JsonNode body) {
+        return wealthServiceClient.replaceGoalPlanTriggerEvents(goalPlanId, adminId, body);
+    }
+
+    // ── Insurance Policies (ADR-022 Phase 2) — pure JsonNode passthrough ──────
+
+    @GET
+    @Path("/insurance-policies")
+    public JsonNode listInsurancePolicies(@QueryParam("admin_id") UUID adminId) {
+        return wealthServiceClient.listInsurancePolicies(adminId);
+    }
+
+    @POST
+    @Path("/insurance-policies")
+    public Response createInsurancePolicy(@QueryParam("admin_id") UUID adminId, JsonNode body) {
+        AppLogger.info("Gateway: creating insurance policy for admin %s", adminId);
+        try (Response upstream = wealthServiceClient.createInsurancePolicy(adminId, body)) {
+            return Response.status(upstream.getStatus())
+                    .entity(upstream.readEntity(String.class))
+                    .type(MediaType.APPLICATION_JSON)
+                    .build();
+        }
+    }
+
+    @GET
+    @Path("/insurance-policies/{insurancePolicyId}")
+    public JsonNode getInsurancePolicy(
+            @PathParam("insurancePolicyId") UUID insurancePolicyId,
+            @QueryParam("admin_id") UUID adminId) {
+        return wealthServiceClient.getInsurancePolicy(insurancePolicyId, adminId);
+    }
+
+    @PATCH
+    @Path("/insurance-policies/{insurancePolicyId}")
+    public JsonNode updateInsurancePolicy(
+            @PathParam("insurancePolicyId") UUID insurancePolicyId,
+            @QueryParam("admin_id") UUID adminId,
+            JsonNode body) {
+        return wealthServiceClient.updateInsurancePolicy(insurancePolicyId, adminId, body);
+    }
+
+    @DELETE
+    @Path("/insurance-policies/{insurancePolicyId}")
+    public Response deactivateInsurancePolicy(
+            @PathParam("insurancePolicyId") UUID insurancePolicyId,
+            @QueryParam("admin_id") UUID adminId) {
+        wealthServiceClient.deactivateInsurancePolicy(insurancePolicyId, adminId);
+        return Response.noContent().build();
+    }
 }

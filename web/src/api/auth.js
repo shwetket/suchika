@@ -29,7 +29,7 @@ export async function signIn(credentials) {
 
     return await handleAPIResponse(response);
   } catch (error) {
-    if (error?.status) {
+    if (error?.status && error.status !== 502 && error.status !== 504 && error.status !== 503) {
       throw error;
     }
     console.warn('Falling back to demo auth due to error:', error);

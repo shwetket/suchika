@@ -304,6 +304,49 @@ describe('Dashboard', () => {
     });
   });
 
+  it('renders multiple YEAR_ONE goal entries (one per child) without duplicate-key collisions, ADR-022', async () => {
+    // ADR-022 Phase 1: YEAR_ONE now repeats once per child with the same goal_id
+    // ("YEAR_ONE") — total_count is no longer fixed at 5. Regression guard that
+    // both children render distinctly (the goal_id-only React key would collide).
+    const snapshotsWithPerChildGoals = [
+      {
+        profile_id: 'p1',
+        snapshot_key: 'WEALTH_FORMULA_GOALS_FAMILY',
+        payload: JSON.stringify({
+          total_count: 2,
+          achieved_count: 0,
+          goals: [
+            {
+              goal_id: 'YEAR_ONE',
+              goal_name: 'Year One — Aanya',
+              status: 'IN_PROGRESS',
+              beneficiary_profile_id: 'child-1',
+              beneficiary_name: 'Aanya',
+            },
+            {
+              goal_id: 'YEAR_ONE',
+              goal_name: 'Year One — Zoya',
+              status: 'IN_PROGRESS',
+              beneficiary_profile_id: 'child-2',
+              beneficiary_name: 'Zoya',
+            },
+          ],
+        }),
+        calculated_at: '2026-07-01T10:00:00Z',
+      },
+    ];
+    mockUseAuth.mockReturnValue({ user: MOCK_USER });
+    getDashboard.mockResolvedValue({ snapshots: snapshotsWithPerChildGoals });
+
+    renderDashboard();
+
+    await waitFor(() => {
+      expect(screen.getByText('Year One — Aanya')).toBeInTheDocument();
+      expect(screen.getByText('Year One — Zoya')).toBeInTheDocument();
+      expect(screen.getByText(/0\/2 achieved/i)).toBeInTheDocument();
+    });
+  });
+
   it('shows WARNING validation badge with warning count when VALIDATION_REPORT_FAMILY snapshot present', async () => {
     const snapshotsWithValidation = [
       {
@@ -326,6 +369,148 @@ describe('Dashboard', () => {
       expect(screen.getByText('WARNING')).toBeInTheDocument();
       expect(screen.getByText(/3 warnings/i)).toBeInTheDocument();
     });
+  });
+
+  // ── ADR-022 Phase 3: WEALTH_GOAL_DETAIL_FAMILY enrichment ────────────────
+
+  it('renders goals using only FORMULA_GOALS_FAMILY when GOAL_DETAIL_FAMILY is absent (fallback)', async () => {
+    const snapshotsNoDetail = [
+      {
+        profile_id: 'p1',
+        snapshot_key: 'WEALTH_FORMULA_GOALS_FAMILY',
+        payload: JSON.stringify({
+          total_count: 1,
+          achieved_count: 0,
+          goals: [
+            { goal_id: 'DEBT_CROSSOVER', goal_name: 'Debt Crossover', status: 'IN_PROGRESS' },
+          ],
+        }),
+        calculated_at: '2026-07-12T10:00:00Z',
+      },
+    ];
+    mockUseAuth.mockReturnValue({ user: MOCK_USER });
+    getDashboard.mockResolvedValue({ snapshots: snapshotsNoDetail });
+
+    renderDashboard();
+
+    await waitFor(() => {
+      expect(screen.getByText('Debt Crossover')).toBeInTheDocument();
+      expect(screen.getByText('In Progress')).toBeInTheDocument();
+    });
+    // No configured goal_plan for this goal → no expand affordance rendered at all
+    expect(screen.queryByLabelText(/expand goal detail/i)).not.toBeInTheDocument();
+  });
+
+  it('expands milestones and rules for a goal with a matching GOAL_DETAIL_FAMILY entry', async () => {
+    const snapshotsWithDetail = [
+      {
+        profile_id: 'p1',
+        snapshot_key: 'WEALTH_FORMULA_GOALS_FAMILY',
+        payload: JSON.stringify({
+          total_count: 1,
+          achieved_count: 0,
+          goals: [
+            { goal_id: 'DEBT_CROSSOVER', goal_name: 'Debt Crossover', status: 'IN_PROGRESS' },
+          ],
+        }),
+        calculated_at: '2026-07-12T10:00:00Z',
+      },
+      {
+        profile_id: 'p1',
+        snapshot_key: 'WEALTH_GOAL_DETAIL_FAMILY',
+        payload: JSON.stringify({
+          goal_details: [
+            {
+              goal_id: 'DEBT_CROSSOVER',
+              objective: 'Reduce debt below MF corpus',
+              current_value: 40,
+              target_value: 100,
+              milestones: [
+                { id: 'm1', label: 'Halfway there', is_achieved: true, is_manual_checklist: false },
+                {
+                  id: 'm2',
+                  label: 'Opened emergency fund',
+                  is_achieved: false,
+                  is_manual_checklist: true,
+                },
+              ],
+              rules: [
+                { id: 'r1', rule_name: 'No Liquidation', rule_text: 'Never liquidate early' },
+              ],
+            },
+          ],
+        }),
+        calculated_at: '2026-07-12T10:00:00Z',
+      },
+    ];
+    mockUseAuth.mockReturnValue({ user: MOCK_USER });
+    getDashboard.mockResolvedValue({ snapshots: snapshotsWithDetail });
+
+    renderDashboard();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/expand goal detail/i)).toBeInTheDocument();
+    });
+
+    // Milestones/rules are not shown until expanded
+    expect(screen.queryByText('Halfway there')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText(/expand goal detail/i));
+
+    await waitFor(() => {
+      expect(screen.getByText('Halfway there')).toBeInTheDocument();
+      expect(screen.getByText(/opened emergency fund/i)).toBeInTheDocument();
+      expect(screen.getByText(/checklist/i)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText(/rules \(1\)/i));
+    await waitFor(() => {
+      expect(screen.getByText(/no liquidation/i)).toBeInTheDocument();
+    });
+  });
+
+  it('mixes enriched and fallback goal rows in the same card based on per-goal GOAL_DETAIL_FAMILY presence', async () => {
+    const mixedSnapshots = [
+      {
+        profile_id: 'p1',
+        snapshot_key: 'WEALTH_FORMULA_GOALS_FAMILY',
+        payload: JSON.stringify({
+          total_count: 2,
+          achieved_count: 0,
+          goals: [
+            { goal_id: 'DEBT_CROSSOVER', goal_name: 'Debt Crossover', status: 'IN_PROGRESS' },
+            { goal_id: 'FREEDOM_RUNWAY', goal_name: 'Freedom Runway', status: 'IN_PROGRESS' },
+          ],
+        }),
+        calculated_at: '2026-07-12T10:00:00Z',
+      },
+      {
+        profile_id: 'p1',
+        snapshot_key: 'WEALTH_GOAL_DETAIL_FAMILY',
+        payload: JSON.stringify({
+          goal_details: [
+            {
+              goal_id: 'DEBT_CROSSOVER',
+              objective: 'Reduce debt',
+              milestones: [],
+              rules: [],
+            },
+          ],
+        }),
+        calculated_at: '2026-07-12T10:00:00Z',
+      },
+    ];
+    mockUseAuth.mockReturnValue({ user: MOCK_USER });
+    getDashboard.mockResolvedValue({ snapshots: mixedSnapshots });
+
+    renderDashboard();
+
+    await waitFor(() => {
+      expect(screen.getByText('Debt Crossover')).toBeInTheDocument();
+      expect(screen.getByText('Freedom Runway')).toBeInTheDocument();
+    });
+    // Only DEBT_CROSSOVER has a configured goal_plan → exactly one expand affordance
+    expect(screen.getAllByLabelText(/expand goal detail/i)).toHaveLength(1);
   });
 
   it('shows PASS validation badge without warning count when overall_status is PASS', async () => {

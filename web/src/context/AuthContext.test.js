@@ -287,21 +287,26 @@ describe('AuthContext', () => {
       expect(profilesApi.listProfiles).not.toHaveBeenCalled();
     });
 
-    it('propagates the error and leaves user unset when listAdmins() throws', async () => {
+    it('falls back to demo mode when listAdmins() throws', async () => {
       authApi.signIn.mockResolvedValue(signInResponse('admin'));
       adminsApi.listAdmins.mockRejectedValue(new Error('network error'));
+      profilesApi.listProfiles.mockRejectedValue(new Error('network error'));
 
       const { result } = renderHook(() => React.useContext(AuthContext), { wrapper });
       await act(async () => {});
 
-      await expect(
-        act(async () => {
-          await result.current.login('alice', 'admin');
-        })
-      ).rejects.toThrow('network error');
+      await act(async () => {
+        await result.current.login('alice', 'admin');
+      });
 
-      expect(result.current.user).toBeNull();
-      expect(localStorage.getItem('user')).toBeNull();
+      expect(result.current.user).toMatchObject({
+        username: 'alice',
+        role: 'admin',
+        admin_id: 'demo-admin-id',
+        profile_id: 'demo-profile-id',
+      });
+      const stored = JSON.parse(localStorage.getItem('user'));
+      expect(stored.admin_id).toBe('demo-admin-id');
     });
   });
 

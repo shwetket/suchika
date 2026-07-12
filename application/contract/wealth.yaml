@@ -22,6 +22,12 @@ tags:
     description: Ledger transactions and expense categorization
   - name: PhysicalAssets
     description: Vehicle and other physical asset registry with compliance tracking
+  - name: GoalPlans
+    description: >
+      ADR-022 Phase 1 — richer financial goal model. Admin-scoped (not
+      profile_id-scoped) authoring of objectives/milestones/rules/trigger-events for
+      the 5 hardcoded Epic 8 formula goals. wealth.insurance_policy and the
+      computed WEALTH_GOAL_DETAIL_FAMILY read path are deferred to Phase 2/3.
 
 paths:
 
@@ -626,6 +632,486 @@ paths:
         '500':
           $ref: './shared.yaml#/components/responses/InternalError'
 
+  /v1/goal-plans:
+
+    get:
+      tags: [GoalPlans]
+      operationId: listGoalPlans
+      summary: List goal plans
+      description: >
+        Returns all goal plans for one admin's household. admin_id is required —
+        goal plans are household-scoped (ADR-022, same shape as
+        profile.admin.policy_settings), not profile_id-scoped. Not paginated —
+        at most 4 singleton goal types plus one row per child. Follows AIP-132.
+      parameters:
+        - name: admin_id
+          in: query
+          required: true
+          description: Scope to one admin's household.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Successfully listed goal plans
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListGoalPlansResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    post:
+      tags: [GoalPlans]
+      operationId: createGoalPlan
+      summary: Create a goal plan
+      description: >
+        Creates a new goal plan. At most one row per (admin_id, goal_type) for the
+        4 singleton goal types; YEAR_ONE allows one row per beneficiary_profile_id
+        (one per child). beneficiary_profile_id is required for YEAR_ONE and
+        forbidden for the other 4 types; the 3 education_* fields are YEAR_ONE-only.
+        Follows AIP-133.
+      parameters:
+        - name: admin_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGoalPlanRequest'
+      responses:
+        '201':
+          description: Goal plan created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoalPlan'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '409':
+          $ref: './shared.yaml#/components/responses/Conflict'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/goal-plans/{goal_plan_id}:
+
+    get:
+      tags: [GoalPlans]
+      operationId: getGoalPlan
+      summary: Get a goal plan
+      description: >
+        Returns a single goal plan with its milestones/rules/trigger_events.
+        Follows AIP-131.
+      parameters:
+        - $ref: '#/components/parameters/GoalPlanId'
+        - name: admin_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Goal plan found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoalPlan'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    patch:
+      tags: [GoalPlans]
+      operationId: updateGoalPlan
+      summary: Update a goal plan
+      description: >
+        Partially updates a goal plan. Only fields present in the request body
+        are updated. detail is merged into the existing map, never replaced
+        wholesale. goal_type, beneficiary_profile_id and admin_id are immutable
+        after creation. Follows AIP-134.
+      parameters:
+        - $ref: '#/components/parameters/GoalPlanId'
+        - name: admin_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateGoalPlanRequest'
+      responses:
+        '200':
+          description: Goal plan updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoalPlan'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    delete:
+      tags: [GoalPlans]
+      operationId: deactivateGoalPlan
+      summary: Deactivate a goal plan
+      description: Soft deletes a goal plan by setting is_active to false. Follows AIP-135.
+      parameters:
+        - $ref: '#/components/parameters/GoalPlanId'
+        - name: admin_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Goal plan deactivated successfully
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/goal-plans/{goal_plan_id}/milestones:
+
+    put:
+      tags: [GoalPlans]
+      operationId: replaceGoalPlanMilestones
+      summary: Bulk-replace a goal plan's milestones
+      description: >
+        Whole-document, ordered replace of every milestone on this goal plan
+        (ADR-022 — authoring operation, milestones are "authored as one
+        document"). For toggling a single manual-checklist milestone's
+        is_achieved, use the single-milestone PATCH endpoint instead — resending
+        this whole array for a one-checkbox click risks two admins racing and
+        clobbering each other's state. sequence_no must be unique within the
+        request body.
+      parameters:
+        - $ref: '#/components/parameters/GoalPlanId'
+        - name: admin_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/GoalMilestone'
+      responses:
+        '200':
+          description: Milestones replaced successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GoalMilestone'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/goal-plans/{goal_plan_id}/milestones/{milestone_id}:
+
+    patch:
+      tags: [GoalPlans]
+      operationId: updateGoalPlanMilestoneAchieved
+      summary: Toggle a manual-checklist milestone's achieved status
+      description: >
+        Single-field PATCH, only meaningful when is_manual_checklist is true on
+        the target milestone (ADR-022). Returns 400 if the milestone is not a
+        manual checklist item — its achieved status is derived automatically on
+        every dashboard refresh and would be silently overwritten if toggled
+        by hand.
+      parameters:
+        - $ref: '#/components/parameters/GoalPlanId'
+        - $ref: '#/components/parameters/MilestoneId'
+        - name: admin_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [is_achieved]
+              properties:
+                is_achieved:
+                  type: boolean
+      responses:
+        '200':
+          description: Milestone updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoalMilestone'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/goal-plans/{goal_plan_id}/rules:
+
+    put:
+      tags: [GoalPlans]
+      operationId: replaceGoalPlanRules
+      summary: Bulk-replace a goal plan's rules
+      description: >
+        Whole-document, ordered replace of every rule on this goal plan
+        (ADR-022 — household-discipline narrative text, never code-enforced).
+        sequence_no must be unique within the request body.
+      parameters:
+        - $ref: '#/components/parameters/GoalPlanId'
+        - name: admin_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/GoalRule'
+      responses:
+        '200':
+          description: Rules replaced successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GoalRule'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/goal-plans/{goal_plan_id}/trigger-events:
+
+    put:
+      tags: [GoalPlans]
+      operationId: replaceGoalPlanTriggerEvents
+      summary: Bulk-replace a goal plan's trigger events
+      description: >
+        Whole-document, ordered replace of every trigger event on this goal plan
+        (ADR-022). trigger_condition stays free text, never system-enforced —
+        this is Epic 8 Use Case 8.3 (dynamic triggers), deliberately still
+        unbuilt. sequence_no must be unique within the request body.
+      parameters:
+        - $ref: '#/components/parameters/GoalPlanId'
+        - name: admin_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/GoalTriggerEvent'
+      responses:
+        '200':
+          description: Trigger events replaced successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GoalTriggerEvent'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/insurance-policies:
+
+    get:
+      tags: [InsurancePolicies]
+      operationId: listInsurancePolicies
+      summary: List insurance policies
+      description: >
+        Returns all insurance policies for one admin's household. admin_id is
+        required — insurance policies are household-scoped (ADR-022 Phase 2,
+        same shape as goal plans/policy_settings), not profile_id-scoped. Not
+        paginated. Follows AIP-132.
+      parameters:
+        - name: admin_id
+          in: query
+          required: true
+          description: Scope to one admin's household.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Successfully listed insurance policies
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListInsurancePoliciesResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    post:
+      tags: [InsurancePolicies]
+      operationId: createInsurancePolicy
+      summary: Create an insurance policy
+      description: >
+        Creates a new insurance policy. premium_amount and coverage_amount (when
+        provided) must be non-negative — validated in the domain layer, not a DB
+        CHECK constraint (ADR-020). Follows AIP-133.
+      parameters:
+        - name: admin_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInsurancePolicyRequest'
+      responses:
+        '201':
+          description: Insurance policy created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InsurancePolicy'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/insurance-policies/{insurance_policy_id}:
+
+    get:
+      tags: [InsurancePolicies]
+      operationId: getInsurancePolicy
+      summary: Get an insurance policy
+      description: Returns a single insurance policy. Follows AIP-131.
+      parameters:
+        - $ref: '#/components/parameters/InsurancePolicyId'
+        - name: admin_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Insurance policy found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InsurancePolicy'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    patch:
+      tags: [InsurancePolicies]
+      operationId: updateInsurancePolicy
+      summary: Update an insurance policy
+      description: >
+        Partially updates an insurance policy. Only fields present in the
+        request body are updated. payout_structure is merged into the existing
+        map, never replaced wholesale. admin_id and policy_type are immutable
+        after creation. Follows AIP-134.
+      parameters:
+        - $ref: '#/components/parameters/InsurancePolicyId'
+        - name: admin_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateInsurancePolicyRequest'
+      responses:
+        '200':
+          description: Insurance policy updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InsurancePolicy'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    delete:
+      tags: [InsurancePolicies]
+      operationId: deactivateInsurancePolicy
+      summary: Deactivate an insurance policy
+      description: Soft deletes an insurance policy by setting is_active to false. Follows AIP-135.
+      parameters:
+        - $ref: '#/components/parameters/InsurancePolicyId'
+        - name: admin_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Insurance policy deactivated successfully
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
 components:
 
   parameters:
@@ -663,6 +1149,33 @@ components:
       in: path
       required: true
       description: Unique identifier of the physical asset
+      schema:
+        type: string
+        format: uuid
+
+    GoalPlanId:
+      name: goal_plan_id
+      in: path
+      required: true
+      description: Unique identifier of the goal plan
+      schema:
+        type: string
+        format: uuid
+
+    MilestoneId:
+      name: milestone_id
+      in: path
+      required: true
+      description: Unique identifier of the goal plan milestone
+      schema:
+        type: string
+        format: uuid
+
+    InsurancePolicyId:
+      name: insurance_policy_id
+      in: path
+      required: true
+      description: Unique identifier of the insurance policy
       schema:
         type: string
         format: uuid
@@ -1142,7 +1655,15 @@ components:
         - MAINTENANCE
         - DISCRETIONARY
         - UNCATEGORIZED
-      description: Epic 8 Phase 2 hardcoded expense category enum (manual tagging only).
+        - SALARY
+        - RENTAL
+        - OTHER_INCOME
+      description: >
+        Epic 8 Phase 2 hardcoded expense category enum (manual tagging only).
+        Widened from 5 to 8 values in ADR-022 Phase 1 — SALARY/RENTAL/OTHER_INCOME
+        added for THIRTY_SEVENTY_TARGET's income-tagged CREDIT transaction filter.
+        Never validated against txn_type — any category can be set on any
+        transaction, DEBIT or CREDIT.
 
     Transaction:
       type: object
@@ -1402,4 +1923,412 @@ components:
         size:
           type: integer
           description: Present only on the paginated GET list endpoint.
+
+    GoalType:
+      type: string
+      enum:
+        - DEBT_CROSSOVER
+        - THIRTY_SEVENTY_TARGET
+        - FREEDOM_RUNWAY
+        - INSURANCE_FREE
+        - YEAR_ONE
+      description: >
+        The 5 hardcoded Epic 8 Phase 4 formula goals (ADR-022). Fixed, closed set.
+
+    GoalMilestone:
+      type: object
+      description: >
+        A single checkpoint on a goal plan. Non-checklist milestones require
+        target_value (compared against the parent goal's live current_value by
+        the gateway's goal-detail step, not built in Phase 1); manual checklist
+        milestones may omit target_value and have is_achieved admin-toggled
+        directly via the single-milestone PATCH endpoint.
+      required:
+        - sequence_no
+        - label
+        - significance
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        sequence_no:
+          type: integer
+          minimum: 0
+        label:
+          type: string
+          maxLength: 50
+        target_value:
+          type: number
+          format: double
+          nullable: true
+        is_manual_checklist:
+          type: boolean
+          default: false
+        is_achieved:
+          type: boolean
+          default: false
+        significance:
+          type: string
+
+    GoalRule:
+      type: object
+      description: Household discipline text, narrative only — never code-enforced.
+      required:
+        - sequence_no
+        - rule_name
+        - rule_text
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        sequence_no:
+          type: integer
+          minimum: 0
+        rule_name:
+          type: string
+          maxLength: 50
+        rule_text:
+          type: string
+
+    GoalTriggerEvent:
+      type: object
+      description: >
+        A step-up trigger ("if X happens, change Y"). trigger_condition stays
+        free text — Epic 8 UC 8.3 (dynamic triggers) is deliberately unbuilt.
+      required:
+        - sequence_no
+        - event_name
+        - trigger_condition
+        - resulting_change
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        sequence_no:
+          type: integer
+          minimum: 0
+        event_name:
+          type: string
+          maxLength: 50
+        trigger_condition:
+          type: string
+        resulting_change:
+          type: string
+
+    GoalPlan:
+      type: object
+      description: >
+        ADR-022 Phase 1 — the product owner's goal theory (objective, baseline,
+        milestones, rules, step-up triggers) for one of the 5 hardcoded formula
+        goals. Household-scoped by admin_id, not profile_id.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        admin_id:
+          type: string
+          format: uuid
+          readOnly: true
+        goal_type:
+          $ref: '#/components/schemas/GoalType'
+        beneficiary_profile_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Required for YEAR_ONE (one row per child); forbidden for the other 4 types.
+        objective:
+          type: string
+        target_state:
+          type: string
+          nullable: true
+        assumed_growth_rate:
+          type: number
+          format: double
+          nullable: true
+        education_base_cost:
+          type: number
+          format: double
+          nullable: true
+          description: YEAR_ONE-only.
+        education_inflation_rate:
+          type: number
+          format: double
+          nullable: true
+          description: YEAR_ONE-only.
+        education_years_to_entry:
+          type: integer
+          nullable: true
+          description: YEAR_ONE-only.
+        detail:
+          type: object
+          description: >
+            Heterogeneous per-goal-type baseline metrics / execution protocol —
+            opaque to SQL, never queried by column (same escape-hatch precedent
+            as account.metadata/physical_asset.metadata).
+          additionalProperties:
+            type: string
+        is_active:
+          type: boolean
+          default: true
+        milestones:
+          type: array
+          items:
+            $ref: '#/components/schemas/GoalMilestone'
+          readOnly: true
+        rules:
+          type: array
+          items:
+            $ref: '#/components/schemas/GoalRule'
+          readOnly: true
+        trigger_events:
+          type: array
+          items:
+            $ref: '#/components/schemas/GoalTriggerEvent'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+
+    CreateGoalPlanRequest:
+      type: object
+      required:
+        - goal_type
+        - objective
+      properties:
+        goal_type:
+          $ref: '#/components/schemas/GoalType'
+        beneficiary_profile_id:
+          type: string
+          format: uuid
+          nullable: true
+        objective:
+          type: string
+          minLength: 1
+        target_state:
+          type: string
+          nullable: true
+        assumed_growth_rate:
+          type: number
+          format: double
+          nullable: true
+        education_base_cost:
+          type: number
+          format: double
+          nullable: true
+        education_inflation_rate:
+          type: number
+          format: double
+          nullable: true
+        education_years_to_entry:
+          type: integer
+          nullable: true
+
+    UpdateGoalPlanRequest:
+      type: object
+      description: >
+        All fields optional. Only provided fields are updated. detail is merged
+        into the existing map, never replaced wholesale. goal_type,
+        beneficiary_profile_id and admin_id cannot be changed after creation.
+      properties:
+        objective:
+          type: string
+          minLength: 1
+        target_state:
+          type: string
+          nullable: true
+        assumed_growth_rate:
+          type: number
+          format: double
+          nullable: true
+        education_base_cost:
+          type: number
+          format: double
+          nullable: true
+        education_inflation_rate:
+          type: number
+          format: double
+          nullable: true
+        education_years_to_entry:
+          type: integer
+          nullable: true
+        detail:
+          type: object
+          additionalProperties:
+            type: string
+        is_active:
+          type: boolean
+
+    ListGoalPlansResponse:
+      type: object
+      description: List of goal plans. Not paginated.
+      properties:
+        goal_plans:
+          type: array
+          items:
+            $ref: '#/components/schemas/GoalPlan'
+        total_size:
+          type: integer
+          description: Total number of goal plans matching the filter.
+
+    PolicyType:
+      type: string
+      enum:
+        - TERM
+        - GROUP_TERM
+        - INVESTMENT_LINKED
+        - ENDOWMENT
+        - HEALTH
+      description: >
+        ADR-022 Phase 2 — closed set of insurance policy shapes.
+
+    PremiumFrequency:
+      type: string
+      enum:
+        - MONTHLY
+        - ANNUAL
+      description: >
+        How often premium_amount is paid. The gateway's THIRTY_SEVENTY_TARGET
+        premium term normalizes both to a monthly figure (ANNUAL / 12, MONTHLY
+        pass-through).
+
+    InsurancePolicy:
+      type: object
+      description: >
+        ADR-022 Phase 2 — an insurance policy feeding THIRTY_SEVENTY_TARGET's
+        premium term and INSURANCE_FREE's "WITH insurance" raw-list comparison.
+        Household-scoped by admin_id, not profile_id.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        admin_id:
+          type: string
+          format: uuid
+          readOnly: true
+        policy_name:
+          type: string
+          maxLength: 50
+        provider:
+          type: string
+          maxLength: 50
+        policy_type:
+          $ref: '#/components/schemas/PolicyType'
+        premium_amount:
+          type: number
+          format: double
+          minimum: 0
+        premium_frequency:
+          $ref: '#/components/schemas/PremiumFrequency'
+        coverage_amount:
+          type: number
+          format: double
+          nullable: true
+          minimum: 0
+          description: Nullable — some policies are income-stream, not lump-sum.
+        payout_structure:
+          type: object
+          description: >
+            Heterogeneous per-policy-type payout shape (lump sum / escalating
+            monthly income / sum-assured-at-maturity) — opaque to SQL, never
+            queried by column, same escape-hatch precedent as
+            goal_plan.detail/account.metadata.
+          additionalProperties:
+            type: string
+        is_active:
+          type: boolean
+          default: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+
+    CreateInsurancePolicyRequest:
+      type: object
+      required:
+        - policy_name
+        - provider
+        - policy_type
+        - premium_amount
+        - premium_frequency
+      properties:
+        policy_name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        provider:
+          type: string
+          minLength: 1
+          maxLength: 50
+        policy_type:
+          $ref: '#/components/schemas/PolicyType'
+        premium_amount:
+          type: number
+          format: double
+          minimum: 0
+        premium_frequency:
+          $ref: '#/components/schemas/PremiumFrequency'
+        coverage_amount:
+          type: number
+          format: double
+          nullable: true
+          minimum: 0
+
+    UpdateInsurancePolicyRequest:
+      type: object
+      description: >
+        All fields optional. Only provided fields are updated. payout_structure
+        is merged into the existing map, never replaced wholesale. admin_id and
+        policy_type cannot be changed after creation.
+      properties:
+        policy_name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        provider:
+          type: string
+          minLength: 1
+          maxLength: 50
+        premium_amount:
+          type: number
+          format: double
+          minimum: 0
+        premium_frequency:
+          $ref: '#/components/schemas/PremiumFrequency'
+        coverage_amount:
+          type: number
+          format: double
+          nullable: true
+          minimum: 0
+        payout_structure:
+          type: object
+          additionalProperties:
+            type: string
+        is_active:
+          type: boolean
+
+    ListInsurancePoliciesResponse:
+      type: object
+      description: List of insurance policies. Not paginated.
+      properties:
+        insurance_policies:
+          type: array
+          items:
+            $ref: '#/components/schemas/InsurancePolicy'
+        total_size:
+          type: integer
+          description: Total number of insurance policies matching the filter.
 

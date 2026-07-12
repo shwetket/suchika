@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../hooks/useAuth';
 import { getDashboard, refreshProjections } from '../../api/household';
 import { Badge } from '../../components/shared/Badge';
-
+import { formatCurrency } from '../../utils/formatters';
 const DOMAIN_CARDS = [
   {
     title: 'Profiles',
@@ -37,8 +37,23 @@ const SNAPSHOT_KEYS = {
   EMI_TRACKING_FAMILY: 'WEALTH_EMI_TRACKING_FAMILY',
   LIQUIDITY_TIERS_FAMILY: 'WEALTH_LIQUIDITY_TIERS_FAMILY',
   FORMULA_GOALS_FAMILY: 'WEALTH_FORMULA_GOALS_FAMILY',
+  GOAL_DETAIL_FAMILY: 'WEALTH_GOAL_DETAIL_FAMILY',
   VALIDATION_REPORT_FAMILY: 'WEALTH_VALIDATION_REPORT_FAMILY',
 };
+
+// ADR-022 Phase 3: same join key the gateway's computeGoalDetail() uses —
+// goal_id alone for the 4 singleton types, goal_id + beneficiary_profile_id for YEAR_ONE.
+function goalDetailKey(goalId, beneficiaryProfileId) {
+  return beneficiaryProfileId ? `${goalId}-${beneficiaryProfileId}` : goalId;
+}
+
+function buildGoalDetailLookup(goalDetailPayload) {
+  const lookup = {};
+  (goalDetailPayload?.goal_details ?? []).forEach((detail) => {
+    lookup[goalDetailKey(detail.goal_id, detail.beneficiary_profile_id)] = detail;
+  });
+  return lookup;
+}
 
 function safeParseJson(str) {
   try {
@@ -46,15 +61,6 @@ function safeParseJson(str) {
   } catch {
     return null;
   }
-}
-
-function formatCurrency(value) {
-  if (value === null || value === undefined) return null;
-  return Number(value).toLocaleString('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 0,
-  });
 }
 
 function formatTimestamp(isoStr) {
@@ -119,6 +125,99 @@ MemberBreakdown.propTypes = {
 
 MemberBreakdown.defaultProps = { members: [] };
 
+function MilestoneRow({ milestone }) {
+  const achieved = Boolean(milestone.is_achieved);
+  return (
+    <li className="flex items-start gap-2 text-xs text-gray-600">
+      <span
+        className={`mt-0.5 inline-block w-3 h-3 rounded-full flex-shrink-0 ${
+          achieved ? 'bg-green-500' : 'bg-gray-300'
+        }`}
+        aria-hidden="true"
+      />
+      <span>
+        {milestone.label}
+        {milestone.is_manual_checklist && <span className="ml-1 text-gray-400">(checklist)</span>}
+      </span>
+    </li>
+  );
+}
+MilestoneRow.propTypes = {
+  milestone: PropTypes.shape({
+    label: PropTypes.string,
+    is_achieved: PropTypes.bool,
+    is_manual_checklist: PropTypes.bool,
+  }).isRequired,
+};
+
+function GoalRow({ goal, detail }) {
+  const [expanded, setExpanded] = useState(false);
+  const key = goalDetailKey(goal.goal_id, goal.beneficiary_profile_id);
+  const milestones = detail?.milestones ?? [];
+  const rules = detail?.rules ?? [];
+
+  return (
+    <div className="text-sm" data-testid={`goal-row-${key}`}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <span className="text-gray-600">{goal.goal_name}</span>
+          {detail && (
+            <button
+              type="button"
+              onClick={() => setExpanded((prev) => !prev)}
+              aria-label={expanded ? 'Collapse goal detail' : 'Expand goal detail'}
+              className="text-gray-400 hover:text-gray-600 text-xs px-1"
+            >
+              {expanded ? '▾' : '▸'}
+            </button>
+          )}
+        </div>
+        <Badge variant={goal.status === 'ACHIEVED' ? 'success' : 'warning'}>
+          {goal.status === 'ACHIEVED' ? 'Achieved' : 'In Progress'}
+        </Badge>
+      </div>
+      {detail && expanded && (
+        <div className="mt-2 mb-1 ml-1 pl-3 border-l-2 border-gray-100 space-y-2">
+          {detail.objective && <p className="text-xs text-gray-500">{detail.objective}</p>}
+          {milestones.length > 0 && (
+            <ul className="space-y-1">
+              {milestones.map((m) => (
+                <MilestoneRow key={m.id || m.label} milestone={m} />
+              ))}
+            </ul>
+          )}
+          {rules.length > 0 && (
+            <details className="text-xs text-gray-500">
+              <summary className="cursor-pointer text-gray-400">Rules ({rules.length})</summary>
+              <ul className="mt-1 space-y-1">
+                {rules.map((r) => (
+                  <li key={r.id || r.rule_name}>
+                    <span className="font-medium">{r.rule_name}:</span> {r.rule_text}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+GoalRow.propTypes = {
+  goal: PropTypes.shape({
+    goal_id: PropTypes.string,
+    goal_name: PropTypes.string,
+    beneficiary_profile_id: PropTypes.string,
+    status: PropTypes.string,
+  }).isRequired,
+  detail: PropTypes.shape({
+    objective: PropTypes.string,
+    milestones: PropTypes.array,
+    rules: PropTypes.array,
+  }),
+};
+GoalRow.defaultProps = { detail: null };
+
 function SnapshotSummary({ snapshots }) {
   if (!snapshots || snapshots.length === 0) {
     return (
@@ -138,6 +237,7 @@ function SnapshotSummary({ snapshots }) {
   const emiSnap = byKey[SNAPSHOT_KEYS.EMI_TRACKING_FAMILY];
   const liquiditySnap = byKey[SNAPSHOT_KEYS.LIQUIDITY_TIERS_FAMILY];
   const formulaGoalsSnap = byKey[SNAPSHOT_KEYS.FORMULA_GOALS_FAMILY];
+  const goalDetailSnap = byKey[SNAPSHOT_KEYS.GOAL_DETAIL_FAMILY];
   const validationSnap = byKey[SNAPSHOT_KEYS.VALIDATION_REPORT_FAMILY];
 
   const netWorthPayload = netWorthSnap ? safeParseJson(netWorthSnap.payload) : null;
@@ -149,6 +249,11 @@ function SnapshotSummary({ snapshots }) {
   const emiPayload = emiSnap ? safeParseJson(emiSnap.payload) : null;
   const liquidityPayload = liquiditySnap ? safeParseJson(liquiditySnap.payload) : null;
   const goalsPayload = formulaGoalsSnap ? safeParseJson(formulaGoalsSnap.payload) : null;
+  // ADR-022 Phase 3: enrichment only — a goal with no configured goal_plan simply has
+  // no entry in this lookup, and GoalRow renders identically to the pre-Phase-3 card
+  // in that case (graceful fallback, not a breaking change to the existing card).
+  const goalDetailPayload = goalDetailSnap ? safeParseJson(goalDetailSnap.payload) : null;
+  const goalDetailLookup = buildGoalDetailLookup(goalDetailPayload);
   const validationPayload = validationSnap ? safeParseJson(validationSnap.payload) : null;
 
   const lastRefreshed =
@@ -235,12 +340,17 @@ function SnapshotSummary({ snapshots }) {
           </p>
           <div className="space-y-2">
             {goalsPayload.goals.map((goal) => (
-              <div key={goal.goal_id} className="flex items-center justify-between text-sm">
-                <span className="text-gray-600">{goal.goal_name}</span>
-                <Badge variant={goal.status === 'ACHIEVED' ? 'success' : 'warning'}>
-                  {goal.status === 'ACHIEVED' ? 'Achieved' : 'In Progress'}
-                </Badge>
-              </div>
+              // ADR-022: YEAR_ONE now repeats one entry per child, so goal_id alone is no
+              // longer a unique key — fall back to goal_id + beneficiary_profile_id when
+              // present (every other goal type keeps the simple goal_id key). Same key
+              // used to look up this goal's optional WEALTH_GOAL_DETAIL_FAMILY entry.
+              <GoalRow
+                key={goalDetailKey(goal.goal_id, goal.beneficiary_profile_id)}
+                goal={goal}
+                detail={
+                  goalDetailLookup[goalDetailKey(goal.goal_id, goal.beneficiary_profile_id)] ?? null
+                }
+              />
             ))}
           </div>
         </div>

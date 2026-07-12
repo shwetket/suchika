@@ -14,7 +14,7 @@ import {
   updateAccountClassification,
 } from '../../api/wealth';
 import { useAuth } from '../../hooks/useAuth';
-import { formatDate } from '../../utils/formatters';
+import { formatDate, formatCurrency } from '../../utils/formatters';
 import { EditIcon } from '../../components/shared/EditIcon';
 
 const ACCOUNT_TYPES = [
@@ -74,15 +74,6 @@ function buildLoanMetadataPatch(editForm) {
     loanMeta.linked_offset_account_id = editForm.linked_offset_account_id;
   }
   return loanMeta;
-}
-
-function formatCurrency(value) {
-  if (value === null || value === undefined) return '—';
-  return Number(value).toLocaleString('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 2,
-  });
 }
 
 function StatusBadge({ active }) {
