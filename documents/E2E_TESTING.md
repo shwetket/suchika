@@ -5,7 +5,7 @@
 | **Type** | Reference |
 | **Audience** | Frontend developers |
 | **Status** | Active |
-| **Last updated** | 2026-07-08 |
+| **Last updated** | 2026-07-12 (added missing `dashboard.spec.js` row — was undercounting 10 spec files as 9) |
 
 ## Objective
 
@@ -21,12 +21,13 @@ Document the Playwright E2E test suite — what is covered, how to run it, start
 
 ## Overview
 
-35 tests across 9 spec files covering the main user-facing flows:
+38 tests across 10 spec files covering the main user-facing flows:
 
 | Spec file | Tests | Coverage |
 |---|---|---|
 | `auth.spec.js` | 4 | Sign-in, home redirect, logout |
 | `navigation.spec.js` | 4 | Nav links, dropdowns, dashboard cards |
+| `dashboard.spec.js` | 3 | Dashboard page loads, heading, refresh button |
 | `profiles.spec.js` | 2 | Profiles page loads, Add Profile button |
 | `wealth.spec.js` | 4 | Accounts + transactions pages, URL redirects |
 | `health.spec.js` | 3 | Vitals + doctor visits pages, URL redirects |

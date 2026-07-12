@@ -161,37 +161,30 @@ suchika/
 │   │   ├── profile.md
 │   │   └── wealth.md
 │   ├── AGENTS.md
-│   ├── API.md
 │   ├── ARCHITECTURE.md
 │   ├── ARCHITECTURE_DECISIONS.md
 │   ├── ARCHITECTURE_GUIDELINES.md
 │   ├── ARCHITECTURE_PROPOSALS.md
-│   ├── architecture-review-2026-07.md
 │   ├── BUSINESS_REQUIREMENTS.md
 │   ├── CICD.md
-│   ├── contract-consolidation-plan.md
+│   ├── CONTRACT_CONSOLIDATION.md        ← historical; plan fully executed, shared.yaml adopted
 │   ├── E2E_TESTING.md
-│   ├── EPIC8_IMPLEMENTATION_PLAN.md
-│   ├── feature_request.md
-│   ├── flyway-consolidation-plan.md
 │   ├── FRONTEND_GUIDELINES.md
 │   ├── GETTING_STARTED.md
 │   ├── LOGGING_AND_EXCEPTIONS.md
 │   ├── OpenQuestions.md
-│   ├── QA_API_TEST_RESULTS.md
-│   ├── qa-findings-seed-data-ui-2026-07-10.md
+│   ├── QA_API_TEST_RESULTS.md           ← historical (Run 1 only); current QA lives in domain-state files
 │   ├── REQUIREMENTS_cross_domain.md
 │   ├── REQUIREMENTS_health_domain.md
 │   ├── REQUIREMENTS_household_domain.md
 │   ├── REQUIREMENTS_wealth_domain.md
-│   ├── review-claude-2026-07-08.md
 │   ├── ROADMAP.md
 │   ├── SCRIPTS.md
-│   ├── UX_DECISIONS.md
-│   ├── V02_DEVELOPMENT_PLAN.md
-│   └── web_e2e_README.md
+│   └── UX_DECISIONS.md
 ├── .github/
 │   ├── CODEOWNERS                 ← * @ketan
+│   ├── ISSUE_TEMPLATE/
+│   │   └── feature_request.md
 │   ├── workflows/
 │   │   ├── ci.yml
 │   │   ├── branch-name-check.yml  ← pattern: ^[a-zA-Z][a-zA-Z0-9_-]{3,}$

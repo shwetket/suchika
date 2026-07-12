@@ -19,14 +19,18 @@ Role: Full-stack developer for the Health domain (port 8083).
 
 **Vital types (VARCHAR):** `WEIGHT`, `HEIGHT`, `BLOOD_PRESSURE`, `BLOOD_SUGAR_FASTING`, `BLOOD_SUGAR_PP`, `HEART_RATE`, `TEMPERATURE`, `OXYGEN_SATURATION`, `BMI`, `WAIST_CIRCUMFERENCE`
 
-**DB constraint:** `visited_doctor = TRUE → doctor_name NOT NULL` is a CHECK constraint in DB (business-rule check, not a discriminator — keep it in DB).
+**DB constraint (revised 2026-07-05 — DB constraint philosophy changed repo-wide):** `visited_doctor = TRUE → doctor_name NOT NULL` is NOT a DB CHECK constraint. It, plus `value_primary > 0`, `BLOOD_PRESSURE` requiring `value_secondary`, and `to_date >= from_date`, are all dropped from `V1__init_health_consolidated.sql` and enforced only in the domain layer (`VitalReading.create()`, `DoctorVisit.create()`, throwing `IllegalArgumentException`). Only PK/FK/NOT NULL/UNIQUE remain in the DB — no CHECK constraints of any kind.
+
+**Endpoints (current):** `GET/POST /v1/vitals`, `GET/PATCH/DELETE /v1/vitals/{id}` (PATCH added v0.5 — `vital_type`/`profile_id` immutable), `GET/POST /v1/doctor-visits`, `GET/PATCH/DELETE /v1/doctor-visits/{id}`. Both list endpoints are paginated (`page`/`size`, 0-indexed, default 50 max 200 — pre-v1.0 Q54 pass) and both require `profile_id` (400 via `ResourceUtils.requireProfileId` if omitted).
+
+**Known scaffold to be aware of, not to extend:** `web/src/pages/Health/Profile.js` is a routed `/health/profile` "Coming Soon" stub with **zero backend** — no `HealthProfile` concept exists in `health.yaml`, the DB, or `BUSINESS_REQUIREMENTS.md`. Don't build against it without a product decision first (see `documents/domain-state/health.md` Open Issues).
 
 **Key files:**
 - Domain: `application/domain/health/domain/`
 - Ports: `application/domain/health/ports/`
 - Adapters: `application/domain/health/adapters/`
-- Flyway: `application/flyway/health/`
-- Frontend pages: `web/src/pages/Health/` (Vitals.js, DoctorVisits.js)
+- Flyway: `application/flyway/health/V1__init_health_consolidated.sql`
+- Frontend pages: `web/src/pages/Health/` (Vitals.js, DoctorVisits.js; also the orphaned Profile.js stub above)
 - API module: `web/src/api/health.js`
 - Contract: `application/contract/health.yaml`
 
@@ -53,7 +57,7 @@ Role: Full-stack developer for the Health domain (port 8083).
 
 ## Testing (mandatory)
 
-**Java:** Domain layer — plain JUnit 5, no Quarkus. Adapter layer — Testcontainers + real PostgreSQL.
+**Java:** Domain layer — plain JUnit 5, no Quarkus. Adapter layer — `ARCHITECTURE_GUIDELINES.md` specifies Testcontainers + real PostgreSQL, but as of the 2026-07-06 retrospective **no domain has actually adopted it yet** (Q34/Q35 tracked, unimplemented repo-wide) — health's existing DB tests (`DoctorVisitPanacheRepositoryTest`, `VitalReadingPanacheRepositoryTest`) use a `%integration-test` Quarkus config profile against the shared local Postgres instead. Match this existing pattern for new tests rather than introducing Testcontainers unilaterally in one domain.
 **React:** Jest + React Testing Library. Cover: render, loading state, error state, user interactions.
 
 ---

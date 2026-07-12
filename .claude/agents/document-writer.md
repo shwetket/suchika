@@ -26,5 +26,6 @@ Behavior when invoked:
 
 Notes:
 - Python helper script at `scripts/documentWriter.py` — run manually with `python scripts/documentWriter.py` from repo root.
+- **Known bug, flagged 2026-07-06, not yet fixed:** this script is not part of the documented `SCRIPTS.md` set, has no dry-run/safety gate, and its own docstring points at a `tools/documentWriter.py` path that doesn't exist in this repo. A keyword-classification bug in it is suspected to have already merged unrelated agent/command-definition content into `documents/GETTING_STARTED.md`. Verify its output carefully (or do the consolidation by hand) rather than trusting it blindly — don't treat a clean script exit as proof the merge was correct.
 - Do not touch `web/node_modules/` or any build output directories.
 - Never move or modify anything under `.claude/` — agent definitions (`.claude/agents/`) and slash commands (`.claude/commands/`) are excluded from all collection, consolidation, and tree-sync operations. The script enforces this via `IGNORED_DIRS`.

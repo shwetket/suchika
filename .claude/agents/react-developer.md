@@ -33,8 +33,8 @@ Authority: `web/src/`, `web/public/`, `web/package.json`
 ## Architecture Rules
 
 - Frontend lives in `web/`. Path is `web` — not `ui/web`, not `ui`.
-- Never manually edit `web/src/api/generated.ts` — always regenerate: `cd web && npm run generate:api`.
-- All API calls use the generated OpenAPI client only — no raw `fetch()`.
+- **Reality check on API calls (found during the 2026-07-06 retrospective):** `FRONTEND_GUIDELINES.md` documents "generated client only, no raw `fetch()`" as the standard, but **zero files under `web/src` actually import `api/generated.ts`** — every page (Vitals.js, Accounts.js, Profiles.js, all of them) calls hand-written wrapper modules in `web/src/api/<domain>.js` (`wealth.js`, `health.js`, `household.js`, `profiles.js`, `admins.js`), which themselves call `fetch()` against the gateway. This is the actual, established convention — follow it for new pages (add functions to the matching `api/<domain>.js` module), don't try to migrate to `generated.ts` or add a new consumer of it without checking with the user first; that would be a repo-wide convention change, not a bug fix.
+- Never manually edit `web/src/api/generated.ts` regardless — always regenerate via `cd web && npm run generate:api` if it's ever wired up.
 - API base URL: `REACT_APP_API_BASE_URL` (defaults to `http://localhost:8080`). Never hardcode domain ports (8081–8084).
 - Page structure: `src/pages/Public/` (no auth), `src/pages/User/` (user+admin), `src/pages/Admin/` (admin only).
 - Wrap protected routes in `<ProtectedRoute requiredRole="admin">`. Use `useAuth()` for role checks.

@@ -16,8 +16,9 @@ public final class SnapshotKey {
      * Epic 8 Phase 1 validation seed (Use Case 8.4, narrow scope): every account
      * resolves to exactly one classification category; flags accounts that don't.
      * Since wealth.account.metadata.category is not populated until Phase 2, this
-     * check is EXPECTED to flag every account as uncategorized for now — that is
-     * correct, not a bug. See documents/EPIC8_IMPLEMENTATION_PLAN.md Phase 1.
+     * check was EXPECTED to flag every account as uncategorized until Phase 2 shipped
+     * category tagging — that was correct, not a bug. Both phases are complete now;
+     * see documents/domain-state/wealth.md.
      */
     public static final String WEALTH_CATEGORY_VALIDATION = "WEALTH_CATEGORY_VALIDATION";
 

@@ -5,7 +5,7 @@
 | **Type** | Requirements |
 | **Audience** | All developers, product |
 | **Status** | Active |
-| **Last updated** | 2026-06-23 |
+| **Last updated** | 2026-07-12 (milestone status table updated — was frozen at v0.2-era "PLANNED" for v0.3–v0.6, which have all since shipped) |
 
 ## Objective
 
@@ -23,7 +23,7 @@ Define the overarching business goals, core principles, and milestone roadmap fo
 
 This document defines the overarching business requirements, architecture principles, and maturity milestones for the Suchika personal operations application. The system is designed to consolidate Wealth, Household, and Health data into a single, strictly organized repository. The ultimate long-term goal (v2.0+) is to enable a local Artificial Intelligence to seamlessly read, analyze, and automate personal operations based on highly structured, immutable data.
 
-**Status as of June 2026:** v0.2 is feature-complete and UAT-ready. Profile, Wealth, and Health domains are fully implemented and deployed locally. Household domain is deferred to v0.3.
+**Status as of 2026-07-12:** v0.6 is complete. All four domains (Profile, Wealth, Health, Household) are fully implemented, including Epic 8 (wealth financial engine, 5 of 6 use cases) and its ADR-022 follow-on (goal plan/insurance policy management). v0.7 is not yet planned; v1.0 (Security & Persistence) is next after any v0.7 gap-filling — see `ROADMAP.md`.
 
 ---
 
@@ -47,11 +47,12 @@ The application follows a granular maturity roadmap. Core features are introduce
 | :--- | :--- | :--- | :--- |
 | **v0.1** | Prototype | Minimal core capabilities, happy path execution only. | DONE |
 | **v0.2** | Usable Local App | Profile, Wealth, and Health domains fully usable. UAT-ready pilot. | DONE — UAT |
-| **v0.3** | Enhanced Local App | Household domain, SonarQube clean pass, dashboard live data, conflict detection. | PLANNED |
-| **v0.4** | Error Handling | Unhappy path, edge cases, and malformed data rejection. | PLANNED |
-| **v0.5** | Beta Release | Stable build for controlled local testing. First cross-domain logic. | PLANNED |
-| **v0.6** | Testing Foundation | Implementation of automated test coverage. | PLANNED |
-| **v1.0** | Security | Authentication, encryption, and transition to persistent, real data. | PLANNED |
+| **v0.3** | Enhanced Local App | Household domain, dashboard live data, conflict detection. | DONE |
+| **v0.4** | Error Handling + Epic 8 | Malformed data rejection; Epic 8 wealth financial engine (5 of 6 use cases — see `REQUIREMENTS_wealth_domain.md`). | DONE |
+| **v0.5** | Beta Release | First cross-domain logic — Vacation Planner, Consolidated Action Center. React Query adopted (ADR-018). | DONE |
+| **v0.6** | Testing Foundation | Automated test coverage — new ArchUnit port-coverage rule, Jest branch coverage gate, transaction/list pagination. | DONE |
+| **v0.7** | *(not yet planned)* | Gap-filling before v1.0, if any — see `ROADMAP.md`. | NOT SCHEDULED |
+| **v1.0** | Security & Persistence | Authentication, encryption, and transition to persistent, real data. | PLANNED — next |
 | **v1.1** | Multi-User | User accounts and role-based access. | PLANNED |
 | **v1.2** | Public Local Release | Stable local release for general users. | PLANNED |
 | **v1.3** | Export / Import | Advanced data framework management. | PLANNED |

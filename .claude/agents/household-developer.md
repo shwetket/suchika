@@ -15,9 +15,11 @@ Role: Full-stack developer for the Household domain (port 8084).
 
 ## Domain Context
 
-**Status:** Complete since v0.3 (backend + gateway + frontend); carried through v0.4/v0.5/v0.6 with no household-specific gaps. Task Tracking (assigning tasks to child profiles) is the one originally-scoped v0.3 item still unbuilt — no schema, not on any milestone.
+**Status:** Complete since v0.3 (backend + gateway + frontend); carried through v0.4/v0.5/v0.6/pre-v1.0 Q54 pagination pass (2026-07-07) with no household-specific gaps. Task Tracking (assigning tasks to child profiles) is the one originally-scoped v0.3 item still unbuilt — no schema, not on any milestone.
 **DB schema:** `household` — tables: `calendar_event`, `inventory_item`, `goal`
 **Enums (VARCHAR, no DB CHECK):** `EventType`, `ItemUnit`, `SourcePlatform`, `GoalStatus`
+**Pagination:** All three list endpoints (`GET /v1/calendar-events`, `/inventory-items`, `/goals`) support `page`/`size` (0-indexed, default 50, max 200 — shared `shared.yaml` params). All three also require `profile_id` (400 via `ResourceUtils.requireProfileId` if omitted — v0.5.1 Tier A).
+**Known scale caveat:** the gateway's `ProjectionCalculationEngine` calls `listGoals`/`listCalendarEvents` internally with `page=null,size=null` (resolves to the endpoint default, page 0/size 50) — a household with 50+ active goals or 50+ matching calendar events would silently have some excluded from goal-progress/event-summary projections. Low real-world risk today; flag if ever revisited (see household.md Open Issues).
 
 **Key files:**
 - Domain: `application/domain/household/domain/`
@@ -40,7 +42,7 @@ Role: Full-stack developer for the Household domain (port 8084).
 - `domain/` has zero framework deps — no `@Inject`, no JPA, no HTTP types. ArchUnit enforces this.
 - `profile_id` filter injected in adapter layer only, never in domain.
 - No SQL ENUMs — VARCHAR for all discriminators.
-- `end_date >= start_date` for calendar events: this is a business-rule CHECK constraint — keep it in DB.
+- `end_date >= start_date` for calendar events, `quantity > 0` for inventory items, `target_amount > 0` for goals: these are business rules, NOT DB CHECK constraints (revised 2026-07-05 policy) — enforced only in each domain entity's `create()` factory (`IllegalArgumentException`). `goal.current_amount >= 0` is the one exception enforced adapter-side, in `GoalService.updateCurrentAmount()`, because that path builds via `Goal.builder()` and bypasses `create()`.
 - Never edit a committed Flyway migration — add a new versioned file.
 - After any contract change: `cd web && npm run generate:api`.
 - All logging via `AppLogger`. All exceptions via `shared/exception/` hierarchy.
@@ -50,15 +52,17 @@ Role: Full-stack developer for the Household domain (port 8084).
 
 ## Known Open Issues (see domain-state/household.md for detail)
 
-- `inventory_item.unit`/`source_platform` and `goal.status` lost `NOT NULL` (and `status` its `DEFAULT 'ACTIVE'`) in the V1 Flyway consolidation rewrite — app-layer validation covers it in practice, DB does not. Fix via a new Flyway file, never edit the committed V1.
+- ✅ Fixed 2026-07-08: `inventory_item.unit`/`source_platform` NOT NULL and `goal.status DEFAULT 'ACTIVE' NOT NULL` restored directly in `V1__init_household_consolidated.sql` (v0.5.1 exception to "never edit a committed migration" — required a full dev DB reset).
 - Adapter DB tests run against shared local Postgres via an `%integration-test` config profile, not Testcontainers — a repo-wide gap, not household-specific.
 - Vacation Planner takes trip dates as fresh input instead of letting the user pick an existing `EventType.TRAVEL` calendar event — unexploited integration, not a bug.
+- `ProjectionCalculationEngine`'s internal `listGoals`/`listCalendarEvents` calls silently cap at page size 50 (see Domain Context above) — flag, not fixed.
+- Real seed data (`R__seed_household_test_data.sql`) is currently tracked in git despite its own header claiming it's gitignored — small exposure (2 rows) but part of a repo-wide flag across all 4 domains' seed files (see profile-developer.md and each domain-state Open Issues). Not fixed — needs a product decision before this branch merges.
 
 ---
 
 ## Testing (mandatory)
 
-**Java:** Domain layer — plain JUnit 5. Adapter layer — Testcontainers + real PostgreSQL.
+**Java:** Domain layer — plain JUnit 5. Adapter layer — `ARCHITECTURE_GUIDELINES.md` specifies Testcontainers, but as of the 2026-07-06 retrospective no domain has adopted it yet (Q34/Q35 tracked, unimplemented) — household's existing DB tests use a `%integration-test` config profile against the shared local Postgres instead. Match this existing pattern for new tests.
 **React:** Jest + React Testing Library. Cover: render, loading state, error state.
 
 ---

@@ -33,9 +33,28 @@ Use domain-specific agents when available: `wealth-developer`, `health-developer
 # Run tests for a specific module
 ./gradlew :application:domain:wealth:domain:test
 
+# Run a single test class/method
+./gradlew :application:domain:wealth:domain:test --tests "TransactionTest"
+./gradlew :application:domain:wealth:domain:test --tests "TransactionTest.rejectsNegativeAmount"
+
 # Clean build
 ./gradlew clean
 ```
+
+### Dev aliases (preferred over raw `gradlew`/`npm` for day-to-day work)
+Dot-source once per terminal: `. .\scripts\dev-aliases.ps1` (PowerShell) or `. ./scripts/dev-aliases.sh` (bash/Codespaces). Type `help-dev` for the full list. Full reference: [documents/SCRIPTS.md](documents/SCRIPTS.md).
+
+| Alias | Does |
+|---|---|
+| `dp` / `dw` / `dh` / `dho` / `dg` / `dwb` | Start profile/wealth/health/household/gateway/web in dev mode (start `dp` first) |
+| `da` | Start everything in dependency order |
+| `tp` / `tw` / `tsa` | Test one domain / all backend tests |
+| `bv` | Full pre-commit check: clean build + all tests + ArchUnit + lint (mirrors CI) |
+| `ss` | Run SonarQube scan (not available in Codespaces — run locally before PRs) |
+| `gapi` | Regenerate the frontend API client from `gateway.yaml` |
+| `sa` / `status` | Stop all services / health-check all ports |
+| `db-reset` / `db-shell` | Reset (destructive) / open a psql shell |
+| `lnav-dev` / `logs` | Live-tail runtime logs / tail latest build-test log |
 
 ### Frontend (run from `web/`)
 ```bash
@@ -157,6 +176,12 @@ This repo is Codespaces-ready. The `.devcontainer/` directory configures a two-c
 - Port forwarding: VS Code shows forwarded ports in the Ports panel; use the public URL for browser access
 
 **Prebuilds:** The `onCreateCommand` in `devcontainer.json` downloads all Gradle and npm dependencies during prebuild, so new codespaces are ready in ~30 seconds instead of ~5 minutes. Enable prebuilds in GitHub repo settings under Codespaces → Prebuilds.
+
+## Branch & PR Conventions
+
+- Branch names must match `^[a-zA-Z][a-zA-Z0-9_-]{3,}$` (letter start, min 4 chars, letters/digits/hyphens/underscores) — enforced by `branch-name-check` CI workflow; no type-prefix required.
+- PR titles must follow Conventional Commits, e.g. `feat(wealth): add CSV upload` — enforced by `pr-title-lint` CI workflow. Valid types: `feat`, `fix`, `docs`, `refactor`, `chore`, `test`, `ci`, `hotfix`, `perf`.
+- Full detail: [CONTRIBUTING.md](CONTRIBUTING.md), [documents/CICD.md](documents/CICD.md).
 
 ## Key Documentation
 

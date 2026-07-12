@@ -5,7 +5,7 @@
 | **Type** | Requirements |
 | **Audience** | Developers, product |
 | **Status** | Active |
-| **Last updated** | 2026-06-23 |
+| **Last updated** | 2026-07-12 (v0.5 Epic 4 marked DONE; added v0.5/pre-v1.0 delivered items not originally scoped here) |
 
 ## Objective
 
@@ -58,16 +58,21 @@ Define all functional requirements, epics, and acceptance criteria for the Healt
 * **Delete a Visit:** The system must allow deletion of a single visit record by its ID, scoped to the owning `profile_id`. [DONE]
 * **Member Scoping:** All visit records are owned by a household member. Every create, list, update, and delete operation must be scoped to a valid `profile_id`. [DONE]
 
-## v0.5: Beta Release (Cross-Domain Logic)
+## v0.5: Beta Release (Cross-Domain Logic) [DONE]
 
 **Objective:** Introduce read-only composite dashboard views that include health signals alongside other domain data.
 
-### Epic 4: Biometric Streak Alerting (Cross-Domain Dashboard)
+### Epic 4: Biometric Streak Alerting (Cross-Domain Dashboard) [DONE — 2026-07-02]
 
-#### Use Case 4.1: Logging Gap Detection
+#### Use Case 4.1: Logging Gap Detection [DONE]
 
-* **Streak Monitoring:** The system must be capable of identifying gaps in vital logging for a given `profile_id` and surfacing these gaps as alerts on the consolidated action center dashboard.
+* **Streak Monitoring:** The system must be capable of identifying gaps in vital logging for a given `profile_id` and surfacing these gaps as alerts on the consolidated action center dashboard. [DONE — `ProjectionCalculationEngine.computeActionCenterAlerts()`, tracked 3 core vital types (WEIGHT, BLOOD_PRESSURE, BLOOD_SUGAR_FASTING) with a 30-day gap threshold, evaluated per-profile. See `documents/domain-state/health.md`.]
 * **Cross-Domain Rule:** This feature is only permitted from v0.5 onward. Any implementation before v0.5 violates the domain isolation constraint.
+
+### Delivered but not originally scoped in this document (added 2026-07-12)
+
+* **`PATCH /v1/vitals/{id}`** (v0.5 Phase 0) — partial update of a vital reading; `vital_type`/`profile_id` remain immutable. [DONE]
+* **Pagination** (pre-v1.0 Q54 pass) — `GET /v1/vitals` and `GET /v1/doctor-visits` both support `page`/`size` (0-indexed, default 50, max 200), mirroring the pattern used across every other domain's list endpoints. [DONE]
 
 ## v1.0: Security & Persistence
 

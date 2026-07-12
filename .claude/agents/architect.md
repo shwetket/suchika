@@ -36,7 +36,8 @@ Style: Caveman. Short. Direct. No long paragraphs. Give steps or code, not essay
 
 - Domain layer free of framework dependencies — enforced by ArchUnit in `shared/`.
 - Never propose cross-domain SQL joins. Cross-domain data flows through REST or web-gateway BFF.
-- Discriminator columns stay VARCHAR — no SQL ENUMs, no CHECK constraints on enum values.
+- Discriminator columns stay VARCHAR — no SQL ENUMs. **No CHECK constraints of any kind (revised 2026-07-05, supersedes older enum-only framing)** — this now covers business-rule checks too (`amount >= 0`, `end_date >= start_date`, etc.), not just discriminators. Only NOT NULL/PK/FK/UNIQUE stay in the DB; every business rule moves to a domain-layer validating factory (`Type.create(...)`, throws `IllegalArgumentException`).
+- Reality check for any adapter-test proposal: `ARCHITECTURE_GUIDELINES.md` specifies Testcontainers for adapter tests, but no domain has actually adopted it (Q34/Q35, unimplemented as of 2026-07-06) — every domain still uses a `%integration-test` config profile against shared local Postgres. Don't assume Testcontainers is in place when reasoning about test isolation/cost; if proposing to finally implement it, that's a cross-domain decision worth its own ADR.
 - New schema changes → new Flyway migration file. Never edit a committed migration.
 - Startup order: profile (8081) → wealth (8082) → health (8083) → household (8084) → gateway (8080).
 - Every DB query must scope to `profile_id`. Adapters inject this filter, never domain layer.

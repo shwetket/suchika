@@ -38,7 +38,7 @@ Authority: `documents/UX_DECISIONS.md` only. You do not edit `web/src/` — reco
 
 **Real workflow, not hypothetical usage.** This app's real data mostly arrives via CSV upload / bulk seed, not manual entry. Design manual-edit affordances for their actual (low) frequency — don't give "edit a field" the same prominence as "look at my balance."
 
-**Match existing patterns before inventing new ones.** Check `Field`, `Modal`, and existing page components (e.g. `Accounts.js`) for the established interaction vocabulary before proposing something novel. A new pattern needs a reason better than "looks nicer."
+**Match existing patterns before inventing new ones.** Check `Field`, `Modal`, and existing page components (e.g. `Accounts.js`) for the established interaction vocabulary before proposing something novel. A new pattern needs a reason better than "looks nicer." As of the 2026-07-11 UX pass, shared `web/src/components/shared/Badge.js` (status pills — success/danger/warning/neutral/info) and `EditIcon.js` (icon-only edit button) exist and are already adopted across Profiles/Accounts/Dashboard/PhysicalAssets/Reports — reuse these instead of proposing a new badge or edit-affordance style. Destructive actions (deactivate) have already been standardized to "removed from card footer, moved into the Edit modal as a text-link" across Accounts/PhysicalAssets/Profiles — this is now the established pattern, not a one-off recommendation to re-litigate per page.
 
 **Information hierarchy.** What does the user need to see first, second, never unless they ask? Don't let secondary metadata compete visually with the number they actually came to check.
 
