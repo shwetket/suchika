@@ -1,11 +1,11 @@
-# Contract Consolidation Plan — Shared OpenAPI Components
+# Contract Consolidation — Shared OpenAPI Components
 
 | | |
 |---|---|
-| **Type** | Plan — approved, not yet executed |
+| **Type** | Historical record — plan fully executed |
 | **Audience** | Architect, backend developers |
-| **Status** | **Q49-Q53 all resolved 2026-07-04 — ready to execute.** No file under `application/contract/` has been touched yet; `application/contract/shared.yaml` does not exist. See resolution deltas below before starting Phase 0. |
-| **Last updated** | 2026-07-05 (resolution deltas added) |
+| **Status** | **DONE.** `application/contract/shared.yaml` exists and is `$ref`'d from all 5 canonical contracts (`profile.yaml`, `wealth.yaml`, `health.yaml`, `household.yaml`, `gateway.yaml`); the web-gateway resources mirror matches byte-for-byte; no local `Error` schema remains in any domain contract. Pagination shipped as `Page`/`Size` (not the `PageSize`/`PageToken` names used in this document's phase snippets below — see the 2026-07-07 update). Kept for the Q49-Q53 decision rationale (why 2 `profile_id` param variants exist, why a third pagination shape was deliberately left alone), not as an actionable plan — the phase-by-phase instructions below are historical, not a to-do list. |
+| **Last updated** | 2026-07-12 (marked DONE — verified against `application/contract/*.yaml`; renamed from `contract-consolidation-plan.md` for naming consistency with the rest of `documents/`) |
 
 ## Update 2026-07-07 — pagination question resolved on a separate track before this plan executed
 
@@ -388,14 +388,14 @@ Per task item 5, called out explicitly (not silently unified):
 
 ---
 
-## Open Questions
+## Open Questions — all resolved, kept for the historical rationale
 
-**Q49.** `shared.yaml`'s existing `ProfileIdParam` is a required **path** parameter. Wealth/gateway need `profile_id` as an optional **query** parameter; health/household need it as a required **query** parameter. That's three distinct shapes sharing one field name. Proposed fix: keep `ProfileIdParam` (path, required) as-is for any future path-based usage, add `ProfileIdQueryParam` (query, optional) for wealth/gateway, add `ProfileIdRequiredQueryParam` (query, required) for health/household. Confirm naming and whether 3 variants is acceptable, or whether the product owner would rather standardize required-ness across domains first (a product decision, not just a contract-tidiness one — e.g., should wealth's account list actually require `profile_id` too, closing a filtering gap, rather than adding a second shared parameter to match wealth's current optional behavior?).
+**Q49 — RESOLVED, executed.** Per the Resolution Deltas table above, `profile_id` was standardized as **required** across all domains rather than adding a third optional-query variant. `shared.yaml` ships exactly 2 parameters: `ProfileIdParam` (path, required) and `ProfileIdRequiredQueryParam` (query, required) — verified in `application/contract/shared.yaml`. Wealth's list endpoints (`listAccounts`, `listPhysicalAssets`, etc.) now require `profile_id` too, closing the filtering gap this question flagged.
 
-**Q50.** `wealth.yaml`'s v0.6 `listTransactions` endpoint uses a third pagination shape (`page`/`size`, 0-indexed integers) that is incompatible with the `page_size`/`page_token` shape used everywhere else (including wealth's own `listAccounts`/`listPhysicalAssets`). This plan treats it as out-of-scope/pre-existing and does not attempt to unify it. Confirm this is acceptable, or whether a future pagination-unification pass should be scheduled (tracked as a backlog item either way, separate from this consolidation).
+**Q50 — RESOLVED, executed on a separate track.** See the 2026-07-07 update above: pagination was unified project-wide to offset-based `page`/`size` (shipped as `shared.yaml`'s `Page`/`Size` parameters), not the token-based shape this document originally assumed would win. `wealth.yaml`'s `listTransactions` is no longer an outlier — every list endpoint across all domains now uses the same shape.
 
-**Q51.** Needs verification before Phase 1 begins, not discovered at Phase 5: does `openapi-typescript` (the codegen tool wired into `npm run generate:api`, per `web/package.json`) correctly resolve external multi-file `$ref` (`./shared.yaml#/components/...`) when pointed at `application/contract/gateway.yaml`, and does it produce an identical TypeScript type for a schema reached via external named `$ref` versus the current inline-duplicated version? Recommend a throwaway scratch test (point the tool at a temp copy of `gateway.yaml` with one endpoint converted, diff the generated type) before committing to the phase order above. If the tool requires a pre-bundle step (e.g., `swagger-cli bundle` before `openapi-typescript`), that changes the `generate:api` npm script and is a bigger change than this plan currently assumes — needs a yes/no before Phase 1.
+**Q51 — RESOLVED.** `openapi-typescript` correctly resolves the external multi-file `$ref` into `shared.yaml`; `web/src/api/generated.ts` exists and reflects the shared components with no reported type-shape regressions.
 
-**Q52.** Should the mirrored copies under `application/web-gateway/src/main/resources/*.yaml` be updated in the *same* PR as each canonical-contract phase (this plan's assumption, matching how `profile.yaml`'s mirror was apparently kept in sync historically), or does the team want a follow-up automated sync step (e.g., a Gradle/npm task that copies canonical → mirror, replacing manual copy-paste) as part of this consolidation, given that keeping N mirrors hand-synced is itself a duplication-risk pattern this plan is otherwise trying to eliminate? Out of scope to build now, but worth flagging since the plan's own Phase 0-5 mechanism doesn't fix the meta-problem of manual mirror sync.
+**Q52 — RESOLVED, status quo kept.** Mirrors under `application/web-gateway/src/main/resources/*.yaml` are updated by hand in the same PR as each canonical-contract change — confirmed still true (`application/contract/shared.yaml` and its mirror are byte-identical as of this check). No automated sync step was built; not revisited.
 
-**Q53.** Phase 4 (`profile.yaml`) is additive — it gives previously-bare error responses a real schema for the first time. Should this ship as part of the "contract consolidation" initiative at all, or should it be split out as its own small independent PR/ADR ("profile.yaml error responses were never contract-typed — fix it") so that the consolidation PRs (1, 2, 3, 5) can be honestly described as zero-behavior-change refactors, and Phase 4 can be reviewed under a different bar (behavior change, needs explicit sign-off, not just a diff-check)? Recommend splitting, but the product owner should confirm before Phase 4 is scheduled.
+**Q53 — RESOLVED.** `profile.yaml`'s previously-bare error responses were folded into the same consolidation rather than split into a separate PR — confirmed via `application/contract/profile.yaml`'s current `$ref` usage into `shared.yaml`'s `NotFound`/`BadRequest`/etc. responses.

@@ -317,7 +317,7 @@ application/contract/gateway.yaml
 
 The gateway contract is the frontend's documented source of truth for API shape, though in practice no frontend code currently imports the generated client — a known, tracked gap, not a contradiction to "fix" casually (see `react-developer.md`'s note on this).
 
-A separate, still-unexecuted plan (`documents/contract-consolidation-plan.md`) would move shared cross-domain OpenAPI components (error responses, `profile_id` params, pagination) into one canonical `application/contract/shared.yaml`, referenced via `$ref` from every domain contract.
+Shared cross-domain OpenAPI components (error responses, `profile_id` params, pagination) live in one canonical `application/contract/shared.yaml`, `$ref`'d from all 5 domain/gateway contracts — no domain contract defines its own local `Error` schema. `profile_id` ships as exactly 2 shared parameters (`ProfileIdParam` — path, required; `ProfileIdRequiredQueryParam` — query, required); pagination ships as `Page`/`Size` (offset-based, 0-indexed, default 50, max 200) applied uniformly to every list endpoint. History and rationale: `documents/CONTRACT_CONSOLIDATION.md`.
 
 ---
 

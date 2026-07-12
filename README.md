@@ -161,14 +161,13 @@ suchika/
 │   │   ├── profile.md
 │   │   └── wealth.md
 │   ├── AGENTS.md
-│   ├── API.md
 │   ├── ARCHITECTURE.md
 │   ├── ARCHITECTURE_DECISIONS.md
 │   ├── ARCHITECTURE_GUIDELINES.md
 │   ├── ARCHITECTURE_PROPOSALS.md
 │   ├── BUSINESS_REQUIREMENTS.md
 │   ├── CICD.md
-│   ├── contract-consolidation-plan.md   ← still unexecuted; live plan, not historical
+│   ├── CONTRACT_CONSOLIDATION.md        ← historical; plan fully executed, shared.yaml adopted
 │   ├── E2E_TESTING.md
 │   ├── FRONTEND_GUIDELINES.md
 │   ├── GETTING_STARTED.md
@@ -181,8 +180,7 @@ suchika/
 │   ├── REQUIREMENTS_wealth_domain.md
 │   ├── ROADMAP.md
 │   ├── SCRIPTS.md
-│   ├── UX_DECISIONS.md
-│   └── web_e2e_README.md
+│   └── UX_DECISIONS.md
 ├── .github/
 │   ├── CODEOWNERS                 ← * @ketan
 │   ├── ISSUE_TEMPLATE/

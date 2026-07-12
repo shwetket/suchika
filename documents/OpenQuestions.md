@@ -5,11 +5,11 @@
 | **Type** | Decision Log |
 | **Audience** | Product owner (Ketan) |
 | **Status** | Active |
-| **Last updated** | 2026-07-12 (Q55–Q63 added — migrated in from `ROADMAP.md`'s embedded "Open Questions for the Product Owner" sections, which duplicated this file's purpose) |
+| **Last updated** | 2026-07-12 (Q55–Q64 added — migrated in from `ROADMAP.md`'s embedded "Open Questions for the Product Owner" sections, which duplicated this file's purpose; Q49–Q53 pointer corrected — `CONTRACT_CONSOLIDATION.md` plan is DONE, not still-unexecuted) |
 
 ## Purpose
 
-Single shared log for all open questions raised during reviews. Answer each question here so agents can proceed. Questions are numbered for easy reference — continue numbering from **Q64** for any new question raised.
+Single shared log for all open questions raised during reviews. Answer each question here so agents can proceed. Questions are numbered for easy reference — continue numbering from **Q65** for any new question raised (Q64 is already in use, see below).
 
 ---
 
@@ -55,7 +55,7 @@ B) Remove the false 409 guarantee from `application/contract/profile.yaml` inste
 
 ---
 
-<!-- Architect, Business Analyst, and QA agents append questions below. Keep numbering sequential, starting at Q64. -->
+<!-- Architect, Business Analyst, and QA agents append questions below. Keep numbering sequential, starting at Q65. -->
 
 ## Archive — Where Q1–Q54's Answers Live Now
 
@@ -67,7 +67,7 @@ Every question previously logged here (Q1–Q54, spanning the 2026-06-29 archite
 | `CLAUDE.md` | DB constraint philosophy (FK/UNIQUE kept, CHECK dropped), `VARCHAR(50)` name-column cap, Flyway edit-in-place exceptions |
 | `documents/domain-state/{profile,wealth,health,household}.md` | Per-domain implementation of every resolved feature/behavior decision (inventory lifecycle, manual transaction entry, vitals edit, category tagging, goal formulas, income auto-detection, etc.) |
 | `documents/ROADMAP.md` | Coverage-floor decision (Q9) and its still-not-wired-into-Gradle status; the "decided but never implemented" gaps (Testcontainers — Q34/Q35; E2E-in-CI — Q10; contract tests — Q11; RestAssured standardization — Q38) tracked as ongoing debt; the pagination-shape decision (Q54, resolved 2026-07-07, superseding the version of Q54 that had been logged here) |
-| `documents/contract-consolidation-plan.md` | Q49–Q53 in full (shared OpenAPI components — error responses, `profile_id` param variants, pagination) — this plan is **still unexecuted**, kept as a live, actionable document, not archived |
+| `documents/CONTRACT_CONSOLIDATION.md` | Q49–Q53 in full (shared OpenAPI components — error responses, `profile_id` param variants, pagination) — **DONE, verified 2026-07-12** (`shared.yaml` adopted by all 5 contracts); file renamed from `contract-consolidation-plan.md` and kept as a historical record, not archived here |
 | `documents/UX_DECISIONS.md` | UX-numbered decisions from later reviews (separate numbering series, unaffected by this cleanup) |
 
 If you need the original question text/options for archaeology, it's in git history for this file prior to 2026-07-12.
@@ -77,7 +77,7 @@ If you need the original question text/options for archaeology, it's in git hist
 ## Template for New Questions
 
 ```
-**Q64.** <question>
+**Q65.** <question>
 *Context:* <why this needs a decision, what's blocked on it>
 *Options:*
 A) <option>
@@ -87,7 +87,7 @@ B) <option>
 When answered, replace the entry with:
 
 ```
-**Q64.** ~~<original question, truncated>...~~ **RESOLVED — <date> (<who>).**
+**Q65.** ~~<original question, truncated>...~~ **RESOLVED — <date> (<who>).**
 *Resolution:* <the decision>
 Then move the resolution + rationale into the respective authoritative doc (ADR, domain-state file, ROADMAP, or the relevant plan doc) and remove the entry from this file — this file should only ever contain genuinely open questions.
 ```
