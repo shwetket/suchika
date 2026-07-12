@@ -73,3 +73,6 @@ review-*.md
 /web/test-results/
 /web/test-results/*
 
+
+# SonarQube scanner working directory
+.scannerwork/
