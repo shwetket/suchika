@@ -5,7 +5,7 @@
 | **Type** | Reference — ADR Log |
 | **Audience** | All developers |
 | **Status** | Active |
-| **Last updated** | 2026-07-12 (ADR-022 Phase 2 implemented — `wealth.insurance_policy` + full CRUD vertical slice, `THIRTY_SEVENTY_TARGET`'s insurance-premiums term wired to real monthly-normalized policy data (was hardcoded 0 in Phase 1); `computeGoalDetail()`/frontend UI deferred to Phase 3. See `documents/domain-state/wealth.md` for the build record) |
+| **Last updated** | 2026-07-12 (ADR-022 **all 3 phases now Implemented** — Phase 3 shipped: `computeGoalDetail()`/`WEALTH_GOAL_DETAIL_FAMILY` gateway step, plus the full Goal Plans and Insurance Policies frontend, plus Dashboard milestone/rule enrichment. See `documents/domain-state/wealth.md` for the build record) |
 
 ## Objective
 
@@ -42,7 +42,7 @@ Record every significant architectural decision made for this project, along wit
 | [ADR-019](#adr-019-profileid-as-a-plain-field-on-domain-entities-adr-006-addendum) | `profileId` as a Plain Field on Domain Entities (ADR-006 addendum) | Accepted — 2026-06-30, documented 2026-07-03 |
 | [ADR-020](#adr-020-flyway-consolidation--db-constraint-policy-keep-fkuniquepknot-null-drop-check-only) | Flyway Consolidation & DB Constraint Policy: Keep FK/UNIQUE/PK/NOT NULL, Drop CHECK Only | Accepted — 2026-07-05 |
 | [ADR-021](#adr-021-login-auto-attaches-to-the-single-existing-admin-no-client-side-carry-forward) | Login Auto-Attaches to the Single Existing Admin (No Client-Side Carry-Forward) | Accepted — 2026-07-10 |
-| [ADR-022](#adr-022-richer-financial-goal-model-additive-walthgoal_plan-tables-not-a-computeformulagoals-rewrite) | Richer Financial Goal Model — Additive `wealth.goal_plan` Tables + Corrected `computeFormulaGoals()` Math + `insurance_policy` | **Phase 2 implemented 2026-07-12** (`goal_plan` + corrected formulas + `insurance_policy` + real premium wiring); `computeGoalDetail()`/Phase 3 frontend still pending |
+| [ADR-022](#adr-022-richer-financial-goal-model-additive-walthgoal_plan-tables-not-a-computeformulagoals-rewrite) | Richer Financial Goal Model — Additive `wealth.goal_plan` Tables + Corrected `computeFormulaGoals()` Math + `insurance_policy` | **Implemented — all 3 phases complete 2026-07-12** (`goal_plan` + corrected formulas + `insurance_policy` + real premium wiring + `computeGoalDetail()`/`WEALTH_GOAL_DETAIL_FAMILY` + full Goal Plans/Insurance Policies frontend + Dashboard enrichment) |
 
 ---
 
@@ -527,7 +527,7 @@ The previous mechanism — carry forward `admin_id`/`profile_id` from whatever `
 
 ## ADR-022: Richer Financial Goal Model — Additive `wealth.goal_plan` Tables, Not a `computeFormulaGoals()` Rewrite
 
-**Status:** **Phase 2 implemented 2026-07-12** — Phase 1 (`wealth.goal_plan` + 3 child tables, corrected `computeFormulaGoals()`, `ExpenseCategory` widened) plus Phase 2 (`wealth.insurance_policy` (`V5__insurance_policy.sql`) + full domain/ports/adapters CRUD vertical slice, `THIRTY_SEVENTY_TARGET`'s insurance-premiums term wired to real active-policy data, monthly-normalized — ANNUAL ÷ 12, MONTHLY pass-through — replacing the Phase 1 hardcoded-0 placeholder) are both implemented. `computeGoalDetail()`/`WEALTH_GOAL_DETAIL_FAMILY` (the milestone/rule/trigger-event merge step, including `INSURANCE_FREE`'s "WITH insurance" raw-list comparison) and any Goal Plans/Insurance Policies frontend UI remain deliberately deferred to Phase 3 — see `documents/domain-state/wealth.md`'s Implementation Status table for the full build record. Everything below this line is the original v2 design proposal (2026-07-11), kept as-is for history; where the shipped implementation made a concrete simplification (e.g. `goal_plan.detail`/`insurance_policy.payout_structure` as a flat `Map<String,String>` rather than nested JSON), that is noted in the domain-state file, not retrofitted into this text.
+**Status:** **Implemented — all 3 phases complete 2026-07-12.** Phase 1 (`wealth.goal_plan` + 3 child tables, corrected `computeFormulaGoals()`, `ExpenseCategory` widened), Phase 2 (`wealth.insurance_policy` (`V5__insurance_policy.sql`) + full domain/ports/adapters CRUD vertical slice, `THIRTY_SEVENTY_TARGET`'s insurance-premiums term wired to real active-policy data, monthly-normalized — ANNUAL ÷ 12, MONTHLY pass-through — replacing the Phase 1 hardcoded-0 placeholder), and Phase 3 (`computeGoalDetail()`/`WEALTH_GOAL_DETAIL_FAMILY` — the milestone/rule/trigger-event merge step matching each `goal_plan` row to its live `WEALTH_FORMULA_GOALS_FAMILY` entry, including `INSURANCE_FREE`'s "WITH insurance" raw-list attachment; plus the full Goal Plans and Insurance Policies frontend CRUD UI; plus Dashboard milestone/rule enrichment with a tested graceful fallback) are all implemented. See `documents/domain-state/wealth.md`'s Implementation Status table for the full build record of all 3 phases. Everything below this line is the original v2 design proposal (2026-07-11), kept as-is for history; where the shipped implementation made a concrete simplification (e.g. `goal_plan.detail`/`insurance_policy.payout_structure` as a flat `Map<String,String>` rather than nested JSON), that is noted in the domain-state file, not retrofitted into this text.
 
 ### What changed from v1, and why
 

@@ -33,6 +33,8 @@ export const API_ENDPOINTS = {
   ACCOUNTS: '/v1/accounts',
   TRANSACTIONS: '/v1/transactions',
   PHYSICAL_ASSETS: '/v1/physical-assets',
+  GOAL_PLANS: '/v1/goal-plans',
+  INSURANCE_POLICIES: '/v1/insurance-policies',
 
   // Household domain (via gateway)
   CALENDAR_EVENTS: '/v1/household/calendar-events',
@@ -68,6 +70,8 @@ export const ROUTE_PATHS = {
   WEALTH_TRANSACTIONS: '/wealth/transactions',
   WEALTH_REPORTS: '/wealth/reports',
   WEALTH_PHYSICAL_ASSETS: '/wealth/physical-assets',
+  WEALTH_GOAL_PLANS: '/wealth/goal-plans',
+  WEALTH_INSURANCE_POLICIES: '/wealth/insurance-policies',
 
   HOUSEHOLD_PROFILES: '/household/profiles',
   HOUSEHOLD_CALENDAR: '/household/calendar',

@@ -128,6 +128,8 @@ export const Navigation = ({ theme, onToggleTheme }) => {
                 <DropdownLink to="/wealth/accounts">Accounts</DropdownLink>
                 <DropdownLink to="/wealth/transactions">Transactions</DropdownLink>
                 <DropdownLink to="/wealth/physical-assets">Physical Assets</DropdownLink>
+                <DropdownLink to="/wealth/goal-plans">Goal Plans</DropdownLink>
+                <DropdownLink to="/wealth/insurance-policies">Insurance Policies</DropdownLink>
               </NavDropdown>
 
               <NavDropdown label="Health">

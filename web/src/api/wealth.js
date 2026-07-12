@@ -1,4 +1,4 @@
-import { get, post, patch, del } from './client';
+import { get, post, put, patch, del } from './client';
 import { API_ENDPOINTS } from '../utils/constants';
 
 export function listAccounts(profileId, accountType, isActive) {
@@ -99,3 +99,68 @@ export const updatePhysicalAsset = (assetId, profileId, data) =>
 
 export const deactivatePhysicalAsset = (assetId, profileId) =>
   del(`${API_ENDPOINTS.PHYSICAL_ASSETS}/${assetId}?profile_id=${encodeURIComponent(profileId)}`);
+
+// ── Goal Plans (ADR-022) — admin_id-scoped, not profile_id ─────────────────
+
+export const listGoalPlans = (adminId) =>
+  get(`${API_ENDPOINTS.GOAL_PLANS}?admin_id=${encodeURIComponent(adminId)}`);
+
+export const createGoalPlan = (adminId, data) =>
+  post(`${API_ENDPOINTS.GOAL_PLANS}?admin_id=${encodeURIComponent(adminId)}`, data);
+
+export const getGoalPlan = (goalPlanId, adminId) =>
+  get(`${API_ENDPOINTS.GOAL_PLANS}/${goalPlanId}?admin_id=${encodeURIComponent(adminId)}`);
+
+export const updateGoalPlan = (goalPlanId, adminId, data) =>
+  patch(`${API_ENDPOINTS.GOAL_PLANS}/${goalPlanId}?admin_id=${encodeURIComponent(adminId)}`, data);
+
+export const deactivateGoalPlan = (goalPlanId, adminId) =>
+  del(`${API_ENDPOINTS.GOAL_PLANS}/${goalPlanId}?admin_id=${encodeURIComponent(adminId)}`);
+
+export const replaceGoalPlanMilestones = (goalPlanId, adminId, milestones) =>
+  put(
+    `${API_ENDPOINTS.GOAL_PLANS}/${goalPlanId}/milestones?admin_id=${encodeURIComponent(adminId)}`,
+    milestones
+  );
+
+export const updateGoalPlanMilestoneAchieved = (goalPlanId, milestoneId, adminId, isAchieved) =>
+  patch(
+    `${API_ENDPOINTS.GOAL_PLANS}/${goalPlanId}/milestones/${milestoneId}?admin_id=${encodeURIComponent(adminId)}`,
+    { is_achieved: isAchieved }
+  );
+
+export const replaceGoalPlanRules = (goalPlanId, adminId, rules) =>
+  put(
+    `${API_ENDPOINTS.GOAL_PLANS}/${goalPlanId}/rules?admin_id=${encodeURIComponent(adminId)}`,
+    rules
+  );
+
+export const replaceGoalPlanTriggerEvents = (goalPlanId, adminId, triggerEvents) =>
+  put(
+    `${API_ENDPOINTS.GOAL_PLANS}/${goalPlanId}/trigger-events?admin_id=${encodeURIComponent(adminId)}`,
+    triggerEvents
+  );
+
+// ── Insurance Policies (ADR-022 Phase 2) — admin_id-scoped, not profile_id ─
+
+export const listInsurancePolicies = (adminId) =>
+  get(`${API_ENDPOINTS.INSURANCE_POLICIES}?admin_id=${encodeURIComponent(adminId)}`);
+
+export const createInsurancePolicy = (adminId, data) =>
+  post(`${API_ENDPOINTS.INSURANCE_POLICIES}?admin_id=${encodeURIComponent(adminId)}`, data);
+
+export const getInsurancePolicy = (insurancePolicyId, adminId) =>
+  get(
+    `${API_ENDPOINTS.INSURANCE_POLICIES}/${insurancePolicyId}?admin_id=${encodeURIComponent(adminId)}`
+  );
+
+export const updateInsurancePolicy = (insurancePolicyId, adminId, data) =>
+  patch(
+    `${API_ENDPOINTS.INSURANCE_POLICIES}/${insurancePolicyId}?admin_id=${encodeURIComponent(adminId)}`,
+    data
+  );
+
+export const deactivateInsurancePolicy = (insurancePolicyId, adminId) =>
+  del(
+    `${API_ENDPOINTS.INSURANCE_POLICIES}/${insurancePolicyId}?admin_id=${encodeURIComponent(adminId)}`
+  );

@@ -25,6 +25,8 @@ import {
   Transactions as WealthTransactions,
   Reports as WealthReports,
   PhysicalAssets as WealthPhysicalAssets,
+  GoalPlans as WealthGoalPlans,
+  InsurancePolicies as WealthInsurancePolicies,
 } from './pages/Wealth';
 import {
   Profiles as HouseholdProfiles,
@@ -132,6 +134,22 @@ function App() {
               element={
                 <ProtectedRoute requiredRole="user">
                   <WealthPhysicalAssets />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/wealth/goal-plans"
+              element={
+                <ProtectedRoute requiredRole="user">
+                  <WealthGoalPlans />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/wealth/insurance-policies"
+              element={
+                <ProtectedRoute requiredRole="user">
+                  <WealthInsurancePolicies />
                 </ProtectedRoute>
               }
             />

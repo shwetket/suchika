@@ -146,6 +146,27 @@ public class ProjectionCalculationEngine {
     private static final java.util.Set<String> INCOME_CATEGORIES =
             java.util.Set.of("SALARY", "RENTAL", "OTHER_INCOME");
 
+    // ADR-022 Phase 3 — computeGoalDetail() field name constants.
+    private static final String GOAL_DETAILS_FIELD = "goal_details";
+    private static final String MILESTONES_FIELD = "milestones";
+    private static final String RULES_FIELD = "rules";
+    private static final String TRIGGER_EVENTS_FIELD = "trigger_events";
+    private static final String OBJECTIVE_FIELD = "objective";
+    private static final String TARGET_STATE_FIELD = "target_state";
+    private static final String DETAIL_FIELD = "detail";
+    private static final String ID_FIELD = "id";
+    private static final String SEQUENCE_NO_FIELD = "sequence_no";
+    private static final String LABEL_FIELD = "label";
+    private static final String SIGNIFICANCE_FIELD = "significance";
+    private static final String IS_MANUAL_CHECKLIST_FIELD = "is_manual_checklist";
+    private static final String IS_ACHIEVED_FIELD = "is_achieved";
+    private static final String POLICY_NAME_FIELD = "policy_name";
+    private static final String PROVIDER_FIELD = "provider";
+    private static final String POLICY_TYPE_FIELD = "policy_type";
+    private static final String COVERAGE_AMOUNT_FIELD = "coverage_amount";
+    private static final String PAYOUT_STRUCTURE_FIELD = "payout_structure";
+    private static final String INSURANCE_FREE_GOAL_TYPE = "INSURANCE_FREE";
+
     // Epic 8 Phase 3 — annual growth rates injected via config; field initializer provides
     // the same default so plain `new` in unit tests produces correct expected values.
     @ConfigProperty(name = "app.wealth.growth.rate.MUTUAL_FUND", defaultValue = "0.12")
@@ -197,8 +218,11 @@ public class ProjectionCalculationEngine {
      * 8  computeLiquidityTiers        — WEALTH_LIQUIDITY_TIERS_FAMILY
      * 9  computeGrowthProjection      — WEALTH_GROWTH_PROJECTION_FAMILY
      * 10 computeFormulaGoals          — WEALTH_FORMULA_GOALS_FAMILY
-     * 11 computeValidation            — WEALTH_VALIDATION_REPORT_FAMILY
-     * 12 computeActionCenterAlerts    — ACTION_CENTER_ALERTS_FAMILY
+     * 11 computeGoalDetail            — WEALTH_GOAL_DETAIL_FAMILY (ADR-022 Phase 3;
+     *                                    must run after computeFormulaGoals — reads its
+     *                                    just-written snapshot from the same pass)
+     * 12 computeValidation            — WEALTH_VALIDATION_REPORT_FAMILY
+     * 13 computeActionCenterAlerts    — ACTION_CENTER_ALERTS_FAMILY
      */
     public DashboardResponse refreshAll(UUID profileId) {
         AppLogger.info("ProjectionEngine: refreshing all snapshots for profile %s", profileId);
@@ -212,6 +236,7 @@ public class ProjectionCalculationEngine {
         runStep("computeLiquidityTiers", profileId, this::computeLiquidityTiers);
         runStep("computeGrowthProjection", profileId, this::computeGrowthProjection);
         runStep("computeFormulaGoals", profileId, this::computeFormulaGoals);
+        runStep("computeGoalDetail", profileId, this::computeGoalDetail);
         runStep("computeValidation", profileId, this::computeValidation);
         runStep("computeActionCenterAlerts", profileId,
                 id -> computeActionCenterAlerts(id, LocalDate.now(ZoneId.of("Asia/Kolkata"))));
@@ -1155,6 +1180,185 @@ public class ProjectionCalculationEngine {
             return currentValue <= targetValue;
         }
         return currentValue >= targetValue;
+    }
+
+    // ── WEALTH_GOAL_DETAIL_FAMILY (ADR-022 Phase 3) ────────────────────────────
+
+    /**
+     * Merges each configured {@code wealth.goal_plan} row with its live
+     * WEALTH_FORMULA_GOALS_FAMILY entry (already written earlier in this same
+     * refreshAll pass — read back via {@link #loadSnapshotsAsMap}, the same pattern
+     * {@link #computeValidation} uses for WEALTH_EMI_TRACKING_FAMILY). A goal_plan row
+     * with no live match is skipped, not errored (defensive — shouldn't normally
+     * happen). A goal type with no configured goal_plan row is simply absent from this
+     * snapshot; WEALTH_FORMULA_GOALS_FAMILY still shows every live goal regardless.
+     */
+    void computeGoalDetail(UUID profileId) {
+        UUID adminId = resolveAdminId(profileId);
+        if (adminId == null) {
+            return;
+        }
+
+        JsonNode formulaGoals = loadSnapshotsAsMap(profileId)
+                .getOrDefault(SnapshotKey.WEALTH_FORMULA_GOALS_FAMILY, MAPPER.createObjectNode())
+                .path(GOALS_FIELD);
+
+        JsonNode goalPlans;
+        try {
+            goalPlans = wealthServiceClient.listGoalPlans(adminId).path(GOAL_PLANS_FIELD);
+        } catch (RuntimeException e) {
+            AppLogger.info("ProjectionEngine: could not load goal plans for admin %s, skipping goal detail", adminId);
+            return;
+        }
+        if (!goalPlans.isArray()) {
+            return;
+        }
+
+        ArrayNode goalDetailsArray = MAPPER.createArrayNode();
+        for (JsonNode plan : goalPlans) {
+            JsonNode matchedGoal = findMatchingFormulaGoal(formulaGoals, plan);
+            if (matchedGoal == null) {
+                continue;
+            }
+            ObjectNode entry = buildGoalDetailEntry(plan, matchedGoal);
+            if (INSURANCE_FREE_GOAL_TYPE.equals(plan.path(GOAL_TYPE_FIELD).asText(""))) {
+                entry.set(INSURANCE_POLICIES_FIELD, activeInsurancePolicies(adminId));
+            }
+            goalDetailsArray.add(entry);
+        }
+
+        ObjectNode payload = MAPPER.createObjectNode();
+        payload.set(GOAL_DETAILS_FIELD, goalDetailsArray);
+        snapshotRepository.upsert(profileId, SnapshotKey.WEALTH_GOAL_DETAIL_FAMILY, payload.toString());
+    }
+
+    /**
+     * Join key: goal_id == goal_type for the 4 singleton types; goal_id == goal_type
+     * AND beneficiary_profile_id for YEAR_ONE (YEAR_ONE formula-goal entries already
+     * carry beneficiary_profile_id — see buildYearOneGoalEntry).
+     */
+    private JsonNode findMatchingFormulaGoal(JsonNode formulaGoals, JsonNode plan) {
+        if (!formulaGoals.isArray()) {
+            return null;
+        }
+        String goalType = plan.path(GOAL_TYPE_FIELD).asText("");
+        String beneficiaryProfileId = plan.path(BENEFICIARY_PROFILE_ID_FIELD).asText("");
+        for (JsonNode goal : formulaGoals) {
+            if (!goalType.equals(goal.path(GOAL_ID_FIELD).asText(""))) {
+                continue;
+            }
+            if (YEAR_ONE_GOAL_TYPE.equals(goalType)) {
+                if (beneficiaryProfileId.equals(goal.path(BENEFICIARY_PROFILE_ID_FIELD).asText(""))) {
+                    return goal;
+                }
+            } else {
+                return goal;
+            }
+        }
+        return null;
+    }
+
+    private ObjectNode buildGoalDetailEntry(JsonNode plan, JsonNode matchedGoal) {
+        String goalType = plan.path(GOAL_TYPE_FIELD).asText("");
+        ObjectNode entry = MAPPER.createObjectNode();
+        entry.put(GOAL_ID_FIELD, goalType);
+        String beneficiaryProfileId = plan.path(BENEFICIARY_PROFILE_ID_FIELD).asText("");
+        if (!beneficiaryProfileId.isEmpty()) {
+            entry.put(BENEFICIARY_PROFILE_ID_FIELD, beneficiaryProfileId);
+        }
+        entry.put(OBJECTIVE_FIELD, plan.path(OBJECTIVE_FIELD).asText(""));
+        if (plan.hasNonNull(TARGET_STATE_FIELD)) {
+            entry.put(TARGET_STATE_FIELD, plan.path(TARGET_STATE_FIELD).asText(""));
+        }
+        entry.set(DETAIL_FIELD, plan.path(DETAIL_FIELD));
+        entry.put(CURRENT_VALUE_FIELD, matchedGoal.path(CURRENT_VALUE_FIELD).asDouble(0.0));
+        entry.put(TARGET_VALUE_FIELD, matchedGoal.path(TARGET_VALUE_FIELD).asDouble(0.0));
+        entry.put(STATUS_FIELD, matchedGoal.path(STATUS_FIELD).asText(""));
+        entry.put(UNIT_FIELD, matchedGoal.path(UNIT_FIELD).asText(""));
+
+        ArrayNode milestonesArray = MAPPER.createArrayNode();
+        for (JsonNode milestone : plan.path(MILESTONES_FIELD)) {
+            milestonesArray.add(buildMilestoneDetailEntry(goalType, milestone, matchedGoal));
+        }
+        entry.set(MILESTONES_FIELD, milestonesArray);
+        entry.set(RULES_FIELD, plan.path(RULES_FIELD));
+        entry.set(TRIGGER_EVENTS_FIELD, plan.path(TRIGGER_EVENTS_FIELD));
+        return entry;
+    }
+
+    /**
+     * is_manual_checklist milestones keep their own admin-toggled is_achieved
+     * unchanged (never recomputed here — that's the single-milestone PATCH endpoint's
+     * job). Non-checklist milestones derive is_achieved from the matched goal's live
+     * current_value vs. the milestone's own target_value, using the same
+     * {@link #isGoalAchieved} per-goal-type direction lookup computeFormulaGoals()
+     * already built — not a re-hardcoded exception.
+     */
+    private ObjectNode buildMilestoneDetailEntry(String goalType, JsonNode milestone, JsonNode matchedGoal) {
+        ObjectNode entry = MAPPER.createObjectNode();
+        entry.put(ID_FIELD, milestone.path(ID_FIELD).asText(""));
+        entry.put(SEQUENCE_NO_FIELD, milestone.path(SEQUENCE_NO_FIELD).asInt(0));
+        entry.put(LABEL_FIELD, milestone.path(LABEL_FIELD).asText(""));
+        entry.put(SIGNIFICANCE_FIELD, milestone.path(SIGNIFICANCE_FIELD).asText(""));
+        boolean isManualChecklist = milestone.path(IS_MANUAL_CHECKLIST_FIELD).asBoolean(false);
+        entry.put(IS_MANUAL_CHECKLIST_FIELD, isManualChecklist);
+        if (milestone.hasNonNull(TARGET_VALUE_FIELD)) {
+            entry.put(TARGET_VALUE_FIELD, milestone.path(TARGET_VALUE_FIELD).asDouble(0.0));
+        }
+
+        boolean achieved;
+        if (isManualChecklist) {
+            achieved = milestone.path(IS_ACHIEVED_FIELD).asBoolean(false);
+        } else {
+            double currentValue = matchedGoal.path(CURRENT_VALUE_FIELD).asDouble(0.0);
+            double milestoneTarget = milestone.path(TARGET_VALUE_FIELD).asDouble(0.0);
+            achieved = isGoalAchieved(goalType, currentValue, milestoneTarget);
+        }
+        entry.put(IS_ACHIEVED_FIELD, achieved);
+        return entry;
+    }
+
+    /**
+     * Raw list, not a blended total (ADR-022, confirmed 2026-07-11) — payout_structure
+     * is heterogeneous (lump sum / escalating income / sum-assured-at-maturity) and
+     * collapsing it into one comparable figure needs real actuarial logic, out of
+     * scope here. Only active policies are included.
+     */
+    private ArrayNode activeInsurancePolicies(UUID adminId) {
+        ArrayNode result = MAPPER.createArrayNode();
+        JsonNode policies;
+        try {
+            policies = wealthServiceClient.listInsurancePolicies(adminId).path(INSURANCE_POLICIES_FIELD);
+        } catch (RuntimeException e) {
+            AppLogger.info(
+                    "ProjectionEngine: could not load insurance policies for admin %s, omitting from goal detail",
+                    adminId);
+            return result;
+        }
+        if (!policies.isArray()) {
+            return result;
+        }
+        for (JsonNode policy : policies) {
+            if (!policy.path(IS_ACTIVE_FIELD).asBoolean(false)) {
+                continue;
+            }
+            result.add(buildInsurancePolicyDetailEntry(policy));
+        }
+        return result;
+    }
+
+    private ObjectNode buildInsurancePolicyDetailEntry(JsonNode policy) {
+        ObjectNode entry = MAPPER.createObjectNode();
+        entry.put(PROVIDER_FIELD, policy.path(PROVIDER_FIELD).asText(""));
+        entry.put(POLICY_NAME_FIELD, policy.path(POLICY_NAME_FIELD).asText(""));
+        entry.put(POLICY_TYPE_FIELD, policy.path(POLICY_TYPE_FIELD).asText(""));
+        entry.put(PREMIUM_AMOUNT_FIELD, policy.path(PREMIUM_AMOUNT_FIELD).asDouble(0.0));
+        entry.put(PREMIUM_FREQUENCY_FIELD, policy.path(PREMIUM_FREQUENCY_FIELD).asText(""));
+        if (policy.hasNonNull(COVERAGE_AMOUNT_FIELD)) {
+            entry.put(COVERAGE_AMOUNT_FIELD, policy.path(COVERAGE_AMOUNT_FIELD).asDouble(0.0));
+        }
+        entry.set(PAYOUT_STRUCTURE_FIELD, policy.path(PAYOUT_STRUCTURE_FIELD));
+        return entry;
     }
 
     // ── WEALTH_VALIDATION_REPORT_FAMILY (Epic 8 Phase 4) ──────────────────────

@@ -454,7 +454,7 @@ class ProjectionCalculationEngineTest {
     // ── refreshAll ───────────────────────────────────────────────────────────
 
     @Test
-    void refreshAll_callsAllTwelveComputeMethods() throws Exception {
+    void refreshAll_callsAllThirteenComputeMethods() throws Exception {
         // Stub all clients with empty-but-valid responses
         when(wealthClient.listAccounts(any(), any(), any()))
                 .thenReturn(buildEmptyAccountsResponse());
@@ -473,7 +473,8 @@ class ProjectionCalculationEngineTest {
 
         engine.refreshAll(PROFILE_ID);
 
-        // All twelve SnapshotKey upserts must have fired (6 original + 3 Phase 3 + 2 Phase 4 + 1 Phase 3 v0.5)
+        // All thirteen SnapshotKey upserts must have fired (6 original + 3 Phase 3 +
+        // 2 Phase 4 + 1 Phase 3 v0.5 + 1 ADR-022 Phase 3)
         verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_NET_WORTH), anyString());
         verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_GOAL_PROGRESS), anyString());
         verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.HEALTH_VITALS_SUMMARY), anyString());
@@ -484,10 +485,11 @@ class ProjectionCalculationEngineTest {
         verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_LIQUIDITY_TIERS_FAMILY), anyString());
         verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_GROWTH_PROJECTION_FAMILY), anyString());
         verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_FORMULA_GOALS_FAMILY), anyString());
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_GOAL_DETAIL_FAMILY), anyString());
         verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_VALIDATION_REPORT_FAMILY), anyString());
         verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.ACTION_CENTER_ALERTS_FAMILY), anyString());
-        // Total: exactly 12 upsert calls
-        verify(snapshotRepo, times(12)).upsert(any(), anyString(), anyString());
+        // Total: exactly 13 upsert calls
+        verify(snapshotRepo, times(13)).upsert(any(), anyString(), anyString());
     }
 
     @Test
@@ -1010,6 +1012,355 @@ class ProjectionCalculationEngineTest {
             assertFalse("Zoya".equals(goal.path("beneficiary_name").asText()),
                     "Unconfigured child Zoya must not appear anywhere in the payload");
         }
+    }
+
+    // ── computeGoalDetail (ADR-022 Phase 3) ──────────────────────────────────
+
+    @Test
+    void computeGoalDetail_singletonGoal_mergesConfigAndComputesNonChecklistMilestoneStatus() throws Exception {
+        when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
+        when(snapshotRepo.findByProfileId(PROFILE_ID)).thenReturn(List.of(
+                formulaGoalsSnapshotDto(formulaGoalNode("DEBT_CROSSOVER", 150.0, 100.0, "ACHIEVED", "percent", null))));
+
+        ObjectNode detail = MAPPER.createObjectNode();
+        detail.put("baseline_debt", "400000");
+        ObjectNode plan = goalPlanNode("DEBT_CROSSOVER", null, "Reduce debt below MF corpus", "Debt fully covered", detail);
+        ArrayNode milestones = MAPPER.createArrayNode();
+        milestones.add(milestoneNode("m1", 1, "Halfway there", 75.0, false, false, "Corpus covers half the debt"));
+        plan.set("milestones", milestones);
+        ArrayNode rules = MAPPER.createArrayNode();
+        rules.add(ruleNode(1, "No Liquidation", "Never liquidate the MF corpus early"));
+        plan.set("rules", rules);
+        ArrayNode triggerEvents = MAPPER.createArrayNode();
+        triggerEvents.add(triggerEventNode(1, "Bonus received", "Annual bonus credited", "Lump-sum into MF corpus"));
+        plan.set("trigger_events", triggerEvents);
+        when(wealthClient.listGoalPlans(ADMIN_ID)).thenReturn(goalPlansResponse(plan));
+
+        engine.computeGoalDetail(PROFILE_ID);
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_GOAL_DETAIL_FAMILY), payloadCaptor.capture());
+        JsonNode goalDetails = payload(payloadCaptor).path("goal_details");
+        assertEquals(1, goalDetails.size());
+
+        JsonNode entry = goalDetails.get(0);
+        assertEquals("DEBT_CROSSOVER", entry.path("goal_id").asText());
+        assertEquals("Reduce debt below MF corpus", entry.path("objective").asText());
+        assertEquals("Debt fully covered", entry.path("target_state").asText());
+        assertEquals("400000", entry.path("detail").path("baseline_debt").asText());
+        assertEquals(150.0, entry.path("current_value").asDouble(), 0.001);
+        assertEquals(100.0, entry.path("target_value").asDouble(), 0.001);
+        assertEquals("ACHIEVED", entry.path("status").asText());
+        assertFalse(entry.has("insurance_policies"), "Non-INSURANCE_FREE goals must not carry a policy list");
+
+        JsonNode milestone = entry.path("milestones").get(0);
+        assertEquals("Halfway there", milestone.path("label").asText());
+        // DEBT_CROSSOVER is "higher is better"; 150 >= 75 → achieved
+        assertTrue(milestone.path("is_achieved").asBoolean());
+        assertFalse(milestone.path("is_manual_checklist").asBoolean());
+
+        assertEquals("No Liquidation", entry.path("rules").get(0).path("rule_name").asText());
+        assertEquals("Bonus received", entry.path("trigger_events").get(0).path("event_name").asText());
+    }
+
+    @Test
+    void computeGoalDetail_yearOne_perChild_joinsByBeneficiaryProfileId() throws Exception {
+        UUID childA = UUID.fromString("dddddddd-1111-0000-0000-000000000001");
+        UUID childB = UUID.fromString("dddddddd-1111-0000-0000-000000000002");
+
+        when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
+        when(snapshotRepo.findByProfileId(PROFILE_ID)).thenReturn(List.of(
+                formulaGoalsSnapshotDto(
+                        formulaGoalNode("YEAR_ONE", 40.0, 100.0, "IN_PROGRESS", "percent", childA),
+                        formulaGoalNode("YEAR_ONE", 120.0, 100.0, "ACHIEVED", "percent", childB))));
+
+        ObjectNode planA = goalPlanNode("YEAR_ONE", childA, "Fund Aanya's first year", null, MAPPER.createObjectNode());
+        planA.set("milestones", MAPPER.createArrayNode());
+        planA.set("rules", MAPPER.createArrayNode());
+        planA.set("trigger_events", MAPPER.createArrayNode());
+        ObjectNode planB = goalPlanNode("YEAR_ONE", childB, "Fund Zoya's first year", null, MAPPER.createObjectNode());
+        planB.set("milestones", MAPPER.createArrayNode());
+        planB.set("rules", MAPPER.createArrayNode());
+        planB.set("trigger_events", MAPPER.createArrayNode());
+        when(wealthClient.listGoalPlans(ADMIN_ID)).thenReturn(goalPlansResponse(planA, planB));
+
+        engine.computeGoalDetail(PROFILE_ID);
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_GOAL_DETAIL_FAMILY), payloadCaptor.capture());
+        JsonNode goalDetails = payload(payloadCaptor).path("goal_details");
+        assertEquals(2, goalDetails.size());
+
+        JsonNode entryA = findByBeneficiary(goalDetails, childA);
+        assertEquals("Fund Aanya's first year", entryA.path("objective").asText());
+        assertEquals(40.0, entryA.path("current_value").asDouble(), 0.001);
+
+        JsonNode entryB = findByBeneficiary(goalDetails, childB);
+        assertEquals("Fund Zoya's first year", entryB.path("objective").asText());
+        assertEquals(120.0, entryB.path("current_value").asDouble(), 0.001);
+    }
+
+    @Test
+    void computeGoalDetail_manualChecklistMilestone_usesOwnIsAchieved_notRecomputed() throws Exception {
+        when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
+        when(snapshotRepo.findByProfileId(PROFILE_ID)).thenReturn(List.of(
+                formulaGoalsSnapshotDto(formulaGoalNode("FREEDOM_RUNWAY", 2.0, 360.0, "IN_PROGRESS", "months", null))));
+
+        ObjectNode plan = goalPlanNode("FREEDOM_RUNWAY", null, "Build a 30-year runway", null, MAPPER.createObjectNode());
+        ArrayNode milestones = MAPPER.createArrayNode();
+        // is_manual_checklist=true, target_value omitted entirely, is_achieved=true —
+        // current_value (2.0) is nowhere near a formula-derived "achieved" outcome, proving
+        // this status is NOT recomputed from current_value.
+        ObjectNode checklistMilestone = MAPPER.createObjectNode();
+        checklistMilestone.put("id", "m-checklist");
+        checklistMilestone.put("sequence_no", 1);
+        checklistMilestone.put("label", "Opened emergency fund account");
+        checklistMilestone.put("is_manual_checklist", true);
+        checklistMilestone.put("is_achieved", true);
+        checklistMilestone.put("significance", "First concrete step");
+        milestones.add(checklistMilestone);
+        plan.set("milestones", milestones);
+        plan.set("rules", MAPPER.createArrayNode());
+        plan.set("trigger_events", MAPPER.createArrayNode());
+        when(wealthClient.listGoalPlans(ADMIN_ID)).thenReturn(goalPlansResponse(plan));
+
+        engine.computeGoalDetail(PROFILE_ID);
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_GOAL_DETAIL_FAMILY), payloadCaptor.capture());
+        JsonNode milestone = payload(payloadCaptor).path("goal_details").get(0).path("milestones").get(0);
+
+        assertTrue(milestone.path("is_manual_checklist").asBoolean());
+        assertTrue(milestone.path("is_achieved").asBoolean());
+        assertFalse(milestone.has("target_value"), "Checklist milestones with no target_value must omit the field, not default to 0");
+    }
+
+    @Test
+    void computeGoalDetail_thirtySeventyTarget_milestoneRespectsLowerIsBetterException() throws Exception {
+        when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
+        when(snapshotRepo.findByProfileId(PROFILE_ID)).thenReturn(List.of(
+                formulaGoalsSnapshotDto(formulaGoalNode("THIRTY_SEVENTY_TARGET", 25.0, 30.0, "ACHIEVED", "percent", null))));
+
+        ObjectNode plan = goalPlanNode("THIRTY_SEVENTY_TARGET", null, "Keep essentials under 30%", null, MAPPER.createObjectNode());
+        ArrayNode milestones = MAPPER.createArrayNode();
+        // 25 <= 28 → achieved (lower-is-better)
+        milestones.add(milestoneNode("m-achieved", 1, "Under 28%", 28.0, false, false, "First checkpoint"));
+        // 25 <= 20 is false → not achieved
+        milestones.add(milestoneNode("m-not-achieved", 2, "Under 20%", 20.0, false, false, "Stretch checkpoint"));
+        plan.set("milestones", milestones);
+        plan.set("rules", MAPPER.createArrayNode());
+        plan.set("trigger_events", MAPPER.createArrayNode());
+        when(wealthClient.listGoalPlans(ADMIN_ID)).thenReturn(goalPlansResponse(plan));
+
+        engine.computeGoalDetail(PROFILE_ID);
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_GOAL_DETAIL_FAMILY), payloadCaptor.capture());
+        JsonNode milestones2 = payload(payloadCaptor).path("goal_details").get(0).path("milestones");
+
+        assertTrue(milestones2.get(0).path("is_achieved").asBoolean());
+        assertFalse(milestones2.get(1).path("is_achieved").asBoolean());
+    }
+
+    @Test
+    void computeGoalDetail_insuranceFree_attachesOnlyActivePolicies() throws Exception {
+        when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
+        when(snapshotRepo.findByProfileId(PROFILE_ID)).thenReturn(List.of(
+                formulaGoalsSnapshotDto(formulaGoalNode("INSURANCE_FREE", 100.0, 100.0, "ACHIEVED", "percent", null))));
+
+        ObjectNode plan = goalPlanNode("INSURANCE_FREE", null, "Zero reliance on insurance payout", null, MAPPER.createObjectNode());
+        plan.set("milestones", MAPPER.createArrayNode());
+        plan.set("rules", MAPPER.createArrayNode());
+        plan.set("trigger_events", MAPPER.createArrayNode());
+        when(wealthClient.listGoalPlans(ADMIN_ID)).thenReturn(goalPlansResponse(plan));
+
+        ArrayNode policies = MAPPER.createArrayNode();
+        policies.add(insurancePolicyNode("LIC", "Term Cover", "TERM", 1000.0, "MONTHLY", 5000000.0, true));
+        policies.add(insurancePolicyNode("HDFC Life", "Old Endowment", "ENDOWMENT", 500.0, "MONTHLY", 1000000.0, false));
+        when(wealthClient.listInsurancePolicies(ADMIN_ID)).thenReturn(MAPPER.createObjectNode().set("insurance_policies", policies));
+
+        engine.computeGoalDetail(PROFILE_ID);
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_GOAL_DETAIL_FAMILY), payloadCaptor.capture());
+        JsonNode insurancePolicies = payload(payloadCaptor).path("goal_details").get(0).path("insurance_policies");
+
+        assertEquals(1, insurancePolicies.size());
+        JsonNode policy = insurancePolicies.get(0);
+        assertEquals("LIC", policy.path("provider").asText());
+        assertEquals("Term Cover", policy.path("policy_name").asText());
+        assertEquals("TERM", policy.path("policy_type").asText());
+        assertEquals(1000.0, policy.path("premium_amount").asDouble(), 0.001);
+        assertEquals("MONTHLY", policy.path("premium_frequency").asText());
+        assertEquals(5000000.0, policy.path("coverage_amount").asDouble(), 0.001);
+    }
+
+    @Test
+    void computeGoalDetail_goalPlanRowWithNoLiveMatch_skippedNotErrored() throws Exception {
+        when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
+        // Only DEBT_CROSSOVER is live this pass — FREEDOM_RUNWAY has no matching formula-goal entry
+        when(snapshotRepo.findByProfileId(PROFILE_ID)).thenReturn(List.of(
+                formulaGoalsSnapshotDto(formulaGoalNode("DEBT_CROSSOVER", 150.0, 100.0, "ACHIEVED", "percent", null))));
+
+        ObjectNode orphanPlan = goalPlanNode("FREEDOM_RUNWAY", null, "Never matched", null, MAPPER.createObjectNode());
+        orphanPlan.set("milestones", MAPPER.createArrayNode());
+        orphanPlan.set("rules", MAPPER.createArrayNode());
+        orphanPlan.set("trigger_events", MAPPER.createArrayNode());
+        when(wealthClient.listGoalPlans(ADMIN_ID)).thenReturn(goalPlansResponse(orphanPlan));
+
+        assertDoesNotThrow(() -> engine.computeGoalDetail(PROFILE_ID));
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_GOAL_DETAIL_FAMILY), payloadCaptor.capture());
+        assertEquals(0, payload(payloadCaptor).path("goal_details").size());
+    }
+
+    @Test
+    void computeGoalDetail_noGoalPlansConfigured_writesEmptyGoalDetailsArray() throws Exception {
+        when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
+        when(snapshotRepo.findByProfileId(PROFILE_ID)).thenReturn(List.of(
+                formulaGoalsSnapshotDto(formulaGoalNode("DEBT_CROSSOVER", 150.0, 100.0, "ACHIEVED", "percent", null))));
+        // wealthClient.listGoalPlans defaults to an empty goal_plans array (setUp())
+
+        engine.computeGoalDetail(PROFILE_ID);
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_GOAL_DETAIL_FAMILY), payloadCaptor.capture());
+        assertEquals(0, payload(payloadCaptor).path("goal_details").size());
+    }
+
+    @Test
+    void computeGoalDetail_noAdminId_returnsEarlyWithoutUpsert() throws Exception {
+        ObjectNode profileWithoutAdmin = MAPPER.createObjectNode();
+        profileWithoutAdmin.put("profile_id", PROFILE_ID.toString());
+        when(profileClient.getProfile(PROFILE_ID)).thenReturn(profileWithoutAdmin);
+
+        engine.computeGoalDetail(PROFILE_ID);
+
+        verify(snapshotRepo, never()).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_GOAL_DETAIL_FAMILY), anyString());
+    }
+
+    @Test
+    void computeGoalDetail_goalPlanLookupFails_doesNotThrow_skipsSnapshot() throws Exception {
+        when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
+        when(snapshotRepo.findByProfileId(PROFILE_ID)).thenReturn(List.of(
+                formulaGoalsSnapshotDto(formulaGoalNode("DEBT_CROSSOVER", 150.0, 100.0, "ACHIEVED", "percent", null))));
+        when(wealthClient.listGoalPlans(ADMIN_ID)).thenThrow(new RuntimeException("wealth service unavailable"));
+
+        assertDoesNotThrow(() -> engine.computeGoalDetail(PROFILE_ID));
+
+        verify(snapshotRepo, never()).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_GOAL_DETAIL_FAMILY), anyString());
+    }
+
+    // ── computeGoalDetail test helpers ───────────────────────────────────────
+
+    private JsonNode findByBeneficiary(JsonNode goalDetails, UUID beneficiaryProfileId) {
+        for (JsonNode entry : goalDetails) {
+            if (beneficiaryProfileId.toString().equals(entry.path("beneficiary_profile_id").asText())) {
+                return entry;
+            }
+        }
+        throw new AssertionError("No goal_details entry found for beneficiary " + beneficiaryProfileId);
+    }
+
+    private DashboardSnapshotDto formulaGoalsSnapshotDto(ObjectNode... goals) {
+        ArrayNode array = MAPPER.createArrayNode();
+        for (ObjectNode goal : goals) {
+            array.add(goal);
+        }
+        ObjectNode payload = MAPPER.createObjectNode();
+        payload.set("goals", array);
+        return buildSnapshotDto(SnapshotKey.WEALTH_FORMULA_GOALS_FAMILY, payload.toString());
+    }
+
+    private ObjectNode formulaGoalNode(String goalId, double currentValue, double targetValue, String status,
+                                        String unit, UUID beneficiaryProfileId) {
+        ObjectNode goal = MAPPER.createObjectNode();
+        goal.put("goal_id", goalId);
+        goal.put("goal_name", goalId);
+        goal.put("status", status);
+        goal.put("description", goalId + " description");
+        goal.put("current_value", currentValue);
+        goal.put("target_value", targetValue);
+        goal.put("unit", unit);
+        if (beneficiaryProfileId != null) {
+            goal.put("beneficiary_profile_id", beneficiaryProfileId.toString());
+            goal.put("beneficiary_name", "Child");
+        }
+        return goal;
+    }
+
+    private ObjectNode goalPlanNode(String goalType, UUID beneficiaryProfileId, String objective,
+                                     String targetState, ObjectNode detail) {
+        ObjectNode plan = MAPPER.createObjectNode();
+        plan.put("goal_type", goalType);
+        if (beneficiaryProfileId != null) {
+            plan.put("beneficiary_profile_id", beneficiaryProfileId.toString());
+        }
+        plan.put("objective", objective);
+        if (targetState != null) {
+            plan.put("target_state", targetState);
+        }
+        plan.set("detail", detail);
+        return plan;
+    }
+
+    private ObjectNode milestoneNode(String id, int sequenceNo, String label, Double targetValue,
+                                      boolean isManualChecklist, boolean isAchieved, String significance) {
+        ObjectNode milestone = MAPPER.createObjectNode();
+        milestone.put("id", id);
+        milestone.put("sequence_no", sequenceNo);
+        milestone.put("label", label);
+        if (targetValue != null) {
+            milestone.put("target_value", targetValue);
+        }
+        milestone.put("is_manual_checklist", isManualChecklist);
+        milestone.put("is_achieved", isAchieved);
+        milestone.put("significance", significance);
+        return milestone;
+    }
+
+    private ObjectNode ruleNode(int sequenceNo, String ruleName, String ruleText) {
+        ObjectNode rule = MAPPER.createObjectNode();
+        rule.put("sequence_no", sequenceNo);
+        rule.put("rule_name", ruleName);
+        rule.put("rule_text", ruleText);
+        return rule;
+    }
+
+    private ObjectNode triggerEventNode(int sequenceNo, String eventName, String triggerCondition, String resultingChange) {
+        ObjectNode trigger = MAPPER.createObjectNode();
+        trigger.put("sequence_no", sequenceNo);
+        trigger.put("event_name", eventName);
+        trigger.put("trigger_condition", triggerCondition);
+        trigger.put("resulting_change", resultingChange);
+        return trigger;
+    }
+
+    private ObjectNode insurancePolicyNode(String provider, String policyName, String policyType,
+                                            double premiumAmount, String premiumFrequency,
+                                            Double coverageAmount, boolean isActive) {
+        ObjectNode policy = MAPPER.createObjectNode();
+        policy.put("id", UUID.randomUUID().toString());
+        policy.put("provider", provider);
+        policy.put("policy_name", policyName);
+        policy.put("policy_type", policyType);
+        policy.put("premium_amount", premiumAmount);
+        policy.put("premium_frequency", premiumFrequency);
+        if (coverageAmount != null) {
+            policy.put("coverage_amount", coverageAmount);
+        }
+        policy.set("payout_structure", MAPPER.createObjectNode());
+        policy.put("is_active", isActive);
+        return policy;
+    }
+
+    private JsonNode goalPlansResponse(ObjectNode... plans) {
+        ArrayNode array = MAPPER.createArrayNode();
+        for (ObjectNode plan : plans) {
+            array.add(plan);
+        }
+        return MAPPER.createObjectNode().set("goal_plans", array);
     }
 
     // ── computeValidation (Epic 8 Phase 4) ───────────────────────────────────
