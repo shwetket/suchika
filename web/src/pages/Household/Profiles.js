@@ -96,6 +96,7 @@ ProfileCard.propTypes = {
     is_active: PropTypes.bool.isRequired,
   }).isRequired,
   onEdit: PropTypes.func.isRequired,
+  onDeactivate: PropTypes.func,
 };
 
 const inputClass =
