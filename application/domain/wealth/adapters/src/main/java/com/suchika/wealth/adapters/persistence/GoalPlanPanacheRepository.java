@@ -16,6 +16,9 @@ import java.util.UUID;
 @ApplicationScoped
 public class GoalPlanPanacheRepository implements GoalPlanRepository {
 
+    private static final String BY_GOAL_PLAN_ORDERED = "goalPlanId = ?1 order by sequenceNo";
+    private static final String GOAL_PLAN_ID_FIELD = "goalPlanId";
+
     private final GoalPlanDao goalPlanDao;
     private final GoalPlanMilestoneDao milestoneDao;
     private final GoalPlanRuleDao ruleDao;
@@ -65,14 +68,14 @@ public class GoalPlanPanacheRepository implements GoalPlanRepository {
 
     @Override
     public List<GoalMilestone> findMilestones(UUID goalPlanId) {
-        return milestoneDao.find("goalPlanId = ?1 order by sequenceNo", goalPlanId)
+        return milestoneDao.find(BY_GOAL_PLAN_ORDERED, goalPlanId)
                 .stream().map(GoalPlanMilestoneEntity::toDomain).toList();
     }
 
     @Override
     @Transactional
     public List<GoalMilestone> replaceMilestones(UUID goalPlanId, List<GoalMilestone> milestones) {
-        milestoneDao.delete("goalPlanId", goalPlanId);
+        milestoneDao.delete(GOAL_PLAN_ID_FIELD, goalPlanId);
         milestoneDao.getEntityManager().flush();
         for (GoalMilestone milestone : milestones) {
             milestoneDao.persist(GoalPlanMilestoneEntity.from(goalPlanId, milestone));
@@ -82,14 +85,14 @@ public class GoalPlanPanacheRepository implements GoalPlanRepository {
 
     @Override
     public List<GoalRule> findRules(UUID goalPlanId) {
-        return ruleDao.find("goalPlanId = ?1 order by sequenceNo", goalPlanId)
+        return ruleDao.find(BY_GOAL_PLAN_ORDERED, goalPlanId)
                 .stream().map(GoalPlanRuleEntity::toDomain).toList();
     }
 
     @Override
     @Transactional
     public List<GoalRule> replaceRules(UUID goalPlanId, List<GoalRule> rules) {
-        ruleDao.delete("goalPlanId", goalPlanId);
+        ruleDao.delete(GOAL_PLAN_ID_FIELD, goalPlanId);
         ruleDao.getEntityManager().flush();
         for (GoalRule rule : rules) {
             ruleDao.persist(GoalPlanRuleEntity.from(goalPlanId, rule));
@@ -99,14 +102,14 @@ public class GoalPlanPanacheRepository implements GoalPlanRepository {
 
     @Override
     public List<GoalTriggerEvent> findTriggerEvents(UUID goalPlanId) {
-        return triggerEventDao.find("goalPlanId = ?1 order by sequenceNo", goalPlanId)
+        return triggerEventDao.find(BY_GOAL_PLAN_ORDERED, goalPlanId)
                 .stream().map(GoalPlanTriggerEventEntity::toDomain).toList();
     }
 
     @Override
     @Transactional
     public List<GoalTriggerEvent> replaceTriggerEvents(UUID goalPlanId, List<GoalTriggerEvent> triggerEvents) {
-        triggerEventDao.delete("goalPlanId", goalPlanId);
+        triggerEventDao.delete(GOAL_PLAN_ID_FIELD, goalPlanId);
         triggerEventDao.getEntityManager().flush();
         for (GoalTriggerEvent event : triggerEvents) {
             triggerEventDao.persist(GoalPlanTriggerEventEntity.from(goalPlanId, event));

@@ -50,8 +50,9 @@ class InsurancePolicyServiceTest {
 
     @Test
     void createInsurancePolicy_invalidPolicy_domainValidationThrowsIllegalArgument() {
+        CreateInsurancePolicyCommand invalidCommand = cmd("Term Plan", new BigDecimal("-1"), PremiumFrequency.MONTHLY);
         assertThrows(IllegalArgumentException.class, () ->
-                service.createInsurancePolicy(ADMIN_ID, cmd("Term Plan", new BigDecimal("-1"), PremiumFrequency.MONTHLY)));
+                service.createInsurancePolicy(ADMIN_ID, invalidCommand));
     }
 
     @Test
@@ -110,6 +111,42 @@ class InsurancePolicyServiceTest {
     }
 
     @Test
+    void updateInsurancePolicy_providerPremiumFrequencyCoverageAmountAndIsActive_allApplied() {
+        InsurancePolicy policy = service.createInsurancePolicy(ADMIN_ID,
+                cmd("Term Plan", new BigDecimal("1500"), PremiumFrequency.MONTHLY));
+
+        InsurancePolicy updated = service.updateInsurancePolicy(policy.getId(), ADMIN_ID,
+                new UpdateInsurancePolicyCommand(null, "New Provider", null, PremiumFrequency.ANNUAL,
+                        new BigDecimal("500000"), null, false));
+
+        assertEquals("New Provider", updated.getProvider());
+        assertEquals(PremiumFrequency.ANNUAL, updated.getPremiumFrequency());
+        assertEquals(0, new BigDecimal("500000").compareTo(updated.getCoverageAmount()));
+        assertFalse(updated.isActive());
+    }
+
+    @Test
+    void updateInsurancePolicy_blankProvider_throwsBadRequest() {
+        InsurancePolicy policy = service.createInsurancePolicy(ADMIN_ID,
+                cmd("Term Plan", new BigDecimal("1500"), PremiumFrequency.MONTHLY));
+
+        assertThrows(BadRequestException.class, () -> service.updateInsurancePolicy(policy.getId(), ADMIN_ID,
+                new UpdateInsurancePolicyCommand(null, "   ", null, null, null, null, null)));
+    }
+
+    @Test
+    void updateInsurancePolicy_isActiveTrue_reactivatesPolicy() {
+        InsurancePolicy policy = service.createInsurancePolicy(ADMIN_ID,
+                cmd("Term Plan", new BigDecimal("1500"), PremiumFrequency.MONTHLY));
+        service.deactivateInsurancePolicy(policy.getId(), ADMIN_ID);
+
+        InsurancePolicy updated = service.updateInsurancePolicy(policy.getId(), ADMIN_ID,
+                new UpdateInsurancePolicyCommand(null, null, null, null, null, null, true));
+
+        assertTrue(updated.isActive());
+    }
+
+    @Test
     void updateInsurancePolicy_blankPolicyName_throwsBadRequest() {
         InsurancePolicy policy = service.createInsurancePolicy(ADMIN_ID,
                 cmd("Term Plan", new BigDecimal("1500"), PremiumFrequency.MONTHLY));
@@ -159,6 +196,7 @@ class InsurancePolicyServiceTest {
 
     /** Minimal in-memory fake — mirrors GoalPlanServiceTest's FakeGoalPlanRepository pattern. */
     static class FakeInsurancePolicyRepository implements InsurancePolicyRepository {
+        private static final java.time.Instant FIXED_NOW = java.time.Instant.parse("2026-07-12T00:00:00Z");
         private final Map<UUID, InsurancePolicy> policies = new HashMap<>();
 
         @Override
@@ -175,8 +213,8 @@ class InsurancePolicyServiceTest {
                     .coverageAmount(insurancePolicy.getCoverageAmount())
                     .payoutStructure(new HashMap<>(insurancePolicy.getPayoutStructure()))
                     .active(insurancePolicy.isActive())
-                    .createdAt(java.time.Instant.now())
-                    .updatedAt(java.time.Instant.now())
+                    .createdAt(FIXED_NOW)
+                    .updatedAt(FIXED_NOW)
                     .build();
             policies.put(id, stored);
             return stored;

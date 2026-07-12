@@ -129,6 +129,7 @@ AssetCard.propTypes = {
   asset: PropTypes.shape({
     asset_id: PropTypes.string.isRequired,
     asset_name: PropTypes.string.isRequired,
+    asset_type: PropTypes.string,
     // make/model/registration_number/registration_type are VEHICLE-only fields —
     // genuinely null for REAL_ESTATE/GOLD_JEWELRY/GOLD_BOND assets (v1.0 net-worth-model pass).
     make: PropTypes.string,
@@ -143,6 +144,30 @@ AssetCard.propTypes = {
   onEdit: PropTypes.func.isRequired,
   onDeactivate: PropTypes.func.isRequired,
 };
+
+// Returns a validation error message for the add form, or null when valid.
+// Extracted from handleAddSubmit to keep that callback's cognitive complexity low.
+function validateAddForm(form) {
+  if (!form.asset_name.trim()) {
+    return 'Asset name is required';
+  }
+  if (form.asset_type !== 'VEHICLE') {
+    return null;
+  }
+  if (!form.make.trim()) {
+    return 'Make is required';
+  }
+  if (!form.model.trim()) {
+    return 'Model is required';
+  }
+  if (!form.registration_number.trim()) {
+    return 'Registration number is required';
+  }
+  if (!form.registration_type) {
+    return 'Registration type is required';
+  }
+  return null;
+}
 
 export const PhysicalAssets = () => {
   const [profiles, setProfiles] = useState([]);
@@ -210,27 +235,10 @@ export const PhysicalAssets = () => {
   const handleAddSubmit = useCallback(
     async (e) => {
       e.preventDefault();
-      if (!addForm.asset_name.trim()) {
-        setAddError('Asset name is required');
+      const validationError = validateAddForm(addForm);
+      if (validationError) {
+        setAddError(validationError);
         return;
-      }
-      if (addForm.asset_type === 'VEHICLE') {
-        if (!addForm.make.trim()) {
-          setAddError('Make is required');
-          return;
-        }
-        if (!addForm.model.trim()) {
-          setAddError('Model is required');
-          return;
-        }
-        if (!addForm.registration_number.trim()) {
-          setAddError('Registration number is required');
-          return;
-        }
-        if (!addForm.registration_type) {
-          setAddError('Registration type is required');
-          return;
-        }
       }
       setAddSaving(true);
       setAddError(null);

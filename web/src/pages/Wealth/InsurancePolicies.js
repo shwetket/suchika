@@ -33,9 +33,9 @@ function formToPayload(form) {
     policy_name: form.policy_name.trim(),
     provider: form.provider.trim(),
     policy_type: form.policy_type,
-    premium_amount: form.premium_amount !== '' ? Number(form.premium_amount) : 0,
+    premium_amount: form.premium_amount === '' ? 0 : Number(form.premium_amount),
     premium_frequency: form.premium_frequency,
-    coverage_amount: form.coverage_amount !== '' ? Number(form.coverage_amount) : null,
+    coverage_amount: form.coverage_amount === '' ? null : Number(form.coverage_amount),
   };
 }
 
@@ -383,18 +383,7 @@ export const InsurancePolicies = () => {
               />
             </Field>
 
-            {editingPolicy.is_active !== false ? (
-              <div className="flex justify-end pt-2 border-t">
-                <button
-                  type="button"
-                  onClick={() => deactivateMutation.mutate(editingPolicy.id)}
-                  disabled={deactivateMutation.isPending}
-                  className="text-sm font-medium text-red-600 hover:text-red-700 disabled:opacity-50"
-                >
-                  {deactivateMutation.isPending ? 'Deactivating...' : 'Deactivate this policy'}
-                </button>
-              </div>
-            ) : (
+            {editingPolicy.is_active === false ? (
               <div className="flex justify-end pt-2 border-t">
                 <button
                   type="button"
@@ -405,6 +394,17 @@ export const InsurancePolicies = () => {
                   className="text-sm font-medium text-blue-600 hover:text-blue-700 disabled:opacity-50"
                 >
                   {updateMutation.isPending ? 'Reactivating...' : 'Reactivate policy'}
+                </button>
+              </div>
+            ) : (
+              <div className="flex justify-end pt-2 border-t">
+                <button
+                  type="button"
+                  onClick={() => deactivateMutation.mutate(editingPolicy.id)}
+                  disabled={deactivateMutation.isPending}
+                  className="text-sm font-medium text-red-600 hover:text-red-700 disabled:opacity-50"
+                >
+                  {deactivateMutation.isPending ? 'Deactivating...' : 'Deactivate this policy'}
                 </button>
               </div>
             )}

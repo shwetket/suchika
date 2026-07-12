@@ -25,6 +25,8 @@ const {
   listAccounts,
   createAccount,
   updateAccount,
+  updateAccountClassification,
+  deactivateAccount,
   getAccountBalance,
 } = require('../../api/wealth');
 
@@ -461,6 +463,348 @@ describe('Accounts page', () => {
       expect(screen.getByRole('option', { name: /MaxGain Buffer - HL1/i })).toBeInTheDocument();
       expect(screen.getByRole('option', { name: /SBI Savings/i })).toBeInTheDocument();
       expect(dropdown).toBeInTheDocument();
+    });
+  });
+
+  describe('Type and active filters', () => {
+    it('requests accounts filtered by the selected type tab', async () => {
+      listAccounts.mockResolvedValue({ accounts: MOCK_ACCOUNTS });
+      await selectProfileAndWaitForAccounts();
+
+      fireEvent.click(screen.getByRole('button', { name: 'CREDIT CARD' }));
+
+      await waitFor(() => {
+        expect(listAccounts).toHaveBeenLastCalledWith('p1', 'CREDIT_CARD', null);
+      });
+    });
+
+    it('requests accounts filtered by Active / Inactive', async () => {
+      listAccounts.mockResolvedValue({ accounts: MOCK_ACCOUNTS });
+      await selectProfileAndWaitForAccounts();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Active' }));
+      await waitFor(() => {
+        expect(listAccounts).toHaveBeenLastCalledWith('p1', null, true);
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Inactive' }));
+      await waitFor(() => {
+        expect(listAccounts).toHaveBeenLastCalledWith('p1', null, false);
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'All' }));
+      await waitFor(() => {
+        expect(listAccounts).toHaveBeenLastCalledWith('p1', null, null);
+      });
+    });
+  });
+
+  describe('Add account validation and cancel', () => {
+    async function openAddModal() {
+      listAccounts.mockResolvedValue({ accounts: [] });
+      render(<Accounts />);
+      await waitFor(() => screen.getByText('Alice'));
+      fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+      await waitFor(() => screen.getByText('+ Add Account'));
+      fireEvent.click(screen.getByText('+ Add Account'));
+      await waitFor(() => screen.getByRole('heading', { name: 'Add Account' }));
+    }
+
+    function submitAddForm() {
+      const submitBtn = screen
+        .getAllByRole('button', { name: /Add Account/i })
+        .find((b) => b.type === 'submit');
+      fireEvent.click(submitBtn);
+    }
+
+    it('requires an account name', async () => {
+      await openAddModal();
+      submitAddForm();
+      await waitFor(() => {
+        expect(screen.getByText(/account name is required/i)).toBeInTheDocument();
+      });
+      expect(createAccount).not.toHaveBeenCalled();
+    });
+
+    it('requires an account type', async () => {
+      await openAddModal();
+      fireEvent.change(screen.getByPlaceholderText(/e\.g\. SBI Savings/i), {
+        target: { value: 'Test Account' },
+      });
+      submitAddForm();
+      await waitFor(() => {
+        expect(screen.getByText(/account type is required/i)).toBeInTheDocument();
+      });
+      expect(createAccount).not.toHaveBeenCalled();
+    });
+
+    it('requires an institution name', async () => {
+      await openAddModal();
+      fireEvent.change(screen.getByPlaceholderText(/e\.g\. SBI Savings/i), {
+        target: { value: 'Test Account' },
+      });
+      const typeSelect = screen
+        .getAllByRole('combobox')
+        .find((s) => s.getAttribute('name') === 'account_type');
+      fireEvent.change(typeSelect, { target: { value: 'SAVINGS' } });
+      submitAddForm();
+      await waitFor(() => {
+        expect(screen.getByText(/institution name is required/i)).toBeInTheDocument();
+      });
+      expect(createAccount).not.toHaveBeenCalled();
+    });
+
+    it('shows an error banner when creating an account fails', async () => {
+      createAccount.mockRejectedValue(new Error('create acct failed'));
+      await openAddModal();
+      fireEvent.change(screen.getByPlaceholderText(/e\.g\. SBI Savings/i), {
+        target: { value: 'Test Account' },
+      });
+      const typeSelect = screen
+        .getAllByRole('combobox')
+        .find((s) => s.getAttribute('name') === 'account_type');
+      fireEvent.change(typeSelect, { target: { value: 'SAVINGS' } });
+      const instSelect = screen
+        .getAllByRole('combobox')
+        .find((s) => s.getAttribute('name') === 'institution_name');
+      fireEvent.change(instSelect, { target: { value: 'State Bank of India' } });
+      submitAddForm();
+      await waitFor(() => {
+        expect(screen.getByText('create acct failed')).toBeInTheDocument();
+      });
+    });
+
+    it('closes the add modal via Cancel without saving', async () => {
+      await openAddModal();
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+      await waitFor(() => {
+        expect(screen.queryByRole('heading', { name: 'Add Account' })).not.toBeInTheDocument();
+      });
+      expect(createAccount).not.toHaveBeenCalled();
+    });
+
+    it('shows Credit Limit field for CREDIT_CARD and Interest/EMI fields for a loan type', async () => {
+      await openAddModal();
+      const typeSelect = screen
+        .getAllByRole('combobox')
+        .find((s) => s.getAttribute('name') === 'account_type');
+
+      fireEvent.change(typeSelect, { target: { value: 'CREDIT_CARD' } });
+      expect(screen.getByText('Credit Limit')).toBeInTheDocument();
+      expect(screen.queryByText('Interest Rate (%)')).not.toBeInTheDocument();
+
+      fireEvent.change(typeSelect, { target: { value: 'HOME_LOAN' } });
+      expect(screen.getByText('Interest Rate (%)')).toBeInTheDocument();
+      expect(screen.getByText('EMI Amount')).toBeInTheDocument();
+      expect(screen.queryByText('Credit Limit')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Edit account submit flow', () => {
+    it('submits the edit form and reloads accounts', async () => {
+      listAccounts.mockResolvedValue({ accounts: MOCK_ACCOUNTS });
+      updateAccount.mockResolvedValue({});
+      await selectProfileAndWaitForAccounts();
+
+      const editButtons = screen.getAllByRole('button', { name: 'Edit account' });
+      fireEvent.click(editButtons[0]);
+
+      const nameInput = await screen.findByDisplayValue('SBI Savings');
+      fireEvent.change(nameInput, { target: { value: 'SBI Savings Updated' } });
+
+      const saveBtn = screen.getByRole('button', { name: /save changes/i });
+      fireEvent.click(saveBtn);
+
+      await waitFor(() => {
+        expect(updateAccount).toHaveBeenCalledWith(
+          'a1',
+          'p1',
+          expect.objectContaining({ account_name: 'SBI Savings Updated' })
+        );
+      });
+    });
+
+    it('shows an error banner when updating an account fails', async () => {
+      listAccounts.mockResolvedValue({ accounts: MOCK_ACCOUNTS });
+      updateAccount.mockRejectedValue(new Error('update failed'));
+      await selectProfileAndWaitForAccounts();
+
+      const editButtons = screen.getAllByRole('button', { name: 'Edit account' });
+      fireEvent.click(editButtons[0]);
+
+      await screen.findByDisplayValue('SBI Savings');
+      fireEvent.click(screen.getByRole('button', { name: /save changes/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText('update failed')).toBeInTheDocument();
+      });
+    });
+
+    it('closes the edit modal via Cancel without saving', async () => {
+      listAccounts.mockResolvedValue({ accounts: MOCK_ACCOUNTS });
+      await selectProfileAndWaitForAccounts();
+
+      const editButtons = screen.getAllByRole('button', { name: 'Edit account' });
+      fireEvent.click(editButtons[0]);
+
+      await screen.findByDisplayValue('SBI Savings');
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+      await waitFor(() => {
+        expect(screen.queryByDisplayValue('SBI Savings')).not.toBeInTheDocument();
+      });
+      expect(updateAccount).not.toHaveBeenCalled();
+    });
+
+    it('patches loan classification metadata alongside the base account update', async () => {
+      const loanAccount = {
+        account_id: 'loan-1',
+        account_name: 'Home Loan',
+        account_type: 'HOME_LOAN',
+        institution_name: 'Bank of Baroda',
+        opening_balance: 3000000,
+        interest_rate: 7.2,
+        is_active: true,
+        metadata: {},
+      };
+      listAccounts.mockResolvedValue({ accounts: [loanAccount] });
+      updateAccount.mockResolvedValue({});
+      updateAccountClassification.mockResolvedValue({});
+
+      render(<Accounts />);
+      await waitFor(() => screen.getByText('Alice'));
+      fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+      await waitFor(() => screen.getByText('Home Loan'));
+
+      const editButtons = screen.getAllByRole('button', { name: 'Edit account' });
+      fireEvent.click(editButtons[0]);
+
+      const principalInput = await screen.findByLabelText('Original Principal (₹)');
+      fireEvent.change(principalInput, { target: { value: '2500000' } });
+
+      fireEvent.click(screen.getByRole('button', { name: /save changes/i }));
+
+      await waitFor(() => {
+        expect(updateAccountClassification).toHaveBeenCalledWith(
+          'loan-1',
+          'p1',
+          expect.objectContaining({ loan_original_principal: '2500000' })
+        );
+      });
+    });
+  });
+
+  describe('Deactivate confirmation flow', () => {
+    it('cancels the deactivate confirmation without calling the API', async () => {
+      listAccounts.mockResolvedValue({ accounts: MOCK_ACCOUNTS });
+      await selectProfileAndWaitForAccounts();
+
+      const editButtons = screen.getAllByRole('button', { name: 'Edit account' });
+      fireEvent.click(editButtons[0]);
+      await waitFor(() => screen.getByText('Deactivate this account'));
+      fireEvent.click(screen.getByText('Deactivate this account'));
+
+      await waitFor(() => screen.getByRole('heading', { name: 'Deactivate Account' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+      await waitFor(() => {
+        expect(
+          screen.queryByRole('heading', { name: 'Deactivate Account' })
+        ).not.toBeInTheDocument();
+      });
+      expect(deactivateAccount).not.toHaveBeenCalled();
+    });
+
+    it('confirms deactivation and reloads accounts', async () => {
+      listAccounts.mockResolvedValue({ accounts: MOCK_ACCOUNTS });
+      deactivateAccount.mockResolvedValue({});
+      await selectProfileAndWaitForAccounts();
+
+      const editButtons = screen.getAllByRole('button', { name: 'Edit account' });
+      fireEvent.click(editButtons[0]);
+      await waitFor(() => screen.getByText('Deactivate this account'));
+      fireEvent.click(screen.getByText('Deactivate this account'));
+
+      await waitFor(() => screen.getByRole('heading', { name: 'Deactivate Account' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Deactivate' }));
+
+      await waitFor(() => {
+        expect(deactivateAccount).toHaveBeenCalledWith('a1', 'p1');
+      });
+    });
+
+    it('shows an error banner when deactivation fails', async () => {
+      listAccounts.mockResolvedValue({ accounts: MOCK_ACCOUNTS });
+      deactivateAccount.mockRejectedValue(new Error('deactivate failed'));
+      await selectProfileAndWaitForAccounts();
+
+      const editButtons = screen.getAllByRole('button', { name: 'Edit account' });
+      fireEvent.click(editButtons[0]);
+      await waitFor(() => screen.getByText('Deactivate this account'));
+      fireEvent.click(screen.getByText('Deactivate this account'));
+
+      await waitFor(() => screen.getByRole('heading', { name: 'Deactivate Account' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Deactivate' }));
+
+      await waitFor(() => {
+        expect(screen.getByText('deactivate failed')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Reactivate failure', () => {
+    it('shows an error banner when reactivation fails', async () => {
+      listAccounts.mockResolvedValue({ accounts: MOCK_ACCOUNTS });
+      updateAccount.mockRejectedValue(new Error('reactivate failed'));
+      await selectProfileAndWaitForAccounts();
+
+      const editButtons = screen.getAllByRole('button', { name: 'Edit account' });
+      fireEvent.click(editButtons[1]);
+
+      await waitFor(() => screen.getByText('Reactivate account'));
+      fireEvent.click(screen.getByText('Reactivate account'));
+
+      await waitFor(() => {
+        expect(screen.getByText('reactivate failed')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Profile load failure', () => {
+    it('falls back to an empty profile list when listProfiles fails', async () => {
+      listProfiles.mockRejectedValue(new Error('profiles down'));
+      render(<Accounts />);
+      await waitFor(() => {
+        expect(screen.getByText(/Select a profile to view accounts/i)).toBeInTheDocument();
+      });
+      expect(screen.queryByText('Alice')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Credit limit and interest rate display', () => {
+    it('shows Credit Limit and Interest Rate lines when present and positive', async () => {
+      listAccounts.mockResolvedValue({
+        accounts: [
+          {
+            account_id: 'cc1',
+            account_name: 'HDFC CC',
+            account_type: 'CREDIT_CARD',
+            institution_name: 'HDFC Bank',
+            opening_balance: 0,
+            credit_limit: 200000,
+            interest_rate: 3.5,
+            is_active: true,
+          },
+        ],
+      });
+      render(<Accounts />);
+      await waitFor(() => screen.getByText('Alice'));
+      fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+
+      await waitFor(() => {
+        expect(screen.getByText(/Credit Limit:/)).toBeInTheDocument();
+        expect(screen.getByText(/Interest Rate: 3.5%/)).toBeInTheDocument();
+      });
     });
   });
 });

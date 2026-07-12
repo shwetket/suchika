@@ -51,8 +51,8 @@ class GoalPlanPanacheRepositoryTest {
     void save_andFindById_roundTrip() {
         UUID adminId = saveAdmin();
 
-        GoalPlan saved = repository.save(GoalPlan.create(adminId, GoalType.DEBT_CROSSOVER, null,
-                "Reach a state where MF corpus exceeds outstanding debt", null, null, null, null, null));
+        GoalPlan saved = repository.save(GoalPlan.create(adminId, new GoalPlan.Spec(GoalType.DEBT_CROSSOVER, null,
+                "Reach a state where MF corpus exceeds outstanding debt", null, null, null, null, null)));
 
         assertNotNull(saved.getId());
         assertEquals(adminId, saved.getAdminId());
@@ -70,8 +70,8 @@ class GoalPlanPanacheRepositoryTest {
     void findById_wrongAdmin_returnsEmpty() {
         UUID ownerAdminId = saveAdmin();
         UUID otherAdminId = saveAdmin();
-        GoalPlan saved = repository.save(GoalPlan.create(ownerAdminId, GoalType.FREEDOM_RUNWAY, null,
-                "Objective", null, null, null, null, null));
+        GoalPlan saved = repository.save(GoalPlan.create(ownerAdminId, new GoalPlan.Spec(GoalType.FREEDOM_RUNWAY, null,
+                "Objective", null, null, null, null, null)));
 
         Optional<GoalPlan> found = repository.findById(saved.getId(), otherAdminId);
 
@@ -87,9 +87,9 @@ class GoalPlanPanacheRepositoryTest {
     void findAll_scopedByAdmin_excludesOtherHouseholds() {
         UUID ownerAdminId = saveAdmin();
         UUID otherAdminId = saveAdmin();
-        repository.save(GoalPlan.create(ownerAdminId, GoalType.FREEDOM_RUNWAY, null, "Objective 1", null, null, null, null, null));
-        repository.save(GoalPlan.create(ownerAdminId, GoalType.INSURANCE_FREE, null, "Objective 2", null, null, null, null, null));
-        repository.save(GoalPlan.create(otherAdminId, GoalType.FREEDOM_RUNWAY, null, "Other household's plan", null, null, null, null, null));
+        repository.save(GoalPlan.create(ownerAdminId, new GoalPlan.Spec(GoalType.FREEDOM_RUNWAY, null, "Objective 1", null, null, null, null, null)));
+        repository.save(GoalPlan.create(ownerAdminId, new GoalPlan.Spec(GoalType.INSURANCE_FREE, null, "Objective 2", null, null, null, null, null)));
+        repository.save(GoalPlan.create(otherAdminId, new GoalPlan.Spec(GoalType.FREEDOM_RUNWAY, null, "Other household's plan", null, null, null, null, null)));
 
         List<GoalPlan> ownerPlans = repository.findAll(ownerAdminId);
 
@@ -102,10 +102,10 @@ class GoalPlanPanacheRepositoryTest {
         UUID child1 = saveChildProfile(adminId, "Aanya");
         UUID child2 = saveChildProfile(adminId, "Zoya");
 
-        repository.save(GoalPlan.create(adminId, GoalType.YEAR_ONE, child1, "Fund Aanya's year one", null, null,
-                new BigDecimal("1000000"), new BigDecimal("0.06"), 10));
-        repository.save(GoalPlan.create(adminId, GoalType.YEAR_ONE, child2, "Fund Zoya's year one", null, null,
-                new BigDecimal("1500000"), new BigDecimal("0.06"), 12));
+        repository.save(GoalPlan.create(adminId, new GoalPlan.Spec(GoalType.YEAR_ONE, child1, "Fund Aanya's year one", null, null,
+                new BigDecimal("1000000"), new BigDecimal("0.06"), 10)));
+        repository.save(GoalPlan.create(adminId, new GoalPlan.Spec(GoalType.YEAR_ONE, child2, "Fund Zoya's year one", null, null,
+                new BigDecimal("1500000"), new BigDecimal("0.06"), 12)));
 
         List<GoalPlan> plans = repository.findAll(adminId);
 
@@ -116,7 +116,7 @@ class GoalPlanPanacheRepositoryTest {
     @Test
     void existsByAdminGoalTypeBeneficiary_singletonType_detectsDuplicate() {
         UUID adminId = saveAdmin();
-        repository.save(GoalPlan.create(adminId, GoalType.DEBT_CROSSOVER, null, "Objective", null, null, null, null, null));
+        repository.save(GoalPlan.create(adminId, new GoalPlan.Spec(GoalType.DEBT_CROSSOVER, null, "Objective", null, null, null, null, null)));
 
         assertTrue(repository.existsByAdminGoalTypeBeneficiary(adminId, GoalType.DEBT_CROSSOVER, null));
         assertFalse(repository.existsByAdminGoalTypeBeneficiary(adminId, GoalType.FREEDOM_RUNWAY, null));
@@ -127,8 +127,8 @@ class GoalPlanPanacheRepositoryTest {
         UUID adminId = saveAdmin();
         UUID child1 = saveChildProfile(adminId, "Aanya");
         UUID child2 = saveChildProfile(adminId, "Zoya");
-        repository.save(GoalPlan.create(adminId, GoalType.YEAR_ONE, child1, "Fund Aanya's year one", null, null,
-                new BigDecimal("1000000"), new BigDecimal("0.06"), 10));
+        repository.save(GoalPlan.create(adminId, new GoalPlan.Spec(GoalType.YEAR_ONE, child1, "Fund Aanya's year one", null, null,
+                new BigDecimal("1000000"), new BigDecimal("0.06"), 10)));
 
         assertTrue(repository.existsByAdminGoalTypeBeneficiary(adminId, GoalType.YEAR_ONE, child1));
         assertFalse(repository.existsByAdminGoalTypeBeneficiary(adminId, GoalType.YEAR_ONE, child2));
@@ -137,18 +137,18 @@ class GoalPlanPanacheRepositoryTest {
     @Test
     void uniqueConstraint_duplicateSingletonGoalType_violatesNullsNotDistinct() {
         UUID adminId = saveAdmin();
-        repository.save(GoalPlan.create(adminId, GoalType.DEBT_CROSSOVER, null, "First", null, null, null, null, null));
+        repository.save(GoalPlan.create(adminId, new GoalPlan.Spec(GoalType.DEBT_CROSSOVER, null, "First", null, null, null, null, null)));
+        GoalPlan duplicate = GoalPlan.create(adminId, new GoalPlan.Spec(GoalType.DEBT_CROSSOVER, null, "Second (duplicate)", null, null, null, null, null));
 
-        assertThrows(jakarta.persistence.PersistenceException.class, () -> {
-            repository.save(GoalPlan.create(adminId, GoalType.DEBT_CROSSOVER, null, "Second (duplicate)", null, null, null, null, null));
-            em.flush();
-        }, "UNIQUE NULLS NOT DISTINCT must reject a second DEBT_CROSSOVER row with the same NULL beneficiary_profile_id");
+        repository.save(duplicate);
+        assertThrows(jakarta.persistence.PersistenceException.class, em::flush,
+                "UNIQUE NULLS NOT DISTINCT must reject a second DEBT_CROSSOVER row with the same NULL beneficiary_profile_id");
     }
 
     @Test
     void replaceMilestones_bulkReplace_returnsOrderedList() {
         UUID adminId = saveAdmin();
-        GoalPlan plan = repository.save(GoalPlan.create(adminId, GoalType.FREEDOM_RUNWAY, null, "Objective", null, null, null, null, null));
+        GoalPlan plan = repository.save(GoalPlan.create(adminId, new GoalPlan.Spec(GoalType.FREEDOM_RUNWAY, null, "Objective", null, null, null, null, null)));
 
         List<GoalMilestone> milestones = List.of(
                 GoalMilestone.create(null, 0, "First", new BigDecimal("25"), false, false, "Quarter way"),
@@ -167,7 +167,7 @@ class GoalPlanPanacheRepositoryTest {
     @Test
     void replaceMilestones_secondCall_fullyReplacesFirst() {
         UUID adminId = saveAdmin();
-        GoalPlan plan = repository.save(GoalPlan.create(adminId, GoalType.FREEDOM_RUNWAY, null, "Objective", null, null, null, null, null));
+        GoalPlan plan = repository.save(GoalPlan.create(adminId, new GoalPlan.Spec(GoalType.FREEDOM_RUNWAY, null, "Objective", null, null, null, null, null)));
 
         repository.replaceMilestones(plan.getId(), List.of(
                 GoalMilestone.create(null, 0, "Old milestone", new BigDecimal("10"), false, false, "Old")));
@@ -183,7 +183,7 @@ class GoalPlanPanacheRepositoryTest {
     @Test
     void saveMilestone_singleMilestoneToggle_persistsAchievedFlag() {
         UUID adminId = saveAdmin();
-        GoalPlan plan = repository.save(GoalPlan.create(adminId, GoalType.FREEDOM_RUNWAY, null, "Objective", null, null, null, null, null));
+        GoalPlan plan = repository.save(GoalPlan.create(adminId, new GoalPlan.Spec(GoalType.FREEDOM_RUNWAY, null, "Objective", null, null, null, null, null)));
         repository.replaceMilestones(plan.getId(), List.of(
                 GoalMilestone.create(null, 0, "Checklist item", null, true, false, "Manual step")));
         GoalMilestone milestone = repository.findMilestones(plan.getId()).get(0);
@@ -199,7 +199,7 @@ class GoalPlanPanacheRepositoryTest {
     @Test
     void replaceRules_and_replaceTriggerEvents_bulkReplace() {
         UUID adminId = saveAdmin();
-        GoalPlan plan = repository.save(GoalPlan.create(adminId, GoalType.FREEDOM_RUNWAY, null, "Objective", null, null, null, null, null));
+        GoalPlan plan = repository.save(GoalPlan.create(adminId, new GoalPlan.Spec(GoalType.FREEDOM_RUNWAY, null, "Objective", null, null, null, null, null)));
 
         List<GoalRule> rules = repository.replaceRules(plan.getId(), List.of(
                 GoalRule.create(null, 0, "No Liquidation", "Never liquidate mid-goal")));

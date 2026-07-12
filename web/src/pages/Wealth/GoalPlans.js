@@ -53,15 +53,15 @@ function formToPayload(form, isYearOne) {
   const payload = {
     objective: form.objective.trim(),
     target_state: form.target_state.trim() ? form.target_state.trim() : null,
-    assumed_growth_rate: form.assumed_growth_rate !== '' ? Number(form.assumed_growth_rate) : null,
+    assumed_growth_rate: form.assumed_growth_rate === '' ? null : Number(form.assumed_growth_rate),
   };
   if (isYearOne) {
     payload.education_base_cost =
-      form.education_base_cost !== '' ? Number(form.education_base_cost) : null;
+      form.education_base_cost === '' ? null : Number(form.education_base_cost);
     payload.education_inflation_rate =
-      form.education_inflation_rate !== '' ? Number(form.education_inflation_rate) : null;
+      form.education_inflation_rate === '' ? null : Number(form.education_inflation_rate);
     payload.education_years_to_entry =
-      form.education_years_to_entry !== '' ? Number(form.education_years_to_entry) : null;
+      form.education_years_to_entry === '' ? null : Number(form.education_years_to_entry);
   }
   return payload;
 }
@@ -191,14 +191,11 @@ function PlanFormModal({
 
   const saving = saveMutation.isPending;
   const isActive = plan ? plan.is_active !== false : true;
+  const actionVerb = plan ? 'Edit' : 'Configure';
 
   return (
     <Modal
-      title={
-        isYearOne
-          ? `${plan ? 'Edit' : 'Configure'} Year One — ${beneficiaryName}`
-          : `${plan ? 'Edit' : 'Configure'} Goal Plan`
-      }
+      title={isYearOne ? `${actionVerb} Year One — ${beneficiaryName}` : `${actionVerb} Goal Plan`}
       onClose={onClose}
     >
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -455,7 +452,7 @@ function MilestoneEditor({ plan, adminId, milestones, setMilestones }) {
               type="checkbox"
               checked={m.is_manual_checklist}
               onChange={(e) => updateRow(m.localId, { is_manual_checklist: e.target.checked })}
-            />
+            />{' '}
             Manual checklist item
           </label>
           {!m.is_manual_checklist && (
@@ -486,7 +483,7 @@ function MilestoneEditor({ plan, adminId, milestones, setMilestones }) {
                 checked={Boolean(m.is_achieved)}
                 onChange={() => handleToggleAchieved(m)}
                 aria-label={`Mark "${m.label}" achieved`}
-              />
+              />{' '}
               Mark done (saves immediately)
             </label>
           )}
@@ -754,8 +751,8 @@ export const GoalPlans = () => {
   const adminId = user?.admin_id ?? null;
   const queryClient = useQueryClient();
 
-  const [formTarget, setFormTarget] = useState(null); // { goalType, beneficiaryProfileId, beneficiaryName, plan }
-  const [detailTarget, setDetailTarget] = useState(null); // plan object
+  const [formTarget, setFormTarget] = useState(null);
+  const [detailTarget, setDetailTarget] = useState(null);
 
   const goalPlansQuery = useQuery({
     queryKey: ['goalPlans', adminId],

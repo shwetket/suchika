@@ -9,7 +9,7 @@
  * @returns {string} Formatted currency string
  */
 export const formatCurrency = (value, currency = 'INR', locale = 'en-IN', fractionDigits = 0) => {
-  if (value === null || value === undefined || isNaN(Number(value))) return '—';
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return '—';
   return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency,

@@ -8,6 +8,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class GoalMilestoneTest {
 
+    private static final BigDecimal TARGET = new BigDecimal("50");
+
     @Test
     void create_nonChecklistWithoutTargetValue_throws() {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
@@ -18,12 +20,12 @@ class GoalMilestoneTest {
 
     @Test
     void create_nonChecklistWithTargetValue_succeeds() {
-        GoalMilestone milestone = GoalMilestone.create(null, 0, "Halfway", new BigDecimal("50"), false, false,
+        GoalMilestone milestone = GoalMilestone.create(null, 0, "Halfway", TARGET, false, false,
                 "Significant progress marker");
 
         assertEquals(0, milestone.getSequenceNo());
         assertEquals("Halfway", milestone.getLabel());
-        assertEquals(0, new BigDecimal("50").compareTo(milestone.getTargetValue()));
+        assertEquals(0, TARGET.compareTo(milestone.getTargetValue()));
         assertFalse(milestone.isManualChecklist());
         assertFalse(milestone.isAchieved());
     }
@@ -40,26 +42,26 @@ class GoalMilestoneTest {
     @Test
     void create_blankLabel_throws() {
         assertThrows(IllegalArgumentException.class, () ->
-                GoalMilestone.create(null, 0, "  ", new BigDecimal("50"), false, false, "Significance"));
+                GoalMilestone.create(null, 0, "  ", TARGET, false, false, "Significance"));
     }
 
     @Test
     void create_labelTooLong_throws() {
         String longLabel = "x".repeat(51);
         assertThrows(IllegalArgumentException.class, () ->
-                GoalMilestone.create(null, 0, longLabel, new BigDecimal("50"), false, false, "Significance"));
+                GoalMilestone.create(null, 0, longLabel, TARGET, false, false, "Significance"));
     }
 
     @Test
     void create_blankSignificance_throws() {
         assertThrows(IllegalArgumentException.class, () ->
-                GoalMilestone.create(null, 0, "Label", new BigDecimal("50"), false, false, "  "));
+                GoalMilestone.create(null, 0, "Label", TARGET, false, false, "  "));
     }
 
     @Test
     void create_negativeSequenceNo_throws() {
         assertThrows(IllegalArgumentException.class, () ->
-                GoalMilestone.create(null, -1, "Label", new BigDecimal("50"), false, false, "Significance"));
+                GoalMilestone.create(null, -1, "Label", TARGET, false, false, "Significance"));
     }
 
     @Test
