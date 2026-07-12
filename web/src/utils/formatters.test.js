@@ -9,8 +9,8 @@ import {
 } from './formatters';
 
 describe('formatCurrency', () => {
-  it('formats USD amount with 2 decimal places', () => {
-    expect(formatCurrency(1000)).toBe('$1,000.00');
+  it('formats INR amount with 0 decimal places', () => {
+    expect(formatCurrency(1000)).toBe('₹1,000');
   });
 
   it('formats with specified currency', () => {
@@ -25,11 +25,11 @@ describe('formatCurrency', () => {
   });
 
   it('formats zero', () => {
-    expect(formatCurrency(0)).toBe('$0.00');
+    expect(formatCurrency(0)).toBe('₹0');
   });
 
   it('formats negative values', () => {
-    expect(formatCurrency(-100)).toBe('-$100.00');
+    expect(formatCurrency(-100)).toBe('-₹100');
   });
 });
 

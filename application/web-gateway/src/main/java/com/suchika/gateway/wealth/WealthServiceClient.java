@@ -153,4 +153,91 @@ public interface WealthServiceClient {
     JsonNode getAmortization(
             @PathParam("accountId") UUID accountId,
             @QueryParam("profile_id") String profileId);
+
+    // ── Goal Plans (ADR-022 Phase 1) — pure JsonNode passthrough ──────────────
+
+    @GET
+    @Path("/goal-plans")
+    JsonNode listGoalPlans(@QueryParam("admin_id") UUID adminId);
+
+    @POST
+    @Path("/goal-plans")
+    Response createGoalPlan(@QueryParam("admin_id") UUID adminId, JsonNode body);
+
+    @GET
+    @Path("/goal-plans/{goalPlanId}")
+    JsonNode getGoalPlan(
+            @PathParam("goalPlanId") UUID goalPlanId,
+            @QueryParam("admin_id") UUID adminId);
+
+    @PATCH
+    @Path("/goal-plans/{goalPlanId}")
+    JsonNode updateGoalPlan(
+            @PathParam("goalPlanId") UUID goalPlanId,
+            @QueryParam("admin_id") UUID adminId,
+            JsonNode body);
+
+    @DELETE
+    @Path("/goal-plans/{goalPlanId}")
+    void deactivateGoalPlan(
+            @PathParam("goalPlanId") UUID goalPlanId,
+            @QueryParam("admin_id") UUID adminId);
+
+    @PUT
+    @Path("/goal-plans/{goalPlanId}/milestones")
+    JsonNode replaceGoalPlanMilestones(
+            @PathParam("goalPlanId") UUID goalPlanId,
+            @QueryParam("admin_id") UUID adminId,
+            JsonNode body);
+
+    @PATCH
+    @Path("/goal-plans/{goalPlanId}/milestones/{milestoneId}")
+    JsonNode updateGoalPlanMilestoneAchieved(
+            @PathParam("goalPlanId") UUID goalPlanId,
+            @PathParam("milestoneId") UUID milestoneId,
+            @QueryParam("admin_id") UUID adminId,
+            JsonNode body);
+
+    @PUT
+    @Path("/goal-plans/{goalPlanId}/rules")
+    JsonNode replaceGoalPlanRules(
+            @PathParam("goalPlanId") UUID goalPlanId,
+            @QueryParam("admin_id") UUID adminId,
+            JsonNode body);
+
+    @PUT
+    @Path("/goal-plans/{goalPlanId}/trigger-events")
+    JsonNode replaceGoalPlanTriggerEvents(
+            @PathParam("goalPlanId") UUID goalPlanId,
+            @QueryParam("admin_id") UUID adminId,
+            JsonNode body);
+
+    // ── Insurance Policies (ADR-022 Phase 2) — pure JsonNode passthrough ──────
+
+    @GET
+    @Path("/insurance-policies")
+    JsonNode listInsurancePolicies(@QueryParam("admin_id") UUID adminId);
+
+    @POST
+    @Path("/insurance-policies")
+    Response createInsurancePolicy(@QueryParam("admin_id") UUID adminId, JsonNode body);
+
+    @GET
+    @Path("/insurance-policies/{insurancePolicyId}")
+    JsonNode getInsurancePolicy(
+            @PathParam("insurancePolicyId") UUID insurancePolicyId,
+            @QueryParam("admin_id") UUID adminId);
+
+    @PATCH
+    @Path("/insurance-policies/{insurancePolicyId}")
+    JsonNode updateInsurancePolicy(
+            @PathParam("insurancePolicyId") UUID insurancePolicyId,
+            @QueryParam("admin_id") UUID adminId,
+            JsonNode body);
+
+    @DELETE
+    @Path("/insurance-policies/{insurancePolicyId}")
+    void deactivateInsurancePolicy(
+            @PathParam("insurancePolicyId") UUID insurancePolicyId,
+            @QueryParam("admin_id") UUID adminId);
 }

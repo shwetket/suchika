@@ -5,7 +5,7 @@
 | **Type** | Reference — ADR Log |
 | **Audience** | All developers |
 | **Status** | Active |
-| **Last updated** | 2026-07-10 (ADR-021 added) |
+| **Last updated** | 2026-07-12 (ADR-022 Phase 2 implemented — `wealth.insurance_policy` + full CRUD vertical slice, `THIRTY_SEVENTY_TARGET`'s insurance-premiums term wired to real monthly-normalized policy data (was hardcoded 0 in Phase 1); `computeGoalDetail()`/frontend UI deferred to Phase 3. See `documents/domain-state/wealth.md` for the build record) |
 
 ## Objective
 
@@ -42,6 +42,7 @@ Record every significant architectural decision made for this project, along wit
 | [ADR-019](#adr-019-profileid-as-a-plain-field-on-domain-entities-adr-006-addendum) | `profileId` as a Plain Field on Domain Entities (ADR-006 addendum) | Accepted — 2026-06-30, documented 2026-07-03 |
 | [ADR-020](#adr-020-flyway-consolidation--db-constraint-policy-keep-fkuniquepknot-null-drop-check-only) | Flyway Consolidation & DB Constraint Policy: Keep FK/UNIQUE/PK/NOT NULL, Drop CHECK Only | Accepted — 2026-07-05 |
 | [ADR-021](#adr-021-login-auto-attaches-to-the-single-existing-admin-no-client-side-carry-forward) | Login Auto-Attaches to the Single Existing Admin (No Client-Side Carry-Forward) | Accepted — 2026-07-10 |
+| [ADR-022](#adr-022-richer-financial-goal-model-additive-walthgoal_plan-tables-not-a-computeformulagoals-rewrite) | Richer Financial Goal Model — Additive `wealth.goal_plan` Tables + Corrected `computeFormulaGoals()` Math + `insurance_policy` | **Phase 2 implemented 2026-07-12** (`goal_plan` + corrected formulas + `insurance_policy` + real premium wiring); `computeGoalDetail()`/Phase 3 frontend still pending |
 
 ---
 
@@ -521,3 +522,242 @@ The previous mechanism — carry forward `admin_id`/`profile_id` from whatever `
 **Impact:** `web/src/context/AuthContext.js` (`login()` rewritten, carry-forward block removed), `web/src/components/SetupGate.js` (new `household_conflict` branch), no backend change (`listAdmins()`/`listProfiles()` already exist and already support this). No new Flyway migration, no contract change.
 
 **Supersedes:** The DB constraint philosophy previously documented in `CLAUDE.md` prior to 2026-07-05 (which additionally allowed business-rule CHECKs like `amount >= 0` to stay in the DB). This ADR's policy is now the one recorded in `CLAUDE.md`'s "DB constraint philosophy" section.
+
+---
+
+## ADR-022: Richer Financial Goal Model — Additive `wealth.goal_plan` Tables, Not a `computeFormulaGoals()` Rewrite
+
+**Status:** **Phase 2 implemented 2026-07-12** — Phase 1 (`wealth.goal_plan` + 3 child tables, corrected `computeFormulaGoals()`, `ExpenseCategory` widened) plus Phase 2 (`wealth.insurance_policy` (`V5__insurance_policy.sql`) + full domain/ports/adapters CRUD vertical slice, `THIRTY_SEVENTY_TARGET`'s insurance-premiums term wired to real active-policy data, monthly-normalized — ANNUAL ÷ 12, MONTHLY pass-through — replacing the Phase 1 hardcoded-0 placeholder) are both implemented. `computeGoalDetail()`/`WEALTH_GOAL_DETAIL_FAMILY` (the milestone/rule/trigger-event merge step, including `INSURANCE_FREE`'s "WITH insurance" raw-list comparison) and any Goal Plans/Insurance Policies frontend UI remain deliberately deferred to Phase 3 — see `documents/domain-state/wealth.md`'s Implementation Status table for the full build record. Everything below this line is the original v2 design proposal (2026-07-11), kept as-is for history; where the shipped implementation made a concrete simplification (e.g. `goal_plan.detail`/`insurance_policy.payout_structure` as a flat `Map<String,String>` rather than nested JSON), that is noted in the domain-state file, not retrofitted into this text.
+
+### What changed from v1, and why
+
+v1 assumed `computeGoalDetail()` could merge `goal_plan` milestones straight onto whatever `current_value` `computeFormulaGoals()` already emits per goal_id. **That assumption is wrong.** The product owner reviewed v1 and found the real flaw: at least 3 of the 5 shipped formulas measure the wrong thing entirely — not "less rich," a different metric under the same name. Example: shipped `DEBT_CROSSOVER` is `monthly EMI ÷ net worth`; the real Debt Crossover metric is `MF corpus ÷ outstanding debt`. Same goal_id, same card, unrelated math. Merging milestones onto the wrong number would have shipped a broken UI silently — v1's merge design was correct, its input wasn't.
+
+**Resolution: `computeFormulaGoals()`'s 5 formulas are corrected in place. This is a bugfix to existing shipped logic**, not a new parallel system — same 5 goal_ids, same `WEALTH_FORMULA_GOALS_FAMILY` snapshot key, same Dashboard Household Goals card, same `goal_plan`/`goal_plan_milestone`/additive-schema shape from v1. Once the live math is right, v1's merge-by-goal_id design in `computeGoalDetail()` becomes valid — not because of a generic assumption, but because each formula now actually shares its milestone's unit.
+
+Everything else new below (insurance_policy, per-child YEAR_ONE, income-category transactions, milestone checklist mode) is the product owner resolving gaps v1 had flagged as open (Postgres NULL-uniqueness, checklist milestones, real insurance-vs-no-insurance comparison) or hadn't scoped yet (per-child education goals).
+
+### The 5 corrected formulas — old (wrong) vs new (real), one table
+
+| Goal ID | Shipped today (wrong) | Corrected (product owner's real definition) | Unit / achieved direction |
+|---|---|---|---|
+| `DEBT_CROSSOVER` | `totalMonthlyEmi ÷ familyNetWorth × 100`, achieved when `< threshold%` (default 50) | `(family MF corpus, SELF+SPOUSE profiles only, excludes CHILD-relation accounts) ÷ (total outstanding balance across HOME_LOAN/PERSONAL_LOAN/CAR_LOAN accounts, **excluding CHILD-relation loans too — confirmed 2026-07-11**) × 100` | percent, achieved `>= 100` (**direction flips** — was the one `<` exception, now behaves like the majority) |
+| `THIRTY_SEVENTY_TARGET` | `LIQUID tier ÷ total liquidity × 100`, achieved when `>= 30%` | `(EMI total [existing WEALTH_EMI_TRACKING_FAMILY.total_monthly_emi] + non-discretionary DEBIT txns [HOUSEHOLD_CORE/CHILD_RELATED/MAINTENANCE categories] + insurance premiums [new insurance_policy table]) ÷ (trailing 3-month avg of income-tagged CREDIT txns) × 100` | percent, achieved `<= 30` (**becomes the new sole exception** — everything else is `>=`) |
+| `FREEDOM_RUNWAY` | `(LIQUID + SEMI_LIQUID tiers) ÷ monthlyBudgetCap`, achieved `>= freedom_runway_months` (default 6) | same shape, but core-runway-capital composition audited/fixed (see below); target now `360` | months, achieved `>=` (unchanged direction) |
+| `INSURANCE_FREE` | `totalInvestmentValue >= annualIncome × insurance_multiple` | `(MaxGain-purpose_tag + FD-type account balances) ÷ (outstanding debt [WEALTH_EMI_TRACKING_FAMILY.total_outstanding_balance] + legal_fees [new policy_settings key] + academic_buffer [new policy_settings key]) × 100` | percent, achieved `>= 100` (unchanged direction, changed formula) |
+| `YEAR_ONE` | household-level: `familyNetWorth >= yearOneAnnualTarget` | **per child now, not household**: for each CHILD-relation profile with >=1 active MUTUAL_FUND account: `(that child's MUTUAL_FUND account balances) ÷ (25% × future_cost)`, `future_cost = base_cost × (1 + inflation_rate)^years_to_entry` × 100 | percent, achieved `>=` (unchanged direction; entry now repeats per child instead of appearing once) |
+
+**Why the direction table matters, concretely:** v1's `computeGoalDetail()` design hardcoded "`<` for `DEBT_CROSSOVER`, `>=` for the other four" as the achieved-direction predicate for milestone comparison. That hardcoded exception is now wrong on both ends — `DEBT_CROSSOVER` becomes `>=` and `THIRTY_SEVENTY_TARGET` becomes the new `<=` exception. `computeFormulaGoals()`'s and `computeGoalDetail()`'s achieved-direction logic must both become an explicit per-goal-type lookup (a small `Map<String, Comparator-ish>` or switch), never a single "except goal X" special case — the single-exception shape is exactly what silently broke once the exception moved. This is the concrete code consequence of the flaw, not just a formula edit.
+
+**`FREEDOM_RUNWAY` core-runway-capital audit finding:** current composition is `LIQUID + SEMI_LIQUID` tiers from `computeLiquidityTiers()`, which already only reads `wealth.account` rows (real estate/gold live in `wealth.physical_asset`, a different table never read by this step, and gratuity has no schema representation at all — all three are excluded today by omission, not by design intent, but the outcome matches the product owner's exclusion list). **Two real gaps found and must be fixed:** (1) `PPF`-type accounts have no structural exclusion — if an admin tags a PPF account's `metadata.liquidity_tier` as `SEMI_LIQUID`, it counts today, and PPF is on the exclusion list; (2) the tier loop iterates every household member with no relation filter — a CHILD-relation FD or MUTUAL_FUND account tagged LIQUID/SEMI_LIQUID counts today, and children's FD/MF are both explicitly excluded. Fix: `FREEDOM_RUNWAY`'s reading of the tier totals must additionally filter out `account_type = PPF` and `relation_to_admin = CHILD` accounts at aggregation time — either a new parallel "core runway capital" aggregation (mirroring `accumulateTiersForMember` but with the 2 extra exclusions) or a 4th field alongside the existing tier totals. Recommend the former — reusing `WEALTH_LIQUIDITY_TIERS_FAMILY.tiers` as-is for `FREEDOM_RUNWAY` is no longer correct once these 2 exclusions exist, so it needs its own aggregation, not the shared one. `policy_settings.freedom_runway_months` is confirmed genuinely admin-settable today (`PATCH /v1/admins/{adminId}/policy`, Epic 8 Phase 4) — only the default changes (6 → 360), no code needed for the target itself, just an admin data-entry action.
+
+**`policy_settings` fallout — 3 of 5 keys go dead:** `debt_crossover_threshold_percent` (was the DEBT_CROSSOVER threshold, now a fixed 100), `insurance_multiple` (was INSURANCE_FREE's `× annual income` multiplier, replaced by debt + legal fees + academic buffer), and `year_one_annual_target` (was the household-level YEAR_ONE target, replaced by per-child education-cost math) are no longer read by the corrected formulas. They stay in the `policy_settings` JSONB schema (harmless, no migration needed to remove a JSONB key) but become dead config — `PolicySettings.js`'s admin form should eventually drop those 3 fields. Flagged as follow-up cleanup, out of scope for this ADR. **2 new keys added** to the same JSONB, zero migration: `insurance_free_legal_fees`, `insurance_free_academic_buffer` (both admin-entered NUMERIC-ish values feeding `INSURANCE_FREE`'s new denominator) — same `PATCH /v1/admins/{adminId}/policy` endpoint, no new endpoint needed.
+
+**`THIRTY_SEVENTY_TARGET` needs a new income-category concept on CREDIT transactions.** `ExpenseCategory` (`application/domain/wealth/domain/src/main/java/com/suchika/wealth/domain/ExpenseCategory.java`) is a plain Java enum (not a SQL enum — stored as a string in `transaction.metadata.category` JSONB, no CHECK constraint, per ADR-010) with 5 DEBIT-shaped values today: `HOUSEHOLD_CORE, CHILD_RELATED, MAINTENANCE, DISCRETIONARY, UNCATEGORIZED`. Confirmed by reading `TransactionService.updateCategory()`: it never validates category against `txn_type` today — any category can already be set on any transaction, DEBIT or CREDIT, at the domain layer. So this is **not zero code** as the product owner's framing hedged — it needs: (1) widen the `ExpenseCategory` enum to 8 values, adding `SALARY, RENTAL, OTHER_INCOME`; (2) widen `wealth.yaml`'s `ExpenseCategory` schema enum list to match. No DB migration (still an unconstrained string column), no new validation logic (there wasn't any to begin with). `computeFormulaGoals()`'s new `THIRTY_SEVENTY_TARGET` step must page through each member's accounts' transactions (existing `listTransactions(accountId, profileId, from, to, txnType, page, size)` call, already supports date-range + txn_type filtering) for the trailing 3-month window, filtering DEBIT rows to the 3 non-discretionary categories and CREDIT rows to the 3 income categories client-side (no `category` query param exists on `listTransactions` — filtering happens in the gateway after fetch, same pattern `computeLiquidityTiers`/`computeEmiTracking` already use for per-account JSON aggregation). Flagged as a perf watch-item below, not blocking.
+
+**`YEAR_ONE` per-child needs education-cost inputs with no natural home except `goal_plan` — a deliberate, scoped exception to the "live math never depends on `goal_plan`" separation.** `future_cost = base_cost × (1 + inflation_rate)^years_to_entry` needs 3 admin-entered numbers *per child*. They can't live in `policy_settings` (that's household-flat, not per-member — `profile`-domain owned besides). They fit `goal_plan`'s per-row shape naturally once `beneficiary_profile_id` exists (see schema below) — matching the precedent v1 already set for `assumed_growth_rate` (a flat nullable numeric column on `goal_plan`, meaningful only to some goal types). So: **`computeFormulaGoals()` gains a new, YEAR_ONE-only call to `WealthServiceClient.listGoalPlans(adminId)`** to enumerate configured per-child rows and read their education inputs — the one deliberate exception to v1's "computeFormulaGoals and goal_plan are fully decoupled" claim. Consequence: a CHILD profile with no `goal_plan` row (`goal_type=YEAR_ONE`, `beneficiary_profile_id=<child>`) configured yet simply has no YEAR_ONE entry in `WEALTH_FORMULA_GOALS_FAMILY` at all — `achieved_count`/`total_count` on that snapshot become `4 + (number of children with a configured YEAR_ONE goal_plan row)`, not a fixed `5`. This is a real, documented shape change to a live, shipped payload (`total_count` is no longer always 5) — Dashboard.js's Household Goals card must not assume `total_count === 5`; check before implementation.
+
+**Decision:** The product owner's "goal theory" documents (objective, baseline, target state, milestones, rules, step-up triggers, and — for one goal — a 5-phase execution protocol) for the same 5 Epic 8 formula goals (`DEBT_CROSSOVER`, `THIRTY_SEVENTY_TARGET`, `FREEDOM_RUNWAY`, `INSURANCE_FREE`, `YEAR_ONE`) are modeled as **new, additive tables in the `wealth` schema** (`wealth.goal_plan` + 3 child tables + new `wealth.insurance_policy`), read by a **new gateway compute step** that writes a **new snapshot key** (`WEALTH_GOAL_DETAIL_FAMILY`). **v2 change:** `ProjectionCalculationEngine.computeFormulaGoals()` and `WEALTH_FORMULA_GOALS_FAMILY` **are modified** — the 5 formulas inside are wrong today (see corrected-formulas table above) and are corrected in place as a bugfix, same goal_ids/snapshot key/Dashboard consumer. v1's "not modified" claim is retracted; the additive-tables decision for `goal_plan`/its children/`insurance_policy` is unchanged.
+
+**Why additive, not in-place extension of `computeFormulaGoals()`/`policy_settings`:**
+
+- The 5 goal IDs are already a de facto closed set hardcoded as Java string literals inside `computeFormulaGoals()` (`buildGoalEntry("DEBT_CROSSOVER", ...)` etc.) — there is no generic goal-definition loop to extend, only 5 inline blocks of bespoke math. Reshaping that method to also emit milestones/rules/objective text means it now has two different data lifecycles tangled into one write path: **live math recomputed every refresh** (current_value, from account/EMI/liquidity snapshots) vs. **static admin-authored config that changes rarely** (objective paragraph, milestone labels, rule text). Keeping them apart matches how every other Epic 8 phase shipped — EMI tracking, liquidity tiers, and growth projection were each added as their *own* compute step/snapshot key rather than folded into an earlier one (ADR-013's own "extension pattern").
+- `WEALTH_FORMULA_GOALS_FAMILY` is live, tested, and consumed today by the Dashboard's Household Goals card (`Dashboard.js`). Changing its payload shape risks a regression in a shipped, live-verified feature for zero functional gain — a new key is strictly safer and is exactly the pattern ADR-013 documents as the intended extension mechanism ("adding a new metric = one new method + one new snapshot key constant, no other changes needed").
+- `policy_settings` (Q23) was justified as "admin-scoped, rarely-changes config lives near the identity layer" for a handful of flat numeric thresholds. The richer model is materially heavier — per-goal objective/baseline/milestones/rules/triggers, one goal with a 5-phase sub-structure — and is wealth-domain vocabulary (loan balances, liquidity tiers, SIP, insurance multiples), not identity-layer config. It belongs in `wealth`, not bolted onto `profile.admin.policy_settings` as an ever-growing nested JSON blob with no query surface.
+
+**Schema — `wealth.goal_plan` + 3 child tables (sketch, `V4__goal_plan.sql`, additive) + new `wealth.insurance_policy` (sketch, `V5__insurance_policy.sql`, additive, separate file since it's a separate concern):**
+
+**v2 changes vs v1's DDL:** `goal_plan` gains nullable `beneficiary_profile_id` (per-child `YEAR_ONE` rows) and 3 nullable education-input columns (see above — needed by *live* `computeFormulaGoals()` math for `YEAR_ONE`, not just the richer detail view, hence typed columns not buried in `detail` JSONB, same precedent as `assumed_growth_rate`); its uniqueness constraint is corrected (see NULL-uniqueness note below — v1's constraint as literally written does not enforce what v1 claimed). `goal_plan_milestone` gains nullable `target_value`, `is_manual_checklist`, `is_achieved`.
+
+```sql
+-- V4__goal_plan.sql
+CREATE TABLE wealth.goal_plan (
+    id                        UUID          NOT NULL DEFAULT gen_random_uuid(),
+    admin_id                  UUID          NOT NULL,
+    goal_type                 VARCHAR(50)   NOT NULL,
+    beneficiary_profile_id    UUID,                        -- NEW v2: nullable; non-null only for YEAR_ONE (one row per child)
+    objective                 TEXT          NOT NULL,
+    target_state               TEXT,
+    assumed_growth_rate       NUMERIC(7,4),
+    education_base_cost       NUMERIC(19,4),                -- NEW v2: YEAR_ONE-only, NULL for other 4 goal types
+    education_inflation_rate  NUMERIC(7,4),                 -- NEW v2: YEAR_ONE-only
+    education_years_to_entry  INTEGER,                      -- NEW v2: YEAR_ONE-only
+    detail                    JSONB         NOT NULL DEFAULT '{}'::jsonb,
+    is_active                 BOOLEAN       NOT NULL DEFAULT TRUE,
+    created_at                TIMESTAMPTZ   NOT NULL DEFAULT now(),
+    updated_at                TIMESTAMPTZ   NOT NULL DEFAULT now(),
+    CONSTRAINT pk_goal_plan PRIMARY KEY (id),
+    CONSTRAINT fk_goal_plan_admin FOREIGN KEY (admin_id)
+        REFERENCES profile.admin(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_goal_plan_beneficiary FOREIGN KEY (beneficiary_profile_id)
+        REFERENCES profile.profile(id) ON DELETE RESTRICT,
+    -- CORRECTED v2 (see "Postgres NULL-uniqueness" note below) — NULLS NOT DISTINCT
+    -- (Postgres 15+; this project runs 16) makes the 4 singleton goal types' NULL
+    -- beneficiary_profile_id collide with each other (singleton enforced), while
+    -- YEAR_ONE rows differ on a real non-null beneficiary_profile_id (multiple rows allowed).
+    CONSTRAINT uq_goal_plan_admin_type_beneficiary
+        UNIQUE NULLS NOT DISTINCT (admin_id, goal_type, beneficiary_profile_id)
+);
+CREATE INDEX idx_goal_plan_admin ON wealth.goal_plan(admin_id);
+CREATE INDEX idx_goal_plan_beneficiary ON wealth.goal_plan(beneficiary_profile_id) WHERE beneficiary_profile_id IS NOT NULL;
+
+CREATE TABLE wealth.goal_plan_milestone (
+    id                  UUID          NOT NULL DEFAULT gen_random_uuid(),
+    goal_plan_id        UUID          NOT NULL,
+    sequence_no         INTEGER       NOT NULL,
+    label               VARCHAR(50)   NOT NULL,
+    target_value        NUMERIC(19,4),                     -- CHANGED v2: nullable (skipped when is_manual_checklist)
+    is_manual_checklist BOOLEAN       NOT NULL DEFAULT FALSE, -- NEW v2
+    is_achieved         BOOLEAN       NOT NULL DEFAULT FALSE, -- NEW v2: admin-toggled directly for checklist items;
+                                                               -- for non-checklist items this is DERIVED at read time by
+                                                               -- computeGoalDetail() (current_value vs target_value) and
+                                                               -- overwritten on every refresh — see PATCH endpoint note below
+    significance        TEXT          NOT NULL,
+    CONSTRAINT pk_goal_plan_milestone PRIMARY KEY (id),
+    CONSTRAINT fk_milestone_goal_plan FOREIGN KEY (goal_plan_id)
+        REFERENCES wealth.goal_plan(id) ON DELETE CASCADE,
+    CONSTRAINT uq_milestone_sequence UNIQUE (goal_plan_id, sequence_no)
+);
+
+CREATE TABLE wealth.goal_plan_rule (
+    id            UUID          NOT NULL DEFAULT gen_random_uuid(),
+    goal_plan_id  UUID          NOT NULL,
+    sequence_no   INTEGER       NOT NULL,
+    rule_name     VARCHAR(50)   NOT NULL,
+    rule_text     TEXT          NOT NULL,
+    CONSTRAINT pk_goal_plan_rule PRIMARY KEY (id),
+    CONSTRAINT fk_rule_goal_plan FOREIGN KEY (goal_plan_id)
+        REFERENCES wealth.goal_plan(id) ON DELETE CASCADE,
+    CONSTRAINT uq_rule_sequence UNIQUE (goal_plan_id, sequence_no)
+);
+
+CREATE TABLE wealth.goal_plan_trigger_event (
+    id                 UUID          NOT NULL DEFAULT gen_random_uuid(),
+    goal_plan_id       UUID          NOT NULL,
+    sequence_no        INTEGER       NOT NULL,
+    event_name         VARCHAR(50)   NOT NULL,
+    trigger_condition  TEXT          NOT NULL,
+    resulting_change   TEXT          NOT NULL,
+    CONSTRAINT pk_goal_plan_trigger_event PRIMARY KEY (id),
+    CONSTRAINT fk_trigger_goal_plan FOREIGN KEY (goal_plan_id)
+        REFERENCES wealth.goal_plan(id) ON DELETE CASCADE,
+    CONSTRAINT uq_trigger_sequence UNIQUE (goal_plan_id, sequence_no)
+);
+```
+
+```sql
+-- V5__insurance_policy.sql (NEW v2, separate migration file — separate concern from goal_plan)
+CREATE TABLE wealth.insurance_policy (
+    id                UUID          NOT NULL DEFAULT gen_random_uuid(),
+    admin_id          UUID          NOT NULL,               -- household-level, not per-member — matches goal_plan/policy_settings
+    policy_name       VARCHAR(50)   NOT NULL,
+    provider          VARCHAR(50)   NOT NULL,
+    policy_type       VARCHAR(50)   NOT NULL,                -- e.g. TERM/GROUP_TERM/INVESTMENT_LINKED/ENDOWMENT/HEALTH; no SQL enum (ADR-010)
+    premium_amount    NUMERIC(19,4) NOT NULL,
+    premium_frequency VARCHAR(20)   NOT NULL,                -- e.g. MONTHLY/ANNUAL; no SQL enum
+    coverage_amount   NUMERIC(19,4),                          -- nullable: some policies are income-stream, not lump-sum
+    payout_structure  JSONB         NOT NULL DEFAULT '{}'::jsonb, -- heterogeneous per policy_type — lump sum / escalating
+                                                                    -- monthly income / sum-assured-at-maturity; same
+                                                                    -- escape-hatch precedent as goal_plan.detail
+    is_active         BOOLEAN       NOT NULL DEFAULT TRUE,
+    created_at        TIMESTAMPTZ   NOT NULL DEFAULT now(),
+    updated_at        TIMESTAMPTZ   NOT NULL DEFAULT now(),
+    CONSTRAINT pk_insurance_policy PRIMARY KEY (id),
+    CONSTRAINT fk_insurance_policy_admin FOREIGN KEY (admin_id)
+        REFERENCES profile.admin(id) ON DELETE RESTRICT
+);
+CREATE INDEX idx_insurance_policy_admin ON wealth.insurance_policy(admin_id);
+```
+
+No `CHECK` constraints anywhere (ADR-020) — only `NOT NULL`/`PK`/`FK`/`UNIQUE`. All name-ish columns (`label`, `rule_name`, `event_name`, `policy_name`, `provider`) capped at `VARCHAR(50)` project-wide. `goal_type`/`policy_type`/`premium_frequency` are plain `VARCHAR`, no SQL enum (ADR-010) — soft-validated at the contract layer.
+
+**Postgres NULL-uniqueness — v1's constraint was wrong, corrected here.** The product owner's stated resolution ("plain `UNIQUE(admin_id, goal_type, beneficiary_profile_id)`, NULLs are distinct, so YEAR_ONE gets multiple rows while the other 4 stay singleton") is **half right and half a bug.** Standard Postgres `UNIQUE` (pre-15 default, and still the default in 16 unless you opt in) treats every `NULL` as distinct from every other `NULL` — that's exactly what makes multiple `YEAR_ONE` rows work (different real `beneficiary_profile_id` values are distinct — fine either way). But it *also* means two `DEBT_CROSSOVER` rows for the same admin, both with `beneficiary_profile_id = NULL`, do **not** collide under plain `UNIQUE` — `NULL <> NULL`, so the constraint silently allows duplicate singleton-type rows, which breaks the "at most one row" invariant the product owner explicitly wants for the other 4 types. **Fix used above:** `UNIQUE NULLS NOT DISTINCT (admin_id, goal_type, beneficiary_profile_id)` — a Postgres 15+ feature (confirmed available; this project runs `postgres:16` per `.devcontainer/docker-compose.yml`/CI). Under `NULLS NOT DISTINCT`, two rows with the same `(admin_id, goal_type, NULL)` collide (singleton enforced correctly for the 4 non-`YEAR_ONE` types) while two `YEAR_ONE` rows with *different* non-null `beneficiary_profile_id` values still don't collide (per-child rows still allowed) — this single constraint gets both halves right, where the plain-`UNIQUE` version the product owner described only gets one half right. Confirmed this is the correct, minimal fix — no need for two partial unique indexes.
+
+**Milestones/rules/trigger events are structured tables; baseline + the Insurance-Free 5-phase protocol go in `goal_plan.detail` JSONB.** Baseline metrics genuinely vary in shape per goal type (Debt Crossover: loan balances + MF corpus; Freedom Runway: a different asset basket + monthly survival number) — same "heterogeneous per-type shape" justification already used for `account.metadata`/`physical_asset.metadata`/now `insurance_policy.payout_structure`. The 5-phase emergency execution protocol is unique to one goal and doesn't generalize — forcing it into the milestone/rule shape would be a worse fit than the escape hatch this project already has precedent for. `detail` is intentionally opaque to SQL — never queried by column, only round-tripped.
+
+**`is_manual_checklist` milestones — resolved: keep the existing bulk-`PUT` for authoring, add one new single-milestone `PATCH` for the achieved toggle only.** Two different operations were tangled in the product owner's ask: (1) *authoring* a milestone (label/target_value/sequence/is_manual_checklist) — rare, done as a batch, the existing `PUT /goal-plans/{id}/milestones` bulk-replace is the right tool, unchanged. (2) *toggling `is_achieved`* on a checklist item — frequent, single-field, admin clicks one checkbox. Forcing (2) through bulk-`PUT` means resending the entire milestone array (labels, sequence, other items' state) for a one-checkbox click — wasteful, and a real risk: two admins toggling different checklist items concurrently would race and clobber each other's bulk-PUT. **Resolution:** add `PATCH /goal-plans/{id}/milestones/{milestoneId}` (new, single-field: `{ is_achieved: boolean }`) — same convention already established by `PATCH /accounts/{accountId}/transactions/{txnId}/category` (single-field PATCH alongside a bulk endpoint). Only meaningful when `is_manual_checklist = true`; for non-checklist milestones `is_achieved` is derived by `computeGoalDetail()` every refresh (current_value vs target_value) and this PATCH endpoint should reject the call (400) if `is_manual_checklist = false` on that milestone — an admin toggling a formula-derived milestone by hand would be silently overwritten on the next dashboard refresh anyway, better to reject than let it looks like it worked.
+
+**Milestone/rule/trigger-event text is policy narrative, not code-enforced (unchanged from v1).** Per the product owner's own framing, rules ("No Liquidation", "SIP is Sacred") are household discipline, surfaced in the UI — the system does not block a liquidation or a skipped SIP. Trigger events' `trigger_condition` stays free `TEXT` for the same reason UC 8.3 (dynamic triggers) was deliberately left unbuilt (see `documents/domain-state/wealth.md`) — this ADR does not resurrect it.
+
+**Milestone status logic (v2 correction): the achieved-direction predicate is now an explicit per-goal-type lookup, not a single hardcoded exception.** v1 hardcoded "`<` for `DEBT_CROSSOVER`, `>=` for the other four" directly in prose and (implied) in code. That's now wrong on both ends — the corrected formulas make `DEBT_CROSSOVER` an `>=` goal and `THIRTY_SEVENTY_TARGET` the new `<=` exception (see the corrected-formulas table above). `computeGoalDetail()` (for milestone status) and `computeFormulaGoals()` (for the goal's own `ACHIEVED`/`IN_PROGRESS` status) must both read direction from one shared, explicit table: `{THIRTY_SEVENTY_TARGET: <=, everything else: >=}`. This is a small, deliberate lookup precisely so the next formula correction doesn't require another silent hunt for a hardcoded exception. Still assumes milestones are checkpoints on the same metric/unit as the parent goal's `current_value` — true now that the underlying formulas are fixed to match their own goal's milestones (the flaw this whole revision exists to fix). `is_manual_checklist = true` milestones skip this comparison entirely — their `is_achieved` is admin-toggled (see PATCH endpoint above), never derived.
+
+**Scoping — `admin_id`, not `profile_id` (deliberate ADR-006 extension, same shape as `policy_settings`), now covering 5 tables including `insurance_policy`:** Goal plans and insurance policies are household-level, not per-member — identical reasoning to ADR-017 (formula goals have no per-member variant) and to `policy_settings` living on `profile.admin`. `wealth.goal_plan.admin_id`/`wealth.insurance_policy.admin_id` are direct FKs to `profile.admin(id)` — the identity-anchor FK convention every domain already uses, one level up the identity hierarchy. Every adapter-layer query on all 5 tables must filter by `admin_id` — same ADR-006 spirit, keyed by the household unit instead of the member unit. `goal_plan.beneficiary_profile_id` is a second, narrower scope dimension layered on top (per-child, only for `YEAR_ONE`) — adapters filtering `goal_plan` by child must filter by both `admin_id` (household) and `beneficiary_profile_id` (which child), never `beneficiary_profile_id` alone, since a stray cross-household child id must never leak another household's goal_plan row.
+
+**Contract sketch — `wealth.yaml` (new domain-owned CRUD, admin-scoped). v2 adds `/insurance-policies`, `beneficiary_profile_id` + 3 education fields on `GoalPlan`, nullable `target_value` + `is_manual_checklist` + `is_achieved` on `GoalMilestone`, and the new single-milestone `PATCH`:**
+
+```yaml
+/goal-plans:
+  get:  { parameters: [admin_id], responses: { 200: GoalPlan[] } }
+  post: { parameters: [admin_id], requestBody: CreateGoalPlanRequest }   # CreateGoalPlanRequest gains beneficiary_profile_id (nullable)
+/goal-plans/{id}:
+  get: {}
+  patch:  { requestBody: UpdateGoalPlanRequest }   # objective/target_state/assumed_growth_rate/education_*/detail/is_active
+  delete: {}                                        # soft-delete, is_active=false
+/goal-plans/{id}/milestones:
+  put: { requestBody: GoalMilestone[] }             # bulk replace, ordered — matches "authored as one document"
+/goal-plans/{id}/milestones/{milestoneId}:            # NEW v2
+  patch: { requestBody: { is_achieved: boolean } }   # single-field toggle, is_manual_checklist milestones only (400 otherwise)
+/goal-plans/{id}/rules:
+  put: { requestBody: GoalRule[] }
+/goal-plans/{id}/trigger-events:
+  put: { requestBody: GoalTriggerEvent[] }
+/insurance-policies:                                   # NEW v2 — same CRUD pattern as /goal-plans
+  get:  { parameters: [admin_id], responses: { 200: InsurancePolicy[] } }
+  post: { parameters: [admin_id], requestBody: CreateInsurancePolicyRequest }
+/insurance-policies/{id}:                              # NEW v2
+  get: {}
+  patch:  { requestBody: UpdateInsurancePolicyRequest }
+  delete: {}                                            # soft-delete, is_active=false
+
+GoalType: { type: string, enum: [DEBT_CROSSOVER, THIRTY_SEVENTY_TARGET, FREEDOM_RUNWAY, INSURANCE_FREE, YEAR_ONE] }
+GoalPlan: { id, admin_id, goal_type: GoalType, beneficiary_profile_id: {type: string, format: uuid, nullable: true},
+            objective, target_state, assumed_growth_rate,
+            education_base_cost: {nullable: true}, education_inflation_rate: {nullable: true},
+            education_years_to_entry: {type: integer, nullable: true},
+            detail: object, is_active, milestones: GoalMilestone[], rules: GoalRule[],
+            trigger_events: GoalTriggerEvent[], created_at, updated_at }
+GoalMilestone: { id, label: {maxLength: 50}, target_value: {nullable: true}, is_manual_checklist: boolean,
+                 is_achieved: boolean, significance }
+GoalRule: { rule_name: {maxLength: 50}, rule_text }
+GoalTriggerEvent: { event_name: {maxLength: 50}, trigger_condition, resulting_change }
+
+PolicyType: { type: string, enum: [TERM, GROUP_TERM, INVESTMENT_LINKED, ENDOWMENT, HEALTH] }
+PremiumFrequency: { type: string, enum: [MONTHLY, ANNUAL] }
+InsurancePolicy: { id, admin_id, policy_name: {maxLength: 50}, provider: {maxLength: 50}, policy_type: PolicyType,
+                   premium_amount, premium_frequency: PremiumFrequency, coverage_amount: {nullable: true},
+                   payout_structure: object, is_active, created_at, updated_at }
+CreateInsurancePolicyRequest: { policy_name, provider, policy_type, premium_amount, premium_frequency,
+                                 coverage_amount: {nullable: true}, payout_structure: {nullable: true} }
+```
+
+Bulk-`PUT`-replace stays for milestones/rules/trigger-events as *authoring* operations (unchanged from v1's reasoning). `ExpenseCategory` contract schema (existing, not new) widens from 5 to 8 enum values: `HOUSEHOLD_CORE, CHILD_RELATED, MAINTENANCE, DISCRETIONARY, UNCATEGORIZED, SALARY, RENTAL, OTHER_INCOME` — no `txn_type` restriction added at the contract level either (matches the domain layer, which never had one).
+
+**`gateway.yaml` touch points:** pure `JsonNode`-passthrough proxies for all `/goal-plans/...` and `/insurance-policies/...` paths, same convention `WealthGatewayResource` already uses for physical assets — no new Java shape needed in the gateway for CRUD. The **computed/enriched read** (progress + milestone status merged with config) needs **no new REST path at all** — it is the `WEALTH_GOAL_DETAIL_FAMILY` snapshot key served through the existing `GET /v1/projections/dashboard/{profileId}` read path, same as every other `_FAMILY` key.
+
+**New gateway compute step:** `ProjectionCalculationEngine.computeGoalDetail(UUID profileId)`, added to `refreshAll()` after `computeFormulaGoals()` (needs its output already in the same-pass snapshot map, same `loadSnapshotsAsMap()` pattern). For each `wealth.goal_plan` row (`WealthServiceClient.listGoalPlans(adminId)`), match into `WEALTH_FORMULA_GOALS_FAMILY.goals[]` — by `goal_id == goal_type` for the 4 singleton types, by `goal_id == goal_type AND beneficiary_profile_id` for `YEAR_ONE` (goals[] entries now carry `beneficiary_profile_id` for `YEAR_ONE`, see below) — merge objective/target_state/milestones/rules/trigger_events/detail with the live current_value/target_value/status, compute per-milestone status using the shared achieved-direction lookup (see above), and write the merged array to `SnapshotKey.WEALTH_GOAL_DETAIL_FAMILY`. For `INSURANCE_FREE`, also read `WealthServiceClient.listInsurancePolicies(adminId)` and attach the raw policy list to that goal's detail payload as the "WITH insurance" comparison (see the aggregation caveat flagged below — v1 raw list, not a single blended number, for this revision). Goal rows with no configured `goal_plan` are omitted from this richer payload; for the 4 singleton types the base `WEALTH_FORMULA_GOALS_FAMILY` card is unaffected either way (still shows all 4). For `YEAR_ONE`, a child with no `goal_plan` row has **no entry anywhere** — not in the richer payload, and not in the base formula-goals card either, since (per the earlier note) `computeFormulaGoals()` itself now depends on `goal_plan` to get that child's education inputs. This is the one goal type where "unconfigured = omitted from base card too" is true, unlike the other 4.
+
+**`WEALTH_FORMULA_GOALS_FAMILY.goals[]` payload shape change:** `YEAR_ONE` entries now carry an extra `beneficiary_profile_id` field (and probably a `beneficiary_name` for display, resolved via the same `profileServiceClient.listProfiles` call already made elsewhere in this engine) so the Dashboard can render "Year One — [child name]" per row instead of one unlabeled entry. `achieved_count`/`total_count` are no longer fixed at `N`/`5` — see the note above. Any frontend code reading this payload assuming exactly 5 entries or a fixed `total_count` must be checked before implementation (flagged below, not yet verified against `Dashboard.js`).
+
+**Hard constraint honored — no real household data anywhere in schema/code (unchanged from v1):** migrations only create empty tables. Every objective, baseline figure, milestone target, rule, trigger event, education input, and insurance policy is admin-entered at runtime via the endpoints above — same pattern `policy_settings` already established.
+
+**Rejected alternative — fold into `computeFormulaGoals()`/`policy_settings` in place (unchanged from v1):** rejected — entangles two data lifecycles, wrong domain for `policy_settings`. Note this is a different question from "should the 5 formulas themselves be corrected in place" (yes, decided above) — the additive `goal_plan`/`insurance_policy` tables and the bugfix to `computeFormulaGoals()`'s math are two independent decisions that happen to land in the same ADR revision.
+
+**Rejected alternative — single wide `detail` JSONB with no structured milestone/rule tables at all (unchanged from v1):** rejected — milestones/rules need to stay queryable/summarizable across goals.
+
+**Rejected alternative — evaluate `trigger_condition` as real system-enforced logic (unchanged from v1):** rejected — this is Epic 8 UC 8.3, deliberately still unbuilt.
+
+**Rejected alternative — blend `insurance_policy` rows into a single "WITH insurance" number inside `computeFormulaGoals()`/`INSURANCE_FREE`'s live math:** rejected for this revision. `payout_structure` is deliberately heterogeneous JSONB (lump sum vs escalating monthly income vs sum-assured-at-maturity) — collapsing 3 incompatible shapes into one comparable currency figure needs real actuarial-style interpretation logic (e.g. what's the NPV of an escalating income stream vs a lump sum, over what horizon), which is a real feature in its own right, not a formula tweak. `INSURANCE_FREE`'s live `current_value`/`target_value` stay policy-free (buffer ÷ debt+fees+buffer, "what if we had zero insurance" framing) per the product owner's own "zero-dependency target" language; `insurance_policy` rows surface only in `computeGoalDetail()`'s richer payload as a raw list for now. Flagged below as a real gap if the product owner actually wants one blended number later.
+
+**Rejected alternative — plain `UNIQUE(admin_id, goal_type, beneficiary_profile_id)` as the product owner literally described it:** rejected — see the Postgres NULL-uniqueness note above; it does not enforce the singleton invariant it was meant to enforce for the 4 non-`YEAR_ONE` goal types. `NULLS NOT DISTINCT` used instead.
+
+**Impact:** Two new Flyway migrations — `application/flyway/wealth/V4__goal_plan.sql` (4 tables, additive) and `application/flyway/wealth/V5__insurance_policy.sql` (1 table, additive). New domain entities/ports/adapters in the wealth module (`GoalPlan`, `GoalMilestone`, `GoalRule`, `GoalTriggerEvent`, `InsurancePolicy` + matching use cases/repositories/resources). **`ProjectionCalculationEngine.computeFormulaGoals()` is modified in place** — all 5 formulas corrected, achieved-direction becomes an explicit lookup, new `THIRTY_SEVENTY_TARGET` transaction-aggregation logic, new `YEAR_ONE` per-child loop with a new `listGoalPlans()` dependency, new `FREEDOM_RUNWAY` core-runway-capital aggregation (PPF + CHILD-relation exclusions). `ExpenseCategory` enum widens from 5 to 8 values (domain + contract). `policy_settings` gains 2 keys (`insurance_free_legal_fees`, `insurance_free_academic_buffer`), 3 keys go dead (no removal needed — JSONB). New `SnapshotKey.WEALTH_GOAL_DETAIL_FAMILY` constant and `computeGoalDetail()` step, wired into `refreshAll()` after `computeFormulaGoals()`. Contract changes to `wealth.yaml` + its web-gateway mirror + `gateway.yaml` (additive paths/schemas for `goal-plans`/`insurance-policies`; `WEALTH_FORMULA_GOALS_FAMILY`'s documented payload shape changes for `YEAR_ONE` entries and `total_count`, which is a real, non-additive contract-level change to an existing, live snapshot payload — document it as such in `wealth.yaml`'s description, even though the transport (`JsonNode` passthrough) doesn't force a schema version bump). Not yet implemented — this ADR records the design only.
+
+### Still underspecified or risky — flagged, not silently accepted
+
+1. **`THIRTY_SEVENTY_TARGET`'s per-account transaction fetch is an N+1-shaped loop with no category filter at the query layer.** Every account of every household member gets a `listTransactions(from, to, txnType)` call for the trailing 3-month window, then category filtering happens in gateway memory (no `category` query param exists). Same pattern as `computeLiquidityTiers`/`computeEmiTracking` today, so not a new *kind* of risk, but this is the first `_FAMILY` step to page through full transaction history rather than account-level balances — could be materially slower for a household with years of transaction history and many accounts. Worth a perf check once built; not blocking the design.
+2. **RESOLVED 2026-07-11 — `DEBT_CROSSOVER`'s denominator also excludes CHILD-relation loans**, symmetric with the numerator. `WEALTH_EMI_TRACKING_FAMILY.total_outstanding_balance` cannot be reused as-is (it's family-wide, no relation filter) — `computeFormulaGoals()`'s `DEBT_CROSSOVER` step needs its own relation-filtered sum over loan-type accounts, mirroring the numerator's SELF/SPOUSE-only filter. Currently no household member has a loan in a child's name, so this has no observable effect today, but the formula must filter correctly regardless.
+3. **RESOLVED 2026-07-11 — `YEAR_ONE` shows a 0%-funded row for a child with zero `MUTUAL_FUND` accounts**, not a silent omission. Every CHILD-relation profile with a configured `goal_plan` row (`goal_type=YEAR_ONE`, `beneficiary_profile_id=<child>`) gets an entry in `WEALTH_FORMULA_GOALS_FAMILY.goals[]`, `current_value = 0` if no MUTUAL_FUND accounts exist yet — a deliberate nudge, not an edge case to hide. Only a child with no `goal_plan` row configured at all is omitted (nothing to compute against).
+4. **RESOLVED 2026-07-11 — `insurance_policy` → `INSURANCE_FREE` "WITH insurance" comparison stays a raw list**, no blended total. Each policy renders as its own line (provider, premium, coverage/payout structure); no attempt to combine a lump sum with a 10-year escalating income stream into one number. Real actuarial blending is out of scope for this feature.
+5. **`WEALTH_FORMULA_GOALS_FAMILY.total_count` no longer being a fixed `5` is a live payload shape change** — `Dashboard.js`'s Household Goals card (N/M achieved) needs to be checked against this assumption before implementation; not verified in this design pass.
+6. **`goal_plan.education_base_cost`/`education_inflation_rate`/`education_years_to_entry` as 3 more always-nullable columns, meaningful only to one goal type, continues a pattern (`assumed_growth_rate` already does this) that doesn't scale well** — a 6th goal type with its own bespoke numeric inputs would mean more dead columns on every other goal type's row. Fine at this size (1 precedent-setting column becomes 4), but if a 6th goal type shows up with its own inputs, revisit whether goal-type-specific numeric inputs belong in `detail` JSONB instead (readable but unqueryable) or a per-goal-type child table (more tables, but no dead columns). Not a blocker now — flagged for whoever adds goal type 6.
+7. **`FREEDOM_RUNWAY`'s corrected core-runway-capital aggregation is new code, not a reuse of `WEALTH_LIQUIDITY_TIERS_FAMILY` as v1 implied.** Confirm during implementation that this doesn't quietly diverge further from what the Liquidity Tier dashboard card shows (the two are now different aggregations over overlapping data — same account rows, different exclusion filters) — worth a short code comment cross-referencing both so a future edit to one doesn't silently desync the other.

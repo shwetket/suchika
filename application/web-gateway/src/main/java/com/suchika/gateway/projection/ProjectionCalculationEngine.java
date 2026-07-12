@@ -101,11 +101,50 @@ public class ProjectionCalculationEngine {
     private static final List<String> STREAK_TRACKED_VITAL_TYPES =
             List.of("WEIGHT", "BLOOD_PRESSURE", "BLOOD_SUGAR_FASTING");
 
-    private static final double DEFAULT_DEBT_CROSSOVER_THRESHOLD = 50.0;
     private static final double DEFAULT_MONTHLY_BUDGET_CAP = 0.0;
-    private static final double DEFAULT_FREEDOM_RUNWAY_MONTHS = 6.0;
-    private static final double DEFAULT_INSURANCE_MULTIPLE = 10.0;
-    private static final double DEFAULT_YEAR_ONE_ANNUAL_TARGET = 1_000_000.0;
+    // ADR-022: default changes 6 → 360; debt_crossover_threshold_percent,
+    // insurance_multiple and year_one_annual_target go dead (no longer read) —
+    // the corrected formulas use fixed 100/30/100 thresholds instead.
+    private static final double DEFAULT_FREEDOM_RUNWAY_MONTHS = 360.0;
+
+    // ADR-022 Phase 1 — corrected formula goals engine field/constant names.
+    private static final String RELATION_TO_ADMIN_FIELD = "relation_to_admin";
+    private static final String RELATION_SELF = "SELF";
+    private static final String RELATION_SPOUSE = "SPOUSE";
+    private static final String RELATION_CHILD = "CHILD";
+    private static final String FD_ACCOUNT_TYPE = "FD";
+    private static final String MAXGAIN_PURPOSE_TAG = "MaxGain";
+    private static final String PURPOSE_TAG_FIELD = "purpose_tag";
+    private static final String LIQUIDITY_TIER_FIELD = "liquidity_tier";
+    private static final String TRANSACTIONS_FIELD = "transactions";
+    private static final String AMOUNT_FIELD = "amount";
+    private static final String CATEGORY_FIELD = "category";
+    private static final String TOTAL_OUTSTANDING_BALANCE_FIELD = "total_outstanding_balance";
+    private static final String GOAL_TYPE_FIELD = "goal_type";
+    private static final String GOAL_PLANS_FIELD = "goal_plans";
+    private static final String BENEFICIARY_PROFILE_ID_FIELD = "beneficiary_profile_id";
+    private static final String BENEFICIARY_NAME_FIELD = "beneficiary_name";
+    private static final String YEAR_ONE_GOAL_TYPE = "YEAR_ONE";
+    private static final String THIRTY_SEVENTY_GOAL_TYPE = "THIRTY_SEVENTY_TARGET";
+    // ADR-022 Phase 2 — insurance_policy field name constants for the
+    // THIRTY_SEVENTY_TARGET premium term.
+    private static final String INSURANCE_POLICIES_FIELD = "insurance_policies";
+    private static final String PREMIUM_AMOUNT_FIELD = "premium_amount";
+    private static final String PREMIUM_FREQUENCY_FIELD = "premium_frequency";
+    private static final String IS_ACTIVE_FIELD = "is_active";
+    private static final String FREQUENCY_ANNUAL = "ANNUAL";
+    private static final int MONTHS_PER_YEAR = 12;
+    private static final double DEBT_CROSSOVER_TARGET_PERCENT = 100.0;
+    private static final double THIRTY_SEVENTY_TARGET_PERCENT = 30.0;
+    private static final double INSURANCE_FREE_TARGET_PERCENT = 100.0;
+    private static final double YEAR_ONE_TARGET_PERCENT = 100.0;
+    private static final double YEAR_ONE_FUNDING_RATIO = 0.25;
+    private static final int THIRTY_SEVENTY_LOOKBACK_MONTHS = 3;
+    private static final int TRANSACTION_AGGREGATION_FETCH_SIZE = 200;
+    private static final java.util.Set<String> NON_DISCRETIONARY_CATEGORIES =
+            java.util.Set.of("HOUSEHOLD_CORE", "CHILD_RELATED", "MAINTENANCE");
+    private static final java.util.Set<String> INCOME_CATEGORIES =
+            java.util.Set.of("SALARY", "RENTAL", "OTHER_INCOME");
 
     // Epic 8 Phase 3 — annual growth rates injected via config; field initializer provides
     // the same default so plain `new` in unit tests produces correct expected values.
@@ -739,18 +778,31 @@ public class ProjectionCalculationEngine {
         return -1.0;
     }
 
-    // ── WEALTH_FORMULA_GOALS_FAMILY (Epic 8 Phase 4) ──────────────────────────
+    // ── WEALTH_FORMULA_GOALS_FAMILY (Epic 8 Phase 4, corrected ADR-022 Phase 1) ─
 
     /**
-     * Epic 8 Phase 4 — five hardcoded formula goals engine (Use Case 8.5).
-     * Reads Phase 3 snapshot payloads already stored in the repository — no new
-     * domain REST calls needed. Policy thresholds are read from admin.policy_settings.
+     * ADR-022 Phase 1 — corrected formula goals engine. This is a bugfix to the
+     * Epic 8 Phase 4 formulas in place, not a new parallel system: same 5
+     * goal_ids, same snapshot key, same Dashboard consumer. See ADR-022's
+     * old-vs-new formula table for the full derivation of each corrected formula.
      *
-     * <p>Goal 1 — Debt Crossover: totalMonthlyEmi / familyNetWorth * 100 &lt; threshold.
-     * Goal 2 — 30-70 Target: LIQUID tier / total &gt;= 30%.
-     * Goal 3 — Freedom Runway: (LIQUID + SEMI_LIQUID) / monthlyBudgetCap &gt;= targetMonths.
-     * Goal 4 — Insurance Free: totalInvestmentValue &gt;= annualIncome * insuranceMultiple.
-     * Goal 5 — Year One: familyNetWorth &gt;= yearOneAnnualTarget.
+     * <p>Goal 1 — Debt Crossover: family MF corpus (SELF+SPOUSE only) / outstanding
+     *   loan balance (HOME_LOAN/PERSONAL_LOAN/CAR_LOAN, excl. CHILD-relation loans)
+     *   * 100, achieved &gt;= 100 (direction flipped from the old shipped formula).
+     * Goal 2 — 30-70 Target: (EMI + non-discretionary DEBIT spend avg + insurance
+     *   premiums [ADR-022 Phase 2: real sum across active wealth.insurance_policy
+     *   rows, normalized to monthly — ANNUAL / 12, MONTHLY pass-through]) / avg
+     *   income-tagged CREDIT * 100, achieved &lt;= 30 (the sole "lower is better"
+     *   exception).
+     * Goal 3 — Freedom Runway: own core-runway-capital aggregation (excludes PPF
+     *   and CHILD-relation accounts, not a reuse of WEALTH_LIQUIDITY_TIERS_FAMILY)
+     *   / monthlyBudgetCap, achieved &gt;= freedom_runway_months (default 360).
+     * Goal 4 — Insurance Free: (MaxGain-tagged + FD balances) / (outstanding debt +
+     *   legal fees + academic buffer) * 100, achieved &gt;= 100.
+     * Goal 5 — Year One: per CHILD-relation profile with a configured YEAR_ONE
+     *   goal_plan row, (that child's MF balance) / (25% of future education cost)
+     *   * 100, achieved &gt;= 100. total_count is therefore no longer fixed at 5 —
+     *   it is 4 + the number of children with a configured YEAR_ONE goal_plan.
      */
     void computeFormulaGoals(UUID profileId) {
         UUID adminId = resolveAdminId(profileId);
@@ -758,117 +810,327 @@ public class ProjectionCalculationEngine {
             return;
         }
 
-        // Read policy settings from admin
         JsonNode policySettings = resolveAdminPolicySettings(adminId);
-
-        // Read Phase 3 snapshot payloads from the repository
         java.util.Map<String, JsonNode> snapshots = loadSnapshotsAsMap(profileId);
-
-        JsonNode netWorthPayload = snapshots.getOrDefault(SnapshotKey.WEALTH_NET_WORTH_FAMILY, MAPPER.createObjectNode());
         JsonNode emiPayload = snapshots.getOrDefault(SnapshotKey.WEALTH_EMI_TRACKING_FAMILY, MAPPER.createObjectNode());
-        JsonNode liquidityPayload = snapshots.getOrDefault(SnapshotKey.WEALTH_LIQUIDITY_TIERS_FAMILY, MAPPER.createObjectNode());
-        JsonNode growthPayload = snapshots.getOrDefault(SnapshotKey.WEALTH_GROWTH_PROJECTION_FAMILY, MAPPER.createObjectNode());
-
-        double familyNetWorth = netWorthPayload.path("family_net_worth").asDouble(0.0);
-        double totalMonthlyEmi = emiPayload.path(TOTAL_MONTHLY_EMI_FIELD).asDouble(0.0);
-        JsonNode tiers = liquidityPayload.path("tiers");
-        double liquidBalance = tiers.path(TIER_LIQUID).asDouble(0.0);
-        double semiLiquidBalance = tiers.path(TIER_SEMI_LIQUID).asDouble(0.0);
-        double totalLiquidity = liquidityPayload.path("total").asDouble(0.0);
-        double totalInvestmentValue = growthPayload.path("total_current_value").asDouble(0.0);
-
-        // Policy values with defaults
-        double debtThreshold = policySettings.path("debt_crossover_threshold_percent").asDouble(DEFAULT_DEBT_CROSSOVER_THRESHOLD);
-        double monthlyBudgetCap = policySettings.path("monthly_budget_cap").asDouble(DEFAULT_MONTHLY_BUDGET_CAP);
-        double freedomRunwayMonths = policySettings.path("freedom_runway_months").asDouble(DEFAULT_FREEDOM_RUNWAY_MONTHS);
-        double insuranceMultiple = policySettings.path("insurance_multiple").asDouble(DEFAULT_INSURANCE_MULTIPLE);
-        double yearOneTarget = policySettings.path("year_one_annual_target").asDouble(DEFAULT_YEAR_ONE_ANNUAL_TARGET);
+        JsonNode membersArray = profileServiceClient.listProfiles(adminId, true).path(PROFILES_FIELD);
 
         ArrayNode goalsArray = MAPPER.createArrayNode();
+        goalsArray.add(buildDebtCrossoverGoal(membersArray));
+        goalsArray.add(buildThirtySeventyGoal(membersArray, emiPayload, adminId));
+        goalsArray.add(buildFreedomRunwayGoal(membersArray, policySettings));
+        goalsArray.add(buildInsuranceFreeGoal(membersArray, emiPayload, policySettings));
+        buildYearOneGoals(adminId, membersArray).forEach(goalsArray::add);
+
         int achievedCount = 0;
-
-        // Goal 1 — Debt Crossover
-        double debtPercent = familyNetWorth > 0 ? totalMonthlyEmi / familyNetWorth * 100.0 : 0.0;
-        boolean debtAchieved = debtPercent < debtThreshold;
-        goalsArray.add(buildGoalEntry(
-                "DEBT_CROSSOVER",
-                "Debt Crossover",
-                debtAchieved,
-                "Monthly EMI below " + (int) debtThreshold + "% of net worth",
-                debtPercent,
-                debtThreshold,
-                "percent"));
-        if (debtAchieved) achievedCount++;
-
-        // Goal 2 — 30-70 Target
-        double liquidPercent = totalLiquidity > 0 ? liquidBalance / totalLiquidity * 100.0 : 0.0;
-        double growthPercent = totalLiquidity > 0 ? totalInvestmentValue / totalLiquidity * 100.0 : 0.0;
-        boolean thirtySeventyAchieved = liquidPercent >= 30.0;
-        ObjectNode thirtySeventyEntry = buildGoalEntry(
-                "THIRTY_SEVENTY_TARGET",
-                "30-70 Target",
-                thirtySeventyAchieved,
-                "At least 30% of assets in liquid tier",
-                liquidPercent,
-                30.0,
-                "percent");
-        thirtySeventyEntry.put("liquid_percent", liquidPercent);
-        thirtySeventyEntry.put("growth_percent", growthPercent);
-        goalsArray.add(thirtySeventyEntry);
-        if (thirtySeventyAchieved) achievedCount++;
-
-        // Goal 3 — Freedom Runway
-        double currentRunwayMonths = monthlyBudgetCap > 0
-                ? (liquidBalance + semiLiquidBalance) / monthlyBudgetCap
-                : 0.0;
-        boolean runwayAchieved = currentRunwayMonths >= freedomRunwayMonths;
-        ObjectNode runwayEntry = buildGoalEntry(
-                "FREEDOM_RUNWAY",
-                "Freedom Runway",
-                runwayAchieved,
-                "Liquid reserves cover " + (int) freedomRunwayMonths + " months of expenses",
-                currentRunwayMonths,
-                freedomRunwayMonths,
-                "months");
-        runwayEntry.put("current_months", currentRunwayMonths);
-        goalsArray.add(runwayEntry);
-        if (runwayAchieved) achievedCount++;
-
-        // Goal 4 — Insurance Free
-        double annualIncome = monthlyBudgetCap * 12.0;
-        double insuranceTarget = annualIncome * insuranceMultiple;
-        boolean insuranceAchieved = totalInvestmentValue >= insuranceTarget;
-        goalsArray.add(buildGoalEntry(
-                "INSURANCE_FREE",
-                "Insurance Free",
-                insuranceAchieved,
-                "Investment portfolio covers " + (int) insuranceMultiple + "x annual income",
-                totalInvestmentValue,
-                insuranceTarget,
-                "currency"));
-        if (insuranceAchieved) achievedCount++;
-
-        // Goal 5 — Year One
-        boolean yearOneAchieved = familyNetWorth >= yearOneTarget;
-        goalsArray.add(buildGoalEntry(
-                "YEAR_ONE",
-                "Year One",
-                yearOneAchieved,
-                "Family net worth reaches annual target",
-                familyNetWorth,
-                yearOneTarget,
-                "currency"));
-        if (yearOneAchieved) achievedCount++;
+        for (JsonNode goal : goalsArray) {
+            if (STATUS_ACHIEVED.equals(goal.path(STATUS_FIELD).asText(""))) {
+                achievedCount++;
+            }
+        }
 
         ObjectNode payload = MAPPER.createObjectNode();
         payload.set(GOALS_FIELD, goalsArray);
         payload.put("achieved_count", achievedCount);
-        payload.put("total_count", 5);
+        payload.put("total_count", goalsArray.size());
         snapshotRepository.upsert(profileId, SnapshotKey.WEALTH_FORMULA_GOALS_FAMILY, payload.toString());
     }
 
-    private ObjectNode buildGoalEntry(String goalId, String goalName, boolean achieved,
-                                      String description, double currentValue, double targetValue, String unit) {
+    private ObjectNode buildDebtCrossoverGoal(JsonNode membersArray) {
+        double mfCorpusSelfSpouse = 0.0;
+        double outstandingLoansNonChild = 0.0;
+
+        for (JsonNode member : membersArray) {
+            String memberProfileIdText = member.path(PROFILE_ID_FIELD).asText("");
+            if (memberProfileIdText.isEmpty()) {
+                continue;
+            }
+            String relation = member.path(RELATION_TO_ADMIN_FIELD).asText("");
+            UUID memberProfileId = UUID.fromString(memberProfileIdText);
+
+            if (RELATION_SELF.equals(relation) || RELATION_SPOUSE.equals(relation)) {
+                mfCorpusSelfSpouse += sumAccountTypeBalanceForMember(memberProfileIdText, memberProfileId, INV_TYPE_MUTUAL_FUND);
+            }
+            if (!RELATION_CHILD.equals(relation)) {
+                double[] loanTotals = new double[3];
+                buildMemberLoanEntries(memberProfileIdText, loanTotals);
+                outstandingLoansNonChild += loanTotals[0];
+            }
+        }
+
+        double debtPercent = outstandingLoansNonChild > 0 ? mfCorpusSelfSpouse / outstandingLoansNonChild * 100.0 : 0.0;
+        return buildGoalEntry(
+                "DEBT_CROSSOVER", "Debt Crossover",
+                "Family mutual fund corpus (self & spouse) covers outstanding loan balance",
+                debtPercent, DEBT_CROSSOVER_TARGET_PERCENT, "percent");
+    }
+
+    private ObjectNode buildThirtySeventyGoal(JsonNode membersArray, JsonNode emiPayload, UUID adminId) {
+        double monthlyEmi = emiPayload.path(TOTAL_MONTHLY_EMI_FIELD).asDouble(0.0);
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Kolkata"));
+        LocalDate lookbackStart = today.minusMonths(THIRTY_SEVENTY_LOOKBACK_MONTHS);
+
+        double nonDiscretionaryDebitTotal = 0.0;
+        double incomeCreditTotal = 0.0;
+        for (JsonNode member : membersArray) {
+            String memberProfileIdText = member.path(PROFILE_ID_FIELD).asText("");
+            if (memberProfileIdText.isEmpty()) {
+                continue;
+            }
+            double[] memberTotals = sumThirtySeventyTxnsForMember(memberProfileIdText, lookbackStart, today);
+            nonDiscretionaryDebitTotal += memberTotals[0];
+            incomeCreditTotal += memberTotals[1];
+        }
+
+        double nonDiscretionaryMonthlyAvg = nonDiscretionaryDebitTotal / THIRTY_SEVENTY_LOOKBACK_MONTHS;
+        double incomeMonthlyAvg = incomeCreditTotal / THIRTY_SEVENTY_LOOKBACK_MONTHS;
+        double insurancePremiums = sumMonthlyInsurancePremiums(adminId);
+        double numerator = monthlyEmi + nonDiscretionaryMonthlyAvg + insurancePremiums;
+        double thirtySeventyPercent = incomeMonthlyAvg > 0 ? numerator / incomeMonthlyAvg * 100.0 : 0.0;
+
+        return buildGoalEntry(
+                THIRTY_SEVENTY_GOAL_TYPE, "30-70 Target",
+                "Essential outflows (EMI + non-discretionary spend + insurance) stay under 30% of average income",
+                thirtySeventyPercent, THIRTY_SEVENTY_TARGET_PERCENT, "percent");
+    }
+
+    /**
+     * ADR-022 Phase 2 — sums {@code premium_amount} across every active
+     * {@code wealth.insurance_policy} row for this household, normalized to a
+     * monthly figure: ANNUAL policies divide by 12, MONTHLY policies pass
+     * through unchanged. Feeds {@link #buildThirtySeventyGoal}'s numerator.
+     * Mirrors {@link #buildYearOneGoals}'s tolerant error handling — a downstream
+     * failure here must not break the rest of computeFormulaGoals.
+     */
+    private double sumMonthlyInsurancePremiums(UUID adminId) {
+        JsonNode policies;
+        try {
+            policies = wealthServiceClient.listInsurancePolicies(adminId).path(INSURANCE_POLICIES_FIELD);
+        } catch (RuntimeException e) {
+            AppLogger.info("ProjectionEngine: could not load insurance policies for admin %s, treating premiums as 0", adminId);
+            return 0.0;
+        }
+        if (!policies.isArray()) {
+            return 0.0;
+        }
+
+        double totalMonthlyPremium = 0.0;
+        for (JsonNode policy : policies) {
+            if (!policy.path(IS_ACTIVE_FIELD).asBoolean(false)) {
+                continue;
+            }
+            double premiumAmount = policy.path(PREMIUM_AMOUNT_FIELD).asDouble(0.0);
+            boolean isAnnual = FREQUENCY_ANNUAL.equals(policy.path(PREMIUM_FREQUENCY_FIELD).asText(""));
+            totalMonthlyPremium += isAnnual ? premiumAmount / MONTHS_PER_YEAR : premiumAmount;
+        }
+        return totalMonthlyPremium;
+    }
+
+    /**
+     * Per-member trailing-window transaction aggregation for {@link #buildThirtySeventyGoal}.
+     * First _FAMILY step to page through full transaction history rather than
+     * account-level balances (ADR-022 flags this as a perf watch-item, not blocking).
+     */
+    private double[] sumThirtySeventyTxnsForMember(String memberProfileIdText, LocalDate from, LocalDate to) {
+        double[] totals = new double[2]; // [nonDiscretionaryDebit, incomeCredit]
+        JsonNode accounts = wealthServiceClient.listAccounts(null, true, memberProfileIdText);
+        for (JsonNode account : accounts.path(ACCOUNTS_FIELD)) {
+            String accountIdText = account.path(ACCOUNT_ID_FIELD).asText("");
+            if (accountIdText.isEmpty()) {
+                continue;
+            }
+            UUID accountId = UUID.fromString(accountIdText);
+            totals[0] += sumTransactionsByCategory(accountId, memberProfileIdText, from, to, "DEBIT", NON_DISCRETIONARY_CATEGORIES);
+            totals[1] += sumTransactionsByCategory(accountId, memberProfileIdText, from, to, "CREDIT", INCOME_CATEGORIES);
+        }
+        return totals;
+    }
+
+    private double sumTransactionsByCategory(UUID accountId, String memberProfileIdText, LocalDate from, LocalDate to,
+                                              String txnType, java.util.Set<String> categories) {
+        JsonNode response = wealthServiceClient.listTransactions(
+                accountId, memberProfileIdText, from.toString(), to.toString(), txnType, 0, TRANSACTION_AGGREGATION_FETCH_SIZE);
+        double total = 0.0;
+        JsonNode transactions = response.path(TRANSACTIONS_FIELD);
+        if (transactions.isArray()) {
+            for (JsonNode txn : transactions) {
+                String category = txn.path(METADATA_FIELD).path(CATEGORY_FIELD).asText("");
+                if (categories.contains(category)) {
+                    total += txn.path(AMOUNT_FIELD).asDouble(0.0);
+                }
+            }
+        }
+        return total;
+    }
+
+    private ObjectNode buildFreedomRunwayGoal(JsonNode membersArray, JsonNode policySettings) {
+        double monthlyBudgetCap = policySettings.path("monthly_budget_cap").asDouble(DEFAULT_MONTHLY_BUDGET_CAP);
+        double freedomRunwayMonths = policySettings.path("freedom_runway_months").asDouble(DEFAULT_FREEDOM_RUNWAY_MONTHS);
+
+        double coreRunwayCapital = 0.0;
+        for (JsonNode member : membersArray) {
+            String memberProfileIdText = member.path(PROFILE_ID_FIELD).asText("");
+            if (memberProfileIdText.isEmpty()) {
+                continue;
+            }
+            if (RELATION_CHILD.equals(member.path(RELATION_TO_ADMIN_FIELD).asText(""))) {
+                continue; // children's accounts excluded (ADR-022 audit finding)
+            }
+            UUID memberProfileId = UUID.fromString(memberProfileIdText);
+            coreRunwayCapital += sumCoreRunwayCapitalForMember(memberProfileIdText, memberProfileId);
+        }
+
+        double currentRunwayMonths = monthlyBudgetCap > 0 ? coreRunwayCapital / monthlyBudgetCap : 0.0;
+        ObjectNode entry = buildGoalEntry(
+                "FREEDOM_RUNWAY", "Freedom Runway",
+                "Core runway capital (excl. PPF and children's accounts) covers "
+                        + (int) freedomRunwayMonths + " months of expenses",
+                currentRunwayMonths, freedomRunwayMonths, "months");
+        entry.put("current_months", currentRunwayMonths);
+        return entry;
+    }
+
+    /**
+     * New aggregation, not a reuse of {@link #accumulateTiersForMember} — the
+     * shared liquidity-tier totals have no PPF/CHILD exclusion, which ADR-022's
+     * audit found are both required for FREEDOM_RUNWAY specifically.
+     */
+    private double sumCoreRunwayCapitalForMember(String memberProfileIdText, UUID memberProfileId) {
+        double total = 0.0;
+        JsonNode accounts = wealthServiceClient.listAccounts(null, true, memberProfileIdText);
+        for (JsonNode account : accounts.path(ACCOUNTS_FIELD)) {
+            if (INV_TYPE_PPF.equals(account.path(ACCOUNT_TYPE_FIELD).asText(""))) {
+                continue; // PPF excluded from core runway capital (ADR-022 audit finding)
+            }
+            String tier = account.path(METADATA_FIELD).path(LIQUIDITY_TIER_FIELD).asText("").trim();
+            if (TIER_LIQUID.equals(tier) || TIER_SEMI_LIQUID.equals(tier)) {
+                total += currentBalanceFor(account, memberProfileId);
+            }
+        }
+        return total;
+    }
+
+    private ObjectNode buildInsuranceFreeGoal(JsonNode membersArray, JsonNode emiPayload, JsonNode policySettings) {
+        double maxGainAndFdBalance = 0.0;
+        for (JsonNode member : membersArray) {
+            String memberProfileIdText = member.path(PROFILE_ID_FIELD).asText("");
+            if (memberProfileIdText.isEmpty()) {
+                continue;
+            }
+            UUID memberProfileId = UUID.fromString(memberProfileIdText);
+            maxGainAndFdBalance += sumMaxGainOrFdBalanceForMember(memberProfileIdText, memberProfileId);
+        }
+
+        double outstandingDebt = emiPayload.path(TOTAL_OUTSTANDING_BALANCE_FIELD).asDouble(0.0);
+        double legalFees = policySettings.path("insurance_free_legal_fees").asDouble(0.0);
+        double academicBuffer = policySettings.path("insurance_free_academic_buffer").asDouble(0.0);
+        double denominator = outstandingDebt + legalFees + academicBuffer;
+        double insurancePercent = denominator > 0 ? maxGainAndFdBalance / denominator * 100.0 : 0.0;
+
+        return buildGoalEntry(
+                "INSURANCE_FREE", "Insurance Free",
+                "MaxGain and FD balances cover outstanding debt plus legal fees and academic buffer",
+                insurancePercent, INSURANCE_FREE_TARGET_PERCENT, "percent");
+    }
+
+    private double sumMaxGainOrFdBalanceForMember(String memberProfileIdText, UUID memberProfileId) {
+        double total = 0.0;
+        JsonNode accounts = wealthServiceClient.listAccounts(null, true, memberProfileIdText);
+        for (JsonNode account : accounts.path(ACCOUNTS_FIELD)) {
+            boolean isFd = FD_ACCOUNT_TYPE.equals(account.path(ACCOUNT_TYPE_FIELD).asText(""));
+            boolean isMaxGain = MAXGAIN_PURPOSE_TAG.equals(account.path(METADATA_FIELD).path(PURPOSE_TAG_FIELD).asText(""));
+            if (isFd || isMaxGain) {
+                total += currentBalanceFor(account, memberProfileId);
+            }
+        }
+        return total;
+    }
+
+    /**
+     * ADR-022's one deliberate exception to "computeFormulaGoals and goal_plan are
+     * fully decoupled" — YEAR_ONE's education inputs have no other home. A CHILD
+     * profile with no configured YEAR_ONE goal_plan row is omitted entirely (not
+     * just from this richer view but from the base card too); a configured child
+     * with zero MUTUAL_FUND accounts still gets an entry with current_value=0.
+     */
+    private List<ObjectNode> buildYearOneGoals(UUID adminId, JsonNode membersArray) {
+        List<ObjectNode> entries = new java.util.ArrayList<>();
+        JsonNode goalPlans;
+        try {
+            goalPlans = wealthServiceClient.listGoalPlans(adminId).path(GOAL_PLANS_FIELD);
+        } catch (RuntimeException e) {
+            AppLogger.info("ProjectionEngine: could not load goal plans for admin %s, skipping YEAR_ONE", adminId);
+            return entries;
+        }
+        if (!goalPlans.isArray()) {
+            return entries;
+        }
+
+        for (JsonNode member : membersArray) {
+            String memberProfileIdText = member.path(PROFILE_ID_FIELD).asText("");
+            if (memberProfileIdText.isEmpty() || !RELATION_CHILD.equals(member.path(RELATION_TO_ADMIN_FIELD).asText(""))) {
+                continue;
+            }
+            JsonNode yearOnePlan = findYearOnePlan(goalPlans, memberProfileIdText);
+            if (yearOnePlan == null) {
+                continue;
+            }
+            entries.add(buildYearOneGoalEntry(memberProfileIdText, member.path(FULL_NAME_FIELD).asText(""), yearOnePlan));
+        }
+        return entries;
+    }
+
+    private JsonNode findYearOnePlan(JsonNode goalPlans, String beneficiaryProfileIdText) {
+        for (JsonNode plan : goalPlans) {
+            if (YEAR_ONE_GOAL_TYPE.equals(plan.path(GOAL_TYPE_FIELD).asText(""))
+                    && beneficiaryProfileIdText.equals(plan.path(BENEFICIARY_PROFILE_ID_FIELD).asText(""))) {
+                return plan;
+            }
+        }
+        return null;
+    }
+
+    private ObjectNode buildYearOneGoalEntry(String childProfileIdText, String childName, JsonNode yearOnePlan) {
+        UUID childProfileId = UUID.fromString(childProfileIdText);
+        double baseCost = yearOnePlan.path("education_base_cost").asDouble(0.0);
+        double inflationRate = yearOnePlan.path("education_inflation_rate").asDouble(0.0);
+        int yearsToEntry = yearOnePlan.path("education_years_to_entry").asInt(0);
+        double futureCost = baseCost * Math.pow(1.0 + inflationRate, yearsToEntry);
+        double fundingTarget = YEAR_ONE_FUNDING_RATIO * futureCost;
+
+        double mfBalance = sumAccountTypeBalanceForMember(childProfileIdText, childProfileId, INV_TYPE_MUTUAL_FUND);
+        double fundedPercent = fundingTarget > 0 ? mfBalance / fundingTarget * 100.0 : 0.0;
+
+        ObjectNode entry = buildGoalEntry(
+                YEAR_ONE_GOAL_TYPE, "Year One — " + childName,
+                "Mutual fund corpus covers 25% of " + childName + "'s projected education cost at entry",
+                fundedPercent, YEAR_ONE_TARGET_PERCENT, "percent");
+        entry.put(BENEFICIARY_PROFILE_ID_FIELD, childProfileIdText);
+        entry.put(BENEFICIARY_NAME_FIELD, childName);
+        return entry;
+    }
+
+    /**
+     * Fetches all of a member's accounts unfiltered and matches account_type in
+     * Java — same "fetch-all, filter client-side" convention every other step in
+     * this engine already uses (buildLoanEntry, accumulateTiersForMember,
+     * buildProjectionEntry), rather than introducing a new accountType-filtered
+     * call shape.
+     */
+    private double sumAccountTypeBalanceForMember(String memberProfileIdText, UUID memberProfileId, String accountType) {
+        double total = 0.0;
+        JsonNode accounts = wealthServiceClient.listAccounts(null, true, memberProfileIdText);
+        for (JsonNode account : accounts.path(ACCOUNTS_FIELD)) {
+            if (accountType.equals(account.path(ACCOUNT_TYPE_FIELD).asText(""))) {
+                total += currentBalanceFor(account, memberProfileId);
+            }
+        }
+        return total;
+    }
+
+    private ObjectNode buildGoalEntry(String goalId, String goalName, String description,
+                                       double currentValue, double targetValue, String unit) {
+        boolean achieved = isGoalAchieved(goalId, currentValue, targetValue);
         ObjectNode entry = MAPPER.createObjectNode();
         entry.put(GOAL_ID_FIELD, goalId);
         entry.put(GOAL_NAME_FIELD, goalName);
@@ -878,6 +1140,21 @@ public class ProjectionCalculationEngine {
         entry.put(TARGET_VALUE_FIELD, targetValue);
         entry.put(UNIT_FIELD, unit);
         return entry;
+    }
+
+    /**
+     * Explicit per-goal-type achieved-direction lookup (ADR-022) — THIRTY_SEVENTY_TARGET
+     * is the sole "lower is better" exception; every other goal type is "higher is
+     * better". Deliberately not a single hardcoded "except goal X" branch — that shape
+     * is exactly what silently broke once DEBT_CROSSOVER's direction flipped and
+     * THIRTY_SEVENTY_TARGET became the new exception. Package-private for direct
+     * unit testing of the lookup itself.
+     */
+    boolean isGoalAchieved(String goalId, double currentValue, double targetValue) {
+        if (THIRTY_SEVENTY_GOAL_TYPE.equals(goalId)) {
+            return currentValue <= targetValue;
+        }
+        return currentValue >= targetValue;
     }
 
     // ── WEALTH_VALIDATION_REPORT_FAMILY (Epic 8 Phase 4) ──────────────────────

@@ -304,6 +304,49 @@ describe('Dashboard', () => {
     });
   });
 
+  it('renders multiple YEAR_ONE goal entries (one per child) without duplicate-key collisions, ADR-022', async () => {
+    // ADR-022 Phase 1: YEAR_ONE now repeats once per child with the same goal_id
+    // ("YEAR_ONE") — total_count is no longer fixed at 5. Regression guard that
+    // both children render distinctly (the goal_id-only React key would collide).
+    const snapshotsWithPerChildGoals = [
+      {
+        profile_id: 'p1',
+        snapshot_key: 'WEALTH_FORMULA_GOALS_FAMILY',
+        payload: JSON.stringify({
+          total_count: 2,
+          achieved_count: 0,
+          goals: [
+            {
+              goal_id: 'YEAR_ONE',
+              goal_name: 'Year One — Aanya',
+              status: 'IN_PROGRESS',
+              beneficiary_profile_id: 'child-1',
+              beneficiary_name: 'Aanya',
+            },
+            {
+              goal_id: 'YEAR_ONE',
+              goal_name: 'Year One — Zoya',
+              status: 'IN_PROGRESS',
+              beneficiary_profile_id: 'child-2',
+              beneficiary_name: 'Zoya',
+            },
+          ],
+        }),
+        calculated_at: '2026-07-01T10:00:00Z',
+      },
+    ];
+    mockUseAuth.mockReturnValue({ user: MOCK_USER });
+    getDashboard.mockResolvedValue({ snapshots: snapshotsWithPerChildGoals });
+
+    renderDashboard();
+
+    await waitFor(() => {
+      expect(screen.getByText('Year One — Aanya')).toBeInTheDocument();
+      expect(screen.getByText('Year One — Zoya')).toBeInTheDocument();
+      expect(screen.getByText(/0\/2 achieved/i)).toBeInTheDocument();
+    });
+  });
+
   it('shows WARNING validation badge with warning count when VALIDATION_REPORT_FAMILY snapshot present', async () => {
     const snapshotsWithValidation = [
       {

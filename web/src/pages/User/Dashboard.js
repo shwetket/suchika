@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../hooks/useAuth';
 import { getDashboard, refreshProjections } from '../../api/household';
 import { Badge } from '../../components/shared/Badge';
-
+import { formatCurrency } from '../../utils/formatters';
 const DOMAIN_CARDS = [
   {
     title: 'Profiles',
@@ -46,15 +46,6 @@ function safeParseJson(str) {
   } catch {
     return null;
   }
-}
-
-function formatCurrency(value) {
-  if (value === null || value === undefined) return null;
-  return Number(value).toLocaleString('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 0,
-  });
 }
 
 function formatTimestamp(isoStr) {
@@ -235,7 +226,17 @@ function SnapshotSummary({ snapshots }) {
           </p>
           <div className="space-y-2">
             {goalsPayload.goals.map((goal) => (
-              <div key={goal.goal_id} className="flex items-center justify-between text-sm">
+              // ADR-022: YEAR_ONE now repeats one entry per child, so goal_id alone is no
+              // longer a unique key — fall back to goal_id + beneficiary_profile_id when
+              // present (every other goal type keeps the simple goal_id key).
+              <div
+                key={
+                  goal.beneficiary_profile_id
+                    ? `${goal.goal_id}-${goal.beneficiary_profile_id}`
+                    : goal.goal_id
+                }
+                className="flex items-center justify-between text-sm"
+              >
                 <span className="text-gray-600">{goal.goal_name}</span>
                 <Badge variant={goal.status === 'ACHIEVED' ? 'success' : 'warning'}>
                   {goal.status === 'ACHIEVED' ? 'Achieved' : 'In Progress'}

@@ -140,6 +140,53 @@ export interface paths {
      */
     patch: operations["updatePhysicalAsset"];
   };
+  "/v1/goal-plans": {
+    /** List goal plans for one admin's household */
+    get: operations["listGoalPlans"];
+    /** Create a goal plan */
+    post: operations["createGoalPlan"];
+  };
+  "/v1/goal-plans/{goalPlanId}": {
+    /** Get a goal plan */
+    get: operations["getGoalPlan"];
+    /** Deactivate a goal plan */
+    delete: operations["deactivateGoalPlan"];
+    /** Update a goal plan */
+    patch: operations["updateGoalPlan"];
+  };
+  "/v1/goal-plans/{goalPlanId}/milestones": {
+    /** Bulk-replace a goal plan's milestones */
+    put: operations["replaceGoalPlanMilestones"];
+  };
+  "/v1/goal-plans/{goalPlanId}/milestones/{milestoneId}": {
+    /**
+     * Toggle a manual-checklist milestone's achieved status
+     * @description Only meaningful when is_manual_checklist is true on the target milestone — 400 otherwise.
+     */
+    patch: operations["updateGoalPlanMilestoneAchieved"];
+  };
+  "/v1/goal-plans/{goalPlanId}/rules": {
+    /** Bulk-replace a goal plan's rules */
+    put: operations["replaceGoalPlanRules"];
+  };
+  "/v1/goal-plans/{goalPlanId}/trigger-events": {
+    /** Bulk-replace a goal plan's trigger events */
+    put: operations["replaceGoalPlanTriggerEvents"];
+  };
+  "/v1/insurance-policies": {
+    /** List insurance policies for one admin's household */
+    get: operations["listInsurancePolicies"];
+    /** Create an insurance policy */
+    post: operations["createInsurancePolicy"];
+  };
+  "/v1/insurance-policies/{insurancePolicyId}": {
+    /** Get an insurance policy */
+    get: operations["getInsurancePolicy"];
+    /** Deactivate an insurance policy */
+    delete: operations["deactivateInsurancePolicy"];
+    /** Update an insurance policy */
+    patch: operations["updateInsurancePolicy"];
+  };
   "/v1/household/calendar-events": {
     /** List calendar events for a profile */
     get: operations["listCalendarEvents"];
@@ -561,6 +608,151 @@ export interface components {
       physical_assets?: components["schemas"]["PhysicalAssetResponse"][];
       total_size?: number;
     };
+    /** @enum {string} */
+    GoalType: "DEBT_CROSSOVER" | "THIRTY_SEVENTY_TARGET" | "FREEDOM_RUNWAY" | "INSURANCE_FREE" | "YEAR_ONE";
+    GoalMilestoneResponse: {
+      /** Format: uuid */
+      id?: string;
+      sequence_no: number;
+      label: string;
+      /** Format: double */
+      target_value?: number | null;
+      /** @default false */
+      is_manual_checklist?: boolean;
+      /** @default false */
+      is_achieved?: boolean;
+      significance: string;
+    };
+    GoalRuleResponse: {
+      /** Format: uuid */
+      id?: string;
+      sequence_no: number;
+      rule_name: string;
+      rule_text: string;
+    };
+    GoalTriggerEventResponse: {
+      /** Format: uuid */
+      id?: string;
+      sequence_no: number;
+      event_name: string;
+      trigger_condition: string;
+      resulting_change: string;
+    };
+    GoalPlanResponse: {
+      /** Format: uuid */
+      id?: string;
+      /** Format: uuid */
+      admin_id?: string;
+      goal_type?: components["schemas"]["GoalType"];
+      /** Format: uuid */
+      beneficiary_profile_id?: string | null;
+      objective?: string;
+      target_state?: string | null;
+      /** Format: double */
+      assumed_growth_rate?: number | null;
+      /** Format: double */
+      education_base_cost?: number | null;
+      /** Format: double */
+      education_inflation_rate?: number | null;
+      education_years_to_entry?: number | null;
+      detail?: {
+        [key: string]: string;
+      };
+      is_active?: boolean;
+      milestones?: components["schemas"]["GoalMilestoneResponse"][];
+      rules?: components["schemas"]["GoalRuleResponse"][];
+      trigger_events?: components["schemas"]["GoalTriggerEventResponse"][];
+      /** Format: date-time */
+      created_at?: string;
+      /** Format: date-time */
+      updated_at?: string;
+    };
+    CreateGoalPlanRequest: {
+      goal_type: components["schemas"]["GoalType"];
+      /** Format: uuid */
+      beneficiary_profile_id?: string | null;
+      objective: string;
+      target_state?: string | null;
+      /** Format: double */
+      assumed_growth_rate?: number | null;
+      /** Format: double */
+      education_base_cost?: number | null;
+      /** Format: double */
+      education_inflation_rate?: number | null;
+      education_years_to_entry?: number | null;
+    };
+    UpdateGoalPlanRequest: {
+      objective?: string;
+      target_state?: string | null;
+      /** Format: double */
+      assumed_growth_rate?: number | null;
+      /** Format: double */
+      education_base_cost?: number | null;
+      /** Format: double */
+      education_inflation_rate?: number | null;
+      education_years_to_entry?: number | null;
+      detail?: {
+        [key: string]: string;
+      };
+      is_active?: boolean;
+    };
+    ListGoalPlansResponse: {
+      goal_plans?: components["schemas"]["GoalPlanResponse"][];
+      total_size?: number;
+    };
+    /** @enum {string} */
+    PolicyType: "TERM" | "GROUP_TERM" | "INVESTMENT_LINKED" | "ENDOWMENT" | "HEALTH";
+    /** @enum {string} */
+    PremiumFrequency: "MONTHLY" | "ANNUAL";
+    InsurancePolicyResponse: {
+      /** Format: uuid */
+      id?: string;
+      /** Format: uuid */
+      admin_id?: string;
+      policy_name?: string;
+      provider?: string;
+      policy_type?: components["schemas"]["PolicyType"];
+      /** Format: double */
+      premium_amount?: number;
+      premium_frequency?: components["schemas"]["PremiumFrequency"];
+      /** Format: double */
+      coverage_amount?: number | null;
+      payout_structure?: {
+        [key: string]: string;
+      };
+      is_active?: boolean;
+      /** Format: date-time */
+      created_at?: string;
+      /** Format: date-time */
+      updated_at?: string;
+    };
+    CreateInsurancePolicyRequest: {
+      policy_name: string;
+      provider: string;
+      policy_type: components["schemas"]["PolicyType"];
+      /** Format: double */
+      premium_amount: number;
+      premium_frequency: components["schemas"]["PremiumFrequency"];
+      /** Format: double */
+      coverage_amount?: number | null;
+    };
+    UpdateInsurancePolicyRequest: {
+      policy_name?: string;
+      provider?: string;
+      /** Format: double */
+      premium_amount?: number;
+      premium_frequency?: components["schemas"]["PremiumFrequency"];
+      /** Format: double */
+      coverage_amount?: number | null;
+      payout_structure?: {
+        [key: string]: string;
+      };
+      is_active?: boolean;
+    };
+    ListInsurancePoliciesResponse: {
+      insurance_policies?: components["schemas"]["InsurancePolicyResponse"][];
+      total_size?: number;
+    };
     TransactionResponse: {
       /** Format: uuid */
       id?: string;
@@ -589,10 +781,11 @@ export interface components {
       size?: number;
     };
     /**
-     * @description Epic 8 Phase 2 hardcoded expense category enum (manual tagging only).
+     * @description Epic 8 Phase 2 hardcoded expense category enum (manual tagging only). Widened from 5 to 8 values in ADR-022 Phase 1 for THIRTY_SEVENTY_TARGET's income-tagged CREDIT transaction filter.
+     *
      * @enum {string}
      */
-    ExpenseCategory: "HOUSEHOLD_CORE" | "CHILD_RELATED" | "MAINTENANCE" | "DISCRETIONARY" | "UNCATEGORIZED";
+    ExpenseCategory: "HOUSEHOLD_CORE" | "CHILD_RELATED" | "MAINTENANCE" | "DISCRETIONARY" | "UNCATEGORIZED" | "SALARY" | "RENTAL" | "OTHER_INCOME";
     CreateTransactionRequest: {
       /**
        * Format: date
@@ -661,6 +854,12 @@ export interface components {
     UploadId: string;
     /** @description Unique identifier of the physical asset */
     AssetId: string;
+    /** @description Unique identifier of the goal plan */
+    GoalPlanId: string;
+    /** @description Unique identifier of the goal plan milestone */
+    MilestoneId: string;
+    /** @description Unique identifier of the insurance policy */
+    InsurancePolicyId: string;
   };
   requestBodies: never;
   headers: never;
@@ -1321,6 +1520,337 @@ export interface operations {
       200: {
         content: {
           "application/json": components["schemas"]["PhysicalAssetResponse"];
+        };
+      };
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+    };
+  };
+  /** List goal plans for one admin's household */
+  listGoalPlans: {
+    parameters: {
+      query: {
+        admin_id: string;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ListGoalPlansResponse"];
+        };
+      };
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+    };
+  };
+  /** Create a goal plan */
+  createGoalPlan: {
+    parameters: {
+      query: {
+        admin_id: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateGoalPlanRequest"];
+      };
+    };
+    responses: {
+      /** @description Goal plan created */
+      201: {
+        content: {
+          "application/json": components["schemas"]["GoalPlanResponse"];
+        };
+      };
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      409: external["shared.yaml"]["components"]["responses"]["Conflict"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+    };
+  };
+  /** Get a goal plan */
+  getGoalPlan: {
+    parameters: {
+      query: {
+        admin_id: string;
+      };
+      path: {
+        goalPlanId: components["parameters"]["GoalPlanId"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["GoalPlanResponse"];
+        };
+      };
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+    };
+  };
+  /** Deactivate a goal plan */
+  deactivateGoalPlan: {
+    parameters: {
+      query: {
+        admin_id: string;
+      };
+      path: {
+        goalPlanId: components["parameters"]["GoalPlanId"];
+      };
+    };
+    responses: {
+      /** @description Goal plan deactivated */
+      204: {
+        content: never;
+      };
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+    };
+  };
+  /** Update a goal plan */
+  updateGoalPlan: {
+    parameters: {
+      query: {
+        admin_id: string;
+      };
+      path: {
+        goalPlanId: components["parameters"]["GoalPlanId"];
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateGoalPlanRequest"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["GoalPlanResponse"];
+        };
+      };
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+    };
+  };
+  /** Bulk-replace a goal plan's milestones */
+  replaceGoalPlanMilestones: {
+    parameters: {
+      query: {
+        admin_id: string;
+      };
+      path: {
+        goalPlanId: components["parameters"]["GoalPlanId"];
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["GoalMilestoneResponse"][];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["GoalMilestoneResponse"][];
+        };
+      };
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+    };
+  };
+  /**
+   * Toggle a manual-checklist milestone's achieved status
+   * @description Only meaningful when is_manual_checklist is true on the target milestone — 400 otherwise.
+   */
+  updateGoalPlanMilestoneAchieved: {
+    parameters: {
+      query: {
+        admin_id: string;
+      };
+      path: {
+        goalPlanId: components["parameters"]["GoalPlanId"];
+        milestoneId: components["parameters"]["MilestoneId"];
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          is_achieved: boolean;
+        };
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["GoalMilestoneResponse"];
+        };
+      };
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+    };
+  };
+  /** Bulk-replace a goal plan's rules */
+  replaceGoalPlanRules: {
+    parameters: {
+      query: {
+        admin_id: string;
+      };
+      path: {
+        goalPlanId: components["parameters"]["GoalPlanId"];
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["GoalRuleResponse"][];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["GoalRuleResponse"][];
+        };
+      };
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+    };
+  };
+  /** Bulk-replace a goal plan's trigger events */
+  replaceGoalPlanTriggerEvents: {
+    parameters: {
+      query: {
+        admin_id: string;
+      };
+      path: {
+        goalPlanId: components["parameters"]["GoalPlanId"];
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["GoalTriggerEventResponse"][];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["GoalTriggerEventResponse"][];
+        };
+      };
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+    };
+  };
+  /** List insurance policies for one admin's household */
+  listInsurancePolicies: {
+    parameters: {
+      query: {
+        admin_id: string;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ListInsurancePoliciesResponse"];
+        };
+      };
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+    };
+  };
+  /** Create an insurance policy */
+  createInsurancePolicy: {
+    parameters: {
+      query: {
+        admin_id: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateInsurancePolicyRequest"];
+      };
+    };
+    responses: {
+      /** @description Insurance policy created */
+      201: {
+        content: {
+          "application/json": components["schemas"]["InsurancePolicyResponse"];
+        };
+      };
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+    };
+  };
+  /** Get an insurance policy */
+  getInsurancePolicy: {
+    parameters: {
+      query: {
+        admin_id: string;
+      };
+      path: {
+        insurancePolicyId: components["parameters"]["InsurancePolicyId"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["InsurancePolicyResponse"];
+        };
+      };
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+    };
+  };
+  /** Deactivate an insurance policy */
+  deactivateInsurancePolicy: {
+    parameters: {
+      query: {
+        admin_id: string;
+      };
+      path: {
+        insurancePolicyId: components["parameters"]["InsurancePolicyId"];
+      };
+    };
+    responses: {
+      /** @description Insurance policy deactivated */
+      204: {
+        content: never;
+      };
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+    };
+  };
+  /** Update an insurance policy */
+  updateInsurancePolicy: {
+    parameters: {
+      query: {
+        admin_id: string;
+      };
+      path: {
+        insurancePolicyId: components["parameters"]["InsurancePolicyId"];
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateInsurancePolicyRequest"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["InsurancePolicyResponse"];
         };
       };
       400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
