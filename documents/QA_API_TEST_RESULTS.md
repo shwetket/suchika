@@ -4,8 +4,10 @@
 |---|---|
 | **Type** | Reference |
 | **Audience** | QA, developers |
-| **Status** | Active |
+| **Status** | Historical — superseded as the primary QA record |
 | **Last updated** | 2026-06-23 |
+
+> **Status note (2026-07-12):** Only Run 1 was ever recorded here (v0.2-era, pre-pagination, pre-Epic-8). Since then, QA/coverage passes are logged inline in each `documents/domain-state/<domain>.md` file (e.g. wealth.md's 2026-07-12 coverage-gap pass) as they happen, which is where current QA activity actually lives now. Kept as-is for its historical value (4 real blocker bugs found and fixed) — not being extended further.
 
 ## Objective
 

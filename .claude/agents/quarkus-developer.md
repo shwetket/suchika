@@ -40,7 +40,7 @@ Authority: `application/`, `shared/`, `infrastructure/`
 - `domain/` and `ports/` classes are instantiated with `new` in tests — no `@Inject`, no JPA, no HTTP types.
 - Use `@ApplicationScoped`, Panache repositories, RESTEasy Reactive in adapters only.
 - All logging via `AppLogger` from `shared/`. All exceptions via `shared/exception/` hierarchy.
-- Keep API paths under `/api/v1/...`. Database name stays `app_db`.
+- Keep API paths under `/v1/...` (not `/api/v1/...` — every domain contract uses a bare `/v1` base path). Database name stays `app_db`.
 - Service ports: profile=8081, wealth=8082, health=8083, household=8084, gateway=8080. Do not change.
 - New schema change → new versioned Flyway file in `application/flyway/{domain}/`. Never edit committed migrations.
 - No SQL ENUMs. VARCHAR for discriminator columns; enforce allowed values at OpenAPI contract + Java enum.
@@ -76,8 +76,9 @@ Write tests alongside every code change. Work is not done until tests exist and 
 - Every use case (input port implementation) needs at least one test class.
 
 **Adapter layer tests** (`{domain}/adapters/src/test/`):
-- Use Testcontainers with a real PostgreSQL instance — no H2, no mocked repos.
+- `ARCHITECTURE_GUIDELINES.md` specifies Testcontainers with real PostgreSQL — no H2, no mocked repos. **Reality check:** as of the 2026-07-06 cross-domain retrospective, no domain has actually adopted Testcontainers yet (Q34/Q35 tracked, unimplemented) — every existing adapter test class runs against the shared local Postgres via a `%integration-test` Quarkus config profile instead. Match the existing per-domain pattern for new tests; don't unilaterally introduce real Testcontainers in just one file without a cross-cutting decision (that's an `architect` call).
 - Cover: CRUD operations, `profile_id` scoping, FK constraints.
+- No CHECK constraints anywhere in any Flyway migration (revised 2026-07-05 policy) — only PK/FK/NOT NULL/UNIQUE stay in the DB. Every business-rule check (`amount >= 0`, `end_date >= start_date`, etc.) belongs in a domain-layer validating static factory (`Type.create(...)`, throws `IllegalArgumentException`), never a DB CHECK.
 
 **ArchUnit** (in `shared/`):
 - Do not add new classes that violate hexagonal rules — ArchUnit will fail the build.

@@ -57,9 +57,10 @@ bash scripts/build-local.sh       # Git Bash
 
 ### Backend
 - **Domain layer** (`{domain}/domain/src/test/`): plain JUnit 5, no Quarkus harness, no mocks for repos. Instantiate with `new`. Cover happy path + validation failures + edge cases.
-- **Adapter layer** (`{domain}/adapters/src/test/`): Testcontainers + real PostgreSQL. No H2, no mocked repositories.
-- **ArchUnit** (`shared/src/test/`): enforces hexagonal rules automatically on every `./gradlew test`. Do not bypass.
-- **Coverage**: every public input-port implementation must have at least one test class. No uncovered use cases.
+- **Adapter layer** (`{domain}/adapters/src/test/`): `ARCHITECTURE_GUIDELINES.md` specifies Testcontainers + real PostgreSQL, no H2/mocks. **Known repo-wide gap, confirmed across all four domains' 2026-07-06 retrospectives:** no domain has actually adopted Testcontainers — every existing adapter test class runs against the shared local Postgres via a `%integration-test` config profile instead (Q34/Q35 in `OpenQuestions.md`, resolved-in-principle 2026-07-04, never implemented). Flag this drift if asked to audit test standards; don't silently treat it as fixed.
+- **ArchUnit** (`shared/src/test/`): enforces hexagonal rules automatically on every `./gradlew test`, including the v0.6 rule that every `ports.input` use-case interface must be referenced by at least one test class. Do not bypass.
+- **Coverage**: every public input-port implementation must have at least one test class. No uncovered use cases. Real current floor (2026-07-12 pass, don't regress below): wealth-domain 97.5% lines/87.7% branch, wealth-adapters 92.7%/75.5%, web-gateway 84.1%/79.3% lines/branch (JaCoCo). Frontend Jest gate: branches 70%, functions 75%, lines 80%, statements 79% (`web/package.json` coverage thresholds) — actual levels run higher (93%+ statements as of the last wealth pass) but the enforced floor is the lower number.
+- **SonarQube `new_coverage` gate is 80%** on new/changed code — this is the gate that actually blocks a PR, distinct from the module-level JaCoCo/Jest numbers above.
 - No test crosses domain boundaries via the DB.
 
 ### Frontend

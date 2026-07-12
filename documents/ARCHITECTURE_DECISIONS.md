@@ -303,9 +303,9 @@ public class UploadResult {
 
 **Rationale:** Option 1 requires zero changes to `domain/`, `ports/`, the `TransactionRepository` interface, or the projection engine's snapshot key shape — `profile_id` stays a single scalar everywhere it already is. This keeps `profile_id` filtering adapter-only (ADR-006) and avoids any cross-domain or cross-profile query pattern. It follows the existing precedent set by `wealth.physical_asset.profile_id`, which is already nullable with the documented convention "NULL = owned by the admin profile" — same shape of problem (one row, ambiguous singular ownership), same style of resolution (pick a canonical owner, carry nuance in metadata).
 
-**Schema impact:** Requires `wealth.account.metadata JSONB` (does not exist as of v0.4 — only `transaction` and `physical_asset` have a `metadata` column today). Added via Flyway `V6__account_metadata.sql` as part of Epic 8 Phase 1 — see `documents/EPIC8_IMPLEMENTATION_PLAN.md`.
+**Schema impact:** Requires `wealth.account.metadata JSONB` (did not exist as of v0.4 — only `transaction` and `physical_asset` had a `metadata` column then). Added via Flyway `V6__account_metadata.sql` as part of Epic 8 Phase 1 (complete — see `documents/domain-state/wealth.md`).
 
-**Open product question:** whether joint-account transactions should count toward both owners' *individual* net worth figures or only the designated owner's/household total — this is a financial-modeling policy choice, not a schema question. Tracked as `OpenQuestions.md` Q21.
+**Resolved:** whether joint-account transactions should count toward both owners' *individual* net worth figures or only the designated owner's/household total — resolved as the latter; see ADR-017 (household-level rollup is the dashboard's primary view).
 
 **Update — 2026-06-30:** Q21 resolved. Superseded by ADR-017 — the dashboard's primary view is a household rollup, so individual-vs-joint attribution is now moot at the net-worth level; the Kotak account simply contributes to the one family total like every other account.
 
@@ -376,7 +376,7 @@ The joint Kotak account (ADR-016: designated `profile_id` = Shweta, `metadata.jo
 
 **Rejected alternative — new `household` table/schema as the rollup's identity:** Rejected for the same YAGNI reason ADR-016 already gave for rejecting a household ownership tier — `profile.admin` already models "which profiles belong to this rollup" via the existing `admin_id` FK, with zero new schema. Introducing a new household concept duplicates an FK relationship that already exists.
 
-**Impact on Epic 8 phases:** See `documents/EPIC8_IMPLEMENTATION_PLAN.md` (revised 2026-06-30) — the family-rollup aggregation step is added to Phase 1 as a thin wrapper around the per-account balance fix already in progress; it does not replace or invalidate that work. Phases 3-4 (EMI tracking, goals, validation) reuse the same aggregation mechanism (`listProfiles(admin_id)` + loop + sum-with-nested-breakdown) rather than needing a redesign.
+**Impact on Epic 8 phases (all complete — see `documents/domain-state/wealth.md`):** the family-rollup aggregation step was added to Phase 1 as a thin wrapper around the per-account balance fix; it did not replace or invalidate that work. Phases 3-4 (EMI tracking, goals, validation) reused the same aggregation mechanism (`listProfiles(admin_id)` + loop + sum-with-nested-breakdown) rather than needing a redesign.
 
 **Schema impact:** None. No new table, no new column, no new migration. `projections.dashboard_snapshot` keeps its existing `(profile_id, snapshot_key)` primary key shape — only new `snapshot_key` string constants are added in `SnapshotKey.java`.
 
@@ -452,7 +452,7 @@ This was flagged during the v0.4 architect review (Q1): "the current `CalendarEv
 - **VARCHAR name columns capped at `VARCHAR(50)`** project-wide (`account_name`, `institution_name`, `asset_name`, `display_name`, `full_name`) — a standard, not a per-domain judgment call.
 - **profileId placement (Q33):** direct `profile_id` column only on each domain's root/primary aggregate table. Child/detail tables unambiguously owned by exactly one already-scoped parent row (`wealth.transaction` via `account_id`, `wealth.statement_upload` via `account_id`, `wealth.upload_error_log` via `upload_id`) do not get their own copy — extends ADR-019's domain-entity-layer reasoning to the schema layer.
 
-**Context:** `documents/flyway-consolidation-plan.md` (2026-07-03) drafted this consolidation under an initial instruction to drop FK and CHECK constraints entirely, and UNIQUE along with them. The product owner's actual resolution (`OpenQuestions.md` Q31, Q44, Q46 — 2026-07-04) reversed the FK/UNIQUE removal specifically, while confirming CHECK removal. Rationale for the reversal: FK/UNIQUE catch real bugs (orphaned `profile_id` rows, duplicate natural keys) at zero runtime cost, for free, regardless of application-layer bugs — a materially different risk profile than enum CHECKs, which were already fully redundant with contract validation. CHECK removal for business rules was conditioned on verified-equivalent domain-layer enforcement first (Q45) — this was audited and closed this session (see table below).
+**Context:** the original consolidation plan (2026-07-03, since executed and removed from `documents/` — its content is fully superseded by this ADR and the domain-state files) drafted this under an initial instruction to drop FK and CHECK constraints entirely, and UNIQUE along with them. The product owner's actual resolution reversed the FK/UNIQUE removal specifically, while confirming CHECK removal. Rationale for the reversal: FK/UNIQUE catch real bugs (orphaned `profile_id` rows, duplicate natural keys) at zero runtime cost, for free, regardless of application-layer bugs — a materially different risk profile than enum CHECKs, which were already fully redundant with contract validation. CHECK removal for business rules was conditioned on verified-equivalent domain-layer enforcement first — this was audited and closed (see table below).
 
 **Q45 verification (business-rule CHECK → domain-layer equivalent), confirmed 2026-07-05:**
 
@@ -470,7 +470,7 @@ This was flagged during the v0.4 architect review (Q1): "the current `CalendarEv
 
 **Rationale for CHECK-only removal (vs. the plan's original FK+CHECK+UNIQUE removal):** Adding a new discriminator or business rule now requires only a domain/contract change, no Flyway migration — the original goal. But referential integrity and natural-key uniqueness are structural invariants worth keeping at the DB layer as a last line of defense; recreating them at the application layer (existence-check REST calls for cross-service FKs, pre-insert uniqueness checks) trades a free, atomic DB guarantee for a slower, non-atomic, easy-to-forget application-layer approximation with real gaps (multi-step delete atomicity, network-call coupling for cross-service checks). Not a good trade at this project's scale.
 
-**Rejected alternative:** Drop FK/UNIQUE too (the plan's original draft direction) — rejected per the reasoning above; see `documents/flyway-consolidation-plan.md` Section 2 for the full accepted-risk table that was drafted for this alternative before it was overridden.
+**Rejected alternative:** Drop FK/UNIQUE too (the original draft direction of the now-executed, since-removed consolidation plan) — rejected per the reasoning above. The accepted-risk table drafted for that alternative (orphaned rows, lost cascade deletes, lost natural-key uniqueness) is superseded by this ADR's final decision and was not carried forward once the plan finished executing.
 
 ---
 

@@ -5,7 +5,7 @@
 | **Type** | Reference |
 | **Audience** | Developers, AI agents |
 | **Status** | Active |
-| **Last updated** | 2026-06-23 |
+| **Last updated** | 2026-07-12 (added missing `ux-developer` row) |
 
 ## Objective
 
@@ -33,6 +33,7 @@ Catalogue all Claude Code AI agents available in this repository, their responsi
 | `quality-manager` | Quality manager | Test coverage reviews, build stability, ArchUnit audits, SonarQube analysis, pre-commit hooks |
 | `quarkus-developer` | Backend Quarkus developer | Cross-domain Java work — domain code, Panache repos, JAX-RS controllers, Flyway migrations, OpenAPI contracts |
 | `react-developer` | Frontend React developer | Cross-domain frontend work — components, hooks, pages, Tailwind, routing, generated API client |
+| `ux-developer` | UX/interaction designer | Reviewing a page/component for usability, information hierarchy, or interaction-safety before `react-developer` implements a fix. Recommendations only — does not write code. |
 | `wealth-developer` | Wealth domain specialist | All backend and frontend work in the wealth domain — accounts, transactions, CSV uploads, physical assets (port 8082) |
 | `Explore` | Read-only codebase search | Locating files by pattern, finding symbol definitions, answering "where is X?" without modifying anything |
 | `Plan` | Implementation planner | Designing implementation strategy, identifying critical files, evaluating architectural trade-offs before writing code |

@@ -5,7 +5,7 @@
 | **Type** | Requirements |
 | **Audience** | Developers, product |
 | **Status** | Active |
-| **Last updated** | 2026-06-23 |
+| **Last updated** | 2026-07-12 (Vacation Planner + Action Center marked DONE — both delivered 2026-07-02) |
 
 ## Objective
 
@@ -29,20 +29,24 @@ Every domain (Wealth, Health, Household) enforces `profile_id`-scoped data isola
 **Objective:** Stabilize core technical capabilities independently.
 **Constraint:** Cross-domain logic is strictly prohibited in these early versions. Each domain (Wealth, Household, Health) must operate entirely isolated from one another to ensure foundational architectures solidify without inter-dependency bugs.
 
-## v0.5: Beta Release (Stable for Testers)
+## v0.5: Beta Release (Stable for Testers) [DONE — 2026-07-02]
 **Objective:** Introduce read-only composite views that aggregate data from isolated domains without breaking architectural boundaries.
 
-### Epic 1: The "Vacation Planner" 
+### Epic 1: The "Vacation Planner" [DONE]
 **Domains Required:** Household (Calendar) + Wealth (Finance & Vehicle Assets)
-#### Use Case 1.1: Trip Feasibility & Asset Readiness
-* **Budget Validation:** When a user schedules a multi-day trip event in the Household calendar and inputs an estimated cost, the system must be able to read the current liquid savings balance from the Wealth domain to display a simple "Feasible / Not Feasible" status flag.
-* **Asset Compliance Block:** When scheduling a road trip event, the system must query the Vehicle compliance ledger (Wealth domain) and generate a high-priority warning if the vehicle's PUC, Insurance, or BH-Series Road Tax expires before or during the scheduled trip dates.
+#### Use Case 1.1: Trip Feasibility & Asset Readiness [DONE]
+* **Budget Validation:** When a user schedules a multi-day trip event in the Household calendar and inputs an estimated cost, the system must be able to read the current liquid savings balance from the Wealth domain to display a simple "Feasible / Not Feasible" status flag. [DONE]
+* **Asset Compliance Block:** When scheduling a road trip event, the system must query the Vehicle compliance ledger (Wealth domain) and generate a high-priority warning if the vehicle's PUC, Insurance, or BH-Series Road Tax expires before or during the scheduled trip dates. [DONE]
 
-### Epic 2: Consolidated "Action Center"
+**Implementation note (added 2026-07-12):** delivered as a gateway-native feature (`com.suchika.gateway.vacationplanner`), not household or wealth domain code — it depends only on `WealthServiceClient` (reads liquid savings + physical-asset compliance data). Lives under `/household/vacation-planner` in the nav for UX grouping only, not a backend boundary. One known, unbuilt integration: trip dates are manually re-entered even though `household.calendar_event` already models `EventType.TRAVEL` — not a bug, just an unexploited opportunity. See `documents/domain-state/wealth.md` and `household.md`.
+
+### Epic 2: Consolidated "Action Center" [DONE]
 **Domains Required:** Wealth + Household + Health
-#### Use Case 2.1: Unified Dashboard Alerts
-* **Aggregation:** The system must feature a single, read-only dashboard that pulls urgent pending items across all domains.
-* **Notification Scope:** This dashboard must aggregate upcoming calendar events (Household), pending vehicle compliance renewals or recurring financial payments (Wealth), and missing biometric data logging streaks (Health).
+#### Use Case 2.1: Unified Dashboard Alerts [DONE]
+* **Aggregation:** The system must feature a single, read-only dashboard that pulls urgent pending items across all domains. [DONE]
+* **Notification Scope:** This dashboard must aggregate upcoming calendar events (Household), pending vehicle compliance renewals or recurring financial payments (Wealth), and missing biometric data logging streaks (Health). [DONE]
+
+**Implementation note (added 2026-07-12):** `ProjectionCalculationEngine.computeActionCenterAlerts()` → `ACTION_CENTER_ALERTS_FAMILY` snapshot key, one of 13 compute steps in the CQRS projection engine (see `ARCHITECTURE.md`). Biometric gap threshold and tracked vital types resolved as their own product decision — see `documents/domain-state/health.md`.
 
 ## v1.0: Security & Persistence
 **Objective:** Ensure that connecting multiple domains does not bypass the role-based access controls established in v1.0.

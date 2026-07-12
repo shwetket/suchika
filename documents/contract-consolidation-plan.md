@@ -7,6 +7,10 @@
 | **Status** | **Q49-Q53 all resolved 2026-07-04 — ready to execute.** No file under `application/contract/` has been touched yet; `application/contract/shared.yaml` does not exist. See resolution deltas below before starting Phase 0. |
 | **Last updated** | 2026-07-05 (resolution deltas added) |
 
+## Update 2026-07-07 — pagination question resolved on a separate track before this plan executed
+
+The "which pagination shape wins" question (raised as Q54 in the now-archived `OpenQuestions.md`, since this plan's own Q50 resolution said "unify" without picking a winner) was settled independently by the pre-v1.0 pagination pass — see `documents/ROADMAP.md`'s "Open Questions for the Product Owner" item 7. **Option B won:** offset-based `page`/`size` (0-indexed, default 50, max 200) is now the single project-wide shape, shipped as reusable `Page`/`Size` parameters in `shared.yaml` and extended to every list endpoint (transactions, doctor visits, vitals, inventory items, calendar events, goals, physical assets). The dead cursor-based `page_token`/`next_page_token` scaffolding was deleted (it was declared but never actually implemented behind `AccountResource`). **Action for whoever executes Phase 0/3 below:** the `PageSize`/`PageToken` components described in section 1d and the phase snippets are stale — confirm `shared.yaml` already has the shipped `Page`/`Size` shape instead, and treat every "wealth's listTransactions is a third incompatible shape" statement below as resolved, not a live decision to make.
+
 ## Resolution Deltas (2026-07-05) — read before executing Phase 0
 
 | This plan asked | Resolved | Effect on the plan as drafted |

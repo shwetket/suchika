@@ -5,7 +5,7 @@
 | **Type** | Requirements |
 | **Audience** | Developers, product |
 | **Status** | Active |
-| **Last updated** | 2026-06-30 |
+| **Last updated** | 2026-07-12 (account types, Epic 8 DONE/NOT-DELIVERED markers, v0.5/v0.6/ADR-022 content added — see per-section notes) |
 
 ## Objective
 
@@ -46,7 +46,7 @@ Define all functional requirements, epics, and acceptance criteria for the Wealt
 #### Use Case 2.1: Financial Account Registry
 
 * **Account Creation:** The system must allow the creation of a financial account with a name, account type, and owning `profile_id`. [DONE]
-* **Account Types:** Supported account types are: SAVINGS, CURRENT, CREDIT_CARD, HOME_LOAN, PERSONAL_LOAN, INVESTMENT, FD. [DONE]
+* **Account Types:** Supported account types are: SAVINGS, CURRENT, CREDIT_CARD, HOME_LOAN, PERSONAL_LOAN, CAR_LOAN, MUTUAL_FUND, NPS, PPF, FD, EPF (11 total as of 2026-07-09 — widened from the original 7 listed here; `EPF` was the most recent addition). [DONE]
 * **Account Listing:** The system must list all accounts for a given `profile_id`. The list must be filterable by account type and by active/inactive status. [DONE]
 * **Account View:** The system must return the full details of a single account by its ID, scoped to the owning `profile_id`. [DONE]
 * **Account Update:** The system must allow updating the name and metadata of an account. [DONE]
@@ -101,13 +101,13 @@ Define all functional requirements, epics, and acceptance criteria for the Wealt
 
 **Objective:** Implement the CQRS Read Model. Execute mathematical logic against the immutable ledger to output strict JSON state files for the dashboard.
 
-**Status note (2026-06-30):** Epic 8 was not implemented at v0.4 — the milestone was executed as an error-handling sprint instead (see `ROADMAP.md`, v0.4 section, and `OpenQuestions.md` Q8). The use cases below are the corrected, expanded definition of Epic 8, carried forward to the milestone confirmed by the product owner. They replace the three short use cases previously listed here. Until the product owner answers `OpenQuestions.md` Q8/Q13–Q20, these remain wealth-domain-only requirements not yet scheduled into a sprint.
+**Status note (2026-07-12 — Epic 8 delivered, 5 of 6 use cases, see per-use-case markers below):** Epic 8 was not implemented at v0.4 — the milestone was executed as an error-handling sprint instead. All open questions this epic depended on (Q8, Q13–Q25) were resolved and Epic 8 shipped across v0.6 (Phases 1–4) plus ADR-022 (goal plan/insurance policy management, all 3 phases). **Use Cases 8.1, 8.2, 8.4, 8.5, 8.6 are `[DONE]`. Use Case 8.3 is explicitly `[NOT DELIVERED]`** — a deliberate product-owner-endorsed scope cut, not an oversight (see its own marker below for why). Full implementation detail: `documents/domain-state/wealth.md`; formula corrections since this text was written: ADR-022.
 
 **Domain boundary note:** Every use case in this epic operates exclusively on data already owned by the wealth domain (`account`, `transaction`, `physical_asset`, and the `metadata JSONB` field on `account`). No use case in this epic reads from `household`, `health`, or `profile` beyond the existing `profile_id` ownership scope. This keeps Epic 8 a single-domain epic, compliant with the "no cross-domain features before v0.5" rule (`REQUIREMENTS_cross_domain.md`). Where a calculation in the product owner's reference tooling depends on data this domain does not own (e.g., household income), the use case below explicitly excludes it and routes it to manual entry or to `OpenQuestions.md` instead of silently assuming a cross-domain read.
 
 ### Epic 8: The Mathematical Engine & Zero Leakage
 
-#### Use Case 8.1: "The Mahesh Summation Rule" (Zero Leakage)
+#### Use Case 8.1: "The Mahesh Summation Rule" (Zero Leakage) [DONE]
 
 * **Dynamic Header Summation:** Top-level metrics (e.g., Total Gross Assets, Net Worth, Current Liquidity) must be dynamically calculated directly from the sum of underlying ledger transactions and active `physical_asset` records — never from a manually entered total.
 * **Asset Categorization:** Every `account` and `physical_asset` record must resolve to exactly one asset category (e.g., real estate, financial investment, precious metal, vehicle, cash/bank) for summation purposes. Category is derived from `account.type` / `physical_asset.type` and, where the type alone is ambiguous (e.g., an INVESTMENT account holding SIP units vs. a PF account), from a category value stored in the account's `metadata JSONB` field. Category values are enum discriminators (per architecture rules) — not free text.
@@ -117,7 +117,7 @@ Define all functional requirements, epics, and acceptance criteria for the Wealt
 * **Purpose Grouping:** Each account/asset must resolve to one purpose tag (e.g., emergency fund, retirement corpus, growth investment, income generation, education, long-term reserve), sourced from `metadata JSONB`. This is a one-time manual classification per account (see manual-entry list below), not a derived value — the engine consumes it but does not compute it.
 * **Growth Projection:** The engine must compute a weighted-average growth projection at 5-year and 10-year horizons across all financial investment accounts, using a per-account expected-return-rate assumption stored in `metadata JSONB` (manual entry — see below). Accounts without a stored expected-return-rate are excluded from the projection and flagged in the validation report (Use Case 8.4) rather than defaulted to zero or assumed.
 
-#### Use Case 8.2: EMI Arbitrage & Liquidity Monitoring
+#### Use Case 8.2: EMI Arbitrage & Liquidity Monitoring [DONE]
 
 * **Loan Metadata (Manual, One-Time):** Each loan account (`HOME_LOAN`, `PERSONAL_LOAN`) must carry, in `metadata JSONB`: original principal disbursed, loan start date, original tenure in months, and interest rate. These are one-time facts set at loan origination and updated only when the bank changes the rate — they are not derivable from transaction history and must remain manual entry.
 * **EMI Principal/Interest Split (Derived):** The engine must derive the EMI principal/interest split per repayment period from the loan metadata (principal, rate, tenure) using standard amortization, cross-checked against the actual DEBIT transactions recorded against the loan account. The split must not be hardcoded or manually entered per period.
@@ -127,20 +127,24 @@ Define all functional requirements, epics, and acceptance criteria for the Wealt
 * **Prepayment vs. Wealth Building:** The engine must compare the loan's interest rate (from metadata) against a configured expected-market-return-rate assumption (manual entry — a policy choice, not derivable from transactions) and trigger a prepayment-vs-invest advisory alert when the net arbitrage margin falls below a configured threshold. The threshold value is manual, one-time policy configuration.
 * **Safety Net Validation:** The engine must track structural liquidity such that accounts/assets tagged with purpose `EMERGENCY_FUND` or asset type `GRATUITY`-equivalent (via `metadata JSONB` purpose tag) remain excluded from monthly operating cash flow and liquidity-coverage calculations, regardless of their liquidity tier.
 
-#### Use Case 8.3: Dynamic Triggers & Operating Limits
+#### Use Case 8.3: Dynamic Triggers & Operating Limits [NOT DELIVERED — deliberate scope cut, not a gap]
+
+**Status (2026-07-06 retrospective):** deliberately not built, despite Epic 8 being labeled "COMPLETE" elsewhere. Business-analyst recommendation, endorsed: no real household data has ever exercised these thresholds, so building reallocation triggers/budget-cap alerts/SIP-gap checks now would be speculative. Revisit only if real usage surfaces an actual need — do not build to "complete the label."
 
 * **Reallocation Triggers:** The engine must identify a loan's estimated closing date (derived per Use Case 8.2) and, once that date is reached or passed, simulate the reallocation of the freed EMI amount toward a configured target portfolio (a `metadata JSONB`-stored target account or category, set as one-time manual policy).
 * **Operating Budget Cap:** The engine must sum monthly DEBIT transactions tagged as household/discretionary spend (via category metadata on the transaction or account) and raise an advisory alert if the sum exceeds a configured monthly expense boundary. The boundary value is manual, one-time policy configuration, not derived.
 * **SIP Protection Check:** The engine must verify that recurring DEBIT transactions identified as SIP/investment contributions (via account category) are not interrupted in a given month — flagging a gap as an advisory warning, not a blocking error.
 
-#### Use Case 8.4: Validation & Zero-Leakage Rule Engine
+#### Use Case 8.4: Validation & Zero-Leakage Rule Engine [DONE]
 
 * **Automated Execution:** All validation checks defined in this epic (category resolution, category double-counting, liquidity coverage, debt-to-asset ratio, EMI-to-income ratio where income is available, missing growth-rate assumptions, monthly cashflow) must run automatically as part of every CQRS dashboard refresh (`POST /v1/projections/refresh/{profileId}` in `web-gateway`) — not as a standalone script and not requiring a separate manual trigger.
 * **Pass/Fail/Warning Result Set:** Each check must produce one of three outcomes: PASS, WARNING (advisory, refresh continues), or CRITICAL FAILURE (a structural data problem — e.g., uncategorized account, double-counted record). The full result set must be persisted as part of the dashboard projection output so the UI can display it.
 * **Non-Blocking by Default:** A CRITICAL FAILURE in this engine must not prevent the dashboard refresh from completing for the metrics unaffected by the failure (per the existing per-step refresh isolation principle already adopted for `ProjectionCalculationEngine.refreshAll()` — see `ROADMAP.md` Architect Review). Whether validation failures should instead block the affected snapshot key specifically is an open product decision (`OpenQuestions.md` Q16).
 * **Named Rule Preservation:** The zero-leakage category-summation check defined in Use Case 8.1 is referred to as the "Mahesh Summation Rule," preserving the product owner's existing terminology from his prior Python tooling.
 
-#### Use Case 8.5: Goals Engine (Formula-Driven Financial Goals)
+#### Use Case 8.5: Goals Engine (Formula-Driven Financial Goals) [DONE — formulas since corrected, see note]
+
+**Correction note (2026-07-11/12, ADR-022):** the product owner found real flaws in the 5 formulas as originally specified below (this section is kept for historical use-case framing, not as the current formula spec). All 5 were corrected in place as a bugfix — current authoritative formulas: **Debt Crossover** (family mutual-fund corpus, SELF+SPOUSE only ÷ outstanding loan balance excluding CHILD-relation loans, target ≥100%, direction flipped from the original text below); **30-70 Target** (EMI + trailing-3-month non-discretionary spend + insurance premiums ÷ trailing-3-month income-tagged credits, target **≤30%** — the sole "lower is better" goal); **Freedom Runway** (dedicated liquid runway capital excluding PPF-type and CHILD-relation accounts ÷ configured monthly budget cap, target now 360 months not 6); **Insurance Free** (MaxGain + FD-type balances ÷ outstanding debt + 2 new policy thresholds, target ≥100%); **Year One** (now per-CHILD-relation-profile, not household-wide — each child's own mutual-fund balance ÷ 25% of their inflation-projected education cost, target ≥100%). Full before/after table: `ARCHITECTURE_DECISIONS.md` ADR-022. `wealth.goal_plan` (+ milestones/rules/trigger events) and `wealth.insurance_policy` were added on top of this engine (also ADR-022) for richer per-goal configuration and a management UI — not part of the original Use Case 8.5 scope, additive.
 
 * **Distinction from Household Goals:** This is a materially different goal model from the household domain's existing `household.goal` table (simple savings-target-with-progress-bar, `REQUIREMENTS_household_domain.md` v0.3 Epic 4 equivalent / `ROADMAP.md` v0.3 delivered feature). The five goal types below are formula-driven against wealth-domain data and must be computed and stored as part of the wealth domain's CQRS read model, not the household `goal` table. See `ROADMAP.md` Business Analyst Review section appended below for the explicit recommendation on where this lives.
 * **Goal Types (built-in, v0.4 scope):** The engine must support exactly five formula-driven goal types, each computing a `completion_pct` from a current value (derived from wealth data) against a target value (manual policy input, per Use Case 8.6):
@@ -152,7 +156,7 @@ Define all functional requirements, epics, and acceptance criteria for the Wealt
 * **Computed, Not Editable:** `completion_pct` and the current value for every goal type must be system-computed on every dashboard refresh, never directly editable by the user, consistent with the read-model/CQRS principle already established for `WEALTH_GOAL_PROGRESS`.
 * **Extensibility Question Flagged:** Whether these five types are the complete, hardcoded set or whether the engine must support user-defined custom formulas is an open product decision — do not build a generalized formula engine without an explicit decision (`OpenQuestions.md` Q15).
 
-#### Use Case 8.6: Manual Entry Boundary (What Remains Non-Derivable)
+#### Use Case 8.6: Manual Entry Boundary (What Remains Non-Derivable) [DONE]
 
 * **Explicit Non-Derivable Inputs:** The following must remain one-time or rarely-changing manual entry, written to `account.metadata JSONB` or an equivalent wealth-domain policy store — they are not parseable from any uploaded statement:
   - Loan original principal disbursed, loan start date, original tenure (Use Case 8.2)
@@ -163,6 +167,14 @@ Define all functional requirements, epics, and acceptance criteria for the Wealt
   - Goal target thresholds for all five goal types — these are policy choices the product owner sets, not data the system can derive (Use Case 8.5)
   - Monthly operating budget cap boundary (Use Case 8.3)
 * **Statement-Derived Inputs (must not be manually entered once this epic ships):** Net worth, category subtotals, liquidity tiering, EMI principal/interest split, outstanding loan balance, tenure elapsed/remaining, goal current values, and all validation check results must be computed from `transaction` and `physical_asset` records — manual override of any of these values must be treated as a Critical Failure per Use Case 8.1's constraint validation.
+
+## v0.4.1 / v0.5: Delivered Wealth Features Not Originally Scoped Here [DONE]
+
+These shipped but were never added to this requirements doc when they landed — added retroactively 2026-07-12 for completeness.
+
+* **Manual Transaction Entry** — `POST /v1/accounts/{accountId}/transactions`, tagged `source = MANUAL` in metadata to stay distinguishable from CSV-sourced rows for future AI analysis. [DONE]
+* **Physical Assets — full vertical slice** (v0.4.1 patch) — `wealth.physical_asset` table, full CRUD API, gateway proxy, frontend page with PUC/insurance/road-tax compliance-deadline fields and expiry-status coloring. Originally deferred as backend-only in v0.3; the frontend gap was closed as a dedicated small patch release before v0.5 work began. [DONE]
+* **Vacation Planner's wealth-side contribution** — trip budget check against liquid savings, vehicle compliance check against trip dates. The feature itself is a gateway-native cross-domain composition (see `REQUIREMENTS_cross_domain.md`); this domain's only involvement is exposing the liquid-savings figure and physical-asset compliance data the gateway reads. [DONE]
 
 ## v0.5: Error Handling (Unhappy Path)
 
