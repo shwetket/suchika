@@ -18,16 +18,31 @@ import {
   updateAccountClassification,
   updatePhysicalAsset,
   uploadStatement,
+  listGoalPlans,
+  createGoalPlan,
+  getGoalPlan,
+  updateGoalPlan,
+  deactivateGoalPlan,
+  replaceGoalPlanMilestones,
+  updateGoalPlanMilestoneAchieved,
+  replaceGoalPlanRules,
+  replaceGoalPlanTriggerEvents,
+  listInsurancePolicies,
+  createInsurancePolicy,
+  getInsurancePolicy,
+  updateInsurancePolicy,
+  deactivateInsurancePolicy,
 } from './wealth';
 
 jest.mock('./client', () => ({
   get: jest.fn(),
   post: jest.fn(),
+  put: jest.fn(),
   patch: jest.fn(),
   del: jest.fn(),
 }));
 
-const { get, post, patch, del } = require('./client');
+const { get, post, put, patch, del } = require('./client');
 
 beforeEach(() => jest.clearAllMocks());
 
@@ -231,5 +246,133 @@ describe('deactivatePhysicalAsset', () => {
     del.mockResolvedValue(null);
     deactivatePhysicalAsset('asset-1', 'p1');
     expect(del).toHaveBeenCalledWith('/v1/physical-assets/asset-1?profile_id=p1');
+  });
+});
+
+describe('listGoalPlans', () => {
+  it('calls get with admin_id query param', () => {
+    get.mockResolvedValue({ goal_plans: [] });
+    listGoalPlans('admin-1');
+    expect(get).toHaveBeenCalledWith('/v1/goal-plans?admin_id=admin-1');
+  });
+});
+
+describe('createGoalPlan', () => {
+  it('calls post with admin_id query and data in body', () => {
+    post.mockResolvedValue({});
+    const data = { goal_type: 'DEBT_CROSSOVER', objective: 'Reduce debt' };
+    createGoalPlan('admin-1', data);
+    expect(post).toHaveBeenCalledWith('/v1/goal-plans?admin_id=admin-1', data);
+  });
+});
+
+describe('getGoalPlan', () => {
+  it('calls get with goal plan id path and admin_id', () => {
+    get.mockResolvedValue({});
+    getGoalPlan('plan-1', 'admin-1');
+    expect(get).toHaveBeenCalledWith('/v1/goal-plans/plan-1?admin_id=admin-1');
+  });
+});
+
+describe('updateGoalPlan', () => {
+  it('calls patch with correct path and data', () => {
+    patch.mockResolvedValue({});
+    const data = { objective: 'Updated' };
+    updateGoalPlan('plan-1', 'admin-1', data);
+    expect(patch).toHaveBeenCalledWith('/v1/goal-plans/plan-1?admin_id=admin-1', data);
+  });
+});
+
+describe('deactivateGoalPlan', () => {
+  it('calls del with correct path', () => {
+    del.mockResolvedValue(null);
+    deactivateGoalPlan('plan-1', 'admin-1');
+    expect(del).toHaveBeenCalledWith('/v1/goal-plans/plan-1?admin_id=admin-1');
+  });
+});
+
+describe('replaceGoalPlanMilestones', () => {
+  it('calls put with milestones path and array body', () => {
+    put.mockResolvedValue([]);
+    const milestones = [{ label: 'First', sequence_no: 0 }];
+    replaceGoalPlanMilestones('plan-1', 'admin-1', milestones);
+    expect(put).toHaveBeenCalledWith(
+      '/v1/goal-plans/plan-1/milestones?admin_id=admin-1',
+      milestones
+    );
+  });
+});
+
+describe('updateGoalPlanMilestoneAchieved', () => {
+  it('calls patch with milestone path and is_achieved body', () => {
+    patch.mockResolvedValue({});
+    updateGoalPlanMilestoneAchieved('plan-1', 'm-1', 'admin-1', true);
+    expect(patch).toHaveBeenCalledWith(
+      '/v1/goal-plans/plan-1/milestones/m-1?admin_id=admin-1',
+      { is_achieved: true }
+    );
+  });
+});
+
+describe('replaceGoalPlanRules', () => {
+  it('calls put with rules path and array body', () => {
+    put.mockResolvedValue([]);
+    const rules = [{ rule_name: 'Rule A', rule_text: 'Text' }];
+    replaceGoalPlanRules('plan-1', 'admin-1', rules);
+    expect(put).toHaveBeenCalledWith('/v1/goal-plans/plan-1/rules?admin_id=admin-1', rules);
+  });
+});
+
+describe('replaceGoalPlanTriggerEvents', () => {
+  it('calls put with trigger-events path and array body', () => {
+    put.mockResolvedValue([]);
+    const triggerEvents = [{ event_name: 'Bonus' }];
+    replaceGoalPlanTriggerEvents('plan-1', 'admin-1', triggerEvents);
+    expect(put).toHaveBeenCalledWith(
+      '/v1/goal-plans/plan-1/trigger-events?admin_id=admin-1',
+      triggerEvents
+    );
+  });
+});
+
+describe('listInsurancePolicies', () => {
+  it('calls get with admin_id query param', () => {
+    get.mockResolvedValue({ insurance_policies: [] });
+    listInsurancePolicies('admin-1');
+    expect(get).toHaveBeenCalledWith('/v1/insurance-policies?admin_id=admin-1');
+  });
+});
+
+describe('createInsurancePolicy', () => {
+  it('calls post with admin_id query and data in body', () => {
+    post.mockResolvedValue({});
+    const data = { policy_name: 'Term Life', provider: 'LIC' };
+    createInsurancePolicy('admin-1', data);
+    expect(post).toHaveBeenCalledWith('/v1/insurance-policies?admin_id=admin-1', data);
+  });
+});
+
+describe('getInsurancePolicy', () => {
+  it('calls get with policy id path and admin_id', () => {
+    get.mockResolvedValue({});
+    getInsurancePolicy('policy-1', 'admin-1');
+    expect(get).toHaveBeenCalledWith('/v1/insurance-policies/policy-1?admin_id=admin-1');
+  });
+});
+
+describe('updateInsurancePolicy', () => {
+  it('calls patch with correct path and data', () => {
+    patch.mockResolvedValue({});
+    const data = { premium_amount: 5000 };
+    updateInsurancePolicy('policy-1', 'admin-1', data);
+    expect(patch).toHaveBeenCalledWith('/v1/insurance-policies/policy-1?admin_id=admin-1', data);
+  });
+});
+
+describe('deactivateInsurancePolicy', () => {
+  it('calls del with correct path', () => {
+    del.mockResolvedValue(null);
+    deactivateInsurancePolicy('policy-1', 'admin-1');
+    expect(del).toHaveBeenCalledWith('/v1/insurance-policies/policy-1?admin_id=admin-1');
   });
 });

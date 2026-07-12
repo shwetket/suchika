@@ -195,4 +195,99 @@ describe('InsurancePolicies page', () => {
       });
     });
   });
+
+  it('shows an error banner when creating a policy fails', async () => {
+    createInsurancePolicy.mockRejectedValue(new Error('create policy failed'));
+    renderPage();
+    await waitFor(() => screen.getByText('+ Add Policy'));
+    fireEvent.click(screen.getByText('+ Add Policy'));
+
+    fireEvent.change(screen.getByPlaceholderText(/e\.g\. family term cover/i), {
+      target: { value: 'New Policy' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/e\.g\. lic/i), {
+      target: { value: 'LIC' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^add policy$/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('create policy failed')).toBeInTheDocument();
+    });
+  });
+
+  it('closes the add modal via Cancel without saving', async () => {
+    renderPage();
+    await waitFor(() => screen.getByText('+ Add Policy'));
+    fireEvent.click(screen.getByText('+ Add Policy'));
+
+    await waitFor(() => screen.getByRole('heading', { name: 'Add Insurance Policy' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole('heading', { name: 'Add Insurance Policy' })
+      ).not.toBeInTheDocument();
+    });
+    expect(createInsurancePolicy).not.toHaveBeenCalled();
+  });
+
+  it('shows an error banner when updating a policy fails', async () => {
+    listInsurancePolicies.mockResolvedValue({ insurance_policies: MOCK_POLICIES });
+    updateInsurancePolicy.mockRejectedValue(new Error('update policy failed'));
+    renderPage();
+    await waitFor(() => screen.getByText('Family Term Cover'));
+
+    fireEvent.click(screen.getAllByLabelText(/edit policy/i)[0]);
+    await screen.findByDisplayValue('Family Term Cover');
+    fireEvent.click(screen.getByRole('button', { name: /save changes/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('update policy failed')).toBeInTheDocument();
+    });
+  });
+
+  it('closes the edit modal via Cancel without saving', async () => {
+    listInsurancePolicies.mockResolvedValue({ insurance_policies: MOCK_POLICIES });
+    renderPage();
+    await waitFor(() => screen.getByText('Family Term Cover'));
+
+    fireEvent.click(screen.getAllByLabelText(/edit policy/i)[0]);
+    await screen.findByDisplayValue('Family Term Cover');
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    await waitFor(() => {
+      expect(screen.queryByDisplayValue('Family Term Cover')).not.toBeInTheDocument();
+    });
+    expect(updateInsurancePolicy).not.toHaveBeenCalled();
+  });
+
+  it('shows an error banner when deactivating a policy fails', async () => {
+    listInsurancePolicies.mockResolvedValue({ insurance_policies: MOCK_POLICIES });
+    deactivateInsurancePolicy.mockRejectedValue(new Error('deactivate policy failed'));
+    renderPage();
+    await waitFor(() => screen.getByText('Family Term Cover'));
+
+    fireEvent.click(screen.getAllByLabelText(/edit policy/i)[0]);
+    const deactivateBtn = await screen.findByText(/deactivate this policy/i);
+    fireEvent.click(deactivateBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('deactivate policy failed')).toBeInTheDocument();
+    });
+  });
+
+  it('shows an error banner when reactivating a policy fails', async () => {
+    listInsurancePolicies.mockResolvedValue({ insurance_policies: MOCK_POLICIES });
+    updateInsurancePolicy.mockRejectedValue(new Error('reactivate policy failed'));
+    renderPage();
+    await waitFor(() => screen.getByText('Old Endowment'));
+
+    fireEvent.click(screen.getAllByLabelText(/edit policy/i)[1]);
+    const reactivateBtn = await screen.findByText(/reactivate policy/i);
+    fireEvent.click(reactivateBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('reactivate policy failed')).toBeInTheDocument();
+    });
+  });
 });

@@ -1253,6 +1253,59 @@ class ProjectionCalculationEngineTest {
         verify(snapshotRepo, never()).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_GOAL_DETAIL_FAMILY), anyString());
     }
 
+    @Test
+    void computeGoalDetail_goalPlansResponseMissingArray_returnsEarlyWithoutUpsert() throws Exception {
+        when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
+        when(snapshotRepo.findByProfileId(PROFILE_ID)).thenReturn(List.of(
+                formulaGoalsSnapshotDto(formulaGoalNode("DEBT_CROSSOVER", 150.0, 100.0, "ACHIEVED", "percent", null))));
+        // Malformed response — no "goal_plans" array field at all.
+        when(wealthClient.listGoalPlans(ADMIN_ID)).thenReturn(MAPPER.createObjectNode());
+
+        assertDoesNotThrow(() -> engine.computeGoalDetail(PROFILE_ID));
+
+        verify(snapshotRepo, never()).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_GOAL_DETAIL_FAMILY), anyString());
+    }
+
+    @Test
+    void computeGoalDetail_noLiveFormulaGoalsSnapshot_everyPlanSkipped() throws Exception {
+        when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
+        // No WEALTH_FORMULA_GOALS_FAMILY snapshot written yet this pass.
+        when(snapshotRepo.findByProfileId(PROFILE_ID)).thenReturn(List.of());
+
+        ObjectNode plan = goalPlanNode("DEBT_CROSSOVER", null, "Reduce debt below MF corpus", null, MAPPER.createObjectNode());
+        plan.set("milestones", MAPPER.createArrayNode());
+        plan.set("rules", MAPPER.createArrayNode());
+        plan.set("trigger_events", MAPPER.createArrayNode());
+        when(wealthClient.listGoalPlans(ADMIN_ID)).thenReturn(goalPlansResponse(plan));
+
+        engine.computeGoalDetail(PROFILE_ID);
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_GOAL_DETAIL_FAMILY), payloadCaptor.capture());
+        assertEquals(0, payload(payloadCaptor).path("goal_details").size());
+    }
+
+    @Test
+    void computeGoalDetail_insurancePolicyLookupFails_entryStillWrittenWithEmptyPolicyList() throws Exception {
+        when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
+        when(snapshotRepo.findByProfileId(PROFILE_ID)).thenReturn(List.of(
+                formulaGoalsSnapshotDto(formulaGoalNode("INSURANCE_FREE", 100.0, 100.0, "ACHIEVED", "percent", null))));
+
+        ObjectNode plan = goalPlanNode("INSURANCE_FREE", null, "Zero reliance on insurance payout", null, MAPPER.createObjectNode());
+        plan.set("milestones", MAPPER.createArrayNode());
+        plan.set("rules", MAPPER.createArrayNode());
+        plan.set("trigger_events", MAPPER.createArrayNode());
+        when(wealthClient.listGoalPlans(ADMIN_ID)).thenReturn(goalPlansResponse(plan));
+        when(wealthClient.listInsurancePolicies(ADMIN_ID)).thenThrow(new RuntimeException("wealth service unavailable"));
+
+        assertDoesNotThrow(() -> engine.computeGoalDetail(PROFILE_ID));
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_GOAL_DETAIL_FAMILY), payloadCaptor.capture());
+        JsonNode entry = payload(payloadCaptor).path("goal_details").get(0);
+        assertEquals(0, entry.path("insurance_policies").size());
+    }
+
     // ── computeGoalDetail test helpers ───────────────────────────────────────
 
     private JsonNode findByBeneficiary(JsonNode goalDetails, UUID beneficiaryProfileId) {
@@ -1362,6 +1415,143 @@ class ProjectionCalculationEngineTest {
             array.add(plan);
         }
         return MAPPER.createObjectNode().set("goal_plans", array);
+    }
+
+    // ── computeEmiTracking / computeLiquidityTiers / computeGrowthProjection ──
+    // (Epic 8 Phase 3, ADR-017) — previously only smoke-tested via refreshAll()
+    // with empty account data; these exercise the real aggregation branches.
+
+    @Test
+    void computeEmiTracking_aggregatesLoanWithOffsetArbitrage_acrossMembers() throws Exception {
+        UUID loanAccount = UUID.fromString("eeeeeeee-0000-0000-0000-000000000001");
+        UUID offsetAccount = UUID.fromString("eeeeeeee-0000-0000-0000-000000000002");
+
+        when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
+        when(profileClient.listProfiles(ADMIN_ID, true)).thenReturn(buildProfilesResponse(
+                new MemberEntry(PROFILE_ID, "Ketan", "SELF")));
+
+        ObjectNode loan = MAPPER.createObjectNode();
+        loan.put("account_id", loanAccount.toString());
+        loan.put("account_name", "Home Loan");
+        loan.put("account_type", "HOME_LOAN");
+        ObjectNode metadata = MAPPER.createObjectNode();
+        metadata.put("linked_offset_account_id", offsetAccount.toString());
+        loan.set("metadata", metadata);
+        ObjectNode accountsRoot = MAPPER.createObjectNode();
+        accountsRoot.set("accounts", MAPPER.createArrayNode().add(loan));
+        when(wealthClient.listAccounts(isNull(), eq(true), eq(PROFILE_ID.toString()))).thenReturn(accountsRoot);
+
+        when(wealthClient.getAmortization(loanAccount, PROFILE_ID.toString()))
+                .thenReturn(amortizationNode(2000000.0, 18000.0));
+        when(wealthClient.getAccountBalance(offsetAccount, PROFILE_ID.toString()))
+                .thenReturn(balanceNode(offsetAccount, 300000.0));
+
+        engine.computeEmiTracking(PROFILE_ID);
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_EMI_TRACKING_FAMILY), payloadCaptor.capture());
+        JsonNode result = payload(payloadCaptor);
+
+        assertEquals(2000000.0, result.path("total_outstanding_balance").asDouble(), 0.001);
+        assertEquals(18000.0, result.path("total_monthly_emi").asDouble(), 0.001);
+        // 300000 * (8.5 / 12 / 100) = 2125.0 interest saved via offset arbitrage
+        assertEquals(2125.0, result.path("total_monthly_interest_saved").asDouble(), 0.001);
+        assertEquals(1, result.path("member_count").asInt());
+        JsonNode loanEntry = result.path("members").get(0).path("loans").get(0);
+        assertEquals("Home Loan", loanEntry.path("account_name").asText());
+    }
+
+    @Test
+    void computeEmiTracking_amortizationUnavailable_loanSkippedWithoutThrowing() throws Exception {
+        UUID loanAccount = UUID.fromString("eeeeeeee-0000-0000-0000-000000000003");
+
+        when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
+        when(profileClient.listProfiles(ADMIN_ID, true)).thenReturn(buildProfilesResponse(
+                new MemberEntry(PROFILE_ID, "Ketan", "SELF")));
+
+        ObjectNode loan = MAPPER.createObjectNode();
+        loan.put("account_id", loanAccount.toString());
+        loan.put("account_name", "Untracked Loan");
+        loan.put("account_type", "CAR_LOAN");
+        loan.set("metadata", MAPPER.createObjectNode());
+        ObjectNode accountsRoot = MAPPER.createObjectNode();
+        accountsRoot.set("accounts", MAPPER.createArrayNode().add(loan));
+        when(wealthClient.listAccounts(isNull(), eq(true), eq(PROFILE_ID.toString()))).thenReturn(accountsRoot);
+        when(wealthClient.getAmortization(loanAccount, PROFILE_ID.toString()))
+                .thenThrow(new RuntimeException("loan metadata not set"));
+
+        assertDoesNotThrow(() -> engine.computeEmiTracking(PROFILE_ID));
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_EMI_TRACKING_FAMILY), payloadCaptor.capture());
+        JsonNode result = payload(payloadCaptor);
+        assertEquals(0.0, result.path("total_outstanding_balance").asDouble(), 0.001);
+        assertEquals(0, result.path("members").get(0).path("loans").size());
+    }
+
+    @Test
+    void computeLiquidityTiers_groupsBalancesByTier_unknownTierGoesToUnclassified() throws Exception {
+        UUID liquidAcc = UUID.fromString("ffffffff-0000-0000-0000-000000000001");
+        UUID semiLiquidAcc = UUID.fromString("ffffffff-0000-0000-0000-000000000002");
+        UUID illiquidAcc = UUID.fromString("ffffffff-0000-0000-0000-000000000003");
+        UUID lockedAcc = UUID.fromString("ffffffff-0000-0000-0000-000000000004");
+        UUID unclassifiedAcc = UUID.fromString("ffffffff-0000-0000-0000-000000000005");
+
+        when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
+        when(profileClient.listProfiles(ADMIN_ID, true)).thenReturn(buildProfilesResponse(
+                new MemberEntry(PROFILE_ID, "Ketan", "SELF")));
+        when(wealthClient.listAccounts(isNull(), eq(true), eq(PROFILE_ID.toString())))
+                .thenReturn(accountsWithTiers(
+                        tierEntry(liquidAcc, "SAVINGS", "LIQUID"),
+                        tierEntry(semiLiquidAcc, "FD", "SEMI_LIQUID"),
+                        tierEntry(illiquidAcc, "MUTUAL_FUND", "ILLIQUID"),
+                        tierEntry(lockedAcc, "PPF", "LOCKED"),
+                        tierEntry(unclassifiedAcc, "CURRENT", "")));
+
+        when(wealthClient.getAccountBalance(liquidAcc, PROFILE_ID.toString())).thenReturn(balanceNode(liquidAcc, 1000.0));
+        when(wealthClient.getAccountBalance(semiLiquidAcc, PROFILE_ID.toString())).thenReturn(balanceNode(semiLiquidAcc, 2000.0));
+        when(wealthClient.getAccountBalance(illiquidAcc, PROFILE_ID.toString())).thenReturn(balanceNode(illiquidAcc, 3000.0));
+        when(wealthClient.getAccountBalance(lockedAcc, PROFILE_ID.toString())).thenReturn(balanceNode(lockedAcc, 4000.0));
+        when(wealthClient.getAccountBalance(unclassifiedAcc, PROFILE_ID.toString())).thenReturn(balanceNode(unclassifiedAcc, 5000.0));
+
+        engine.computeLiquidityTiers(PROFILE_ID);
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_LIQUIDITY_TIERS_FAMILY), payloadCaptor.capture());
+        JsonNode tiers = payload(payloadCaptor).path("tiers");
+
+        assertEquals(1000.0, tiers.path("LIQUID").asDouble(), 0.001);
+        assertEquals(2000.0, tiers.path("SEMI_LIQUID").asDouble(), 0.001);
+        assertEquals(3000.0, tiers.path("ILLIQUID").asDouble(), 0.001);
+        assertEquals(4000.0, tiers.path("LOCKED").asDouble(), 0.001);
+        assertEquals(5000.0, tiers.path("UNCLASSIFIED").asDouble(), 0.001);
+        assertEquals(15000.0, payload(payloadCaptor).path("total").asDouble(), 0.001);
+    }
+
+    @Test
+    void computeGrowthProjection_appliesConfiguredRatesAndSkipsNonInvestmentTypes() throws Exception {
+        UUID mfAccount = UUID.fromString("11110000-0000-0000-0000-000000000001");
+        UUID savingsAccount = UUID.fromString("11110000-0000-0000-0000-000000000002");
+
+        when(profileClient.getProfile(PROFILE_ID)).thenReturn(buildOwnProfileResponse());
+        when(profileClient.listProfiles(ADMIN_ID, true)).thenReturn(buildProfilesResponse(
+                new MemberEntry(PROFILE_ID, "Ketan", "SELF")));
+        when(wealthClient.listAccounts(isNull(), eq(true), eq(PROFILE_ID.toString())))
+                .thenReturn(accountsWithTypes(entry(mfAccount, "MUTUAL_FUND"), entry(savingsAccount, "SAVINGS")));
+        when(wealthClient.getAccountBalance(mfAccount, PROFILE_ID.toString())).thenReturn(balanceNode(mfAccount, 100000.0));
+
+        engine.computeGrowthProjection(PROFILE_ID);
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(snapshotRepo).upsert(eq(PROFILE_ID), eq(SnapshotKey.WEALTH_GROWTH_PROJECTION_FAMILY), payloadCaptor.capture());
+        JsonNode result = payload(payloadCaptor);
+
+        assertEquals(1, result.path("projections").size(), "Only the MUTUAL_FUND account should be projected");
+        JsonNode proj = result.path("projections").get(0);
+        assertEquals("MUTUAL_FUND", proj.path("account_type").asText());
+        assertEquals(100000.0, result.path("total_current_value").asDouble(), 0.001);
+        assertTrue(result.path("total_projected_5yr").asDouble() > 100000.0);
+        assertTrue(result.path("total_projected_10yr").asDouble() > result.path("total_projected_5yr").asDouble());
     }
 
     // ── computeValidation (Epic 8 Phase 4) ───────────────────────────────────

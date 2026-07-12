@@ -111,6 +111,42 @@ class InsurancePolicyServiceTest {
     }
 
     @Test
+    void updateInsurancePolicy_providerPremiumFrequencyCoverageAmountAndIsActive_allApplied() {
+        InsurancePolicy policy = service.createInsurancePolicy(ADMIN_ID,
+                cmd("Term Plan", new BigDecimal("1500"), PremiumFrequency.MONTHLY));
+
+        InsurancePolicy updated = service.updateInsurancePolicy(policy.getId(), ADMIN_ID,
+                new UpdateInsurancePolicyCommand(null, "New Provider", null, PremiumFrequency.ANNUAL,
+                        new BigDecimal("500000"), null, false));
+
+        assertEquals("New Provider", updated.getProvider());
+        assertEquals(PremiumFrequency.ANNUAL, updated.getPremiumFrequency());
+        assertEquals(0, new BigDecimal("500000").compareTo(updated.getCoverageAmount()));
+        assertFalse(updated.isActive());
+    }
+
+    @Test
+    void updateInsurancePolicy_blankProvider_throwsBadRequest() {
+        InsurancePolicy policy = service.createInsurancePolicy(ADMIN_ID,
+                cmd("Term Plan", new BigDecimal("1500"), PremiumFrequency.MONTHLY));
+
+        assertThrows(BadRequestException.class, () -> service.updateInsurancePolicy(policy.getId(), ADMIN_ID,
+                new UpdateInsurancePolicyCommand(null, "   ", null, null, null, null, null)));
+    }
+
+    @Test
+    void updateInsurancePolicy_isActiveTrue_reactivatesPolicy() {
+        InsurancePolicy policy = service.createInsurancePolicy(ADMIN_ID,
+                cmd("Term Plan", new BigDecimal("1500"), PremiumFrequency.MONTHLY));
+        service.deactivateInsurancePolicy(policy.getId(), ADMIN_ID);
+
+        InsurancePolicy updated = service.updateInsurancePolicy(policy.getId(), ADMIN_ID,
+                new UpdateInsurancePolicyCommand(null, null, null, null, null, null, true));
+
+        assertTrue(updated.isActive());
+    }
+
+    @Test
     void updateInsurancePolicy_blankPolicyName_throwsBadRequest() {
         InsurancePolicy policy = service.createInsurancePolicy(ADMIN_ID,
                 cmd("Term Plan", new BigDecimal("1500"), PremiumFrequency.MONTHLY));

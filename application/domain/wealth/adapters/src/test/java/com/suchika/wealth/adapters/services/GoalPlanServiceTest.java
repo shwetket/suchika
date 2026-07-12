@@ -119,6 +119,35 @@ class GoalPlanServiceTest {
     }
 
     @Test
+    void updateGoalPlan_allScalarFields_allApplied() {
+        GoalPlan plan = service.createGoalPlan(ADMIN_ID, cmd(GoalType.YEAR_ONE, UUID.randomUUID(), "Objective"));
+
+        GoalPlan updated = service.updateGoalPlan(plan.getId(), ADMIN_ID, new UpdateGoalPlanCommand(
+                "Updated objective", "Target state", new BigDecimal("0.1"), new BigDecimal("1200000"),
+                new BigDecimal("0.09"), 5, null, false));
+
+        assertEquals("Updated objective", updated.getObjective());
+        assertEquals("Target state", updated.getTargetState());
+        assertEquals(0, new BigDecimal("0.1").compareTo(updated.getAssumedGrowthRate()));
+        assertEquals(0, new BigDecimal("1200000").compareTo(updated.getEducationBaseCost()));
+        assertEquals(0, new BigDecimal("0.09").compareTo(updated.getEducationInflationRate()));
+        assertEquals(5, updated.getEducationYearsToEntry());
+        assertFalse(updated.isActive());
+    }
+
+    @Test
+    void listGoalPlans_scopedByAdmin_attachesChildCollections() {
+        service.createGoalPlan(ADMIN_ID, cmd(GoalType.DEBT_CROSSOVER, null, "Plan 1"));
+        service.createGoalPlan(UUID.randomUUID(), cmd(GoalType.DEBT_CROSSOVER, null, "Other household's plan"));
+
+        List<GoalPlan> result = service.listGoalPlans(ADMIN_ID);
+
+        assertEquals(1, result.size());
+        assertEquals("Plan 1", result.get(0).getObjective());
+        assertNotNull(result.get(0).getMilestones());
+    }
+
+    @Test
     void updateGoalPlan_blankObjective_throwsBadRequest() {
         GoalPlan plan = service.createGoalPlan(ADMIN_ID, cmd(GoalType.DEBT_CROSSOVER, null, "Objective"));
 
@@ -150,6 +179,28 @@ class GoalPlanServiceTest {
     void replaceMilestones_planNotFound_throwsNotFound() {
         assertThrows(NotFoundException.class, () ->
                 service.replaceMilestones(UUID.randomUUID(), ADMIN_ID, List.of()));
+    }
+
+    @Test
+    void replaceRules_happyPath_returnsSavedRules() {
+        GoalPlan plan = service.createGoalPlan(ADMIN_ID, cmd(GoalType.DEBT_CROSSOVER, null, "Objective"));
+
+        List<GoalRule> saved = service.replaceRules(plan.getId(), ADMIN_ID, List.of(
+                GoalRule.create(null, 0, "Rule A", "Text A")));
+
+        assertEquals(1, saved.size());
+        assertEquals("Rule A", saved.get(0).getRuleName());
+    }
+
+    @Test
+    void replaceTriggerEvents_happyPath_returnsSavedTriggerEvents() {
+        GoalPlan plan = service.createGoalPlan(ADMIN_ID, cmd(GoalType.DEBT_CROSSOVER, null, "Objective"));
+
+        List<GoalTriggerEvent> saved = service.replaceTriggerEvents(plan.getId(), ADMIN_ID, List.of(
+                GoalTriggerEvent.create(null, 0, "Bonus", "Bonus credited", "Increase SIP")));
+
+        assertEquals(1, saved.size());
+        assertEquals("Bonus", saved.get(0).getEventName());
     }
 
     @Test

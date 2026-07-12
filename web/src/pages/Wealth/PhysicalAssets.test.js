@@ -23,6 +23,7 @@ const {
   listPhysicalAssets,
   createPhysicalAsset,
   updatePhysicalAsset,
+  deactivatePhysicalAsset,
 } = require('../../api/wealth');
 
 const MOCK_PROFILES = [
@@ -514,6 +515,314 @@ describe('PhysicalAssets page', () => {
 
       await waitFor(() => screen.getByText('Deactivate this asset'));
       expect(screen.queryByLabelText('Active')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Add form validation', () => {
+    async function openAddModal() {
+      listPhysicalAssets.mockResolvedValue({ physical_assets: [] });
+      render(<PhysicalAssets />);
+      await waitFor(() => screen.getByText('Alice'));
+      fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+      await waitFor(() => screen.getByText('+ Add Asset'));
+      fireEvent.click(screen.getByText('+ Add Asset'));
+      await waitFor(() => screen.getByRole('heading', { name: 'Add Physical Asset' }));
+    }
+
+    function submitAddForm() {
+      const submitBtn = screen
+        .getAllByRole('button', { name: /Add Asset/i })
+        .find((b) => b.type === 'submit');
+      fireEvent.click(submitBtn);
+    }
+
+    it('requires an asset name', async () => {
+      await openAddModal();
+      submitAddForm();
+      await waitFor(() => {
+        expect(screen.getByText(/asset name is required/i)).toBeInTheDocument();
+      });
+      expect(createPhysicalAsset).not.toHaveBeenCalled();
+    });
+
+    it('requires make/model/registration for a VEHICLE asset', async () => {
+      await openAddModal();
+      fireEvent.change(screen.getByPlaceholderText(/e\.g\. family car/i), {
+        target: { value: 'My Bike' },
+      });
+      submitAddForm();
+      await waitFor(() => {
+        expect(screen.getByText(/make is required/i)).toBeInTheDocument();
+      });
+
+      fireEvent.change(screen.getByPlaceholderText(/e\.g\. maruti/i), {
+        target: { value: 'Honda' },
+      });
+      submitAddForm();
+      await waitFor(() => {
+        expect(screen.getByText(/model is required/i)).toBeInTheDocument();
+      });
+
+      fireEvent.change(screen.getByPlaceholderText(/e\.g\. swift/i), {
+        target: { value: 'Activa' },
+      });
+      submitAddForm();
+      await waitFor(() => {
+        expect(screen.getByText(/registration number is required/i)).toBeInTheDocument();
+      });
+
+      fireEvent.change(screen.getByPlaceholderText(/ka-01-ab-1234/i), {
+        target: { value: 'KA-05-XY-9999' },
+      });
+      submitAddForm();
+      await waitFor(() => {
+        expect(screen.getByText(/registration type is required/i)).toBeInTheDocument();
+      });
+      expect(createPhysicalAsset).not.toHaveBeenCalled();
+    });
+
+    it('shows an error banner when creating an asset fails', async () => {
+      createPhysicalAsset.mockRejectedValue(new Error('create asset failed'));
+      await openAddModal();
+      fireEvent.change(screen.getByPlaceholderText(/e\.g\. family car/i), {
+        target: { value: 'Gold Bond' },
+      });
+      const typeSelect = screen
+        .getAllByRole('combobox')
+        .find((s) => s.getAttribute('name') === 'asset_type');
+      fireEvent.change(typeSelect, { target: { value: 'GOLD_BOND' } });
+      submitAddForm();
+      await waitFor(() => {
+        expect(screen.getByText('create asset failed')).toBeInTheDocument();
+      });
+    });
+
+    it('closes the add modal via Cancel without saving', async () => {
+      await openAddModal();
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+      await waitFor(() => {
+        expect(
+          screen.queryByRole('heading', { name: 'Add Physical Asset' })
+        ).not.toBeInTheDocument();
+      });
+      expect(createPhysicalAsset).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Active filter', () => {
+    it('requests assets filtered by Active / Inactive / All', async () => {
+      listPhysicalAssets.mockResolvedValue({ physical_assets: MOCK_ASSETS });
+      await selectProfileAndWaitForAssets();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Active' }));
+      await waitFor(() => {
+        expect(listPhysicalAssets).toHaveBeenLastCalledWith('p1', null, true, 0, 20);
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Inactive' }));
+      await waitFor(() => {
+        expect(listPhysicalAssets).toHaveBeenLastCalledWith('p1', null, false, 0, 20);
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'All' }));
+      await waitFor(() => {
+        expect(listPhysicalAssets).toHaveBeenLastCalledWith('p1', null, null, 0, 20);
+      });
+    });
+  });
+
+  describe('Edit submit flow', () => {
+    it('submits the edit form and reloads assets', async () => {
+      listPhysicalAssets.mockResolvedValue({ physical_assets: MOCK_ASSETS });
+      updatePhysicalAsset.mockResolvedValue({});
+      await selectProfileAndWaitForAssets();
+
+      const editButtons = screen.getAllByRole('button', { name: /edit asset/i });
+      fireEvent.click(editButtons[0]);
+
+      const nameInput = await screen.findByDisplayValue('Family Car');
+      fireEvent.change(nameInput, { target: { value: 'Family Car Updated' } });
+      fireEvent.click(screen.getByRole('button', { name: /save changes/i }));
+
+      await waitFor(() => {
+        expect(updatePhysicalAsset).toHaveBeenCalledWith(
+          'asset1',
+          'p1',
+          expect.objectContaining({ asset_name: 'Family Car Updated' })
+        );
+      });
+    });
+
+    it('shows an error banner when updating an asset fails', async () => {
+      listPhysicalAssets.mockResolvedValue({ physical_assets: MOCK_ASSETS });
+      updatePhysicalAsset.mockRejectedValue(new Error('update asset failed'));
+      await selectProfileAndWaitForAssets();
+
+      const editButtons = screen.getAllByRole('button', { name: /edit asset/i });
+      fireEvent.click(editButtons[0]);
+
+      await screen.findByDisplayValue('Family Car');
+      fireEvent.click(screen.getByRole('button', { name: /save changes/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText('update asset failed')).toBeInTheDocument();
+      });
+    });
+
+    it('closes the edit modal via Cancel without saving', async () => {
+      listPhysicalAssets.mockResolvedValue({ physical_assets: MOCK_ASSETS });
+      await selectProfileAndWaitForAssets();
+
+      const editButtons = screen.getAllByRole('button', { name: /edit asset/i });
+      fireEvent.click(editButtons[0]);
+
+      await screen.findByDisplayValue('Family Car');
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+      await waitFor(() => {
+        expect(screen.queryByDisplayValue('Family Car')).not.toBeInTheDocument();
+      });
+      expect(updatePhysicalAsset).not.toHaveBeenCalled();
+    });
+
+    it('shows an error banner when reactivation fails', async () => {
+      listPhysicalAssets.mockResolvedValue({ physical_assets: MOCK_ASSETS });
+      updatePhysicalAsset.mockRejectedValue(new Error('reactivate asset failed'));
+      await selectProfileAndWaitForAssets();
+
+      const editButtons = screen.getAllByRole('button', { name: /edit asset/i });
+      fireEvent.click(editButtons[1]);
+
+      await waitFor(() => screen.getByText('Reactivate asset'));
+      fireEvent.click(screen.getByText('Reactivate asset'));
+
+      await waitFor(() => {
+        expect(screen.getByText('reactivate asset failed')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Deactivate confirmation flow', () => {
+    it('cancels the deactivate confirmation without calling the API', async () => {
+      listPhysicalAssets.mockResolvedValue({ physical_assets: MOCK_ASSETS });
+      await selectProfileAndWaitForAssets();
+
+      const editButtons = screen.getAllByRole('button', { name: /edit asset/i });
+      fireEvent.click(editButtons[0]);
+      await waitFor(() => screen.getByText('Deactivate this asset'));
+      fireEvent.click(screen.getByText('Deactivate this asset'));
+
+      await waitFor(() => screen.getByRole('heading', { name: 'Deactivate Asset' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+      await waitFor(() => {
+        expect(screen.queryByRole('heading', { name: 'Deactivate Asset' })).not.toBeInTheDocument();
+      });
+      expect(deactivatePhysicalAsset).not.toHaveBeenCalled();
+    });
+
+    it('confirms deactivation and reloads assets', async () => {
+      listPhysicalAssets.mockResolvedValue({ physical_assets: MOCK_ASSETS });
+      deactivatePhysicalAsset.mockResolvedValue({});
+      await selectProfileAndWaitForAssets();
+
+      const editButtons = screen.getAllByRole('button', { name: /edit asset/i });
+      fireEvent.click(editButtons[0]);
+      await waitFor(() => screen.getByText('Deactivate this asset'));
+      fireEvent.click(screen.getByText('Deactivate this asset'));
+
+      await waitFor(() => screen.getByRole('heading', { name: 'Deactivate Asset' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Deactivate' }));
+
+      await waitFor(() => {
+        expect(deactivatePhysicalAsset).toHaveBeenCalledWith('asset1', 'p1');
+      });
+    });
+
+    it('shows an error banner when deactivation fails', async () => {
+      listPhysicalAssets.mockResolvedValue({ physical_assets: MOCK_ASSETS });
+      deactivatePhysicalAsset.mockRejectedValue(new Error('deactivate asset failed'));
+      await selectProfileAndWaitForAssets();
+
+      const editButtons = screen.getAllByRole('button', { name: /edit asset/i });
+      fireEvent.click(editButtons[0]);
+      await waitFor(() => screen.getByText('Deactivate this asset'));
+      fireEvent.click(screen.getByText('Deactivate this asset'));
+
+      await waitFor(() => screen.getByRole('heading', { name: 'Deactivate Asset' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Deactivate' }));
+
+      await waitFor(() => {
+        expect(screen.getByText('deactivate asset failed')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Profile load failure', () => {
+    it('falls back to an empty profile list when listProfiles fails', async () => {
+      listProfiles.mockRejectedValue(new Error('profiles down'));
+      render(<PhysicalAssets />);
+      await waitFor(() => {
+        expect(screen.getByText(/Select a profile to view assets/i)).toBeInTheDocument();
+      });
+      expect(screen.queryByText('Alice')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Compliance expiry states', () => {
+    it('shows Expired for a past date and a Due-in warning for a near-future date', async () => {
+      const now = Date.now();
+      const expiredDate = new Date(now - 5 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const dueSoonDate = new Date(now + 10 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      listPhysicalAssets.mockResolvedValue({
+        physical_assets: [
+          {
+            asset_id: 'asset3',
+            asset_name: 'Expiry Test Car',
+            asset_type: 'VEHICLE',
+            make: 'Maruti',
+            model: 'Swift',
+            registration_number: 'KA-01-ZZ-0001',
+            registration_type: 'PRIVATE',
+            is_active: true,
+            metadata: { puc_expiry: expiredDate, insurance_expiry: dueSoonDate },
+          },
+        ],
+      });
+      render(<PhysicalAssets />);
+      await waitFor(() => screen.getByText('Alice'));
+      fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+
+      await waitFor(() => {
+        expect(screen.getByText('Expired')).toBeInTheDocument();
+        expect(screen.getByText(/Due in \d+d/)).toBeInTheDocument();
+      });
+    });
+
+    it('renders a non-VEHICLE asset without vehicle-only fields or compliance rows', async () => {
+      listPhysicalAssets.mockResolvedValue({
+        physical_assets: [
+          {
+            asset_id: 'asset4',
+            asset_name: 'Gold Bond 2030',
+            asset_type: 'GOLD_BOND',
+            current_value: 250000,
+            valuation_date: '2026-06-01',
+            is_active: true,
+            metadata: {},
+          },
+        ],
+      });
+      render(<PhysicalAssets />);
+      await waitFor(() => screen.getByText('Alice'));
+      fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p1' } });
+
+      await waitFor(() => {
+        expect(screen.getByText('Gold Bond 2030')).toBeInTheDocument();
+      });
+      expect(screen.getByText(/Current Value: 2,50,000 \(as of 2026-06-01\)/)).toBeInTheDocument();
+      expect(screen.queryByText(/Registration:/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/PUC:/)).not.toBeInTheDocument();
     });
   });
 });

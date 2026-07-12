@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -157,5 +158,71 @@ class GoalPlanTest {
         assertEquals(CHILD_ID, plan.getBeneficiaryProfileId());
         assertEquals("Target state", plan.getTargetState());
         assertEquals(5, plan.getEducationYearsToEntry());
+    }
+
+    @Test
+    void noArgConstructor_initializesEmptyCollectionsAndDetail() {
+        GoalPlan plan = new GoalPlan();
+
+        assertNotNull(plan.getDetail());
+        assertTrue(plan.getDetail().isEmpty());
+        assertNotNull(plan.getMilestones());
+        assertTrue(plan.getMilestones().isEmpty());
+        assertNotNull(plan.getRules());
+        assertTrue(plan.getRules().isEmpty());
+        assertNotNull(plan.getTriggerEvents());
+        assertTrue(plan.getTriggerEvents().isEmpty());
+    }
+
+    @Test
+    void builder_withIdCreatedAtUpdatedAt_roundTripsThroughGetters() {
+        UUID id = UUID.randomUUID();
+        java.time.Instant createdAt = java.time.Instant.parse("2026-01-01T00:00:00Z");
+        java.time.Instant updatedAt = java.time.Instant.parse("2026-02-01T00:00:00Z");
+
+        GoalPlan plan = GoalPlan.builder()
+                .id(id)
+                .adminId(ADMIN_ID)
+                .goalType(GoalType.FREEDOM_RUNWAY)
+                .objective("Objective")
+                .createdAt(createdAt)
+                .updatedAt(updatedAt)
+                .build();
+
+        assertEquals(id, plan.getId());
+        assertEquals(createdAt, plan.getCreatedAt());
+        assertEquals(updatedAt, plan.getUpdatedAt());
+    }
+
+    @Test
+    void setters_mutateEducationDetailAndChildCollectionsInPlace() {
+        GoalPlan plan = GoalPlan.create(ADMIN_ID, new GoalPlan.Spec(GoalType.YEAR_ONE, CHILD_ID,
+                "Cover first year fees", null, null, null, null, null));
+
+        java.time.Instant updatedAt = java.time.Instant.parse("2026-03-01T00:00:00Z");
+        Map<String, String> detail = Map.of("note", "reviewed annually");
+        List<GoalMilestone> milestones = List.of(
+                GoalMilestone.create(null, 0, "Checkpoint", new BigDecimal("50"), false, false, "Halfway"));
+        List<GoalRule> rules = List.of(GoalRule.create(null, 0, "Rule A", "Text"));
+        List<GoalTriggerEvent> triggerEvents = List.of(
+                GoalTriggerEvent.create(null, 0, "Bonus", "Bonus credited", "Increase SIP"));
+
+        plan.setEducationBaseCost(new BigDecimal("1200000"));
+        plan.setEducationInflationRate(new BigDecimal("0.09"));
+        plan.setEducationYearsToEntry(5);
+        plan.setDetail(detail);
+        plan.setUpdatedAt(updatedAt);
+        plan.setMilestones(milestones);
+        plan.setRules(rules);
+        plan.setTriggerEvents(triggerEvents);
+
+        assertEquals(0, new BigDecimal("1200000").compareTo(plan.getEducationBaseCost()));
+        assertEquals(0, new BigDecimal("0.09").compareTo(plan.getEducationInflationRate()));
+        assertEquals(5, plan.getEducationYearsToEntry());
+        assertEquals(detail, plan.getDetail());
+        assertEquals(updatedAt, plan.getUpdatedAt());
+        assertEquals(milestones, plan.getMilestones());
+        assertEquals(rules, plan.getRules());
+        assertEquals(triggerEvents, plan.getTriggerEvents());
     }
 }
