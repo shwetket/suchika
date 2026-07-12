@@ -107,6 +107,9 @@ public class ProjectionCalculationEngine {
     // the corrected formulas use fixed 100/30/100 thresholds instead.
     private static final double DEFAULT_FREEDOM_RUNWAY_MONTHS = 360.0;
 
+    private static final ZoneId IST_ZONE = ZoneId.of("Asia/Kolkata");
+    private static final String PERCENT_UNIT = "percent";
+
     // ADR-022 Phase 1 — corrected formula goals engine field/constant names.
     private static final String RELATION_TO_ADMIN_FIELD = "relation_to_admin";
     private static final String RELATION_SELF = "SELF";
@@ -239,7 +242,7 @@ public class ProjectionCalculationEngine {
         runStep("computeGoalDetail", profileId, this::computeGoalDetail);
         runStep("computeValidation", profileId, this::computeValidation);
         runStep("computeActionCenterAlerts", profileId,
-                id -> computeActionCenterAlerts(id, LocalDate.now(ZoneId.of("Asia/Kolkata"))));
+                id -> computeActionCenterAlerts(id, LocalDate.now(IST_ZONE)));
         return new DashboardResponse(snapshotRepository.findByProfileId(profileId));
     }
 
@@ -408,7 +411,7 @@ public class ProjectionCalculationEngine {
     // ── HOUSEHOLD_EVENT_SUMMARY ───────────────────────────────────────────────
 
     void computeEventSummary(UUID profileId) {
-        LocalDate nowIst = LocalDate.now(ZoneId.of("Asia/Kolkata"));
+        LocalDate nowIst = LocalDate.now(IST_ZONE);
         String today = nowIst.toString();
         String thirtyDaysAhead = nowIst.plusDays(30).toString();
 
@@ -457,7 +460,7 @@ public class ProjectionCalculationEngine {
         if (accountsArray.isArray()) {
             for (JsonNode account : accountsArray) {
                 totalAccounts++;
-                String category = account.path(METADATA_FIELD).path("category").asText("");
+                String category = account.path(METADATA_FIELD).path(CATEGORY_FIELD).asText("");
                 String accountId = account.path(ACCOUNT_ID_FIELD).asText("");
                 if (category.isBlank()) {
                     uncategorizedIds.add(accountId);
@@ -515,7 +518,7 @@ public class ProjectionCalculationEngine {
                 ObjectNode memberEntry = MAPPER.createObjectNode();
                 memberEntry.put(PROFILE_ID_FIELD, memberProfileIdText);
                 memberEntry.put(FULL_NAME_FIELD, member.path(FULL_NAME_FIELD).asText(""));
-                memberEntry.put("relation_to_admin", member.path("relation_to_admin").asText(""));
+                memberEntry.put(RELATION_TO_ADMIN_FIELD, member.path(RELATION_TO_ADMIN_FIELD).asText(""));
                 memberEntry.put("net_worth", memberNetWorth);
                 membersPayload.add(memberEntry);
             }
@@ -569,7 +572,7 @@ public class ProjectionCalculationEngine {
         }
 
         ObjectNode payload = MAPPER.createObjectNode();
-        payload.put("total_outstanding_balance", totalOutstanding);
+        payload.put(TOTAL_OUTSTANDING_BALANCE_FIELD, totalOutstanding);
         payload.put(TOTAL_MONTHLY_EMI_FIELD, totalEmi);
         payload.put("total_monthly_interest_saved", totalInterestSaved);
         payload.put(MEMBER_COUNT_FIELD, memberCount);
@@ -703,7 +706,7 @@ public class ProjectionCalculationEngine {
         JsonNode accounts = wealthServiceClient.listAccounts(null, true, memberProfileIdText);
         for (JsonNode account : accounts.path(ACCOUNTS_FIELD)) {
             double balance = currentBalanceFor(account, memberProfileId);
-            String tier = account.path(METADATA_FIELD).path("liquidity_tier").asText("").trim();
+            String tier = account.path(METADATA_FIELD).path(LIQUIDITY_TIER_FIELD).asText("").trim();
             switch (tier) {
                 case TIER_LIQUID -> totals[0] += balance;
                 case TIER_SEMI_LIQUID -> totals[1] += balance;
@@ -887,12 +890,12 @@ public class ProjectionCalculationEngine {
         return buildGoalEntry(
                 "DEBT_CROSSOVER", "Debt Crossover",
                 "Family mutual fund corpus (self & spouse) covers outstanding loan balance",
-                debtPercent, DEBT_CROSSOVER_TARGET_PERCENT, "percent");
+                debtPercent, DEBT_CROSSOVER_TARGET_PERCENT, PERCENT_UNIT);
     }
 
     private ObjectNode buildThirtySeventyGoal(JsonNode membersArray, JsonNode emiPayload, UUID adminId) {
         double monthlyEmi = emiPayload.path(TOTAL_MONTHLY_EMI_FIELD).asDouble(0.0);
-        LocalDate today = LocalDate.now(ZoneId.of("Asia/Kolkata"));
+        LocalDate today = LocalDate.now(IST_ZONE);
         LocalDate lookbackStart = today.minusMonths(THIRTY_SEVENTY_LOOKBACK_MONTHS);
 
         double nonDiscretionaryDebitTotal = 0.0;
@@ -916,7 +919,7 @@ public class ProjectionCalculationEngine {
         return buildGoalEntry(
                 THIRTY_SEVENTY_GOAL_TYPE, "30-70 Target",
                 "Essential outflows (EMI + non-discretionary spend + insurance) stay under 30% of average income",
-                thirtySeventyPercent, THIRTY_SEVENTY_TARGET_PERCENT, "percent");
+                thirtySeventyPercent, THIRTY_SEVENTY_TARGET_PERCENT, PERCENT_UNIT);
     }
 
     /**
@@ -995,11 +998,10 @@ public class ProjectionCalculationEngine {
         double coreRunwayCapital = 0.0;
         for (JsonNode member : membersArray) {
             String memberProfileIdText = member.path(PROFILE_ID_FIELD).asText("");
-            if (memberProfileIdText.isEmpty()) {
+            boolean isChild = RELATION_CHILD.equals(member.path(RELATION_TO_ADMIN_FIELD).asText(""));
+            // Skip unidentified members and children's accounts (ADR-022 audit finding).
+            if (memberProfileIdText.isEmpty() || isChild) {
                 continue;
-            }
-            if (RELATION_CHILD.equals(member.path(RELATION_TO_ADMIN_FIELD).asText(""))) {
-                continue; // children's accounts excluded (ADR-022 audit finding)
             }
             UUID memberProfileId = UUID.fromString(memberProfileIdText);
             coreRunwayCapital += sumCoreRunwayCapitalForMember(memberProfileIdText, memberProfileId);
@@ -1053,9 +1055,9 @@ public class ProjectionCalculationEngine {
         double insurancePercent = denominator > 0 ? maxGainAndFdBalance / denominator * 100.0 : 0.0;
 
         return buildGoalEntry(
-                "INSURANCE_FREE", "Insurance Free",
+                INSURANCE_FREE_GOAL_TYPE, "Insurance Free",
                 "MaxGain and FD balances cover outstanding debt plus legal fees and academic buffer",
-                insurancePercent, INSURANCE_FREE_TARGET_PERCENT, "percent");
+                insurancePercent, INSURANCE_FREE_TARGET_PERCENT, PERCENT_UNIT);
     }
 
     private double sumMaxGainOrFdBalanceForMember(String memberProfileIdText, UUID memberProfileId) {
@@ -1093,10 +1095,9 @@ public class ProjectionCalculationEngine {
 
         for (JsonNode member : membersArray) {
             String memberProfileIdText = member.path(PROFILE_ID_FIELD).asText("");
-            if (memberProfileIdText.isEmpty() || !RELATION_CHILD.equals(member.path(RELATION_TO_ADMIN_FIELD).asText(""))) {
-                continue;
-            }
-            JsonNode yearOnePlan = findYearOnePlan(goalPlans, memberProfileIdText);
+            boolean isChild = !memberProfileIdText.isEmpty()
+                    && RELATION_CHILD.equals(member.path(RELATION_TO_ADMIN_FIELD).asText(""));
+            JsonNode yearOnePlan = isChild ? findYearOnePlan(goalPlans, memberProfileIdText) : null;
             if (yearOnePlan == null) {
                 continue;
             }
@@ -1129,7 +1130,7 @@ public class ProjectionCalculationEngine {
         ObjectNode entry = buildGoalEntry(
                 YEAR_ONE_GOAL_TYPE, "Year One — " + childName,
                 "Mutual fund corpus covers 25% of " + childName + "'s projected education cost at entry",
-                fundedPercent, YEAR_ONE_TARGET_PERCENT, "percent");
+                fundedPercent, YEAR_ONE_TARGET_PERCENT, PERCENT_UNIT);
         entry.put(BENEFICIARY_PROFILE_ID_FIELD, childProfileIdText);
         entry.put(BENEFICIARY_NAME_FIELD, childName);
         return entry;

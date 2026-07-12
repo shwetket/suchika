@@ -22,7 +22,8 @@ class GoalRuleTest {
 
     @Test
     void create_ruleNameTooLong_throws() {
-        assertThrows(IllegalArgumentException.class, () -> GoalRule.create(null, 0, "x".repeat(51), "Rule text"));
+        String longName = "x".repeat(51);
+        assertThrows(IllegalArgumentException.class, () -> GoalRule.create(null, 0, longName, "Rule text"));
     }
 
     @Test

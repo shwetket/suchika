@@ -37,14 +37,15 @@ public class GoalPlanService implements GoalPlanUseCase {
     public GoalPlan createGoalPlan(UUID adminId, CreateGoalPlanCommand command) {
         GoalPlan plan = GoalPlan.create(
                 adminId,
-                command.goalType(),
-                command.beneficiaryProfileId(),
-                command.objective(),
-                command.targetState(),
-                command.assumedGrowthRate(),
-                command.educationBaseCost(),
-                command.educationInflationRate(),
-                command.educationYearsToEntry());
+                new GoalPlan.Spec(
+                        command.goalType(),
+                        command.beneficiaryProfileId(),
+                        command.objective(),
+                        command.targetState(),
+                        command.assumedGrowthRate(),
+                        command.educationBaseCost(),
+                        command.educationInflationRate(),
+                        command.educationYearsToEntry()));
 
         if (repository.existsByAdminGoalTypeBeneficiary(adminId, command.goalType(), command.beneficiaryProfileId())) {
             throw new ConflictException("A goal plan for " + command.goalType()

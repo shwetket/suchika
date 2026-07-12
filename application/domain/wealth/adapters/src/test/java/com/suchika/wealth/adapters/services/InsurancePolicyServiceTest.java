@@ -50,8 +50,9 @@ class InsurancePolicyServiceTest {
 
     @Test
     void createInsurancePolicy_invalidPolicy_domainValidationThrowsIllegalArgument() {
+        CreateInsurancePolicyCommand invalidCommand = cmd("Term Plan", new BigDecimal("-1"), PremiumFrequency.MONTHLY);
         assertThrows(IllegalArgumentException.class, () ->
-                service.createInsurancePolicy(ADMIN_ID, cmd("Term Plan", new BigDecimal("-1"), PremiumFrequency.MONTHLY)));
+                service.createInsurancePolicy(ADMIN_ID, invalidCommand));
     }
 
     @Test
@@ -159,6 +160,7 @@ class InsurancePolicyServiceTest {
 
     /** Minimal in-memory fake — mirrors GoalPlanServiceTest's FakeGoalPlanRepository pattern. */
     static class FakeInsurancePolicyRepository implements InsurancePolicyRepository {
+        private static final java.time.Instant FIXED_NOW = java.time.Instant.parse("2026-07-12T00:00:00Z");
         private final Map<UUID, InsurancePolicy> policies = new HashMap<>();
 
         @Override
@@ -175,8 +177,8 @@ class InsurancePolicyServiceTest {
                     .coverageAmount(insurancePolicy.getCoverageAmount())
                     .payoutStructure(new HashMap<>(insurancePolicy.getPayoutStructure()))
                     .active(insurancePolicy.isActive())
-                    .createdAt(java.time.Instant.now())
-                    .updatedAt(java.time.Instant.now())
+                    .createdAt(FIXED_NOW)
+                    .updatedAt(FIXED_NOW)
                     .build();
             policies.put(id, stored);
             return stored;

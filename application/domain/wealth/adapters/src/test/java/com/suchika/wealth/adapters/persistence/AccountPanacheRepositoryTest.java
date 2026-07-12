@@ -57,7 +57,7 @@ class AccountPanacheRepositoryTest {
 
     @Test
     void save_andFindById_roundTripsBalanceAsOf() {
-        java.time.LocalDate asOf = java.time.LocalDate.of(2026, 7, 10);
+        java.time.LocalDate asOf = java.time.LocalDate.of(2026, java.time.Month.JULY, 10);
         Account toSave = Account.builder()
                 .accountName("Kotak Savings")
                 .accountType(AccountType.SAVINGS)

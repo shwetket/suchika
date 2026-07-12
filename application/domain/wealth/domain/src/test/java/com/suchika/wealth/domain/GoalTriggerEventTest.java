@@ -25,8 +25,9 @@ class GoalTriggerEventTest {
 
     @Test
     void create_eventNameTooLong_throws() {
+        String longName = "x".repeat(51);
         assertThrows(IllegalArgumentException.class, () ->
-                GoalTriggerEvent.create(null, 0, "x".repeat(51), "Condition", "Change"));
+                GoalTriggerEvent.create(null, 0, longName, "Condition", "Change"));
     }
 
     @Test

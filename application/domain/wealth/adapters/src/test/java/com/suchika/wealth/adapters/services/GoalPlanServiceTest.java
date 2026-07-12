@@ -73,8 +73,9 @@ class GoalPlanServiceTest {
     @Test
     void createGoalPlan_invalidGoalPlan_domainValidationThrowsIllegalArgument() {
         // YEAR_ONE without a beneficiary_profile_id — domain-layer validation (ADR-020)
+        CreateGoalPlanCommand invalidCommand = cmd(GoalType.YEAR_ONE, null, "Objective");
         assertThrows(IllegalArgumentException.class, () ->
-                service.createGoalPlan(ADMIN_ID, cmd(GoalType.YEAR_ONE, null, "Objective")));
+                service.createGoalPlan(ADMIN_ID, invalidCommand));
     }
 
     @Test
@@ -137,11 +138,12 @@ class GoalPlanServiceTest {
     @Test
     void replaceMilestones_duplicateSequenceNo_throwsIllegalArgument() {
         GoalPlan plan = service.createGoalPlan(ADMIN_ID, cmd(GoalType.DEBT_CROSSOVER, null, "Objective"));
+        UUID planId = plan.getId();
         List<GoalMilestone> milestones = List.of(
                 GoalMilestone.create(null, 0, "First", new BigDecimal("25"), false, false, "Sig1"),
                 GoalMilestone.create(null, 0, "Second", new BigDecimal("50"), false, false, "Sig2"));
 
-        assertThrows(IllegalArgumentException.class, () -> service.replaceMilestones(plan.getId(), ADMIN_ID, milestones));
+        assertThrows(IllegalArgumentException.class, () -> service.replaceMilestones(planId, ADMIN_ID, milestones));
     }
 
     @Test
@@ -153,21 +155,23 @@ class GoalPlanServiceTest {
     @Test
     void replaceRules_duplicateSequenceNo_throwsIllegalArgument() {
         GoalPlan plan = service.createGoalPlan(ADMIN_ID, cmd(GoalType.DEBT_CROSSOVER, null, "Objective"));
+        UUID planId = plan.getId();
         List<GoalRule> rules = List.of(
                 GoalRule.create(null, 0, "Rule1", "Text1"),
                 GoalRule.create(null, 0, "Rule2", "Text2"));
 
-        assertThrows(IllegalArgumentException.class, () -> service.replaceRules(plan.getId(), ADMIN_ID, rules));
+        assertThrows(IllegalArgumentException.class, () -> service.replaceRules(planId, ADMIN_ID, rules));
     }
 
     @Test
     void replaceTriggerEvents_duplicateSequenceNo_throwsIllegalArgument() {
         GoalPlan plan = service.createGoalPlan(ADMIN_ID, cmd(GoalType.DEBT_CROSSOVER, null, "Objective"));
+        UUID planId = plan.getId();
         List<GoalTriggerEvent> events = List.of(
                 GoalTriggerEvent.create(null, 0, "Event1", "Condition1", "Change1"),
                 GoalTriggerEvent.create(null, 0, "Event2", "Condition2", "Change2"));
 
-        assertThrows(IllegalArgumentException.class, () -> service.replaceTriggerEvents(plan.getId(), ADMIN_ID, events));
+        assertThrows(IllegalArgumentException.class, () -> service.replaceTriggerEvents(planId, ADMIN_ID, events));
     }
 
     @Test
@@ -206,6 +210,7 @@ class GoalPlanServiceTest {
      * FakePhysicalAssetRepository pattern (hand-written fake, not Mockito).
      */
     static class FakeGoalPlanRepository implements GoalPlanRepository {
+        private static final java.time.Instant FIXED_NOW = java.time.Instant.parse("2026-07-12T00:00:00Z");
         private final Map<UUID, GoalPlan> plans = new HashMap<>();
         private final Map<UUID, List<GoalMilestone>> milestones = new HashMap<>();
         private final Map<UUID, List<GoalRule>> rules = new HashMap<>();
@@ -227,8 +232,8 @@ class GoalPlanServiceTest {
                     .educationYearsToEntry(goalPlan.getEducationYearsToEntry())
                     .detail(new HashMap<>(goalPlan.getDetail()))
                     .active(goalPlan.isActive())
-                    .createdAt(java.time.Instant.now())
-                    .updatedAt(java.time.Instant.now())
+                    .createdAt(FIXED_NOW)
+                    .updatedAt(FIXED_NOW)
                     .build();
             plans.put(id, stored);
             return stored;

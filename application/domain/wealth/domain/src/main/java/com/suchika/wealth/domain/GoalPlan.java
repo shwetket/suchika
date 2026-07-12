@@ -67,38 +67,51 @@ public class GoalPlan {
     }
 
     /**
+     * Parameter object for {@link #create(UUID, Spec)} — bundles the goal plan's
+     * authored fields so the factory keeps {@code admin_id} separate (Sonar S107,
+     * mirroring the {@code CreateAccountCommand}/{@code profileId} precedent).
+     */
+    public record Spec(
+            GoalType goalType,
+            UUID beneficiaryProfileId,
+            String objective,
+            String targetState,
+            BigDecimal assumedGrowthRate,
+            BigDecimal educationBaseCost,
+            BigDecimal educationInflationRate,
+            Integer educationYearsToEntry) {
+    }
+
+    /**
      * Validating factory (ADR-020: no CHECK constraints, validate in domain).
      * {@code beneficiary_profile_id} and the 3 education_* inputs are meaningful
      * only for {@code YEAR_ONE} (per-child rows) — enforced here, not just left
      * nullable, so a malformed request 400s instead of silently creating a
      * confusing row for the other 4 (household-level) goal types.
      */
-    public static GoalPlan create(UUID adminId, GoalType goalType, UUID beneficiaryProfileId,
-                                   String objective, String targetState, BigDecimal assumedGrowthRate,
-                                   BigDecimal educationBaseCost, BigDecimal educationInflationRate,
-                                   Integer educationYearsToEntry) {
+    public static GoalPlan create(UUID adminId, Spec spec) {
         if (adminId == null) {
             throw new IllegalArgumentException("admin_id is required");
         }
-        if (goalType == null) {
+        if (spec.goalType() == null) {
             throw new IllegalArgumentException("goal_type is required");
         }
-        if (objective == null || objective.isBlank()) {
+        if (spec.objective() == null || spec.objective().isBlank()) {
             throw new IllegalArgumentException("objective must not be blank");
         }
-        validateBeneficiaryScope(goalType, beneficiaryProfileId, educationBaseCost,
-                educationInflationRate, educationYearsToEntry);
+        validateBeneficiaryScope(spec.goalType(), spec.beneficiaryProfileId(), spec.educationBaseCost(),
+                spec.educationInflationRate(), spec.educationYearsToEntry());
 
         return new Builder()
                 .adminId(adminId)
-                .goalType(goalType)
-                .beneficiaryProfileId(beneficiaryProfileId)
-                .objective(objective)
-                .targetState(targetState)
-                .assumedGrowthRate(assumedGrowthRate)
-                .educationBaseCost(educationBaseCost)
-                .educationInflationRate(educationInflationRate)
-                .educationYearsToEntry(educationYearsToEntry)
+                .goalType(spec.goalType())
+                .beneficiaryProfileId(spec.beneficiaryProfileId())
+                .objective(spec.objective())
+                .targetState(spec.targetState())
+                .assumedGrowthRate(spec.assumedGrowthRate())
+                .educationBaseCost(spec.educationBaseCost())
+                .educationInflationRate(spec.educationInflationRate())
+                .educationYearsToEntry(spec.educationYearsToEntry())
                 .detail(new HashMap<>())
                 .active(true)
                 .milestones(new ArrayList<>())

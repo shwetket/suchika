@@ -15,8 +15,8 @@ class GoalPlanTest {
 
     @Test
     void create_debtCrossover_minimalFields_succeeds() {
-        GoalPlan plan = GoalPlan.create(ADMIN_ID, GoalType.DEBT_CROSSOVER, null,
-                "Reach a state where MF corpus exceeds outstanding debt", null, null, null, null, null);
+        GoalPlan plan = GoalPlan.create(ADMIN_ID, new GoalPlan.Spec(GoalType.DEBT_CROSSOVER, null,
+                "Reach a state where MF corpus exceeds outstanding debt", null, null, null, null, null));
 
         assertEquals(ADMIN_ID, plan.getAdminId());
         assertEquals(GoalType.DEBT_CROSSOVER, plan.getGoalType());
@@ -29,17 +29,19 @@ class GoalPlanTest {
 
     @Test
     void create_yearOne_requiresBeneficiaryProfileId() {
+        GoalPlan.Spec spec = new GoalPlan.Spec(GoalType.YEAR_ONE, null, "Fund year one of college", null, null,
+                new BigDecimal("1000000"), new BigDecimal("0.06"), 10);
+
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
-                GoalPlan.create(ADMIN_ID, GoalType.YEAR_ONE, null, "Fund year one of college", null, null,
-                        new BigDecimal("1000000"), new BigDecimal("0.06"), 10));
+                GoalPlan.create(ADMIN_ID, spec));
 
         assertTrue(ex.getMessage().contains("beneficiary_profile_id"));
     }
 
     @Test
     void create_yearOne_withBeneficiaryProfileId_succeeds() {
-        GoalPlan plan = GoalPlan.create(ADMIN_ID, GoalType.YEAR_ONE, CHILD_ID, "Fund year one of college",
-                null, null, new BigDecimal("1000000"), new BigDecimal("0.06"), 10);
+        GoalPlan plan = GoalPlan.create(ADMIN_ID, new GoalPlan.Spec(GoalType.YEAR_ONE, CHILD_ID,
+                "Fund year one of college", null, null, new BigDecimal("1000000"), new BigDecimal("0.06"), 10));
 
         assertEquals(CHILD_ID, plan.getBeneficiaryProfileId());
         assertEquals(0, new BigDecimal("1000000").compareTo(plan.getEducationBaseCost()));
@@ -48,43 +50,58 @@ class GoalPlanTest {
 
     @Test
     void create_nonYearOne_rejectsBeneficiaryProfileId() {
+        GoalPlan.Spec spec = new GoalPlan.Spec(GoalType.FREEDOM_RUNWAY, CHILD_ID, "Objective",
+                null, null, null, null, null);
+
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
-                GoalPlan.create(ADMIN_ID, GoalType.FREEDOM_RUNWAY, CHILD_ID, "Objective", null, null, null, null, null));
+                GoalPlan.create(ADMIN_ID, spec));
 
         assertTrue(ex.getMessage().contains("must be null"));
     }
 
     @Test
     void create_nonYearOne_rejectsEducationFields() {
+        GoalPlan.Spec spec = new GoalPlan.Spec(GoalType.INSURANCE_FREE, null, "Objective", null, null,
+                new BigDecimal("1000000"), null, null);
+
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
-                GoalPlan.create(ADMIN_ID, GoalType.INSURANCE_FREE, null, "Objective", null, null,
-                        new BigDecimal("1000000"), null, null));
+                GoalPlan.create(ADMIN_ID, spec));
 
         assertTrue(ex.getMessage().contains("education_"));
     }
 
     @Test
     void create_nullAdminId_throws() {
+        GoalPlan.Spec spec = new GoalPlan.Spec(GoalType.DEBT_CROSSOVER, null, "Objective",
+                null, null, null, null, null);
+
         assertThrows(IllegalArgumentException.class, () ->
-                GoalPlan.create(null, GoalType.DEBT_CROSSOVER, null, "Objective", null, null, null, null, null));
+                GoalPlan.create(null, spec));
     }
 
     @Test
     void create_nullGoalType_throws() {
+        GoalPlan.Spec spec = new GoalPlan.Spec(null, null, "Objective", null, null, null, null, null);
+
         assertThrows(IllegalArgumentException.class, () ->
-                GoalPlan.create(ADMIN_ID, null, null, "Objective", null, null, null, null, null));
+                GoalPlan.create(ADMIN_ID, spec));
     }
 
     @Test
     void create_blankObjective_throws() {
+        GoalPlan.Spec spec = new GoalPlan.Spec(GoalType.DEBT_CROSSOVER, null, "   ",
+                null, null, null, null, null);
+
         assertThrows(IllegalArgumentException.class, () ->
-                GoalPlan.create(ADMIN_ID, GoalType.DEBT_CROSSOVER, null, "   ", null, null, null, null, null));
+                GoalPlan.create(ADMIN_ID, spec));
     }
 
     @Test
     void validateUniqueSequence_duplicateSequenceNumbers_throws() {
+        List<Integer> sequenceNumbers = List.of(0, 1, 1, 2);
+
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
-                GoalPlan.validateUniqueSequence(List.of(0, 1, 1, 2), "milestones"));
+                GoalPlan.validateUniqueSequence(sequenceNumbers, "milestones"));
 
         assertTrue(ex.getMessage().contains("milestones"));
         assertTrue(ex.getMessage().contains("1"));
@@ -102,7 +119,8 @@ class GoalPlanTest {
 
     @Test
     void setters_mutateMutableFieldsOnly() {
-        GoalPlan plan = GoalPlan.create(ADMIN_ID, GoalType.DEBT_CROSSOVER, null, "Objective", null, null, null, null, null);
+        GoalPlan plan = GoalPlan.create(ADMIN_ID, new GoalPlan.Spec(GoalType.DEBT_CROSSOVER, null,
+                "Objective", null, null, null, null, null));
 
         plan.setObjective("Updated objective");
         plan.setTargetState("Debt-free by 2030");

@@ -78,8 +78,9 @@ class InsurancePolicyTest {
 
     @Test
     void create_negativePremiumAmount_throwsIllegalArgument() {
+        BigDecimal negative = new BigDecimal("-1");
         assertThrows(IllegalArgumentException.class, () -> InsurancePolicy.create(ADMIN_ID, "Name", "Provider",
-                PolicyType.TERM, new BigDecimal("-1"), PremiumFrequency.MONTHLY, null));
+                PolicyType.TERM, negative, PremiumFrequency.MONTHLY, null));
     }
 
     @Test
@@ -98,8 +99,9 @@ class InsurancePolicyTest {
 
     @Test
     void create_negativeCoverageAmount_throwsIllegalArgument() {
+        BigDecimal negative = new BigDecimal("-1");
         assertThrows(IllegalArgumentException.class, () -> InsurancePolicy.create(ADMIN_ID, "Name", "Provider",
-                PolicyType.TERM, BigDecimal.TEN, PremiumFrequency.MONTHLY, new BigDecimal("-1")));
+                PolicyType.TERM, BigDecimal.TEN, PremiumFrequency.MONTHLY, negative));
     }
 
     @Test

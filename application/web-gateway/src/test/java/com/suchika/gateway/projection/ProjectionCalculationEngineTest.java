@@ -22,6 +22,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -1009,7 +1010,7 @@ class ProjectionCalculationEngineTest {
         assertEquals("IN_PROGRESS", yearOneGoal.path("status").asText());
 
         for (JsonNode goal : goals) {
-            assertFalse("Zoya".equals(goal.path("beneficiary_name").asText()),
+            assertNotEquals("Zoya", goal.path("beneficiary_name").asText(),
                     "Unconfigured child Zoya must not appear anywhere in the payload");
         }
     }
