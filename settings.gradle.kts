@@ -32,5 +32,6 @@ include(
 // Shared + infrastructure
 include(
     "infrastructure",
-    "shared"
+    "shared",
+    "shared-adapter"
 )

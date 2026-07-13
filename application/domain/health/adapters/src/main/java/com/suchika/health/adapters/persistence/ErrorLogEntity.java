@@ -1,6 +1,6 @@
 package com.suchika.health.adapters.persistence;
 
-import com.suchika.health.domain.ErrorLog;
+import com.suchika.shared.errorlog.ErrorLog;
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

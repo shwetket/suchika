@@ -1,15 +1,19 @@
 package com.suchika.household.adapters.persistence;
 
-import com.suchika.household.domain.ErrorLog;
-import com.suchika.household.ports.output.ErrorLogRepository;
+import com.suchika.shared.errorlog.ErrorLog;
+import com.suchika.sharedadapter.errorlog.AbstractErrorLogPanacheRepository;
+import io.quarkus.hibernate.orm.panache.PanacheRepositoryBase;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.transaction.Transactional;
 
-import java.time.Instant;
-import java.util.List;
+import java.util.UUID;
 
+/**
+ * Binds this domain's own {@link ErrorLogEntity}/{@link ErrorLogDao} to the
+ * shared save/findSince query logic in {@link AbstractErrorLogPanacheRepository}
+ * (2026-07-13 ADR-023 revision).
+ */
 @ApplicationScoped
-public class ErrorLogPanacheRepository implements ErrorLogRepository {
+public class ErrorLogPanacheRepository extends AbstractErrorLogPanacheRepository<ErrorLogEntity> {
 
     private final ErrorLogDao dao;
 
@@ -18,20 +22,17 @@ public class ErrorLogPanacheRepository implements ErrorLogRepository {
     }
 
     @Override
-    @Transactional
-    public void save(String errorCode, int httpStatus, String message, String details) {
-        ErrorLogEntity entity = ErrorLogEntity.from(errorCode, httpStatus, message, details);
-        dao.persist(entity);
+    protected PanacheRepositoryBase<ErrorLogEntity, UUID> dao() {
+        return dao;
     }
 
     @Override
-    public List<ErrorLog> findSince(Instant since, int limit) {
-        var query = since != null
-                ? dao.find("createdAt >= ?1 order by createdAt desc", since)
-                : dao.find("order by createdAt desc");
-        return query.page(0, limit)
-                .stream()
-                .map(ErrorLogEntity::toDomain)
-                .toList();
+    protected ErrorLogEntity newEntity(String errorCode, int httpStatus, String message, String details) {
+        return ErrorLogEntity.from(errorCode, httpStatus, message, details);
+    }
+
+    @Override
+    protected ErrorLog toDomain(ErrorLogEntity entity) {
+        return entity.toDomain();
     }
 }

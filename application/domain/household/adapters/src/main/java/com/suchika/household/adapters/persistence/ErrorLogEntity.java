@@ -1,6 +1,6 @@
 package com.suchika.household.adapters.persistence;
 
-import com.suchika.household.domain.ErrorLog;
+import com.suchika.shared.errorlog.ErrorLog;
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

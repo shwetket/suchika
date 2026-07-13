@@ -190,7 +190,7 @@ File: `application/contract/household.yaml` · Base URL: `http://localhost:8084`
 | Gateway projection engine | `application/web-gateway/src/main/java/com/suchika/gateway/projection/ProjectionCalculationEngine.java` (2 of 12 steps; see Retrospective item 2) |
 | Vacation Planner (gateway-native, not household code) | `application/web-gateway/src/main/java/com/suchika/gateway/vacationplanner/` |
 | Frontend pages | `web/src/pages/Household/` — `Calendar.js`, `Inventory.js`, `Goals.js`, `VacationPlanner.js` (household data); `Profiles.js` (profile-domain data, grouped here for nav UX only — see Retrospective item 6) |
-| Error log (Phase 4) | `ErrorLog.java` (domain), `ErrorLogRepository`/`ErrorLogUseCase` (ports), `ErrorLogEntity`/`ErrorLogDao`/`ErrorLogPanacheRepository`/`ErrorLogService`/`ErrorLogResource` (adapters) |
+| Error log (Phase 4) | `ErrorLog.java` (domain), `ErrorLogRepository`/`ErrorLogUseCase` (ports), `ErrorLogEntity`/`ErrorLogDao`/`ErrorLogPanacheRepository`/`ErrorLogService`/`ErrorLogResource` (adapters). **⚠ Pending consolidation (ADR-023 revision, 2026-07-13, not yet implemented):** this slice is byte-for-byte identical across all 4 domains — `ErrorLog`/`ErrorLogUseCase`/`ErrorLogRepository` move to `shared/` (new `com.suchika.shared.errorlog` package), resource/repository/service logic move to a new `shared-adapter` module as abstract base classes; only `ErrorLogEntity`/`ErrorLogDao` + thin concrete subclasses stay here. |
 
 ---
 

@@ -24,6 +24,7 @@ dependencies {
 
     // Shared utilities
     implementation(project(":shared"))
+    implementation(project(":shared-adapter"))
 
     // Tests
     testImplementation("io.quarkus:quarkus-junit5")

@@ -1,7 +1,7 @@
 package com.suchika.profile.adapters.persistence;
 
-import com.suchika.profile.domain.ErrorLog;
-import com.suchika.profile.ports.output.ErrorLogRepository;
+import com.suchika.shared.errorlog.ErrorLog;
+import com.suchika.shared.errorlog.ErrorLogRepository;
 import io.quarkus.test.TestTransaction;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.QuarkusTestProfile;

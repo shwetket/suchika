@@ -398,6 +398,35 @@ class DomainRulesTest {
             .check(allClasses);
     }
 
+    /**
+     * The shared-adapter module (ADR-023 revision, 2026-07-13) must not
+     * import any domain-specific module either. Mirrors {@link
+     * #shared_must_not_depend_on_domain_modules()} exactly, scoped to
+     * {@code com.suchika.sharedadapter..} instead of {@code com.suchika.shared..}.
+     *
+     * <p>Rationale: {@code shared-adapter} holds the abstract base classes
+     * (JAX-RS resource logic, Panache repository/service query logic) that
+     * every domain's own {@code adapters} module subclasses for its {@code
+     * error_log} vertical slice. It must stay just as domain-agnostic as
+     * {@code shared} itself -- parameterized only by generics/abstract
+     * hooks the concrete per-domain subclass supplies, never by importing a
+     * domain's own classes directly.
+     */
+    @Test
+    void shared_adapter_must_not_depend_on_domain_modules() {
+        noClasses()
+            .that().resideInAPackage("com.suchika.sharedadapter..")
+            .should().dependOnClassesThat()
+            .resideInAnyPackage(
+                "com.suchika.profile..",
+                "com.suchika.wealth..",
+                "com.suchika.household..",
+                "com.suchika.health.."
+            )
+            .allowEmptyShould(true)
+            .check(allClasses);
+    }
+
 
     // =========================================================================
     // GROUP 6: LOGGING RULES

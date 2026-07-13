@@ -5,7 +5,7 @@
 | **Type** | Reference — ADR Log |
 | **Audience** | All developers |
 | **Status** | Active |
-| **Last updated** | 2026-07-13 (ADR-023 **implemented, backend + frontend** — Application Console: process control from `web-gateway` + per-domain `error_log` tables, both scoped exceptions to existing rules, plus the admin-only `/admin/console` frontend page. See ADR-023's "Implementation note" and "Frontend implementation note" for deviations from the original design sketch) |
+| **Last updated** | 2026-07-13 (ADR-023 **revised** — the four per-domain error-log vertical slices, byte-for-byte duplicated 52 files, are being consolidated to a shared implementation in a new `shared-adapter` module + additions to the existing `shared/` module. See ADR-023's "Revision — 2026-07-13: consolidating to a shared implementation" section for the module placement decision, the chosen implementation strategy, and a security fix required in the same pass) |
 
 ## Objective
 
@@ -43,7 +43,7 @@ Record every significant architectural decision made for this project, along wit
 | [ADR-020](#adr-020-flyway-consolidation--db-constraint-policy-keep-fkuniquepknot-null-drop-check-only) | Flyway Consolidation & DB Constraint Policy: Keep FK/UNIQUE/PK/NOT NULL, Drop CHECK Only | Accepted — 2026-07-05 |
 | [ADR-021](#adr-021-login-auto-attaches-to-the-single-existing-admin-no-client-side-carry-forward) | Login Auto-Attaches to the Single Existing Admin (No Client-Side Carry-Forward) | Accepted — 2026-07-10 |
 | [ADR-022](#adr-022-richer-financial-goal-model-additive-walthgoal_plan-tables-not-a-computeformulagoals-rewrite) | Richer Financial Goal Model — Additive `wealth.goal_plan` Tables + Corrected `computeFormulaGoals()` Math + `insurance_policy` | **Implemented — all 3 phases complete 2026-07-12** (`goal_plan` + corrected formulas + `insurance_policy` + real premium wiring + `computeGoalDetail()`/`WEALTH_GOAL_DETAIL_FAMILY` + full Goal Plans/Insurance Policies frontend + Dashboard enrichment) |
-| [ADR-023](#adr-023-application-console-process-control-from-web-gateway--per-domain-error_log-tables) | Application Console — Process Control from `web-gateway` + Per-Domain `error_log` Tables | **Implemented — 2026-07-13** (Phase 4 of platform-improvements plan) |
+| [ADR-023](#adr-023-application-console-process-control-from-web-gateway--per-domain-error_log-tables) | Application Console — Process Control from `web-gateway` + Per-Domain `error_log` Tables | **Implemented 2026-07-13, revised same day** — Phase 4 shipped 4x duplicated error-log code across domains; revision consolidates the duplicated Java into a shared implementation (new `shared-adapter` module + `shared/` additions) while each domain keeps its own schema/table/migration |
 
 ---
 
@@ -767,7 +767,7 @@ Bulk-`PUT`-replace stays for milestones/rules/trigger-events as *authoring* oper
 
 ## ADR-023: Application Console — Process Control from `web-gateway` + Per-Domain `error_log` Tables
 
-**Status:** Accepted — **Implemented 2026-07-13** (Phase 4 of the platform-improvements plan). See "Implementation note" at the end of this ADR for two deliberate deviations from the design sketch below (column naming, `ServiceControlService` testing approach) and the open questions' resolutions.
+**Status:** Accepted — **Implemented 2026-07-13** (Phase 4 of the platform-improvements plan), **revised same day**. See "Implementation note" for two deliberate deviations from the design sketch below (column naming, `ServiceControlService` testing approach) and the open questions' resolutions. See "**Revision — 2026-07-13: consolidating to a shared implementation**" (end of this ADR) for the follow-up that replaces Part 2's per-domain error-log *code* (not schema — schemas stay per-domain) with a shared implementation, after product-owner review flagged the initial implementation as 4x byte-for-byte duplication.
 
 **Decision:** The admin-only Application Console (live service status, start/stop controls, per-service error stats, error log entry viewer) introduces two genuinely new architectural surfaces, both scoped, deliberate exceptions to existing rules:
 
@@ -861,3 +861,88 @@ The admin-only Console page (`web/src/pages/Admin/ApplicationConsole.js`, route 
 
 - **Does not import `web/src/api/generated.ts` at runtime**, despite the contract/OpenAPI types already existing there. Every other page in this codebase calls hand-written `fetch()` wrappers in `api/<domain>.js`, not the generated client (a pre-existing, repo-wide gap between `FRONTEND_GUIDELINES.md`'s documented standard and actual practice — out of scope to fix here). A new `web/src/api/console.js` wrapper was added following that same established convention; `generated.ts` was read only as a reference for exact field names/shapes, not wired in as a consumer.
 - **Real bug caught live, not just by unit tests:** `ConsoleErrorAggregationService`'s class-level javadoc (Part 2 above) says a down domain "contributes an empty array," but the code's `fetch()` catch block actually returns a one-element array shaped `{"error": "..."}` — not the `ErrorLogResponse` shape the contract documents. The frontend's error-panel rendering was fixed to handle both shapes gracefully (falls back to `entry.error` for the message, labels it `SERVICE_UNREACHABLE`) after this was found by driving the real page against the real gateway with all four domains stopped, not by trusting the documented shape. The javadoc/code mismatch itself was not corrected here (frontend-only task) — worth a small follow-up fix in `ConsoleErrorAggregationService`.
+
+### Revision — 2026-07-13: consolidating to a shared implementation
+
+**Status:** Accepted. Amends this ADR in place — same ADR number, no new ADR — because this is a direct follow-up correction to Part 2's implementation, not a new decision.
+
+**Trigger:** Product-owner review of the Phase 4 implementation flagged Part 2's per-domain vertical slice as bad architecture: `ErrorLog` (domain), `ErrorLogUseCase`/`ErrorLogRepository` (ports), `ErrorLogEntity`/`ErrorLogDao`/`ErrorLogPanacheRepository`/`ErrorLogService`/`ErrorLogResource`/`ErrorLogResponse` (adapters) — 52 files total (4 domain + 24 adapters + 8 ports + 16 tests) — repeated **byte-for-byte identically** across profile/wealth/health/household, confirmed by diffing `ErrorLogResource.java` across two domains (identical except the package declaration). This is exactly the kind of zero-domain-logic duplication the hexagonal split is supposed to prevent, not create.
+
+**Rejected alternative — centralize in `profile` (the domain everyone else FKs into) instead of deduplicating the code:**
+- The `profile` FK relationship (ADR-004/006) is a **data-integrity constraint** — a Postgres FK checked at write time, enforced only by Flyway startup ordering. It is not, and has never been, a **runtime call dependency** between domain services: wealth does not call profile's REST API to do its own business logic, and if profile is down, wealth still works fine on its own schema/connection (ADR-002's whole point — five independently deployable services).
+- Routing error logging through profile would introduce a genuine **new** runtime dependency and single point of failure that does not exist today: if profile itself goes down, no other domain could log anything — including "profile is unreachable" — which defeats the Console's entire resilience purpose.
+- It would also make `profile` own operational data about domains it has no business relationship to (a layering violation), and would violate ADR-003 (no cross-domain data access) in a *worse* way than today's mere code duplication — today's problem is duplicated code, not a coupling problem; centralizing in profile would trade a code-quality problem for an availability/coupling problem.
+- **Conclusion: share the code, not a service.** Each domain keeps writing to its own local schema (`profile.error_log`, `wealth.error_log`, etc. — 4 separate schemas, 4 separate Flyway migrations, genuinely cannot be merged since Flyway runs independently per domain at its own startup against its own schema, unchanged from Part 2 above). What changes is stopping the hand-rolling of identical Java four times.
+
+**Target split:**
+
+| Stays per-domain (unavoidable) | Becomes one shared implementation |
+|---|---|
+| Flyway migration file | Port interfaces: `ErrorLogUseCase`, `ErrorLogRepository` |
+| JPA `@Entity` class (Panache entities are conventionally module-local in this codebase's existing patterns) | Domain type `ErrorLog` |
+| A small CDI wiring class binding that domain's entity to the shared abstract logic | `ErrorLogResponse` DTO |
+| The `ErrorLogRecorder` implementation (already correctly the shared-*interface* pattern pre-revision — interface in `shared/`, one implementation per domain — this was right and is unchanged) | JAX-RS resource logic (`since`/`limit` parsing, pagination) |
+| | Repository/service query logic (`findSince`, `save`) |
+
+#### Q1 — Module placement: new `shared-adapter` module, split from a `shared/` addition
+
+**Decision, split across two homes, not one:**
+
+1. **`ErrorLog` (domain type) + `ErrorLogUseCase`/`ErrorLogRepository` (port interfaces) move into the existing `shared/` module**, new package `com.suchika.shared.errorlog`. **Zero new dependencies added to `shared/build.gradle.kts`.** Verified: all three classes are already plain Java today — `ErrorLog` is a plain immutable builder, `ErrorLogRepository`/`ErrorLogUseCase` are plain interfaces over `String`/`int`/`Instant`/`List` — no persistence, HTTP, or CDI import in any of them. This is exactly the role `DomainRulesTest`'s own package-structure javadoc already describes for `shared/` ("cross-cutting utilities used by all layers... including `domain`") — a role that, verified against the actual Gradle graph, no domain has ever exercised before (`grep` across every `domain/`/`ports/` source tree in the repo found **zero** imports of `com.suchika.shared.*`, and no domain's `domain/`/`ports/` `build.gradle.kts` declares `project(":shared")` — only `adapters` modules and `web-gateway` do). This move is therefore safe and precedent-following, not precedent-setting: it just exercises a capability the module already advertises.
+
+2. **The JAX-RS resource logic and the Panache repository/query logic move into a brand-new leaf module, `shared-adapter`** (sibling to `shared` in `settings.gradle.kts`), **not into `shared/` itself.** `shared-adapter` depends on `project(":shared")` (for `ErrorLog`/`ErrorLogUseCase`/`ErrorLogRepository`/`BadRequestException`), `io.quarkus:quarkus-hibernate-orm-panache`, and `io.quarkus:quarkus-rest`. It is declared as a dependency **only by each domain's own `adapters` module** — never by any `domain/` or `ports/` module, and never by `shared/` (no cycle: `adapters → shared-adapter → shared`, `adapters → shared` unchanged).
+
+**Why a new module instead of adding these same two dependencies straight to `shared/`:**
+- `shared/build.gradle.kts` today declares zero persistence/JPA dependencies — confirmed by reading it (`quarkus-arc`, `quarkus-logging-json`, `quarkus-rest`/`quarkus-rest-jackson` only). Even `com.suchika.shared.persistence.PanacheQueryFilter` — the one class in `shared/` today with "Panache" in its name — was deliberately kept a zero-dependency plain `record(String query, List<Object> params)` with no actual import of any Panache type. A prior author already drew this exact line once; extending it into a new module rather than crossing it in-place is consistent with that precedent, not a departure from it.
+- **The real risk isn't today's `allowEmptyShould(true)`-guarded ArchUnit rules failing outright — it's a gap in what they can even detect.** `domain_must_not_depend_on_persistence_frameworks` checks only **direct** class-level dependency edges from classes in `..domain..` packages to `jakarta.persistence../hibernate../panache..` packages. If a future domain class imported a persistence-tinged utility class that itself lived inside `shared/` (say, an abstract Panache repository base), the rule would not fire — the domain class's only *direct* dependency is on the `shared` utility class, which is not itself in a banned package; the transitive dependency to Panache is invisible to that specific rule shape. Keeping the persistence-aware code entirely out of `shared/` makes this class of gap structurally impossible rather than relying on a rule that happens not to check for it: `domain`/`ports` simply never gets a dependency edge to `shared-adapter` at all, by construction — not "shouldn't," "doesn't, and cannot without a new explicit Gradle dependency someone has to add on purpose."
+- Cost is low: `shared-adapter/build.gradle.kts` mirrors `shared/build.gradle.kts`'s existing shape (plain `plugins { java }`, not `id("io.quarkus")` — it is a library jar consumed by real Quarkus applications, exactly like `shared/` is today, not a deployable service of its own). One new `settings.gradle.kts` include line, zero risk to `shared/`'s existing 512+-test-covered surface.
+- **Naming:** use Java base package `com.suchika.sharedadapter` (one word), *not* `com.suchika.shared.adapters` or anything with a literal `adapters` path segment. Two reasons: (a) avoids any future ambiguity with `DomainRulesTest`'s `..adapters..` package-matching rules (`jpa_entities_must_only_reside_in_adapters` etc. — not a conflict today since no `@Entity` lives in this module, but avoid inviting one), and (b) avoids reading like it *is* a domain's real adapters layer when it's actually a shared library consumed by four separate ones.
+
+#### Q2 — Implementation strategy: abstract base class (option a), not cross-module Jandex reliance (option b)
+
+**Decision: option (a).** Each of `AbstractErrorLogResource` and `AbstractErrorLogPanacheRepository<E>` is a plain **abstract** Java class living in `shared-adapter`, carrying the shared logic once. Each domain's own `adapters` module declares a small (~10-20 line) **concrete** subclass that binds its own `@Entity` type and carries the `@Path`/`@ApplicationScoped` annotations:
+
+```java
+// shared-adapter, com.suchika.sharedadapter.errorlog — no @Path, no @ApplicationScoped, not a bean itself
+public abstract class AbstractErrorLogResource {
+    private static final int DEFAULT_LIMIT = 50;
+    private static final int MAX_LIMIT = 500;
+    protected abstract ErrorLogUseCase useCase();
+
+    @GET
+    public List<ErrorLogResponse> listErrors(@QueryParam("since") String since, @QueryParam("limit") Integer limit) {
+        // since/limit parsing + pagination logic lives here, once
+    }
+}
+
+// each domain's own adapters module, e.g. com.suchika.wealth.adapters.http — unchanged package convention
+@Path("/v1/errors")
+@Produces(MediaType.APPLICATION_JSON)
+public class ErrorLogResource extends AbstractErrorLogResource {
+    private final ErrorLogUseCase errorLogUseCase;
+    public ErrorLogResource(ErrorLogUseCase errorLogUseCase) { this.errorLogUseCase = errorLogUseCase; }
+    @Override protected ErrorLogUseCase useCase() { return errorLogUseCase; }
+}
+```
+
+Same shape for `AbstractErrorLogPanacheRepository<E>` (holds `save`/`findSince` query logic against a generic `PanacheRepositoryBase<E, UUID>`, abstract hooks for entity↔domain mapping) and, since `ErrorLogService`'s current logic is 100% identical delegation across all four domains today (verified by reading it), `AbstractErrorLogService implements ErrorLogUseCase, ErrorLogRecorder` too — reducing each domain's own `ErrorLogService` to a 3-line constructor-only subclass.
+
+**Rejected: option (b), a fully shared concrete `@Entity`/`@Path`/`@ApplicationScoped` class relying on Quarkus's cross-module Jandex indexing.** Not evaluated as a coin-flip — rejected on verified technical grounds specific to this build, not general Quarkus documentation:
+- The four domains are **four separate Quarkus deployments** (profile:8081, wealth:8082, health:8083, household:8084 — ADR-002). For a concrete `@Path`/`@ApplicationScoped` class living in an external module to be picked up as a bean/resource inside each of those four *separate* deployments, that module's classes must be Jandex-indexed for each one, which in a Gradle multi-module Quarkus build requires either the module applying `id("io.quarkus")` itself, or the four `application.properties` each declaring `quarkus.index-dependency.*` for it. **Verified: neither exists anywhere in this repo today.** `shared/build.gradle.kts` applies plain `plugins { java }` (confirmed by reading it), and a repo-wide search for `index-dependency`/`jandex` across every `application/**` `build.gradle.kts` and `application.properties` returned zero matches. `shared/`'s classes work today with no indexing only because none of them are CDI beans, `@Entity` classes, or JAX-RS resources (`AppLogger`, the exception hierarchy — plain classes used via `new`/static calls, not discovered by Quarkus at all).
+- Adopting option (b) would be **the first time this codebase relies on that mechanism**, for exactly the kind of "looks right on paper, Quarkus's build-time augmentation doesn't actually discover it" failure this same initiative already hit twice (flagged explicitly by the product owner: Phase 3's `run-local`/health-check bugs and Phase 4's own `ConsoleErrorAggregationService` javadoc/code mismatch, both only caught by actually running the thing, not by inspection). Committing to an unverified cross-module discovery mechanism in an ADR, without a spike, would repeat that exact pattern at the architecture-decision level.
+- Option (a) **sidesteps the question by construction, not by testing around it**: the shared classes carry no `@Path`/`@ApplicationScoped`/`@Entity` annotation of their own, so there is nothing for Quarkus to "discover" cross-module — discovery only ever has to find the tiny concrete subclass, which lives inside the same already-indexed, already-deployed `adapters` module every other resource/repository in that domain lives in. Zero new Quarkus indexing behavior is introduced anywhere in the build.
+- This also happens to keep `jpa_entities_must_only_reside_in_adapters` (`DomainRulesTest`) satisfied unchanged — the concrete `@Entity` subclass never moves out of `com.suchika.{domain}.adapters.persistence`.
+- Trade-off acknowledged: option (a) does not achieve option (b)'s "near-zero per-domain code" — each domain still carries ~4 tiny concrete classes (Entity, Dao, and thin `ErrorLogPanacheRepository`/`ErrorLogService`/`ErrorLogResource` subclasses) plus its own Flyway migration. That is the honest cost of a verified-safe mechanism over an unverified one, and it still collapses the 52-file, byte-for-byte-duplicated surface down to ~4 shared classes (used by all four domains) + ~6 small per-domain files each (down from ~13 main + tests per domain today).
+
+**New required ArchUnit rule (add to `DomainRulesTest`, mirroring `shared_must_not_depend_on_domain_modules`):** `shared-adapter` must never import any `com.suchika.{profile,wealth,health,household}..` package — it must stay fully domain-agnostic, parameterized only by generics, exactly like `shared/` itself. This is not automatically covered by the existing rule (which only scans `com.suchika.shared..`) — the implementing agent must add a companion rule scoped to `com.suchika.sharedadapter..` before this ships.
+
+**Testability:**
+- `AbstractErrorLogResource`'s since/limit-parsing and pagination logic is pure Java — testable with plain `new` of a minimal test subclass and a hand-written fake `ErrorLogUseCase`, no Quarkus context needed. This one test class replaces what were four near-identical `ErrorLogResourceTest` classes; each domain's own `ErrorLogResourceTest` shrinks to a thin "does my `@Path`/constructor wiring work" smoke test.
+- `AbstractErrorLogPanacheRepository<E>` cannot be tested with plain `new` (it's genuinely adapter-layer, Panache-backed) — each domain keeps its own `%integration-test`-profiled `ErrorLogPanacheRepositoryTest` against the shared local Postgres (Testcontainers still not adopted anywhere in this codebase per Q34/Q35 — do not assume it here either), now exercising the shared abstract logic through that domain's own concrete binding. This is intentional, valuable repetition of a *test*, not a repetition of *production code*.
+- `shared-adapter` gets the same SonarQube gate as `shared/` — no exclusions anticipated in `sonar-project.properties`. Cognitive complexity should be lower than today's per-domain copies, not higher — the logic itself is unchanged, only its location.
+
+**Security fix required in the same pass (flagged during SonarQube review, security rating dropped to B, part of 26 new issues):** none of the four `ErrorLogResource` endpoints have any access control (`@RolesAllowed` is used nowhere in this codebase, consistent with ADR-005's "no real auth until v1.0" — not a new gap introduced here). But they do echo back internal exception `message`/`details` strings verbatim to any caller reaching that port directly, unauthenticated. **Fix:** the now-single, shared `ErrorLogResponse.from(ErrorLog)` mapping (`shared-adapter`) must truncate/sanitize the `details` field before it ever reaches the wire — e.g. cap it to a short fixed length distinct from the DB column's own `VARCHAR(1000)` (storage is unaffected; this is a wire-shape concern only, enforced once at the one choke point every domain's response now shares, instead of needing the same fix copy-pasted four times). This is defense-in-depth, independent of and not a substitute for the still-deferred v1.0 auth question (ADR-005).
+
+**Impact:** new `shared-adapter` Gradle module (`settings.gradle.kts` gains one include line). New package `com.suchika.shared.errorlog` inside the existing `shared/` module (no new `shared/build.gradle.kts` dependency). Each domain's `ErrorLog`/`ErrorLogUseCase`/`ErrorLogRepository`/`ErrorLogResponse` classes are deleted in favor of the shared ones; each domain's `ErrorLogEntity`/`ErrorLogDao` stay; each domain's `ErrorLogPanacheRepository`/`ErrorLogService`/`ErrorLogResource` shrink to thin subclasses of the new `shared-adapter` abstract classes. `ErrorLogRecorder` (interface in `shared/`, one implementation per domain) is unchanged — it was already the correct pattern. New companion ArchUnit rule for `shared-adapter`'s domain-agnosticism (above). `ErrorLogResponse.from()` gains `details` truncation/sanitization. No Flyway/schema change — `profile.error_log`, `wealth.error_log`, `health.error_log`, `household.error_log` stay exactly as implemented in the original Part 2 above.
+
+Not yet implemented — this revision records the design only; a `quarkus-developer` agent implements it next.

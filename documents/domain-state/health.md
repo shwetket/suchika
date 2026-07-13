@@ -78,7 +78,7 @@ Gateway proxy: `application/web-gateway/src/main/java/com/suchika/gateway/health
 | Flyway | `application/flyway/health/` |
 | Frontend | `web/src/pages/Health/` (Vitals.js, DoctorVisits.js; also Profile.js — a routed `/health/profile` "Coming Soon" stub with no backend, see Open Issues) |
 | API module | `web/src/api/health.js` |
-| Error log (Phase 4) | `ErrorLog.java` (domain), `ErrorLogRepository`/`ErrorLogUseCase` (ports), `ErrorLogEntity`/`ErrorLogDao`/`ErrorLogPanacheRepository`/`ErrorLogService`/`ErrorLogResource` (adapters) |
+| Error log (Phase 4) | `ErrorLog.java` (domain), `ErrorLogRepository`/`ErrorLogUseCase` (ports), `ErrorLogEntity`/`ErrorLogDao`/`ErrorLogPanacheRepository`/`ErrorLogService`/`ErrorLogResource` (adapters). **⚠ Pending consolidation (ADR-023 revision, 2026-07-13, not yet implemented):** this slice is byte-for-byte identical across all 4 domains — `ErrorLog`/`ErrorLogUseCase`/`ErrorLogRepository` move to `shared/` (new `com.suchika.shared.errorlog` package), resource/repository/service logic move to a new `shared-adapter` module as abstract base classes; only `ErrorLogEntity`/`ErrorLogDao` + thin concrete subclasses stay here. |
 
 ---
 

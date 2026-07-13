@@ -80,7 +80,7 @@ Gateway proxy: `application/web-gateway/.../profile/ProfileGatewayResource.java`
 | Frontend | `web/src/pages/Household/Profiles.js` |
 | API module | `web/src/api/profiles.js` |
 | Tests | `web/src/pages/Household/Profiles.test.js` |
-| Error log (Phase 4) | `ErrorLog.java` (domain), `ErrorLogRepository`/`ErrorLogUseCase` (ports), `ErrorLogEntity`/`ErrorLogDao`/`ErrorLogPanacheRepository`/`ErrorLogService`/`ErrorLogResource` (adapters) — same package layout as the rest of the domain, `com.suchika.profile.*` |
+| Error log (Phase 4) | `ErrorLog.java` (domain), `ErrorLogRepository`/`ErrorLogUseCase` (ports), `ErrorLogEntity`/`ErrorLogDao`/`ErrorLogPanacheRepository`/`ErrorLogService`/`ErrorLogResource` (adapters) — same package layout as the rest of the domain, `com.suchika.profile.*`. **⚠ Pending consolidation (ADR-023 revision, 2026-07-13, not yet implemented):** this slice is byte-for-byte identical across all 4 domains — `ErrorLog`/`ErrorLogUseCase`/`ErrorLogRepository` move to `shared/` (new `com.suchika.shared.errorlog` package), resource/repository/service logic move to a new `shared-adapter` module as abstract base classes; only `ErrorLogEntity`/`ErrorLogDao` + thin concrete subclasses stay here. |
 
 ---
 

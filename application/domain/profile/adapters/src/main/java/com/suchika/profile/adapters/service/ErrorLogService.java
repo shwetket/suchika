@@ -1,23 +1,22 @@
 package com.suchika.profile.adapters.service;
 
-import com.suchika.profile.domain.ErrorLog;
-import com.suchika.profile.ports.input.ErrorLogUseCase;
-import com.suchika.profile.ports.output.ErrorLogRepository;
-import com.suchika.shared.exception.ErrorLogRecorder;
+import com.suchika.shared.errorlog.ErrorLogRepository;
+import com.suchika.sharedadapter.errorlog.AbstractErrorLogService;
 import jakarta.enterprise.context.ApplicationScoped;
 
-import java.time.Instant;
-import java.util.List;
-
 /**
- * Backs both the domain-owned read use case ({@link ErrorLogUseCase}, exposed
- * via {@code GET /v1/errors}) and the shared write hook ({@link ErrorLogRecorder},
- * invoked by {@code ApplicationExceptionMapper} for every ApplicationException
- * that reaches it) -- both sides of the same {@code profile.error_log} table
- * (Phase 4 Application Console, ADR-023).
+ * Backs both the domain-owned read use case ({@code ErrorLogUseCase},
+ * exposed via {@code GET /v1/errors}) and the shared write hook ({@code
+ * ErrorLogRecorder}, invoked by {@code ApplicationExceptionMapper} for
+ * every ApplicationException that reaches it) -- both sides of the same
+ * {@code profile.error_log} table (Phase 4 Application Console, ADR-023).
+ *
+ * <p>Delegation logic lives once in {@link AbstractErrorLogService}
+ * (2026-07-13 ADR-023 revision) -- this class only binds the domain's own
+ * {@link ErrorLogRepository} implementation.
  */
 @ApplicationScoped
-public class ErrorLogService implements ErrorLogUseCase, ErrorLogRecorder {
+public class ErrorLogService extends AbstractErrorLogService {
 
     private final ErrorLogRepository errorLogRepository;
 
@@ -26,12 +25,7 @@ public class ErrorLogService implements ErrorLogUseCase, ErrorLogRecorder {
     }
 
     @Override
-    public void record(String errorCode, int httpStatus, String message, String details) {
-        errorLogRepository.save(errorCode, httpStatus, message, details);
-    }
-
-    @Override
-    public List<ErrorLog> listErrors(Instant since, int limit) {
-        return errorLogRepository.findSince(since, limit);
+    protected ErrorLogRepository repository() {
+        return errorLogRepository;
     }
 }

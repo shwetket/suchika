@@ -169,7 +169,7 @@ Note: before this Phase 2 pass, the contract had **zero documented paths/schemas
 | Flyway | `application/flyway/wealth/` |
 | Frontend | `web/src/pages/Wealth/` (Accounts.js, Transactions.js, Reports.js, PhysicalAssets.js) |
 | API module | `web/src/api/wealth.js` |
-| Error log (Phase 4) | `ErrorLog.java` (domain), `ErrorLogRepository`/`ErrorLogUseCase` (ports), `ErrorLogEntity`/`ErrorLogDao`/`ErrorLogPanacheRepository`/`ErrorLogService`/`ErrorLogResource` (adapters) — distinct from `UploadErrorLog*` (CSV-specific) |
+| Error log (Phase 4) | `ErrorLog.java` (domain), `ErrorLogRepository`/`ErrorLogUseCase` (ports), `ErrorLogEntity`/`ErrorLogDao`/`ErrorLogPanacheRepository`/`ErrorLogService`/`ErrorLogResource` (adapters) — distinct from `UploadErrorLog*` (CSV-specific). **⚠ Pending consolidation (ADR-023 revision, 2026-07-13, not yet implemented):** this slice is byte-for-byte identical across all 4 domains — `ErrorLog`/`ErrorLogUseCase`/`ErrorLogRepository` move to `shared/` (new `com.suchika.shared.errorlog` package), resource/repository/service logic move to a new `shared-adapter` module as abstract base classes; only `ErrorLogEntity`/`ErrorLogDao` + thin concrete subclasses stay here. `UploadErrorLog*` (CSV-specific) is unaffected. |
 
 ---
 

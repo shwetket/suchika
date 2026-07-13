@@ -1,12 +1,19 @@
-package com.suchika.health.domain;
+package com.suchika.shared.errorlog;
 
 import java.time.Instant;
 import java.util.UUID;
 
 /**
  * One recorded application error (Phase 4 Application Console, ADR-023).
- * Plain domain object -- populated from {@code profile.error_log} by the
- * adapters layer, never persisted directly by the domain.
+ * Plain domain object -- populated from a domain's own {@code error_log}
+ * table by that domain's adapters layer, never persisted directly here.
+ *
+ * <p>Moved here from each of the four domains' own {@code domain} packages
+ * (2026-07-13 ADR-023 revision) -- the class was byte-for-byte identical in
+ * all four, and carries zero domain-specific logic, so it now lives once in
+ * {@code shared/}, consistent with that module's documented role as a
+ * cross-cutting utility available to every layer including {@code domain}
+ * (see {@code DomainRulesTest}'s package-structure javadoc).
  */
 public class ErrorLog {
 

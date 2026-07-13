@@ -23,9 +23,13 @@ import java.util.function.Supplier;
  * {@code ProjectionCalculationEngine}: no cross-domain SQL join (ADR-003),
  * each call is a single self-contained domain request.
  *
- * <p>A domain that is down or errors out contributes an empty array rather
- * than failing the whole aggregation — the Console's entire purpose is to
- * stay useful when some services are unhealthy.
+ * <p>A domain that is down or errors out contributes a single-element array
+ * containing {@code {"error": "..."}} (not an {@code ErrorLogResponse}-shaped
+ * entry) rather than failing the whole aggregation — the Console's entire
+ * purpose is to stay useful, and to surface *that* a domain is unreachable,
+ * when some services are unhealthy. Frontend consumers must handle both
+ * shapes in the same array (see {@code ApplicationConsole.js}'s
+ * {@code ErrorEntryRow}).
  */
 @ApplicationScoped
 public class ConsoleErrorAggregationService {

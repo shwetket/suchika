@@ -1,4 +1,4 @@
-package com.suchika.health.domain;
+package com.suchika.shared.errorlog;
 
 import org.junit.jupiter.api.Test;
 
@@ -8,6 +8,11 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+/**
+ * One shared test for the one shared {@link ErrorLog} type (2026-07-13
+ * ADR-023 revision) -- replaces four byte-for-byte identical per-domain
+ * {@code ErrorLogTest} classes.
+ */
 class ErrorLogTest {
 
     @Test

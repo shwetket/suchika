@@ -70,8 +70,11 @@ ErrorEntryRow.propTypes = {
   }).isRequired,
 };
 
-function ServiceRow({ service, pendingAction, onStart, onStop, errors, errorsAvailable }) {
-  const isPending = pendingAction !== null;
+function ServiceRow({ service, pendingAction, anyActionPending, onStart, onStop, errors, errorsAvailable }) {
+  // Disabled whenever ANY service has an action in flight, not just this row --
+  // handleStart/handleStop no-op globally while one is pending, so leaving other
+  // rows' buttons clickable would silently do nothing on click.
+  const isPending = anyActionPending;
   const [expanded, setExpanded] = useState(false);
   const hasErrorPanel = ERROR_DOMAINS.includes(service.name);
   const errorCount = errors.length;
@@ -153,6 +156,7 @@ ServiceRow.propTypes = {
     status: PropTypes.string,
   }).isRequired,
   pendingAction: PropTypes.oneOf(['start', 'stop', null]),
+  anyActionPending: PropTypes.bool,
   onStart: PropTypes.func.isRequired,
   onStop: PropTypes.func.isRequired,
   errors: PropTypes.array,
@@ -160,6 +164,7 @@ ServiceRow.propTypes = {
 };
 ServiceRow.defaultProps = {
   pendingAction: null,
+  anyActionPending: false,
   errors: [],
   errorsAvailable: false,
 };
@@ -254,6 +259,7 @@ export const ApplicationConsole = () => {
               key={service.name}
               service={service}
               pendingAction={pending && pending.name === service.name ? pending.action : null}
+              anyActionPending={pending !== null}
               onStart={handleStart}
               onStop={handleStop}
               errors={errorsData?.[service.name] ?? []}
