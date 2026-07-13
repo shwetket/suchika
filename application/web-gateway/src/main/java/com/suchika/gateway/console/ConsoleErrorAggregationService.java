@@ -13,6 +13,8 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 
+import java.util.function.Supplier;
+
 /**
  * Fans out {@code GET /v1/errors} to each of the four domain services and
  * combines the results into one payload (Phase 4 Application Console,
@@ -56,7 +58,7 @@ public class ConsoleErrorAggregationService {
         return result;
     }
 
-    private JsonNode fetch(String domain, java.util.function.Supplier<JsonNode> call) {
+    private JsonNode fetch(String domain, Supplier<JsonNode> call) {
         try {
             JsonNode result = call.get();
             return result != null ? result : JsonNodeFactory.instance.arrayNode();

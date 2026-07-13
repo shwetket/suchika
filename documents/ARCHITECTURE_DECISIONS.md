@@ -5,7 +5,7 @@
 | **Type** | Reference — ADR Log |
 | **Audience** | All developers |
 | **Status** | Active |
-| **Last updated** | 2026-07-13 (ADR-023 added — Application Console design: process control from `web-gateway` + per-domain `error_log` tables, both scoped exceptions to existing rules, design only, not yet implemented) |
+| **Last updated** | 2026-07-13 (ADR-023 **implemented, backend + frontend** — Application Console: process control from `web-gateway` + per-domain `error_log` tables, both scoped exceptions to existing rules, plus the admin-only `/admin/console` frontend page. See ADR-023's "Implementation note" and "Frontend implementation note" for deviations from the original design sketch) |
 
 ## Objective
 
@@ -43,7 +43,7 @@ Record every significant architectural decision made for this project, along wit
 | [ADR-020](#adr-020-flyway-consolidation--db-constraint-policy-keep-fkuniquepknot-null-drop-check-only) | Flyway Consolidation & DB Constraint Policy: Keep FK/UNIQUE/PK/NOT NULL, Drop CHECK Only | Accepted — 2026-07-05 |
 | [ADR-021](#adr-021-login-auto-attaches-to-the-single-existing-admin-no-client-side-carry-forward) | Login Auto-Attaches to the Single Existing Admin (No Client-Side Carry-Forward) | Accepted — 2026-07-10 |
 | [ADR-022](#adr-022-richer-financial-goal-model-additive-walthgoal_plan-tables-not-a-computeformulagoals-rewrite) | Richer Financial Goal Model — Additive `wealth.goal_plan` Tables + Corrected `computeFormulaGoals()` Math + `insurance_policy` | **Implemented — all 3 phases complete 2026-07-12** (`goal_plan` + corrected formulas + `insurance_policy` + real premium wiring + `computeGoalDetail()`/`WEALTH_GOAL_DETAIL_FAMILY` + full Goal Plans/Insurance Policies frontend + Dashboard enrichment) |
-| [ADR-023](#adr-023-application-console-process-control-from-web-gateway--per-domain-error_log-tables) | Application Console — Process Control from `web-gateway` + Per-Domain `error_log` Tables | Accepted — design only, 2026-07-13 (Phase 4 of platform-improvements plan) |
+| [ADR-023](#adr-023-application-console-process-control-from-web-gateway--per-domain-error_log-tables) | Application Console — Process Control from `web-gateway` + Per-Domain `error_log` Tables | **Implemented — 2026-07-13** (Phase 4 of platform-improvements plan) |
 
 ---
 
@@ -767,7 +767,7 @@ Bulk-`PUT`-replace stays for milestones/rules/trigger-events as *authoring* oper
 
 ## ADR-023: Application Console — Process Control from `web-gateway` + Per-Domain `error_log` Tables
 
-**Status:** Accepted — design only, decided 2026-07-13 (Phase 4 of the platform-improvements plan). Not yet implemented.
+**Status:** Accepted — **Implemented 2026-07-13** (Phase 4 of the platform-improvements plan). See "Implementation note" at the end of this ADR for two deliberate deviations from the design sketch below (column naming, `ServiceControlService` testing approach) and the open questions' resolutions.
 
 **Decision:** The admin-only Application Console (live service status, start/stop controls, per-service error stats, error log entry viewer) introduces two genuinely new architectural surfaces, both scoped, deliberate exceptions to existing rules:
 
@@ -844,3 +844,20 @@ No `CHECK` constraints (ADR-020) — `error_type` is a plain `VARCHAR`, soft-val
 1. **Should `error_log` carry any scoping column at all** (`profile_id`, `admin_id`, or genuinely none)? This ADR proposes none, for the reasons above, but it's a new shape with no direct precedent — worth explicit sign-off before the first migration is written, the same way ADR-006/017/022's scoping calls were each explicitly confirmed rather than inferred.
 2. **`suchika.console.enabled` re-examination at v1.0** is asserted here as mandatory but not scheduled anywhere yet — recommend adding an explicit v1.0 checklist item in `ROADMAP.md` alongside ADR-005/ADR-007's existing "deferred to v1.0" items, so it isn't quietly forgotten once real OIDC auth ships.
 3. **Retention/growth of `error_log` tables** is unspecified — no TTL, no row cap, no archival policy in this design. For a locally-run personal app this is probably fine at current scale, but flagged rather than silently assumed, consistent with how ADR-022 flagged its own unresolved scale questions rather than deciding them unilaterally.
+
+### Implementation note — 2026-07-13
+
+Built as designed above, with two deliberate deviations from the sketch and a resolution for open question 1:
+
+- **Column naming differs from the sketch's `error_type`/`stack_trace`/`occurred_at`.** Implemented as `error_code VARCHAR(50)`, `http_status INT`, `message VARCHAR(500)`, `details VARCHAR(1000)` (nullable), `created_at TIMESTAMPTZ` instead — chosen because these map directly to what `ApplicationException` (the thing actually being persisted, via the new `ErrorLogRecorder` port called from `ApplicationExceptionMapper`) already carries (`getErrorCode()`, `getStatusCode()`, `getMessage()`, `getDetails()`), and because no table in this codebase prefixes its PK/index names with the schema/domain (`wealth.account`'s constraint is `pk_account`, not `pk_wealth_account`) — `pk_error_log`/`idx_error_log_created_at` (unqualified) matches that existing convention rather than the ADR sketch's `pk_<domain>_error_log`. No stack trace is stored — `ApplicationException` doesn't carry one distinct from the Java exception's own, and the existing `AppLogger.error(message, throwable)` call already logs it to the file/console log for that purpose.
+- **Open question 1 (scoping) resolved as proposed: no `profile_id`/`admin_id` column.** `error_log` stays fully unscoped, matching the ADR's proposed default. Confirmed consistent with `wealth.upload_error_log`'s existing precedent (also unscoped at the table level).
+- **`ServiceControlService` does not wrap `ProcessBuilder` behind a fakeable interface**, unlike the Testability section's suggestion. Instead: the unknown-service validation path (`BadRequestException` before any process is touched) is unit-tested directly (`ServiceControlServiceTest`), and the full start/stop wiring through `ConsoleResource` is tested by `@InjectMock`-ing the whole `ServiceControlService` bean at the resource boundary (`ConsoleResourceTest`) rather than at a process-runner seam beneath it. The real script-invocation path was instead verified by manually running `run-local.ps1 -Service wealth` / `stop-local.ps1 -Service wealth` (and the bash equivalents) against the live local stack. Judged an acceptable, simpler tradeoff given this feature's scope; revisit with a real fake-process-runner abstraction if `ServiceControlService` grows non-trivial branching logic.
+- **`suchika.console.enabled=false` default-off behavior has its own dedicated test** (`ConsoleResourceDisabledTest`, deliberately using the plain default `@QuarkusTest` profile with no config override) asserting every `ConsoleResource` endpoint 404s, addressing the Testability section's third bullet directly.
+- Open questions 2 (ROADMAP v1.0 re-examination checklist entry) and 3 (retention policy) are **not resolved by this implementation pass** — still open for product-owner decision, as the ADR itself flagged.
+
+### Frontend implementation note — 2026-07-13
+
+The admin-only Console page (`web/src/pages/Admin/ApplicationConsole.js`, route `/admin/console`) was built after the backend above, consuming it exactly as designed — one deviation and one real bug found during live verification:
+
+- **Does not import `web/src/api/generated.ts` at runtime**, despite the contract/OpenAPI types already existing there. Every other page in this codebase calls hand-written `fetch()` wrappers in `api/<domain>.js`, not the generated client (a pre-existing, repo-wide gap between `FRONTEND_GUIDELINES.md`'s documented standard and actual practice — out of scope to fix here). A new `web/src/api/console.js` wrapper was added following that same established convention; `generated.ts` was read only as a reference for exact field names/shapes, not wired in as a consumer.
+- **Real bug caught live, not just by unit tests:** `ConsoleErrorAggregationService`'s class-level javadoc (Part 2 above) says a down domain "contributes an empty array," but the code's `fetch()` catch block actually returns a one-element array shaped `{"error": "..."}` — not the `ErrorLogResponse` shape the contract documents. The frontend's error-panel rendering was fixed to handle both shapes gracefully (falls back to `entry.error` for the message, labels it `SERVICE_UNREACHABLE`) after this was found by driving the real page against the real gateway with all four domains stopped, not by trusting the documented shape. The javadoc/code mismatch itself was not corrected here (frontend-only task) — worth a small follow-up fix in `ConsoleErrorAggregationService`.

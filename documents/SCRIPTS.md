@@ -226,6 +226,23 @@ bash scripts/run-local.sh              # or: rl   (after sourcing dev-aliases.sh
 bash scripts/stop-local.sh             # or: stopl
 ```
 
+**Per-service targeting (Phase 4, added for the Application Console's start/stop controls):**
+both scripts accept an optional single-service argument — `-Service <name>` on PowerShell, a
+positional argument on bash — that scopes the exact same headless-start / health-wait / registry
+kill logic to one named entry from `scripts/services.json` instead of the whole stack. Omitting it
+keeps the default "everything" behavior unchanged. This is also what the gateway's
+`ServiceControlService` (`com.suchika.gateway.console`) shells out to for `POST
+/v1/console/services/{name}/start` and `.../stop`.
+
+```powershell
+.\scripts\run-local.ps1 -Service wealth     # start ONLY wealth, leave everything else alone
+.\scripts\stop-local.ps1 -Service wealth    # stop ONLY wealth
+```
+```bash
+bash scripts/run-local.sh wealth            # start ONLY wealth
+bash scripts/stop-local.sh wealth           # stop ONLY wealth
+```
+
 **When to use which:** `da`/`sa` while actively developing (you want to see Quarkus recompile and
 reload live, and to spot a stack trace the instant it happens). `run-local`/`stop-local` when you
 just need the app up — demoing, clicking through the UI, or as a prerequisite for something else —

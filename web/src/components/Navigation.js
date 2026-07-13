@@ -141,6 +141,7 @@ export const Navigation = ({ theme, onToggleTheme }) => {
                 <NavDropdown label="Admin">
                   <DropdownLink to="/admin/setup">Household Setup</DropdownLink>
                   <DropdownLink to="/admin/policy">Policy Settings</DropdownLink>
+                  <DropdownLink to="/admin/console">Application Console</DropdownLink>
                 </NavDropdown>
               )}
             </>
