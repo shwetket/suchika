@@ -12,6 +12,7 @@ Give any agent or developer instant context on the health domain — vital readi
 
 ---
 
+**Last updated:** 2026-07-13 (Phase 4 Application Console: new `health.error_log` table (`V2__error_log.sql`) + `GET /v1/errors?since=&limit=` — general application-error log, populated by a new shared `ErrorLogRecorder` port that `ApplicationExceptionMapper` calls after logging every `ApplicationException` (ADR-023). Full domain/ports/adapters vertical slice — `ErrorLog`, `ErrorLogRepository`/`ErrorLogUseCase`, `ErrorLogEntity`/`ErrorLogDao`/`ErrorLogPanacheRepository`/`ErrorLogService`/`ErrorLogResource`. Wired into the gateway's new `GET /v1/console/errors` aggregation behind `suchika.console.enabled` (default false).)
 **Last updated:** 2026-07-08 (v0.5.1 remediation Workstream 2, Tier A — `profile_id` required-but-unenforced gap fixed on health's two list endpoints; also fixed Vitals list page zero-rows bug, `data.vitals` → `data.vital_readings`)
 **Version:** v0.2 complete — UAT-ready; v0.5 Phase 0 vitals edit endpoint added; pre-v1.0 pagination pass complete
 **Port:** 8083
@@ -39,6 +40,7 @@ Give any agent or developer instant context on the health domain — vital readi
 |---|---|
 | `vital_reading` | `id UUID PK`, `profile_id UUID FK`, `vital_type VARCHAR`, `value NUMERIC`, `unit VARCHAR`, `recorded_at TIMESTAMP` |
 | `doctor_visit` | `id UUID PK`, `profile_id UUID FK`, `from_date DATE`, `to_date DATE`, `visited_doctor BOOLEAN`, `doctor_name VARCHAR` (NOT NULL if visited_doctor=TRUE), `hospital_name VARCHAR`, `speciality VARCHAR`, `symptoms TEXT`, `diagnosis TEXT`, `notes TEXT`, `follow_up_date DATE` |
+| `error_log` (**NEW `V2__error_log.sql`, 2026-07-13, Phase 4 Application Console, ADR-023**) | `id UUID PK`, `error_code VARCHAR(50)`, `http_status INT`, `message VARCHAR(500)`, `details VARCHAR(1000)` nullable, `created_at TIMESTAMPTZ`; index on `created_at`. Not `profile_id`-scoped — operational/audit log, not member data. |
 
 Vital types (VARCHAR, no SQL ENUM): `WEIGHT`, `HEIGHT`, `BLOOD_PRESSURE`, `BLOOD_SUGAR_FASTING`, `BLOOD_SUGAR_PP`, `HEART_RATE`, `TEMPERATURE`, `OXYGEN_SATURATION`, `BMI`, `WAIST_CIRCUMFERENCE`
 
@@ -60,6 +62,7 @@ Service base URL: `http://localhost:8083` — frontend never calls this directly
 - `GET    /v1/doctor-visits/{id}`
 - `PATCH  /v1/doctor-visits/{id}` (note: this is PATCH, not PUT — domain-state doc previously said PUT in error)
 - `DELETE /v1/doctor-visits/{id}`
+- `GET    /v1/errors?since=&limit=` — **NEW 2026-07-13, Phase 4 Application Console (ADR-023)**: general application error log, newest first (default limit 50, capped 500). Aggregated across all 4 domains via the gateway's `GET /v1/console/errors`.
 
 Gateway proxy: `application/web-gateway/src/main/java/com/suchika/gateway/health/HealthGatewayResource.java` + `HealthServiceClient.java` — both mirror every health-service path 1:1, including the new vitals PATCH and the `page`/`size` passthrough params on both list endpoints (raw `JsonNode` passthrough, no re-typing, same convention as every other gateway health method).
 
@@ -75,6 +78,7 @@ Gateway proxy: `application/web-gateway/src/main/java/com/suchika/gateway/health
 | Flyway | `application/flyway/health/` |
 | Frontend | `web/src/pages/Health/` (Vitals.js, DoctorVisits.js; also Profile.js — a routed `/health/profile` "Coming Soon" stub with no backend, see Open Issues) |
 | API module | `web/src/api/health.js` |
+| Error log (Phase 4) | `ErrorLog.java` (domain), `ErrorLogRepository`/`ErrorLogUseCase` (ports), `ErrorLogEntity`/`ErrorLogDao`/`ErrorLogPanacheRepository`/`ErrorLogService`/`ErrorLogResource` (adapters) |
 
 ---
 

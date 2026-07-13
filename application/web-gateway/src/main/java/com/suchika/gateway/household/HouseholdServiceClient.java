@@ -98,4 +98,10 @@ public interface HouseholdServiceClient {
     @PUT
     @Path("/goals/{id}/current-amount")
     JsonNode updateGoalCurrentAmount(@PathParam("id") UUID id, JsonNode body);
+
+    // ── Errors (Phase 4 Application Console, ADR-023) ───────────────────────
+
+    @GET
+    @Path("/errors")
+    JsonNode listErrors(@QueryParam("since") String since, @QueryParam("limit") Integer limit);
 }

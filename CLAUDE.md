@@ -46,8 +46,9 @@ Dot-source once per terminal: `. .\scripts\dev-aliases.ps1` (PowerShell) or `. .
 
 | Alias | Does |
 |---|---|
-| `dp` / `dw` / `dh` / `dho` / `dg` / `dwb` | Start profile/wealth/health/household/gateway/web in dev mode (start `dp` first) |
-| `da` | Start everything in dependency order |
+| `dp` / `dw` / `dh` / `dho` / `dg` / `dwb` | Start profile/wealth/health/household/gateway/web in dev mode, **visible window per service** (start `dp` first) |
+| `da` | Start everything in dependency order, visible windows — for active development (watching hot-reload output live) |
+| `rl` (run-local) | Start everything **headlessly, no windows** — for "just get it running" (demoing, clicking through the UI); `stopl` (stop-local) to stop |
 | `tp` / `tw` / `tsa` | Test one domain / all backend tests |
 | `bv` | Full pre-commit check: clean build + all tests + ArchUnit + lint (mirrors CI) |
 | `ss` | Run SonarQube scan (not available in Codespaces — run locally before PRs) |
@@ -55,6 +56,14 @@ Dot-source once per terminal: `. .\scripts\dev-aliases.ps1` (PowerShell) or `. .
 | `sa` / `status` | Stop all services / health-check all ports |
 | `db-reset` / `db-shell` | Reset (destructive) / open a psql shell |
 | `lnav-dev` / `logs` | Live-tail runtime logs / tail latest build-test log |
+
+Ports, DB schema names, Gradle wiring, the DB password fallback, and Java/Node version floors are
+defined once in `scripts/services.json` and read from there by every script via `config.ps1`/`.sh`
+— edit that file, not the scripts, to change a port or version floor. Starting a service registers
+its real OS process in a PID-file registry (`~/.suchika/run/<service>.pid`); `sa`/`status` check
+that registry first and fall back to port-based detection only if no PID record exists. `status`
+hits each backend's real `GET /q/health` (Quarkus SmallRye Health) rather than `/q/openapi`, so a
+service that's listening but broken now correctly reports DOWN. Full detail: [documents/SCRIPTS.md](documents/SCRIPTS.md).
 
 ### Frontend (run from `web/`)
 ```bash
@@ -159,7 +168,7 @@ The calculation engine lives in `web-gateway` (the BFF), which has read access t
 ## GitHub Codespaces
 
 This repo is Codespaces-ready. The `.devcontainer/` directory configures a two-container environment:
-- **app** — Java 17 + Node 24 + PowerShell Core (for `.ps1` scripts)
+- **app** — Java 25 + Node 24 + PowerShell Core (for `.ps1` scripts)
 - **db** — PostgreSQL 16 in IST timezone
 
 **First time in Codespaces:**

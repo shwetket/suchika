@@ -12,7 +12,7 @@ Give any agent or developer instant context on the profile domain — what's bui
 
 ---
 
-**Last updated:** 2026-07-11 (EditIcon/Badge UX pass on Profiles.js + ADR-021 inactive-admin filter fix — see Open Issues; real seed-data-in-git flag added)
+**Last updated:** 2026-07-13 (Phase 4 Application Console: `error_log` table + `GET /v1/errors` — see new section below)
 **Version:** v0.2 complete — UAT-ready; Epic 8 Phase 4 delivered; v0.6 adapter/domain test coverage added; Setup Wizard + gateway/contract fixes added; v1.0 retrospective/simplification pass complete (2026-07-06); v0.5.1 Workstream 2 Tier A (admin_id enforcement) added (2026-07-08); ADR-021 login auto-attach decided, implemented, AND live-verified end-to-end against the real running app (2026-07-10) — see the two follow-up bugs found/fixed under Open Issues
 **Port:** 8081
 
@@ -38,6 +38,7 @@ Give any agent or developer instant context on the profile domain — what's bui
 |---|---|
 | `admin` | `id UUID PK`, `display_name VARCHAR(50)`, `email_address VARCHAR`, `is_active BOOLEAN`, `created_at TIMESTAMPTZ`, `policy_settings JSONB NOT NULL DEFAULT '{}'`, `UNIQUE (email_address)` (`uq_admin_email`) |
 | `profile` | `id UUID PK`, `admin_id UUID FK→admin.id ON DELETE RESTRICT` (`fk_profile_admin`, **nullable in DB** — see Open Issues), `full_name VARCHAR(50)`, `dob DATE`, `relation_to_admin VARCHAR(30)`, `email_address VARCHAR`, `gender VARCHAR(30)`, `blood_type VARCHAR(10)`, `metadata JSONB NOT NULL DEFAULT '{}'` (**dead column, unused** — see Open Issues), `is_active BOOLEAN`; partial unique index `uq_admin_self_profile ON profile(admin_id) WHERE relation_to_admin = 'SELF'` |
+| `error_log` (V2, Phase 4) | `id UUID PK`, `error_code VARCHAR(50)`, `http_status INT`, `message VARCHAR(500)`, `details VARCHAR(1000)` nullable, `created_at TIMESTAMPTZ`; index on `created_at`. General application-error log for the Application Console (ADR-023) — not CSV-upload-specific like wealth's `upload_error_log`, and not `profile_id`-scoped (operational/audit log, not member data). |
 
 Relation values (VARCHAR, no SQL ENUM, 9 total): `SELF`, `SPOUSE`, `CHILD`, `PARENT`, `PARENT_IN_LAW`, `SIBLING`, `GRANDPARENT`, `GRANDCHILD`, `OTHER` (`PARENT_IN_LAW`/`GRANDPARENT`/`GRANDCHILD` added pre-v0.6; this doc previously still listed the old 6-value set — fixed 2026-07-06, see Retrospective section).
 
@@ -64,6 +65,7 @@ Base path: `/v1`
 - `DELETE /profiles/{id}` — deactivate (soft delete)
 
 Gateway proxy: `application/web-gateway/.../profile/ProfileGatewayResource.java` + `ProfileServiceClient.java` proxy all of the above at the same `/v1/...` paths (no separate prefix), including `POST /admins` and `PATCH /admins/{id}/policy` (added 2026-07-03 — previously missing, silently 500ing through the gateway).
+- `GET /errors?since=&limit=` — Phase 4 Application Console (ADR-023), list this service's recorded application errors, newest first (default limit 50, capped 500). Not proxied 1:1 through `ProfileGatewayResource` — aggregated instead via `GET /v1/console/errors` on the gateway (`ConsoleErrorAggregationService`, fans out to all four domains).
 
 ---
 
@@ -78,6 +80,7 @@ Gateway proxy: `application/web-gateway/.../profile/ProfileGatewayResource.java`
 | Frontend | `web/src/pages/Household/Profiles.js` |
 | API module | `web/src/api/profiles.js` |
 | Tests | `web/src/pages/Household/Profiles.test.js` |
+| Error log (Phase 4) | `ErrorLog.java` (domain), `ErrorLogRepository`/`ErrorLogUseCase` (ports), `ErrorLogEntity`/`ErrorLogDao`/`ErrorLogPanacheRepository`/`ErrorLogService`/`ErrorLogResource` (adapters) — same package layout as the rest of the domain, `com.suchika.profile.*` |
 
 ---
 

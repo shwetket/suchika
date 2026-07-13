@@ -19,6 +19,8 @@ tags:
     description: Household manager registry — the future authentication anchor
   - name: Profiles
     description: All household members, scoped to an admin
+  - name: Errors
+    description: Application Console diagnostic error feed (Phase 4, ADR-023)
 
 paths:
 
@@ -321,6 +323,49 @@ paths:
         '500':
           $ref: './shared.yaml#/components/responses/InternalError'
 
+  # ============================================================
+  # ERROR LOG (Phase 4 Application Console, ADR-023)
+  # ============================================================
+
+  /v1/errors:
+
+    get:
+      tags: [Errors]
+      operationId: listErrors
+      summary: List recorded application errors for this service
+      description: >
+        Admin-only diagnostic feed backing the Application Console.
+        Every ApplicationException handled by this service is recorded here.
+        Not scoped to profile_id — this is an operational log, not member-owned
+        business data (same precedent as wealth.upload_error_log).
+      parameters:
+        - name: since
+          in: query
+          required: false
+          description: ISO-8601 instant — only errors recorded at or after this time.
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          required: false
+          description: Max rows to return (default 50, capped at 500).
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ErrorLogResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
 components:
 
   parameters:
@@ -614,4 +659,24 @@ components:
             $ref: '#/components/schemas/ProfileResponse'
         total_size:
           type: integer
+
+    # ----------------------------------------------------------
+    # ERROR LOG (Phase 4 Application Console, ADR-023)
+    # ----------------------------------------------------------
+
+    ErrorLogResponse:
+      type: object
+      properties:
+        error_code:
+          type: string
+        http_status:
+          type: integer
+        message:
+          type: string
+        details:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
           minimum: 0

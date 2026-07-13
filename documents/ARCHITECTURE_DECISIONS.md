@@ -5,7 +5,7 @@
 | **Type** | Reference — ADR Log |
 | **Audience** | All developers |
 | **Status** | Active |
-| **Last updated** | 2026-07-12 (ADR-022 **all 3 phases now Implemented** — Phase 3 shipped: `computeGoalDetail()`/`WEALTH_GOAL_DETAIL_FAMILY` gateway step, plus the full Goal Plans and Insurance Policies frontend, plus Dashboard milestone/rule enrichment. See `documents/domain-state/wealth.md` for the build record) |
+| **Last updated** | 2026-07-13 (ADR-023 added — Application Console design: process control from `web-gateway` + per-domain `error_log` tables, both scoped exceptions to existing rules, design only, not yet implemented) |
 
 ## Objective
 
@@ -43,6 +43,7 @@ Record every significant architectural decision made for this project, along wit
 | [ADR-020](#adr-020-flyway-consolidation--db-constraint-policy-keep-fkuniquepknot-null-drop-check-only) | Flyway Consolidation & DB Constraint Policy: Keep FK/UNIQUE/PK/NOT NULL, Drop CHECK Only | Accepted — 2026-07-05 |
 | [ADR-021](#adr-021-login-auto-attaches-to-the-single-existing-admin-no-client-side-carry-forward) | Login Auto-Attaches to the Single Existing Admin (No Client-Side Carry-Forward) | Accepted — 2026-07-10 |
 | [ADR-022](#adr-022-richer-financial-goal-model-additive-walthgoal_plan-tables-not-a-computeformulagoals-rewrite) | Richer Financial Goal Model — Additive `wealth.goal_plan` Tables + Corrected `computeFormulaGoals()` Math + `insurance_policy` | **Implemented — all 3 phases complete 2026-07-12** (`goal_plan` + corrected formulas + `insurance_policy` + real premium wiring + `computeGoalDetail()`/`WEALTH_GOAL_DETAIL_FAMILY` + full Goal Plans/Insurance Policies frontend + Dashboard enrichment) |
+| [ADR-023](#adr-023-application-console-process-control-from-web-gateway--per-domain-error_log-tables) | Application Console — Process Control from `web-gateway` + Per-Domain `error_log` Tables | Accepted — design only, 2026-07-13 (Phase 4 of platform-improvements plan) |
 
 ---
 
@@ -761,3 +762,85 @@ Bulk-`PUT`-replace stays for milestones/rules/trigger-events as *authoring* oper
 5. **`WEALTH_FORMULA_GOALS_FAMILY.total_count` no longer being a fixed `5` is a live payload shape change** — `Dashboard.js`'s Household Goals card (N/M achieved) needs to be checked against this assumption before implementation; not verified in this design pass.
 6. **`goal_plan.education_base_cost`/`education_inflation_rate`/`education_years_to_entry` as 3 more always-nullable columns, meaningful only to one goal type, continues a pattern (`assumed_growth_rate` already does this) that doesn't scale well** — a 6th goal type with its own bespoke numeric inputs would mean more dead columns on every other goal type's row. Fine at this size (1 precedent-setting column becomes 4), but if a 6th goal type shows up with its own inputs, revisit whether goal-type-specific numeric inputs belong in `detail` JSONB instead (readable but unqueryable) or a per-goal-type child table (more tables, but no dead columns). Not a blocker now — flagged for whoever adds goal type 6.
 7. **`FREEDOM_RUNWAY`'s corrected core-runway-capital aggregation is new code, not a reuse of `WEALTH_LIQUIDITY_TIERS_FAMILY` as v1 implied.** Confirm during implementation that this doesn't quietly diverge further from what the Liquidity Tier dashboard card shows (the two are now different aggregations over overlapping data — same account rows, different exclusion filters) — worth a short code comment cross-referencing both so a future edit to one doesn't silently desync the other.
+
+---
+
+## ADR-023: Application Console — Process Control from `web-gateway` + Per-Domain `error_log` Tables
+
+**Status:** Accepted — design only, decided 2026-07-13 (Phase 4 of the platform-improvements plan). Not yet implemented.
+
+**Decision:** The admin-only Application Console (live service status, start/stop controls, per-service error stats, error log entry viewer) introduces two genuinely new architectural surfaces, both scoped, deliberate exceptions to existing rules:
+
+1. **Process control from `web-gateway`.** A new `com.suchika.gateway.console` package, containing `ConsoleResource` (REST endpoints), `ServiceControlService` (starts/stops individual services by shelling out to `scripts/run-local.ps1`/`.sh` and `scripts/stop-local.ps1`/`.sh`), and `ServiceStatusService` (polls each service's real `/q/health` and reads the PID registry at `~/.suchika/run/<service>.pid` to report live status).
+2. **Per-domain `error_log` tables.** Each of the four domains gets its own `error_log` table (own schema, own Flyway migration), exposing `GET /v1/errors?since=&limit=`. `web-gateway` adds `GET /v1/console/errors`, fanning out over REST to aggregate across all four domains.
+
+Both surfaces are gated behind a single config flag, **`suchika.console.enabled=false` by default**, in all five services' `application.properties`. When `false`, `ConsoleResource`'s endpoints return 404/disabled and `ServiceControlService`/`ServiceStatusService` are never invoked — the feature cannot ship live by accident.
+
+### Part 1 — Process control from `web-gateway`
+
+**Context:** ADR-002 establishes `web-gateway` as a BFF with no DB of its own, composing domain REST calls. ADR-013 extended this to computation (`ProjectionCalculationEngine`) but kept the gateway read-only and side-effect-free against the outside world — every existing gateway responsibility (REST aggregation, CQRS projection compute) stays inside the process, touching only Postgres (`projections` schema) or outbound HTTP to domain services. No service in this codebase has ever executed an OS process. This ADR is the first.
+
+**Why `web-gateway` is the right home for it, not a new sixth service:** the Console is inherently cross-service — it needs to see and control all five services (profile/wealth/health/household/gateway) plus the frontend from one page. `web-gateway` already aggregates cross-domain data for the frontend and is the only service with no domain data of its own to protect from an unrelated new concern. A new dedicated "ops service" would be a sixth Quarkus service, its own port, its own startup-order entry, for a feature that is itself about managing the other five — disproportionate for what Phase 4 needs.
+
+**`ServiceControlService` invokes the scripts in per-service form, not whole-stack.** `run-local.ps1`/`.sh` and `stop-local.ps1`/`.sh` today only support "start/stop everything." A parallel workstream is adding a `-Service <name>` parameter to both scripts so they can target one named service (`profile`, `wealth`, `health`, `household`, `gateway`, `web` — the same `name` values already defined in `scripts/services.json`). `ServiceControlService` calls the scripts with this new per-service argument (e.g. `run-local.ps1 -Service wealth`), never the whole-stack form — the Console's UI controls one service at a time, and invoking the whole-stack form from a single-service button would restart services the admin didn't ask to touch.
+
+**Why this is an acceptable, scoped exception to the gateway's established role (justified the same way ADR-021 justified its own deliberate exception):**
+- `README.md` states the app is "owned and run locally" — one deployment, one household, one admin. `ADR-021` records the product owner's own framing, stated twice: he is the only person who ever logs into the app.
+- `ADR-005` defers all real identity/auth (OIDC/OAuth2, RBAC) to v1.0 and is still unimplemented — there is no real authenticated-admin boundary to place this behind today beyond the frontend's existing role-gated routing (`<ProtectedRoute requiredRole="admin">`).
+- Given both of the above, a feature that lets "the one person who can already reach this app" restart "the services that same person already starts and stops manually via `dp`/`dw`/`rl`/`sl` today" is not introducing a new privilege boundary — it is giving the existing sole admin a UI for an action they can already perform from a terminal on the same machine. It is not safe in a multi-user or remotely-hosted deployment, which is exactly why it must be flag-gated off by default (below) rather than assumed safe by design.
+- This mirrors ADR-021's shape of argument precisely: a pragmatic, scoped exception justified by *this app's actual current shape* (local, single-admin, no real auth), not a speculative claim that process control is safe in general. Same as ADR-021, it is deliberately cheap to gate/remove once v1.0 auth lands.
+
+**Config flag — mandatory, default off:** `suchika.console.enabled=false` in every service's `application.properties` (profile/wealth/health/household expose `error_log` reads under the same flag; `web-gateway` gates `ConsoleResource` entirely). This is not a soft feature toggle for UX convenience — it is the load-bearing control that keeps process-control and cross-service error visibility from ever being live in an environment where the "local, single-admin" assumption above doesn't hold (a shared server, a demo deployment, a codespace someone forgot to lock down). Flipping it to `true` is a deliberate per-environment decision, never a shipped default.
+
+**Re-examination trigger — explicit:** this whole surface must be re-examined once real OIDC auth lands at v1.0 (ADR-005). At that point, "the one person who can reach this app" is no longer a safe proxy for "the admin" — process control and error-log visibility need to sit behind a real authenticated-admin check server-side (not just the frontend's `<ProtectedRoute>`, which is a routing convenience, not a security boundary), and the default-off config flag's justification (documented above) needs to be revisited rather than assumed to still hold.
+
+**Rejected alternative — a sixth dedicated "ops" Quarkus service:** rejected as disproportionate — see above. Also would need its own DB-less-BFF-style justification duplicating ADR-002's reasoning for a feature whose whole purpose is managing the other five services, not adding a sixth domain.
+
+**Rejected alternative — no config flag, rely on the frontend's `<ProtectedRoute requiredRole="admin">` alone:** rejected — that guard is client-side routing, not a server-side control. Without a backend flag, anyone who can reach the gateway's REST port directly (bypassing the frontend entirely) could hit `ConsoleResource` regardless of frontend role checks. The flag is the only real gate until v1.0 auth exists.
+
+### Part 2 — Per-domain `error_log` tables, gateway aggregation
+
+**Context:** the only existing error-log precedent is `wealth.upload_error_log` (ADR-014), scoped narrowly to CSV parsing — persisted via `CsvParseException`'s persist-then-rethrow pattern, with no `profile_id` column of its own (it inherits scope transitively through `upload_id → account_id → profile_id`, per ADR-020's Q33 child-table rule: a table unambiguously owned by an already-scoped parent doesn't get its own copy). No cross-domain error table exists today, and no domain besides wealth logs structured errors to the DB at all.
+
+**Decision — one `error_log` table per domain, not one shared table:** each of profile/wealth/health/household gets its own `error_log` table, in its own schema, via its own Flyway migration (e.g. `application/flyway/wealth/V6__error_log.sql`, following whichever version number is next uncommitted in each domain's chain). Each domain exposes `GET /v1/errors?since=&limit=`, matching the existing `GET /uploads/{id}/errors` shape (paginated, newest-relevant-window query, no full-table dump). `web-gateway`'s new `GET /v1/console/errors` fans out over REST to all four domains and merges the results — this is the exact aggregation-not-joins pattern ADR-013 already established for every other gateway aggregation endpoint (dashboard snapshots, Action Center).
+
+**Why one table per domain, not a shared cross-domain table:** a single shared `error_log` table (e.g. living in a new `console` or `projections` schema, written to by all five services) would require either (a) each domain writing cross-schema, which no domain does anywhere else in this codebase, or (b) the gateway writing it on domains' behalf, which means the gateway now owns write-path data integrity for errors it didn't generate and doesn't fully understand the shape of. Either way, a shared table becomes the exact structure ADR-003 (no cross-domain DB joins/shared tables) and ADR-006 (profile-scoped isolation, enforced per-domain in the adapter layer) were written to prevent — one more service reading or writing another domain's error data outside of REST is precisely the coupling those two ADRs rule out. Keeping `error_log` per-domain means each domain's adapter layer owns writing and reading its own error rows exactly like every other table it owns, and the gateway's role stays "aggregate via REST," identical to its role for every other cross-domain view it already builds.
+
+**Schema — per domain, own schema, own migration (sketch, `V<next>__error_log.sql` in each of `profile/`, `wealth/`, `health/`, `household/`):**
+
+```sql
+CREATE TABLE <domain>.error_log (
+    id           UUID         NOT NULL DEFAULT gen_random_uuid(),
+    error_type   VARCHAR(50)  NOT NULL,
+    message      TEXT         NOT NULL,
+    stack_trace  TEXT,
+    occurred_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    CONSTRAINT pk_<domain>_error_log PRIMARY KEY (id)
+);
+CREATE INDEX idx_<domain>_error_log_occurred_at ON <domain>.error_log(occurred_at);
+```
+
+No `CHECK` constraints (ADR-020) — `error_type` is a plain `VARCHAR`, soft-validated at the contract layer (ADR-010), not a SQL enum. No `profile_id`/`admin_id` column — see scoping note below.
+
+**Scoping — deliberately not `profile_id`- or `admin_id`-scoped, unlike every other domain table (flagged, not silently assumed):** every existing domain table carries either a direct `profile_id` (ADR-006) or, for household-level config, an `admin_id` (ADR-022's `goal_plan`/`insurance_policy`/`policy_settings` precedent). `error_log` rows are different in kind — they capture operational/system failures (an unhandled exception, a failed HTTP call, a bad CSV row already covered by `upload_error_log`), not member-attributable household data. There is no natural "which household member does this stack trace belong to" answer for most of them. Given the single-admin, single-household model this app runs under today (ADR-017, ADR-021), and that the Console is admin-only, this ADR proposes `error_log` stays unscoped — visible to the one admin in full, with no per-profile filtering. **This is flagged as worth explicit product-owner confirmation, not asserted as obviously correct** — it is a new scoping shape (neither `profile_id`- nor `admin_id`-keyed) that no existing table uses, and deserves the same explicit sign-off ADR-006/ADR-017/ADR-022's scoping decisions each got, rather than being inferred here by analogy alone.
+
+**Rejected alternative — one shared cross-domain `error_log` table:** rejected — see above, violates ADR-003 and ADR-006's per-domain-adapter-owns-its-own-queries model.
+
+**Rejected alternative — extend `wealth.upload_error_log`'s shape/scope to be the one general-purpose error table, reused by all domains:** rejected for the same reason as the shared-table alternative, plus `upload_error_log` is intentionally narrow to CSV parsing (ADR-014) — its schema (`upload_id`, `missing_columns`) doesn't generalize to, say, a health-domain HTTP 500. Widening it would tangle a narrow, working, tested error type with a general one.
+
+**Rejected alternative — no persistence at all, Console reads only in-memory/log-file tail (`lnav`-style) instead of a DB table:** rejected for this design — the Console's stated requirement is "per-service error statistics," which needs queryable, aggregable structure (`since`/`limit`, counts over a window) that grepping rotating log files doesn't cleanly provide. Log-file tailing (`lnav-dev`/`logs`) already exists as a separate, complementary tool for raw log inspection — this ADR doesn't replace it, it adds structured error aggregation on top.
+
+**Impact:** four new Flyway migrations (one per domain, additive, no changes to existing tables). Four new `GET /v1/errors` endpoints (domain-owned, following each domain's existing `ports`/`adapters` pattern). New `com.suchika.gateway.console` package in `web-gateway`: `ConsoleResource`, `ServiceControlService`, `ServiceStatusService`. New `suchika.console.enabled` config property in all five `application.properties`, default `false`. Contract additions to each domain's `{domain}.yaml` (`/errors` path) and to `gateway.yaml` (`/v1/console/errors`, `/v1/console/services`, `/v1/console/services/{name}/start`, `/v1/console/services/{name}/stop` or equivalent — exact paths are an implementation detail for the backend engineer, not fixed by this ADR). Not yet implemented — this ADR records the design only.
+
+### Testability and quality gates
+
+- `ConsoleResource`/`ServiceControlService`/`ServiceStatusService` live in `web-gateway`'s `adapters`-equivalent layer (the gateway has no `domain`/`ports` split today per ADR-002/013 — it is a thin aggregation/compute layer, not a hexagonal domain). `ServiceControlService` wraps `ProcessBuilder` invocation behind an interface so it can be unit-tested with a fake process runner (no real `ProcessBuilder` execution in unit tests); `ServiceStatusService`'s HTTP polling and PID-file reads are tested the same way the existing `WealthServiceClient`/`ProfileServiceClient` REST calls are tested today — `@InjectMock @RestClient` (ADR-011) for the `/q/health` polling, a fake filesystem root for PID-file reads.
+- Each domain's `error_log` write path (wherever an unhandled exception is caught and persisted) and `GET /v1/errors` read path get the same test coverage every other adapter endpoint gets — domain-layer unit tests with plain `new`, adapter-layer tests against the shared local Postgres `%integration-test` profile (Testcontainers is documented but not yet adopted anywhere in this codebase, Q34/Q35 — do not assume it here either).
+- `suchika.console.enabled=false` should have its own test asserting `ConsoleResource` returns 404/disabled when the flag is off, so the default-off guarantee is enforced by CI, not just by convention.
+- No new ArchUnit exclusion is anticipated: `ServiceControlService`/`ServiceStatusService` live in `adapters`-equivalent gateway code, which already may use `@Inject`/HTTP types; nothing here touches `domain/` in any of the four real domains, so the existing `DomainRulesTest` rules apply unchanged.
+
+### Open questions / flagged for product owner
+
+1. **Should `error_log` carry any scoping column at all** (`profile_id`, `admin_id`, or genuinely none)? This ADR proposes none, for the reasons above, but it's a new shape with no direct precedent — worth explicit sign-off before the first migration is written, the same way ADR-006/017/022's scoping calls were each explicitly confirmed rather than inferred.
+2. **`suchika.console.enabled` re-examination at v1.0** is asserted here as mandatory but not scheduled anywhere yet — recommend adding an explicit v1.0 checklist item in `ROADMAP.md` alongside ADR-005/ADR-007's existing "deferred to v1.0" items, so it isn't quietly forgotten once real OIDC auth ships.
+3. **Retention/growth of `error_log` tables** is unspecified — no TTL, no row cap, no archival policy in this design. For a locally-run personal app this is probably fine at current scale, but flagged rather than silently assumed, consistent with how ADR-022 flagged its own unresolved scale questions rather than deciding them unilaterally.

@@ -15,6 +15,12 @@
 $_Root = Split-Path -Parent $PSScriptRoot   # repo root
 $_Scripts = $PSScriptRoot                   # scripts/ folder
 
+# Single source of truth for ports/schemas/gradle wiring (scripts/services.json)
+# and the PID-file service registry -- both shared with dev-service.ps1,
+# stop-all.ps1 and health-check.ps1.
+. "$_Scripts\config.ps1"
+. "$_Scripts\service-registry.ps1"
+
 # ── Build commands ─────────────────────────────────────────────────────────────
 # Builds compile + package (with Gradle cache). Use build-verify for pre-commit.
 
@@ -57,31 +63,40 @@ function dev-gateway   { & "$_Scripts\dev-service.ps1" gateway   }
 function dev-web       { & "$_Scripts\dev-service.ps1" web       }
 
 function dev-all {
-    # Starts all services in the correct order.
-    # Waits for profile (8081) to be healthy before starting the rest.
+    # Starts all services in the correct order (startOrder in scripts/services.json).
+    # Waits for profile to be healthy (real /q/health, not /q/openapi) before starting the rest.
     Write-Host "`n==> dev-all: starting Suchika (profile first)" -ForegroundColor Cyan
 
     & "$_Scripts\dev-service.ps1" profile
 
-    Write-Host "     Waiting for profile on port 8081..." -ForegroundColor DarkGray
+    $profileUrl = Get-SuchikaHealthUrl -Name profile
+    Write-Host "     Waiting for profile ($profileUrl)..." -ForegroundColor DarkGray
     $deadline = (Get-Date).AddSeconds(90)
     while ((Get-Date) -lt $deadline) {
         Start-Sleep -Seconds 3
         try {
-            $r = Invoke-WebRequest -Uri 'http://localhost:8081/q/openapi' -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop
-            if ($r.StatusCode -lt 500) { break }
+            $r = Invoke-WebRequest -Uri $profileUrl -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop
+            if ($r.StatusCode -eq 200) { break }
         } catch { }
         Write-Host '.' -NoNewline -ForegroundColor DarkGray
     }
     Write-Host ''
 
-    foreach ($svc in @('wealth','health','household','gateway','web')) {
+    foreach ($svc in (Get-SuchikaServiceNames | Where-Object { $_ -ne 'profile' })) {
         & "$_Scripts\dev-service.ps1" $svc
     }
 
     Write-Host "`n  All services launched in separate windows." -ForegroundColor Green
     Write-Host "  Run: status   to see when everything is UP." -ForegroundColor DarkGray
 }
+
+# ── Headless run (no GUI windows -- "I just want it running") ──────────────────
+# Distinct from dev-profile/dev-all above, which open a visible window per service
+# for active development (watching Quarkus's live hot-reload console output).
+# Use run-local when you just need the app up, e.g. to click through the UI.
+
+function run-local  { & "$_Scripts\run-local.ps1" @args  }
+function stop-local { & "$_Scripts\stop-local.ps1" @args }
 
 # ── Test commands ──────────────────────────────────────────────────────────────
 
@@ -158,6 +173,12 @@ Set-Alias -Name dg   -Value dev-gateway      -Scope Global -Force
 Set-Alias -Name dwb  -Value dev-web          -Scope Global -Force
 Set-Alias -Name da   -Value dev-all          -Scope Global -Force
 
+Set-Alias -Name rl    -Value run-local        -Scope Global -Force
+# NOT "sl" -- that's PowerShell's built-in AllScope alias for Set-Location and
+# Set-Alias -Force cannot override an AllScope alias (confirmed: throws
+# "AliasAllScopeOptionCannotBeRemoved" even with -Force).
+Set-Alias -Name stopl -Value stop-local       -Scope Global -Force
+
 Set-Alias -Name tp   -Value test-profile     -Scope Global -Force
 Set-Alias -Name tw   -Value test-wealth      -Scope Global -Force
 Set-Alias -Name tsa  -Value test-all         -Scope Global -Force
@@ -187,7 +208,7 @@ function help-dev {
   build-all      [ba]       Build all services in dependency order
   build-verify   [bv]       Full pre-commit check: no-cache + tests + sonar
 
-  DEV MODE  (hot-reload — each opens a new terminal window)
+  DEV MODE  (hot-reload — each opens a VISIBLE terminal window; for active development)
   ─────────────────────────────────────────────────────────────────────────
   dev-profile    [dp]       quarkusDev profile  ← start THIS FIRST
   dev-wealth     [dw]       quarkusDev wealth
@@ -196,6 +217,11 @@ function help-dev {
   dev-gateway    [dg]       quarkusDev gateway BFF
   dev-web        [dwb]      npm start React dev server (port 3000)
   dev-all        [da]       Start all 6 services (waits for profile first)
+
+  HEADLESS RUN  (NO windows — "I just want it running", not developing against it)
+  ─────────────────────────────────────────────────────────────────────────
+  run-local      [rl]       Start all 6 services headlessly, waits for real /q/health
+  stop-local     [stopl]    Stop everything started by run-local (same as stop-all)
 
   TEST
   ─────────────────────────────────────────────────────────────────────────
@@ -249,6 +275,11 @@ function help-dev {
     5.  bp / bw / ...   ← rebuild changed service
     6.  tsa             ← run all tests
     7.  ss              ← sonar scan
+
+  Just want it running (no dev loop, no windows)?
+    1.  rl              ← run-local: starts everything headlessly
+    2.  status          ← confirm all UP
+    3.  stopl           ← stop-local when done
     8.  bv              ← full pre-commit check
 
 '@ -ForegroundColor Gray

@@ -49,7 +49,7 @@ Runs as a 6-way matrix job (`Backend (${{ matrix.domain }})`), one job per domai
 ./gradlew --no-daemon :application:web-gateway:test
 ```
 
-Requires Java 21 (Temurin). ArchUnit enforces domain layer purity — any `@Inject`, JPA annotation, or HTTP type inside `domain/` fails here.
+Requires Java 25 (Temurin). ArchUnit enforces domain layer purity — any `@Inject`, JPA annotation, or HTTP type inside `domain/` fails here.
 
 **Postgres per matrix job:** The four domains with a database (`profile`, `wealth`, `health`, `household` — `needs-postgres: true`) each get their own isolated `postgres:16` GitHub Actions service container (`shared` and `web-gateway` don't need one). For those four, the job first bootstraps the database (`psql ... CREATE DATABASE app_db` + `application/flyway/00_bootstrap.sql`), matching the one-time manual setup step a developer runs locally.
 

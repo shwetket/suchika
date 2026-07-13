@@ -5,6 +5,9 @@ const MOCK_API_BASE = 'http://localhost:8080';
 describe('signIn', () => {
   beforeEach(() => {
     jest.spyOn(console, 'warn').mockImplementation(() => {});
+    // logError() -> logger.error() always logs, including in the test env — mock it to
+    // keep test output clean (see utils/logger.js for why error-level is unconditional).
+    jest.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -47,7 +50,13 @@ describe('signIn', () => {
     const result = await signIn({ username: 'alice', role: 'user' });
     // Falls back to demo because ApplicationException has statusCode, not status
     expect(result).toMatchObject({ username: 'alice' });
-    expect(console.warn).toHaveBeenCalled();
+    // Confirms the fallback is routed through utils/logger.js's warn() (context-prefixed),
+    // not a bare console.warn call.
+    expect(console.warn).toHaveBeenCalledWith(
+      '[auth.signIn]',
+      'Falling back to demo auth due to error:',
+      expect.anything()
+    );
   });
 
   it('falls back to demo token on network error', async () => {

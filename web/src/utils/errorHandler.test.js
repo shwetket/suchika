@@ -177,10 +177,16 @@ describe('logError', () => {
     expect(consoleErrorSpy).toHaveBeenCalledWith('[Accounts.load]', err);
   });
 
-  it('does not log in production', () => {
+  // errorHandler.logError now delegates to utils/logger.js's error(), which
+  // always logs (including production) — see logger.js for the rationale:
+  // there's no centralized client-error shipping, so the console is the only
+  // place these are ever visible, and silently swallowing real errors in
+  // production is worse than the console noise.
+  it('still logs to console.error in production (errors are never swallowed)', () => {
     process.env.NODE_ENV = 'production';
-    logError('Accounts.load', new Error('prod error'));
-    expect(consoleErrorSpy).not.toHaveBeenCalled();
+    const err = new Error('prod error');
+    logError('Accounts.load', err);
+    expect(consoleErrorSpy).toHaveBeenCalledWith('[Accounts.load]', err);
   });
 });
 

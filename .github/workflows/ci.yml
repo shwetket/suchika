@@ -12,6 +12,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Verify migrations are outside adapters
         run: chmod +x ./scripts/check-migrations-location.sh && ./scripts/check-migrations-location.sh
+      - name: Verify scripts/*.ps1 files carry a UTF-8 BOM
+        run: chmod +x ./scripts/check-ps1-bom.sh && ./scripts/check-ps1-bom.sh
 
   backend:
     name: Backend (${{ matrix.domain }})
@@ -48,6 +50,13 @@ jobs:
       GRADLE_OPTS: "-Xmx3g -XX:MaxMetaspaceSize=512m -Dorg.gradle.workers.max=2"
 
     services:
+      # NOTE: port 5432 and the local_dev_only password mirror the same values in
+      # scripts/services.json (the single source of truth the local dev scripts read
+      # from). GitHub Actions evaluates the "services:" block before any repo checkout
+      # step runs, so it can't read a file out of the checked-out repo here -- these
+      # two literals have to be kept in sync with services.json by hand if either
+      # changes. Not worth the added complexity of a jq-based pre-step just for two
+      # values used only in CI.
       postgres:
         image: postgres:16
         env:
@@ -69,7 +78,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 21
+          java-version: 25
           cache: gradle
       - name: Make Gradle wrapper executable
         run: chmod +x ./gradlew

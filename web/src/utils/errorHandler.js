@@ -4,6 +4,7 @@
  */
 
 import { ERROR_MESSAGES } from './constants';
+import * as logger from './logger';
 
 /**
  * HTTP Status codes mapping
@@ -158,14 +159,15 @@ export const getErrorMessage = (error) => {
 };
 
 /**
- * Log error with context (delegates to logger)
+ * Log error with context (delegates to logger).
+ * Now always logs (via logger.error), including production — see
+ * web/src/utils/logger.js for the rationale. Signature is unchanged so
+ * existing call sites (AuthContext.js, api/*.js, page components) keep working.
  * @param {string} context - Where the error occurred
- * @param {Error} error - Error object
+ * @param {Error} err - Error object
  */
-export const logError = (context, error) => {
-  if (process.env.NODE_ENV === 'development') {
-    console.error(`[${context}]`, error);
-  }
+export const logError = (context, err) => {
+  logger.error(context, err);
 };
 
 /**

@@ -1,8 +1,17 @@
 #!/usr/bin/env bash
 # Checks that all tools required to build and run Suchika are present and at the right version.
 # Run before the first build or after a fresh machine setup.
+# Java/Node version floors come from scripts/services.json (single source of
+# truth) via config.sh -- do not hardcode them here.
 # Usage: bash scripts/check-prerequisites.sh
 set -uo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. "$SCRIPT_DIR/config.sh"
+JAVA_FLOOR=$(suchika_version_floor javaHardFailBelow)
+JAVA_TARGET=$(suchika_version_floor javaTarget)
+NODE_FLOOR=$(suchika_version_floor nodeHardFailBelow)
+NODE_TARGET=$(suchika_version_floor nodeTarget)
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
@@ -36,18 +45,18 @@ else
 fi
 
 # ── Java ──────────────────────────────────────────────────────────────────────
-echo -e "\n${BOLD}Java (required: 21+)${NC}"
+echo -e "\n${BOLD}Java (required: ${JAVA_FLOOR}+, target: ${JAVA_TARGET})${NC}"
 if command -v java &>/dev/null; then
   JAVA_VER=$(java -version 2>&1 | grep -oE '"[0-9]+' | tr -d '"' | head -1)
-  if (( JAVA_VER >= 21 )); then
+  if (( JAVA_VER >= JAVA_TARGET )); then
     ok "Java $JAVA_VER"
-  elif (( JAVA_VER >= 17 )); then
-    warn "Java $JAVA_VER found — CI uses Java 21; local tests may pass but CI could differ"
+  elif (( JAVA_VER >= JAVA_FLOOR )); then
+    warn "Java $JAVA_VER found — CI/build.gradle.kts target Java $JAVA_TARGET; local tests may pass but CI could differ"
   else
-    fail "Java $JAVA_VER found — need 21+. Install Temurin 21: https://adoptium.net"
+    fail "Java $JAVA_VER found — Java below $JAVA_FLOOR is no longer supported. Install Temurin $JAVA_TARGET: https://adoptium.net"
   fi
 else
-  fail "java not found — install Temurin 21: https://adoptium.net"
+  fail "java not found — install Temurin $JAVA_TARGET: https://adoptium.net"
 fi
 
 if command -v javac &>/dev/null; then
@@ -69,19 +78,19 @@ else
 fi
 
 # ── Node.js ───────────────────────────────────────────────────────────────────
-echo -e "\n${BOLD}Node.js (required: 20+, CI uses 24)${NC}"
+echo -e "\n${BOLD}Node.js (required: ${NODE_FLOOR}+, CI uses ${NODE_TARGET})${NC}"
 if command -v node &>/dev/null; then
   NODE_VER=$(node --version | tr -d 'v')
   NODE_MAJ=$(echo "$NODE_VER" | cut -d. -f1)
-  if (( NODE_MAJ >= 24 )); then
+  if (( NODE_MAJ >= NODE_TARGET )); then
     ok "Node.js $NODE_VER (matches CI)"
-  elif (( NODE_MAJ >= 20 )); then
-    warn "Node.js $NODE_VER — works locally, but CI uses Node 24; upgrade if you see CI failures"
+  elif (( NODE_MAJ >= NODE_FLOOR )); then
+    warn "Node.js $NODE_VER — works locally, but CI uses Node $NODE_TARGET; upgrade if you see CI failures"
   else
-    fail "Node.js $NODE_VER — need 20+. Install via https://nodejs.org or nvm"
+    fail "Node.js $NODE_VER — need ${NODE_FLOOR}+. Install via https://nodejs.org or nvm"
   fi
 else
-  fail "node not found — install Node.js 24 LTS: https://nodejs.org"
+  fail "node not found — install Node.js $NODE_TARGET LTS: https://nodejs.org"
 fi
 
 # ── npm ───────────────────────────────────────────────────────────────────────
@@ -107,11 +116,12 @@ else
   warn "psql not found in PATH — install PostgreSQL 15+: https://www.postgresql.org/download"
 fi
 
-# Check if PostgreSQL is reachable on port 5432
-if bash -c "echo > /dev/tcp/localhost/5432" 2>/dev/null; then
-  ok "PostgreSQL listening on localhost:5432"
+# Check if PostgreSQL is reachable
+PG_PORT=$(suchika_db_field port)
+if bash -c "echo > /dev/tcp/localhost/$PG_PORT" 2>/dev/null; then
+  ok "PostgreSQL listening on localhost:$PG_PORT"
 else
-  warn "Nothing listening on localhost:5432 — start PostgreSQL before running any domain service"
+  warn "Nothing listening on localhost:$PG_PORT — start PostgreSQL before running any domain service"
 fi
 
 # ── curl (used by health-check script) ───────────────────────────────────────

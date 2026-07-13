@@ -23,7 +23,7 @@ Built on **Hexagonal Architecture** (Ports & Adapters) with four isolated Quarku
 
 | Layer | Technology |
 |---|---|
-| Backend | Java 21 · Quarkus 3.29.0 · Gradle 9.3.0 |
+| Backend | Java 25 · Quarkus 3.29.0 · Gradle 9.3.0 |
 | Database | PostgreSQL — single `app_db`, schema-per-domain |
 | Migrations | Flyway (per-domain, auto-run on startup) |
 | API | OpenAPI 3.1.0 contract-first · Google AIP style |
@@ -192,7 +192,7 @@ suchika/
 │   │   └── pr-labeler.yml
 │   ├── labeler.yml
 │   └── pull_request_template.md
-├── .devcontainer/                 ← Codespaces: app container (Java 17 + Node 24) + db container (PG 16)
+├── .devcontainer/                 ← Codespaces: app container (Java 25 + Node 24) + db container (PG 16)
 ├── README.md
 ├── CONTRIBUTING.md
 ├── CLAUDE.md

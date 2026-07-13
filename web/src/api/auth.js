@@ -1,5 +1,6 @@
 import { API_BASE_URL } from '../utils/constants';
 import { handleAPIResponse, createApplicationException, logError } from '../utils/errorHandler';
+import { warn } from '../utils/logger';
 
 /**
  * Sign in with backend auth endpoint.
@@ -32,7 +33,7 @@ export async function signIn(credentials) {
     if (error?.status && error.status !== 502 && error.status !== 504 && error.status !== 503) {
       throw error;
     }
-    console.warn('Falling back to demo auth due to error:', error);
+    warn('auth.signIn', 'Falling back to demo auth due to error:', error);
     logError('auth', error);
     return {
       username: credentials.username,

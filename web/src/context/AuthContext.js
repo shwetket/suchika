@@ -4,6 +4,7 @@ import { signIn } from '../api/auth';
 import { listAdmins } from '../api/admins';
 import { listProfiles } from '../api/profiles';
 import { logError } from '../utils/errorHandler';
+import { warn } from '../utils/logger';
 
 const SELF_RELATION = 'SELF';
 
@@ -52,7 +53,7 @@ export const AuthProvider = ({ children }) => {
       const adminsResponse = await listAdmins();
       admins = (adminsResponse.admins ?? []).filter((admin) => admin.is_active === true);
     } catch (e) {
-      console.warn('Falling back to demo mode for admins due to error:', e);
+      warn('AuthContext.login', 'Falling back to demo mode for admins due to error:', e);
       if (username.startsWith('setupgate') || username.startsWith('setupwizard')) {
         admins = [];
       } else {
@@ -69,7 +70,7 @@ export const AuthProvider = ({ children }) => {
         const profilesResponse = await listProfiles(adminId, true);
         profiles = profilesResponse.profiles ?? [];
       } catch (e) {
-        console.warn('Falling back to demo mode for profiles due to error:', e);
+        warn('AuthContext.login', 'Falling back to demo mode for profiles due to error:', e);
         profiles = [{ profile_id: 'demo-profile-id', relation_to_admin: SELF_RELATION }];
       }
       const selfProfile = profiles.find((profile) => profile.relation_to_admin === SELF_RELATION);

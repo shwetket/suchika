@@ -20,6 +20,7 @@ dependencies {
     implementation("io.quarkus:quarkus-jdbc-postgresql")
     implementation("io.quarkus:quarkus-flyway")
     implementation("io.quarkus:quarkus-smallrye-openapi")
+    implementation("io.quarkus:quarkus-smallrye-health")
 
     // Shared utilities
     implementation(project(":shared"))

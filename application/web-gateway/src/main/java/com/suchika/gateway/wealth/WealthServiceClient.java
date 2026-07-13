@@ -240,4 +240,12 @@ public interface WealthServiceClient {
     void deactivateInsurancePolicy(
             @PathParam("insurancePolicyId") UUID insurancePolicyId,
             @QueryParam("admin_id") UUID adminId);
+
+    // ── Errors (Phase 4 Application Console, ADR-023) ───────────────────────
+    // Distinct from getUploadErrors above (CSV-upload-specific); this is the
+    // general application error_log (V6__error_log.sql).
+
+    @GET
+    @Path("/errors")
+    JsonNode listErrors(@QueryParam("since") String since, @QueryParam("limit") Integer limit);
 }

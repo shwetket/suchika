@@ -62,4 +62,10 @@ public interface HealthServiceClient {
     @DELETE
     @Path("/doctor-visits/{id}")
     void deleteDoctorVisit(@PathParam("id") UUID id);
+
+    // ── Errors (Phase 4 Application Console, ADR-023) ───────────────────────
+
+    @GET
+    @Path("/errors")
+    JsonNode listErrors(@QueryParam("since") String since, @QueryParam("limit") Integer limit);
 }

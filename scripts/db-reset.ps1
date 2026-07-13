@@ -6,7 +6,8 @@ param([switch]$Force)
 
 $root    = Split-Path -Parent $PSScriptRoot
 $boot    = Join-Path $root 'application\flyway\00_bootstrap.sql'
-$psqlExe = 'C:\Program Files\PostgreSQL\18\bin\psql.exe'
+. "$PSScriptRoot\config.ps1"
+$psqlExe = $SuchikaDb.psqlWindowsPath
 
 function FindPsql {
     $cmd = Get-Command psql -ErrorAction SilentlyContinue
@@ -19,7 +20,7 @@ function FindPsql {
 }
 
 if (-not $env:PGPASSWORD) {
-    $env:PGPASSWORD = if ($env:POSTGRES_PASSWORD) { $env:POSTGRES_PASSWORD } else { 'local_dev_only' }
+    $env:PGPASSWORD = if ($env:POSTGRES_PASSWORD) { $env:POSTGRES_PASSWORD } else { $SuchikaDb.passwordFallback }
 }
 
 $psql = FindPsql
