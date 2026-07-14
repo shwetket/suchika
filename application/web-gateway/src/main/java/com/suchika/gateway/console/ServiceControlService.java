@@ -87,15 +87,45 @@ public class ServiceControlService {
     private ProcessBuilder buildProcess(Path repoRoot, String scriptBaseName, String service) {
         if (isWindows()) {
             Path script = repoRoot.resolve("scripts").resolve(scriptBaseName + ".ps1");
-            return new ProcessBuilder("powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass",
+            return new ProcessBuilder(resolveWindowsPowerShell(), "-NoProfile", "-ExecutionPolicy", "Bypass",
                     "-File", script.toString(), "-Service", service);
         }
         Path script = repoRoot.resolve("scripts").resolve(scriptBaseName + ".sh");
-        return new ProcessBuilder("bash", script.toString(), service);
+        return new ProcessBuilder(resolveBash(), script.toString(), service);
     }
 
     private boolean isWindows() {
         return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
+    }
+
+    /**
+     * Absolute path, never a bare "powershell.exe" -- a SonarQube security
+     * hotspot flagged the earlier bare-name form because {@link ProcessBuilder}
+     * resolves an unqualified executable via the inherited {@code PATH}, so a
+     * writable directory earlier in {@code PATH} than the real system32 one
+     * could get a planted binary executed instead. {@code SystemRoot} (not a
+     * hardcoded drive letter) keeps this correct on a non-C: Windows install.
+     */
+    private String resolveWindowsPowerShell() {
+        String systemRoot = System.getenv("SystemRoot");
+        if (systemRoot == null || systemRoot.isBlank()) {
+            throw new InternalServerException("SystemRoot environment variable is not set -- cannot safely resolve powershell.exe");
+        }
+        Path exe = Path.of(systemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
+        if (!Files.exists(exe)) {
+            throw new InternalServerException("powershell.exe not found at expected path: " + exe);
+        }
+        return exe.toString();
+    }
+
+    /** Same PATH-injection reasoning as {@link #resolveWindowsPowerShell()}, for bash. */
+    private String resolveBash() {
+        for (String candidate : new String[] {"/bin/bash", "/usr/bin/bash"}) {
+            if (Files.exists(Path.of(candidate))) {
+                return candidate;
+            }
+        }
+        throw new InternalServerException("bash not found at /bin/bash or /usr/bin/bash");
     }
 
     private String readOutput(Process process) throws IOException {
