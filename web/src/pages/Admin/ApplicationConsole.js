@@ -70,7 +70,15 @@ ErrorEntryRow.propTypes = {
   }).isRequired,
 };
 
-function ServiceRow({ service, pendingAction, anyActionPending, onStart, onStop, errors, errorsAvailable }) {
+function ServiceRow({
+  service,
+  pendingAction,
+  anyActionPending,
+  onStart,
+  onStop,
+  errors,
+  errorsAvailable,
+}) {
   // Disabled whenever ANY service has an action in flight, not just this row --
   // handleStart/handleStop no-op globally while one is pending, so leaving other
   // rows' buttons clickable would silently do nothing on click.
