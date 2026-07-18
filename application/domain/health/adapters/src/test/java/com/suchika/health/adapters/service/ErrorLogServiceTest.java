@@ -24,7 +24,7 @@ class ErrorLogServiceTest {
         FakeErrorLogRepository repository = new FakeErrorLogRepository();
         ErrorLogService service = new ErrorLogService(repository);
 
-        service.record("NOT_FOUND", 404, "Vital reading not found", "ID: 123");
+        service.recordError("NOT_FOUND", 404, "Vital reading not found", "ID: 123");
         List<ErrorLog> result = service.listErrors(null, 50);
 
         assertEquals(1, repository.saved.size());

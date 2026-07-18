@@ -137,9 +137,7 @@ function ServiceRow({
             className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1"
           >
             <span>{expanded ? '▾' : '▸'}</span>
-            <span>
-              {errorLabel}
-            </span>
+            <span>{errorLabel}</span>
           </button>
           {expanded && (
             <ul className="mt-2">
