@@ -14,7 +14,7 @@ const STATUS_POLL_INTERVAL_MS = 10000;
 // Only these four domains own an error_log table (Phase 4) — gateway has no DB
 // and "web"/frontend isn't a backend domain, so they never appear as keys in
 // ConsoleErrorsResponse.
-const ERROR_DOMAINS = ['profile', 'wealth', 'health', 'household'];
+const ERROR_DOMAINS = new Set(['profile', 'wealth', 'health', 'household']);
 
 function isDisabledError(error) {
   return error?.status === 404;
@@ -84,8 +84,14 @@ function ServiceRow({
   // rows' buttons clickable would silently do nothing on click.
   const isPending = anyActionPending;
   const [expanded, setExpanded] = useState(false);
-  const hasErrorPanel = ERROR_DOMAINS.includes(service.name);
+  const hasErrorPanel = ERROR_DOMAINS.has(service.name);
   const errorCount = errors.length;
+
+  let errorLabel = 'Errors';
+  if (errorsAvailable) {
+    const suffix = errorCount === 1 ? '' : 's';
+    errorLabel = `${errorCount} recent error${suffix}`;
+  }
 
   return (
     <div
@@ -132,9 +138,7 @@ function ServiceRow({
           >
             <span>{expanded ? '▾' : '▸'}</span>
             <span>
-              {errorsAvailable
-                ? `${errorCount} recent error${errorCount === 1 ? '' : 's'}`
-                : 'Errors'}
+              {errorLabel}
             </span>
           </button>
           {expanded && (
@@ -193,7 +197,7 @@ export const ApplicationConsole = () => {
 
   const errorsQuery = useQuery({
     queryKey: ['console-errors'],
-    queryFn: () => getConsoleErrors(),
+    queryFn: getConsoleErrors,
     retry: false,
     enabled: statusQuery.isSuccess,
     refetchInterval: STATUS_POLL_INTERVAL_MS,
@@ -202,7 +206,7 @@ export const ApplicationConsole = () => {
   const invalidateStatus = () => queryClient.invalidateQueries({ queryKey: ['console-status'] });
 
   const startMutation = useMutation({
-    mutationFn: (name) => startConsoleService(name),
+    mutationFn: startConsoleService,
     onSettled: () => {
       setPending(null);
       invalidateStatus();
@@ -210,7 +214,7 @@ export const ApplicationConsole = () => {
   });
 
   const stopMutation = useMutation({
-    mutationFn: (name) => stopConsoleService(name),
+    mutationFn: stopConsoleService,
     onSettled: () => {
       setPending(null);
       invalidateStatus();

@@ -56,7 +56,7 @@ class ErrorLogPanacheRepositoryTest {
     @Test
     void findSince_futureTimestamp_excludesExistingRows() {
         errorLogRepository.save("BAD_REQUEST", 400, "bad request", null);
-        Instant future = Instant.now().plus(1, ChronoUnit.DAYS);
+        Instant future = Instant.parse("2099-01-01T00:00:00Z");
 
         List<ErrorLog> results = errorLogRepository.findSince(future, 50);
 

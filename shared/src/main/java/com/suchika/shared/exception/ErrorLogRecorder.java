@@ -22,6 +22,7 @@ package com.suchika.shared.exception;
  * already pass through), and there is nothing to rethrow — the mapper still
  * returns the same HTTP response as before, persistence is a side effect.
  */
+@FunctionalInterface
 public interface ErrorLogRecorder {
 
     /**
@@ -29,5 +30,5 @@ public interface ErrorLogRecorder {
      * already been built and logged — a persistence failure here must never
      * be allowed to change the HTTP response the caller sees.
      */
-    void record(String errorCode, int httpStatus, String message, String details);
+    void recordError(String errorCode, int httpStatus, String message, String details);
 }

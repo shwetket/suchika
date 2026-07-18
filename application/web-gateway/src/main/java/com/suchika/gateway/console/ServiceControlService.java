@@ -39,6 +39,7 @@ public class ServiceControlService {
     private static final String STATUS_OK = "OK";
     private static final String STATUS_FAILED = "FAILED";
     private static final String STATUS_TIMEOUT = "TIMEOUT";
+    private static final String DIR_SCRIPTS = "scripts";
 
     private final Optional<String> repoRootOverride;
 
@@ -65,7 +66,7 @@ public class ServiceControlService {
         processBuilder.redirectErrorStream(true);
 
         try {
-            AppLogger.info("Console: running %s for service %s", scriptBaseName, service);
+            AppLogger.info("Console: running " + scriptBaseName + " for service " + service);
             Process process = processBuilder.start();
             String output = readOutput(process);
             boolean finished = process.waitFor(PROCESS_WAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
@@ -77,20 +78,20 @@ public class ServiceControlService {
             String status = process.exitValue() == 0 ? STATUS_OK : STATUS_FAILED;
             return new ServiceActionResult(service, action, status, output);
         } catch (IOException e) {
-            throw new InternalServerException("Failed to run " + scriptBaseName + " for " + service + ": " + e.getMessage());
+            throw new InternalServerException("Failed to run " + scriptBaseName + " for " + service + ": " + e.getMessage(), e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new InternalServerException("Interrupted while running " + scriptBaseName + " for " + service);
+            throw new InternalServerException("Interrupted while running " + scriptBaseName + " for " + service, e);
         }
     }
 
     private ProcessBuilder buildProcess(Path repoRoot, String scriptBaseName, String service) {
         if (isWindows()) {
-            Path script = repoRoot.resolve("scripts").resolve(scriptBaseName + ".ps1");
+            Path script = repoRoot.resolve(DIR_SCRIPTS).resolve(scriptBaseName + ".ps1");
             return new ProcessBuilder(resolveWindowsPowerShell(), "-NoProfile", "-ExecutionPolicy", "Bypass",
                     "-File", script.toString(), "-Service", service);
         }
-        Path script = repoRoot.resolve("scripts").resolve(scriptBaseName + ".sh");
+        Path script = repoRoot.resolve(DIR_SCRIPTS).resolve(scriptBaseName + ".sh");
         return new ProcessBuilder(resolveBash(), script.toString(), service);
     }
 
@@ -144,11 +145,11 @@ public class ServiceControlService {
      */
     private Path resolveRepoRoot() {
         if (repoRootOverride.isPresent()) {
-            return Path.of(repoRootOverride.get());
+            return Path.of(repoRootOverride.orElseThrow());
         }
         Path dir = Path.of("").toAbsolutePath();
         while (dir != null) {
-            if (Files.exists(dir.resolve("scripts").resolve("services.json"))) {
+            if (Files.exists(dir.resolve(DIR_SCRIPTS).resolve("services.json"))) {
                 return dir;
             }
             dir = dir.getParent();

@@ -22,10 +22,10 @@ class ServiceStatusServiceTest {
     void listStatuses_returnsOneEntryPerKnownService() {
         List<ServiceStatus> statuses = service.listStatuses();
 
-        assertEquals(ServiceDefinition.ALL.size(), statuses.size());
+        assertEquals(ServiceDefinition.getAll().size(), statuses.size());
         for (int i = 0; i < statuses.size(); i++) {
-            assertEquals(ServiceDefinition.ALL.get(i).name(), statuses.get(i).name());
-            assertEquals(ServiceDefinition.ALL.get(i).port(), statuses.get(i).port());
+            assertEquals(ServiceDefinition.getAll().get(i).name(), statuses.get(i).name());
+            assertEquals(ServiceDefinition.getAll().get(i).port(), statuses.get(i).port());
             assertNotNull(statuses.get(i).status(), "status must never be null -- DOWN, not absent, when unreachable");
         }
     }

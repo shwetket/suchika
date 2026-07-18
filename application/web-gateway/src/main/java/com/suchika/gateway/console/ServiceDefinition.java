@@ -15,14 +15,21 @@ import java.util.List;
  */
 public record ServiceDefinition(String name, int port, String healthPath, String kind) {
 
-    public static final List<ServiceDefinition> ALL = List.of(
-            new ServiceDefinition("profile", 8081, "/q/health", "backend"),
-            new ServiceDefinition("wealth", 8082, "/q/health", "backend"),
-            new ServiceDefinition("health", 8083, "/q/health", "backend"),
-            new ServiceDefinition("household", 8084, "/q/health", "backend"),
-            new ServiceDefinition("gateway", 8080, "/q/health", "backend"),
+    private static final String HEALTH_PATH = "/q/health";
+    private static final String BACKEND = "backend";
+
+    private static final List<ServiceDefinition> ALL = List.of(
+            new ServiceDefinition("profile", 8081, HEALTH_PATH, BACKEND),
+            new ServiceDefinition("wealth", 8082, HEALTH_PATH, BACKEND),
+            new ServiceDefinition("health", 8083, HEALTH_PATH, BACKEND),
+            new ServiceDefinition("household", 8084, HEALTH_PATH, BACKEND),
+            new ServiceDefinition("gateway", 8080, HEALTH_PATH, BACKEND),
             new ServiceDefinition("web", 3000, "/", "frontend")
     );
+
+    public static List<ServiceDefinition> getAll() {
+        return ALL;
+    }
 
     public static boolean isKnown(String name) {
         return ALL.stream().anyMatch(s -> s.name().equals(name));

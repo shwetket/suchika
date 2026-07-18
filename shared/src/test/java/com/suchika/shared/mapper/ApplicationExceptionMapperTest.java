@@ -49,8 +49,8 @@ class ApplicationExceptionMapperTest {
         captured.clear();
         handler = new Handler() {
             @Override
-            public void publish(LogRecord record) {
-                captured.add(record);
+            public void publish(LogRecord logRec) {
+                captured.add(logRec);
             }
 
             @Override
@@ -82,8 +82,8 @@ class ApplicationExceptionMapperTest {
         assertEquals("Transaction not found", body.getMessage());
         assertEquals("ID: 12345", body.getDetails());
 
-        LogRecord record = onlyAppLoggerRecord();
-        assertEquals(Level.WARNING, record.getLevel());
+        LogRecord logRec = onlyAppLoggerRecord();
+        assertEquals(Level.WARNING, logRec.getLevel());
     }
 
     @Test
@@ -95,8 +95,8 @@ class ApplicationExceptionMapperTest {
         assertEquals(500, body.getStatus());
         assertEquals("INTERNAL_SERVER_ERROR", body.getErrorCode());
 
-        LogRecord record = onlyAppLoggerRecord();
-        assertEquals(Level.SEVERE, record.getLevel());
+        LogRecord logRec = onlyAppLoggerRecord();
+        assertEquals(Level.SEVERE, logRec.getLevel());
     }
 
     @Test
@@ -120,9 +120,9 @@ class ApplicationExceptionMapperTest {
     @Test
     void notFoundException_recorderRegistered_recordsErrorAndKeepsResponse() {
         FakeErrorLogRecorder recorder = new FakeErrorLogRecorder();
-        ApplicationExceptionMapper mapper = new ApplicationExceptionMapper(satisfiedInstance(recorder));
+        ApplicationExceptionMapper testMapper = new ApplicationExceptionMapper(satisfiedInstance(recorder));
 
-        Response response = mapper.toResponse(new NotFoundException("Transaction not found", "ID: 12345"));
+        Response response = testMapper.toResponse(new NotFoundException("Transaction not found", "ID: 12345"));
 
         assertEquals(404, response.getStatus());
         assertEquals(1, recorder.calls.size());
@@ -138,22 +138,22 @@ class ApplicationExceptionMapperTest {
         // change the HTTP response already built.
         Instance<ErrorLogRecorder> throwing = satisfiedInstance(new ErrorLogRecorder() {
             @Override
-            public void record(String errorCode, int httpStatus, String message, String details) {
+            public void recordError(String errorCode, int httpStatus, String message, String details) {
                 throw new IllegalStateException("db unavailable");
             }
         });
-        ApplicationExceptionMapper mapper = new ApplicationExceptionMapper(throwing);
+        ApplicationExceptionMapper testMapper = new ApplicationExceptionMapper(throwing);
 
-        Response response = mapper.toResponse(new NotFoundException("not found"));
+        Response response = testMapper.toResponse(new NotFoundException("not found"));
 
         assertEquals(404, response.getStatus());
     }
 
     @Test
     void notFoundException_unsatisfiedRecorderInstance_isSkipped() {
-        ApplicationExceptionMapper mapper = new ApplicationExceptionMapper(unsatisfiedInstance());
+        ApplicationExceptionMapper testMapper = new ApplicationExceptionMapper(unsatisfiedInstance());
 
-        Response response = mapper.toResponse(new NotFoundException("not found"));
+        Response response = testMapper.toResponse(new NotFoundException("not found"));
 
         assertEquals(404, response.getStatus());
     }
@@ -192,7 +192,7 @@ class ApplicationExceptionMapperTest {
         final List<RecordedCall> calls = new ArrayList<>();
 
         @Override
-        public void record(String errorCode, int httpStatus, String message, String details) {
+        public void recordError(String errorCode, int httpStatus, String message, String details) {
             calls.add(new RecordedCall(errorCode, httpStatus, message, details));
         }
     }

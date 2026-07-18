@@ -27,7 +27,7 @@ public abstract class AbstractErrorLogService implements ErrorLogUseCase, ErrorL
     protected abstract ErrorLogRepository repository();
 
     @Override
-    public void record(String errorCode, int httpStatus, String message, String details) {
+    public void recordError(String errorCode, int httpStatus, String message, String details) {
         repository().save(errorCode, httpStatus, message, details);
     }
 

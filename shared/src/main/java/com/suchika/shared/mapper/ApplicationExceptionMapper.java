@@ -68,7 +68,7 @@ public class ApplicationExceptionMapper implements ExceptionMapper<ApplicationEx
             return;
         }
         try {
-            errorLogRecorders.get().record(exception.getErrorCode(), statusCode, exception.getMessage(), exception.getDetails());
+            errorLogRecorders.get().recordError(exception.getErrorCode(), statusCode, exception.getMessage(), exception.getDetails());
         } catch (RuntimeException recordingFailure) {
             // Persisting the error log must never change the HTTP response already
             // built above — log and move on.

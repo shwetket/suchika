@@ -41,7 +41,7 @@ public class ServiceStatusService {
             .build();
 
     public List<ServiceStatus> listStatuses() {
-        return ServiceDefinition.ALL.stream()
+        return ServiceDefinition.getAll().stream()
                 .map(this::statusOf)
                 .toList();
     }

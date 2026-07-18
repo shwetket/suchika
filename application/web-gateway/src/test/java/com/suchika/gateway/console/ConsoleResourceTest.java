@@ -90,7 +90,7 @@ class ConsoleResourceTest {
 
     @Test
     void errors_delegatesToAggregationService() throws Exception {
-        when(errorAggregationService.aggregate(eq("2026-07-01T00:00:00Z"), eq(10)))
+        when(errorAggregationService.aggregate("2026-07-01T00:00:00Z", 10))
                 .thenReturn(mapper.readTree("{\"profile\":[],\"wealth\":[],\"health\":[],\"household\":[]}"));
 
         given()
