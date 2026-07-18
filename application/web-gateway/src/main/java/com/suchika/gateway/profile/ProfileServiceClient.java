@@ -51,4 +51,10 @@ public interface ProfileServiceClient {
     @PATCH
     @Path("/admins/{adminId}/policy")
     JsonNode updatePolicySettings(@PathParam("adminId") UUID adminId, JsonNode body);
+
+    // ── Errors (Phase 4 Application Console, ADR-023) ───────────────────────
+
+    @GET
+    @Path("/errors")
+    JsonNode listErrors(@QueryParam("since") String since, @QueryParam("limit") Integer limit);
 }

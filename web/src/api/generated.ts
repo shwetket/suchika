@@ -287,6 +287,28 @@ export interface paths {
      */
     patch: operations["updateProfile"];
   };
+  "/v1/console/status": {
+    /**
+     * Live status of all Suchika services
+     * @description Polls each service's real /q/health and reads its PID-registry file (~/.suchika/run/<service>.pid). 404s when suchika.console.enabled=false.
+     */
+    get: operations["getConsoleStatus"];
+  };
+  "/v1/console/services/{name}/start": {
+    /** Start one service via run-local.ps1/.sh -Service <name> */
+    post: operations["startConsoleService"];
+  };
+  "/v1/console/services/{name}/stop": {
+    /** Stop one service via stop-local.ps1/.sh -Service <name> */
+    post: operations["stopConsoleService"];
+  };
+  "/v1/console/errors": {
+    /**
+     * Aggregated application errors across all four domains
+     * @description Fans out GET /v1/errors to profile, wealth, health, and household and combines the results (ADR-013 aggregation pattern). A domain that is unreachable contributes an entry describing the failure instead of failing the whole call.
+     */
+    get: operations["getConsoleErrors"];
+  };
 }
 
 export type webhooks = Record<string, never>;
@@ -840,6 +862,45 @@ export interface components {
     };
     ListUploadsResponse: {
       uploads?: components["schemas"]["StatementUploadResponse"][];
+    };
+    /** @description Null when no PID-registry record exists for this service. */
+    PidRecordResponse: {
+      pid?: number;
+      process_name?: string;
+      port?: number;
+      service?: string;
+      started_at?: string;
+    } | null;
+    ServiceStatusResponse: {
+      name?: string;
+      port?: number;
+      /** @enum {string} */
+      kind?: "backend" | "frontend";
+      /** @enum {string} */
+      status?: "UP" | "DOWN";
+      pid?: components["schemas"]["PidRecordResponse"];
+    };
+    ServiceActionResponse: {
+      service?: string;
+      action?: string;
+      /** @enum {string} */
+      status?: "OK" | "FAILED" | "TIMEOUT";
+      output?: string;
+    };
+    ErrorLogResponse: {
+      error_code?: string;
+      http_status?: number;
+      message?: string;
+      details?: string | null;
+      /** Format: date-time */
+      created_at?: string;
+    };
+    /** @description One array of ErrorLogResponse per domain, keyed by domain name. */
+    ConsoleErrorsResponse: {
+      profile?: components["schemas"]["ErrorLogResponse"][];
+      wealth?: components["schemas"]["ErrorLogResponse"][];
+      health?: components["schemas"]["ErrorLogResponse"][];
+      household?: components["schemas"]["ErrorLogResponse"][];
     };
   };
   responses: never;
@@ -2383,6 +2444,82 @@ export interface operations {
       200: {
         content: {
           "application/json": components["schemas"]["ProfileResponse"];
+        };
+      };
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+    };
+  };
+  /**
+   * Live status of all Suchika services
+   * @description Polls each service's real /q/health and reads its PID-registry file (~/.suchika/run/<service>.pid). 404s when suchika.console.enabled=false.
+   */
+  getConsoleStatus: {
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ServiceStatusResponse"][];
+        };
+      };
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+    };
+  };
+  /** Start one service via run-local.ps1/.sh -Service <name> */
+  startConsoleService: {
+    parameters: {
+      path: {
+        name: string;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ServiceActionResponse"];
+        };
+      };
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+    };
+  };
+  /** Stop one service via stop-local.ps1/.sh -Service <name> */
+  stopConsoleService: {
+    parameters: {
+      path: {
+        name: string;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ServiceActionResponse"];
+        };
+      };
+      400: external["shared.yaml"]["components"]["responses"]["BadRequest"];
+      404: external["shared.yaml"]["components"]["responses"]["NotFound"];
+      500: external["shared.yaml"]["components"]["responses"]["InternalError"];
+    };
+  };
+  /**
+   * Aggregated application errors across all four domains
+   * @description Fans out GET /v1/errors to profile, wealth, health, and household and combines the results (ADR-013 aggregation pattern). A domain that is unreachable contributes an entry describing the failure instead of failing the whole call.
+   */
+  getConsoleErrors: {
+    parameters: {
+      query?: {
+        since?: string;
+        limit?: number;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ConsoleErrorsResponse"];
         };
       };
       404: external["shared.yaml"]["components"]["responses"]["NotFound"];

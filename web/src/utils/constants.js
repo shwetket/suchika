@@ -51,6 +51,11 @@ export const API_ENDPOINTS = {
   // Health domain
   VITALS: '/v1/vitals',
   DOCTOR_VISITS: '/v1/doctor-visits',
+
+  // Application Console (admin-only, gated by suchika.console.enabled — Phase 4)
+  CONSOLE_STATUS: '/v1/console/status',
+  CONSOLE_SERVICES: '/v1/console/services',
+  CONSOLE_ERRORS: '/v1/console/errors',
 };
 
 export const STORAGE_KEYS = {

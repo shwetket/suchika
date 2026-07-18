@@ -1,12 +1,32 @@
 package com.suchika.shared.logging;
 
 import io.quarkus.logging.Log;
+import org.jboss.logging.Logger;
 
 /**
  * Application-wide logger utility.
  * Wraps Quarkus Log for consistent logging across all domains.
+ *
+ * <p>Exactly 4 logging conventions are supported project-wide — INFO, WARNING,
+ * ERROR, HEALTH — with no DEBUG level anywhere. See
+ * {@code documents/LOGGING_AND_EXCEPTIONS.md} for the full convention writeup,
+ * including why {@link #health(String, Object...)} is a separate log category
+ * rather than a new {@code java.util.logging.Level}.
  */
 public class AppLogger {
+
+    /**
+     * Dedicated category for HEALTH-convention events (service lifecycle,
+     * startup/shutdown, health-probe activity) — deliberately a distinct
+     * {@link Logger} instance from the one {@code io.quarkus.logging.Log}
+     * resolves for the rest of this class, so HEALTH events are filterable
+     * by category (%c{3.} in every application.properties log format) without
+     * inventing a custom log Level. Logs at INFO severity.
+     *
+     * <p>Not to be confused with the unrelated "health" domain (vitals, doctor
+     * visits) — this category is about service/operational health.
+     */
+    private static final Logger HEALTH_LOGGER = Logger.getLogger("com.suchika.health");
 
     private AppLogger() {
         // Utility class, not instantiable
@@ -27,17 +47,19 @@ public class AppLogger {
     }
 
     /**
-     * Log debug message.
+     * Log a HEALTH-convention event (service lifecycle / startup / shutdown /
+     * health-probe) at INFO severity, under the dedicated "com.suchika.health"
+     * category.
      */
-    public static void debug(String message) {
-        Log.debug(message);
+    public static void health(String message) {
+        HEALTH_LOGGER.info(message);
     }
 
     /**
-     * Log debug message with parameters.
+     * Log a HEALTH-convention event with parameters.
      */
-    public static void debug(String message, Object... params) {
-        Log.debugf(message, params);
+    public static void health(String message, Object... params) {
+        HEALTH_LOGGER.infof(message, params);
     }
 
     /**

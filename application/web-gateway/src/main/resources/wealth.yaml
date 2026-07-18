@@ -22,6 +22,8 @@ tags:
     description: Ledger transactions and expense categorization
   - name: PhysicalAssets
     description: Vehicle and other physical asset registry with compliance tracking
+  - name: Errors
+    description: Application Console diagnostic error feed (Phase 4, ADR-023)
   - name: GoalPlans
     description: >
       ADR-022 Phase 1 — richer financial goal model. Admin-scoped (not
@@ -1109,6 +1111,51 @@ paths:
           description: Insurance policy deactivated successfully
         '404':
           $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  # ============================================================
+  # ERROR LOG (Phase 4 Application Console, ADR-023)
+  # ============================================================
+
+  /v1/errors:
+
+    get:
+      tags: [Errors]
+      operationId: listErrors
+      summary: List recorded application errors for this service
+      description: >
+        Admin-only diagnostic feed backing the Application Console. Every
+        ApplicationException handled by this service is recorded here.
+        Separate from wealth.upload_error_log (CSV-upload-specific, exposed
+        via GET /v1/accounts/{account_id}/uploads/{upload_id}/errors). Not
+        scoped to profile_id — this is an operational log, not member-owned
+        business data.
+      parameters:
+        - name: since
+          in: query
+          required: false
+          description: ISO-8601 instant — only errors recorded at or after this time.
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          required: false
+          description: Max rows to return (default 50, capped at 500).
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ErrorLogResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
         '500':
           $ref: './shared.yaml#/components/responses/InternalError'
 
@@ -2332,3 +2379,23 @@ components:
           type: integer
           description: Total number of insurance policies matching the filter.
 
+
+    # ----------------------------------------------------------
+    # ERROR LOG (Phase 4 Application Console, ADR-023)
+    # ----------------------------------------------------------
+
+    ErrorLogResponse:
+      type: object
+      properties:
+        error_code:
+          type: string
+        http_status:
+          type: integer
+        message:
+          type: string
+        details:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time

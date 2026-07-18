@@ -26,30 +26,44 @@ After any script change:
 **My files — I own and maintain:**
 ```
 scripts/
+├── services.json           Single source of truth: ports, schemas, gradle tasks, DB password fallback, version floors
+├── config.ps1               Internal: loads services.json for PowerShell scripts
+├── config.sh                 Internal: loads services.json for bash scripts (grep -oP, no jq)
+├── service-registry.ps1     Internal: PID-file registry functions (PowerShell)
+├── service-registry.sh       Internal: PID-file registry functions (bash)
 ├── build-local.ps1         Full pre-commit verification
 ├── build-local.sh          Same, bash version
 ├── build-service.ps1       Internal: build one service
 ├── check-prerequisites.ps1 Verify all tools installed
 ├── check-prerequisites.sh  Same, bash version
 ├── check-migrations-location.sh  Git pre-commit hook
-├── clean-all.ps1           Nuclear clean (git-untracked files)
+├── check-ps1-bom.sh        Git pre-commit hook: all scripts/*.ps1 must carry a UTF-8 BOM
+├── clean-all.ps1           Nuclear clean (git-untracked files) -- Windows only, see SCRIPTS.md for why
 ├── clean-builds.ps1        Safe clean (Gradle + React outputs only)
 ├── db-reset.ps1            Drop + recreate app_db
 ├── db-shell.ps1            Open psql shell
-├── db-start.ps1            Ensure PostgreSQL is running
+├── db-start.ps1            Ensure PostgreSQL is running -- Windows only, see SCRIPTS.md for why
 ├── dev-aliases.ps1         ← PRIMARY developer interface — dot-source this
-├── dev-service.ps1         Internal: open new terminal with quarkusDev/npm
+├── dev-service.ps1         Internal: open new terminal with quarkusDev/npm; registers PID async
 ├── generate-api.ps1        Regenerate web/src/api/generated.ts
-├── health-check.ps1        HTTP/TCP health of all services
+├── health-check.ps1        Real /q/health of all backend services + PostgreSQL TCP check
 ├── health-check.sh         Same, bash version
 ├── lnav.ps1                Live log viewer (all services)
 ├── logs.ps1                Tail build/test logs from .temp/logs/
-├── setup-dev.ps1           First-time developer setup
+├── run-local.ps1           Headless start, ALL 6 services, no GUI windows (alias: rl)
+├── run-local.sh            Same, bash version (thin wrapper around dev-all -- bash already headless)
+├── setup-dev.ps1           First-time developer setup -- Windows only, see SCRIPTS.md for why
 ├── sonar-scan.ps1          Run SonarQube analysis + open dashboard
 ├── sonar-start.ps1         Start SonarQube server
-├── stop-all.ps1            Kill all services by port
+├── stop-all.ps1            Kill all services (PID registry first, port-based fallback)
+├── stop-local.ps1          Stop what run-local started (alias: sl; thin wrapper around stop-all.ps1)
+├── stop-local.sh           Same, bash version (thin wrapper around stop-all())
 └── test-service.ps1        Internal: run tests for one service
 ```
+
+`documentWriter.py` (previously in this directory) was deleted 2026-07-13 — it was unmaintained,
+undocumented, had no dry-run gate, and the `document-writer` subagent already covers its job
+properly. See `documents/SCRIPTS.md`'s "Removed" note for the full history.
 
 **I do NOT touch:**
 - `application/domain/**/` Java source (domain, ports, adapters)
@@ -62,6 +76,9 @@ scripts/
 
 ### Services and Ports
 
+**Canonical source: `scripts/services.json`** — the table below is a convenience summary; if it
+ever disagrees with `services.json`, `services.json` wins (and this table is stale, fix it).
+
 | Service | Port | Gradle task | Alias |
 |---|---|---|---|
 | profile | 8081 | `:application:domain:profile:adapters:quarkusDev` | `dp` |
@@ -72,20 +89,27 @@ scripts/
 | frontend | 3000 | `npm start` (in web/) | `dwb` |
 
 **Startup order is mandatory:** profile → wealth/health/household → gateway → frontend.
-`dev-all` (`da`) handles this automatically with a health wait on port 8081.
+`dev-all` (`da`) handles this automatically, waiting on profile's real `/q/health` (not port 8081
+alone) before starting the rest.
 
 ### Database
 
 | Item | Value |
 |---|---|
-| Engine | PostgreSQL 18 |
+| Engine (local Windows install) | PostgreSQL 18 |
+| Engine (CI / Codespaces container) | PostgreSQL 16 (`postgres:16` in `ci.yml`, `.devcontainer/docker-compose.yml`) |
 | Database | `app_db` |
 | Schemas | `profile`, `wealth`, `health`, `household`, `projections` |
 | App user | `app_user` |
 | Superuser | `postgres` |
-| psql path | `C:\Program Files\PostgreSQL\18\bin\psql.exe` |
+| psql path (Windows fallback) | `C:\Program Files\PostgreSQL\18\bin\psql.exe` (from `scripts/services.json`'s `database.psqlWindowsPath`) |
 | Bootstrap | `application/flyway/00_bootstrap.sql` (run once manually) |
 | .env | `application/finance/.env` (from `infrastructure/local/.env.template`) |
+
+**Known drift, flagged not fixed:** local Windows dev runs Postgres 18, CI and Codespaces run
+Postgres 16. This predates the 2026-07-13 platform-improvements pass and is out of scope for it —
+noting it here so it doesn't get silently "fixed" into inconsistency later by someone assuming the
+version numbers should already match.
 
 ### SonarQube
 
@@ -252,10 +276,14 @@ Key rules:
 
 ### Service won't start (port conflict)
 ```powershell
-status                               # which ports are occupied
-sa                                   # stop-all to clear all ports
+status                               # which ports are occupied (real /q/health, not /q/openapi)
+sa                                   # stop-all: kills via PID registry first, port-based fallback
 Get-NetTCPConnection -LocalPort 8082 # check specific port
 ```
+If `sa` reports a service as "not running" but the port is still occupied, the PID registry entry
+(`~/.suchika/run/<service>.pid`) may be stale or missing (e.g. something was started outside the
+dev scripts) — `stop-all` falls back to port-based killing automatically in that case, so this
+should be self-healing; if not, kill the PID `Get-NetTCPConnection` reports directly.
 
 ### Database connection refused
 ```powershell
@@ -299,9 +327,12 @@ dp          # start profile to run migrations
 When adding or modifying scripts:
 ```
 □ Script follows the standard pattern (header, root var, color helpers)
+□ Reads ports/schemas/passwords/version floors from config.ps1/.sh -- no new hardcoded literals
+□ .ps1 files saved with a UTF-8 BOM (check-ps1-bom.sh enforces this on commit -- verify locally first)
 □ Destructive operations have -Force gate
 □ Script is wired into dev-aliases.ps1 if user-facing
 □ help-dev table updated
 □ documents/SCRIPTS.md updated with new entry
+□ If no bash equivalent exists (or vice versa), the reason is written down in SCRIPTS.md, not left implicit
 □ Tested with . .\scripts\dev-aliases.ps1 && <new-alias>
 ```

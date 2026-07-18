@@ -12,6 +12,7 @@ Document the actual, current implementation status for the household domain — 
 
 ---
 
+**Last updated:** 2026-07-13 (Phase 4 Application Console: new `household.error_log` table (`V2__error_log.sql`) + `GET /v1/errors?since=&limit=` — general application-error log, populated by a new shared `ErrorLogRecorder` port that `ApplicationExceptionMapper` calls after logging every `ApplicationException` (ADR-023). Full domain/ports/adapters vertical slice — `ErrorLog`, `ErrorLogRepository`/`ErrorLogUseCase`, `ErrorLogEntity`/`ErrorLogDao`/`ErrorLogPanacheRepository`/`ErrorLogService`/`ErrorLogResource`. Wired into the gateway's new `GET /v1/console/errors` aggregation behind `suchika.console.enabled` (default false).)
 **Last updated:** 2026-07-11 (repeatable test-seed data added — see Open Issues flag; no household-specific feature work in this pass)
 **Last updated (2026-07-08):** v0.5.1 Workstream 2 Tier A — `profile_id` enforcement on list endpoints
 **Version:** Backend + gateway + frontend complete since v0.3; carried through v0.4 (no household-specific work)/v0.5 (Phases 0, 2, 3)/v0.6 (one copy-note change)/pre-v1.0 Q54 pagination pass (2026-07-07)/v0.5.1 Workstream 2 Tier A (2026-07-08). No other open feature work. Next planned milestone touching this domain is v1.0 (auth/persistence, cross-cutting — see `documents/ROADMAP.md`).
@@ -128,6 +129,19 @@ Source: `application/flyway/household/V1__init_household_consolidated.sql`, read
 | notes | TEXT | nullable |
 | created_at | TIMESTAMPTZ | NOT NULL DEFAULT now() |
 
+### `household.error_log` (**NEW `V2__error_log.sql`, 2026-07-13, Phase 4 Application Console, ADR-023**)
+
+| Column | Type | Constraints |
+|---|---|---|
+| id | UUID | PK, DEFAULT gen_random_uuid() |
+| error_code | VARCHAR(50) | NOT NULL |
+| http_status | INT | NOT NULL |
+| message | VARCHAR(500) | NOT NULL |
+| details | VARCHAR(1000) | nullable |
+| created_at | TIMESTAMPTZ | NOT NULL DEFAULT now(); indexed |
+
+Not `profile_id`-scoped — general application-error log (operational/audit data, not member data).
+
 ---
 
 ## API Contract
@@ -152,6 +166,7 @@ File: `application/contract/household.yaml` · Base URL: `http://localhost:8084`
 | PATCH | /v1/goals/{id} | Partial update |
 | DELETE | /v1/goals/{id} | Delete |
 | PUT | /v1/goals/{id}/current-amount | Update current_amount (called by the gateway projection engine only — not intended for direct client use) |
+| GET | /v1/errors | **NEW 2026-07-13, Phase 4 (ADR-023):** list this service's general application errors, `since=`/`limit=` (default 50, capped 500), newest first. Aggregated across all 4 domains via the gateway's `GET /v1/console/errors`. |
 
 `page`/`size` are the shared `Page`/`Size` OpenAPI params (`application/contract/shared.yaml`): 0-indexed page, default size 50, max 200. All three `ListXxxResponse` bodies include `total_size` (grand total across all pages), `page`, and `size`.
 
@@ -175,6 +190,7 @@ File: `application/contract/household.yaml` · Base URL: `http://localhost:8084`
 | Gateway projection engine | `application/web-gateway/src/main/java/com/suchika/gateway/projection/ProjectionCalculationEngine.java` (2 of 12 steps; see Retrospective item 2) |
 | Vacation Planner (gateway-native, not household code) | `application/web-gateway/src/main/java/com/suchika/gateway/vacationplanner/` |
 | Frontend pages | `web/src/pages/Household/` — `Calendar.js`, `Inventory.js`, `Goals.js`, `VacationPlanner.js` (household data); `Profiles.js` (profile-domain data, grouped here for nav UX only — see Retrospective item 6) |
+| Error log (Phase 4) | `ErrorLog.java` (domain), `ErrorLogRepository`/`ErrorLogUseCase` (ports), `ErrorLogEntity`/`ErrorLogDao`/`ErrorLogPanacheRepository`/`ErrorLogService`/`ErrorLogResource` (adapters). **⚠ Pending consolidation (ADR-023 revision, 2026-07-13, not yet implemented):** this slice is byte-for-byte identical across all 4 domains — `ErrorLog`/`ErrorLogUseCase`/`ErrorLogRepository` move to `shared/` (new `com.suchika.shared.errorlog` package), resource/repository/service logic move to a new `shared-adapter` module as abstract base classes; only `ErrorLogEntity`/`ErrorLogDao` + thin concrete subclasses stay here. |
 
 ---
 

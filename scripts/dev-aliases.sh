@@ -12,33 +12,48 @@
 # in the background and watch with lnav-dev.
 
 ROOT="$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel 2>/dev/null || echo "$PWD")"
-LOG_DIR="$HOME/.suchika/logs"
-mkdir -p "$LOG_DIR"
+
+# Single source of truth for ports/schemas/gradle wiring (scripts/services.json)
+# and the PID-file service registry -- both shared with dev-service.ps1 /
+# stop-all.ps1 / health-check.ps1 on the Windows side.
+. "$ROOT/scripts/config.sh"
+. "$ROOT/scripts/service-registry.sh"
+LOG_DIR="$SUCHIKA_LOG_DIR"
 
 # ── Internal helper ───────────────────────────────────────────────────────────
 
 _dev_svc() {
-  local svc="$1" task="$2"
-  local log="$LOG_DIR/$svc.log"
+  local svc="$1"
+  local task port log
+  task=$(suchika_svc_field "$svc" devTask)
+  port=$(suchika_svc_field "$svc" port)
+  log="$LOG_DIR/$svc.log"
   echo "==> Starting $svc... (log: $log)"
   (cd "$ROOT" && ./gradlew "$task" >> "$log" 2>&1) &
   disown
-  echo "  PID $! started for $svc"
+  echo "  PID $! (shell wrapper) started for $svc -- resolving real server PID in background"
+  # The backgrounded PID above is the gradlew wrapper, not the eventual java.exe
+  # process Gradle forks. Register the real one once the port actually binds
+  # (see service-registry.sh) so stop-all/status can act on the right process.
+  suchika_register_service_async "$svc" "$port"
 }
 
 # ── Dev mode (background) ─────────────────────────────────────────────────────
 
-dev-profile()   { _dev_svc profile   ":application:domain:profile:adapters:quarkusDev"; }
-dev-wealth()    { _dev_svc wealth    ":application:domain:wealth:adapters:quarkusDev"; }
-dev-health()    { _dev_svc health    ":application:domain:health:adapters:quarkusDev"; }
-dev-household() { _dev_svc household ":application:domain:household:adapters:quarkusDev"; }
-dev-gateway()   { _dev_svc gateway   ":application:web-gateway:quarkusDev"; }
+dev-profile()   { _dev_svc profile; }
+dev-wealth()    { _dev_svc wealth; }
+dev-health()    { _dev_svc health; }
+dev-household() { _dev_svc household; }
+dev-gateway()   { _dev_svc gateway; }
 dev-web()       {
-  local log="$LOG_DIR/web.log"
+  local port log
+  port=$(suchika_svc_field web port)
+  log="$LOG_DIR/web.log"
   echo "==> Starting frontend... (log: $log)"
   (cd "$ROOT/web" && npm start >> "$log" 2>&1) &
   disown
-  echo "  PID $! started for web"
+  echo "  PID $! (shell wrapper) started for web -- resolving real server PID in background"
+  suchika_register_service_async web "$port"
 }
 
 alias dp='dev-profile'
@@ -49,23 +64,42 @@ alias dg='dev-gateway'
 alias dwb='dev-web'
 
 dev-all() {
+  local profile_port gateway_port
+  profile_port=$(suchika_svc_field profile port)
+  gateway_port=$(suchika_svc_field gateway port)
   echo "==> Starting all services in dependency order..."
   dev-profile
-  echo "  Waiting for profile (8081)..."
-  timeout 120 bash -c 'until curl -sf http://localhost:8081/q/openapi >/dev/null 2>&1; do sleep 3; done' \
+  echo "  Waiting for profile ($profile_port)..."
+  # Real /q/health (quarkus-smallrye-health), not /q/openapi -- a 5xx here now
+  # correctly counts as "not ready" instead of being treated as UP.
+  timeout 120 bash -c "until curl -sf http://localhost:$profile_port/q/health >/dev/null 2>&1; do sleep 3; done" \
     && echo "  Profile ready" || echo "  Timeout — check log: $LOG_DIR/profile.log"
   dev-wealth; dev-health; dev-household
   sleep 5
   dev-gateway
-  echo "  Waiting for gateway (8080)..."
-  timeout 60 bash -c 'until curl -sf http://localhost:8080/q/openapi >/dev/null 2>&1; do sleep 3; done' \
+  echo "  Waiting for gateway ($gateway_port)..."
+  timeout 60 bash -c "until curl -sf http://localhost:$gateway_port/q/health >/dev/null 2>&1; do sleep 3; done" \
     && echo "  Gateway ready" || echo "  Timeout — check log: $LOG_DIR/gateway.log"
   dev-web
   echo ""
   echo "  All services started. Watch logs: lnav-dev"
-  echo "  Frontend: http://localhost:3000"
+  echo "  Frontend: http://localhost:$(suchika_svc_field web port)"
 }
 alias da='dev-all'
+
+# ── Headless run (no GUI windows -- "I just want it running") ─────────────────
+# On bash dev-all above is already headless (backgrounded, no window concept in a
+# Codespaces/Linux terminal), so these are thin wrappers -- kept as their own named
+# commands purely for surface parity with Windows's run-local.ps1/stop-local.ps1,
+# where run-local genuinely needed new logic (Windows normally opens a GUI window
+# per service). See scripts/run-local.sh / stop-local.sh.
+
+run-local()  { bash "$ROOT/scripts/run-local.sh" "$@"; }
+stop-local() { bash "$ROOT/scripts/stop-local.sh" "$@"; }
+# "stopl", not "sl" -- kept consistent with the PowerShell side, where "sl" is
+# PowerShell's own built-in Set-Location alias and can't be reused.
+alias rl='run-local'
+alias stopl='stop-local'
 
 # ── Build ─────────────────────────────────────────────────────────────────────
 
@@ -128,13 +162,35 @@ alias gapi='generate-api'
 status() { bash "$ROOT/scripts/health-check.sh"; }
 
 stop-all() {
-  echo "Stopping all services..."
-  for port in 3000 8080 8081 8082 8083 8084; do
+  # Optional $1 scopes the same registry-first/port-fallback kill loop to one
+  # named service instead of all of them (used by stop-local <svc>). Omitting
+  # it keeps the existing "stop everything" behavior as the default.
+  local only="${1:-}"
+  if [ -n "$only" ]; then
+    echo "Stopping $only..."
+  else
+    echo "Stopping all services..."
+  fi
+  local svc port pid
+  for svc in $(suchika_service_names); do
+    if [ -n "$only" ] && [ "$svc" != "$only" ]; then
+      continue
+    fi
+    port=$(suchika_svc_field "$svc" port)
+    # PID registry first (see service-registry.sh) -- falls back to today's
+    # port-based kill only if no valid registered PID exists.
+    pid=$(suchika_get_running_pid "$svc" 2>/dev/null)
+    if [ -n "$pid" ]; then
+      kill "$pid" 2>/dev/null
+      suchika_remove_service_pid "$svc"
+      echo "  Killed $svc (PID $pid, port $port)  [registry]"
+      continue
+    fi
     local pids
     pids=$(lsof -ti tcp:"$port" 2>/dev/null)
     if [ -n "$pids" ]; then
       echo "$pids" | xargs kill 2>/dev/null
-      echo "  Killed port $port"
+      echo "  Killed $svc (port $port)  [port fallback]"
     fi
   done
 }
@@ -147,13 +203,14 @@ check() { bash "$ROOT/scripts/check-prerequisites.sh"; }
 db-shell() {
   local host="${PGHOST:-localhost}"
   # Same fallback chain as db-reset.ps1: PGPASSWORD, else POSTGRES_PASSWORD, else the
-  # 00_bootstrap.sql / docker-compose default. Set PGPASSWORD yourself if your local
-  # postgres superuser password differs (it will, on a natively-installed Postgres).
-  local admin_pw="${PGPASSWORD:-${POSTGRES_PASSWORD:-local_dev_only}}"
+  # scripts/services.json default (mirrors 00_bootstrap.sql / docker-compose). Set
+  # PGPASSWORD yourself if your local postgres superuser password differs (it will,
+  # on a natively-installed Postgres).
+  local admin_pw="${PGPASSWORD:-${POSTGRES_PASSWORD:-$SUCHIKA_DB_PASSWORD_FALLBACK}}"
   if [[ "$1" == "-AsAdmin" ]]; then
     PGPASSWORD="$admin_pw" psql -h "$host" -U postgres app_db
   else
-    PGPASSWORD="${DB_PASSWORD:-local_dev_only}" psql -h "$host" -U app_user app_db
+    PGPASSWORD="${DB_PASSWORD:-$SUCHIKA_DB_PASSWORD_FALLBACK}" psql -h "$host" -U app_user app_db
   fi
 }
 
@@ -164,8 +221,8 @@ db-reset() {
   fi
   local host="${PGHOST:-localhost}"
   # Same fallback chain as db-reset.ps1: PGPASSWORD, else POSTGRES_PASSWORD, else the
-  # 00_bootstrap.sql / docker-compose default.
-  local admin_pw="${PGPASSWORD:-${POSTGRES_PASSWORD:-local_dev_only}}"
+  # scripts/services.json default.
+  local admin_pw="${PGPASSWORD:-${POSTGRES_PASSWORD:-$SUCHIKA_DB_PASSWORD_FALLBACK}}"
   PGPASSWORD="$admin_pw" psql -h "$host" -U postgres \
     -c "DROP DATABASE IF EXISTS app_db;" \
     -c "CREATE DATABASE app_db;"
@@ -234,6 +291,12 @@ cat << 'EOF'
   status  health        db-shell       logs [svc]
   sa      stop-all      db-reset       lnav-dev [svcs]
   check   prereqs       db-shell -AsAdmin
+
+  HEADLESS RUN (rl/stopl) -- same as da/sa on bash (already headless); the pair
+  exists for command-surface parity with Windows, where run-local genuinely differs
+  from dev-all (no GUI window at all vs. one per service):
+  rl    run-local  -- start everything headlessly, wait for real /q/health
+  stopl stop-local -- stop everything run-local started
 
   NOTE: sonar-scan needs pwsh + a local SonarQube server -- not run in Codespaces
         (see CLAUDE.md). db-reset/db-shell -AsAdmin need the REAL postgres

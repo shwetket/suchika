@@ -5,6 +5,11 @@ pluginManagement {
     }
 }
 
+plugins {
+    // Auto-provisions a matching JDK (e.g. 25) if one isn't already installed locally.
+    id("org.gradle.toolchains.foojay-resolver-convention") version "0.8.0"
+}
+
 rootProject.name = "suchika"
 
 // Backend domain modules - Hexagonal architecture with nested modules
@@ -27,5 +32,6 @@ include(
 // Shared + infrastructure
 include(
     "infrastructure",
-    "shared"
+    "shared",
+    "shared-adapter"
 )

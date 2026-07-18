@@ -18,6 +18,7 @@ describe('AuthContext', () => {
     localStorage.clear();
     jest.clearAllMocks();
     jest.spyOn(console, 'error').mockImplementation(() => {});
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
     adminsApi.listAdmins.mockResolvedValue({ admins: [], total_size: 0 });
     profilesApi.listProfiles.mockResolvedValue({ profiles: [], total_size: 0 });
   });
@@ -307,6 +308,19 @@ describe('AuthContext', () => {
       });
       const stored = JSON.parse(localStorage.getItem('user'));
       expect(stored.admin_id).toBe('demo-admin-id');
+
+      // Confirms the fallback path is routed through utils/logger.js's warn()
+      // (not a bare console.warn) — both admins and profiles lookups fail here.
+      expect(console.warn).toHaveBeenCalledWith(
+        '[AuthContext.login]',
+        'Falling back to demo mode for admins due to error:',
+        expect.any(Error)
+      );
+      expect(console.warn).toHaveBeenCalledWith(
+        '[AuthContext.login]',
+        'Falling back to demo mode for profiles due to error:',
+        expect.any(Error)
+      );
     });
   });
 

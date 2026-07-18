@@ -41,6 +41,12 @@ tags:
       Gateway-native cross-domain compute (v0.5 Phase 2) — trip budget check
       against liquid savings and vehicle compliance check against trip dates.
       Not a proxy for a single domain resource.
+  - name: Console
+    description: >
+      Admin-only Application Console (Phase 4, ADR-023) — live service status,
+      start/stop controls, and an aggregated error feed across all four
+      domains. Gated behind suchika.console.enabled (default false); every
+      endpoint below 404s while the flag is off.
 
 paths:
 
@@ -1782,6 +1788,120 @@ paths:
         '500':
           $ref: './shared.yaml#/components/responses/InternalError'
 
+  # ============================================================
+  # APPLICATION CONSOLE (Phase 4, ADR-023)
+  # ============================================================
+
+  /v1/console/status:
+
+    get:
+      tags: [Console]
+      operationId: getConsoleStatus
+      summary: Live status of all Suchika services
+      description: >
+        Polls each service's real /q/health and reads its PID-registry file
+        (~/.suchika/run/<service>.pid). 404s when suchika.console.enabled=false.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ServiceStatusResponse'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/console/services/{name}/start:
+
+    post:
+      tags: [Console]
+      operationId: startConsoleService
+      summary: Start one service via run-local.ps1/.sh -Service <name>
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceActionResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/console/services/{name}/stop:
+
+    post:
+      tags: [Console]
+      operationId: stopConsoleService
+      summary: Stop one service via stop-local.ps1/.sh -Service <name>
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceActionResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/console/errors:
+
+    get:
+      tags: [Console]
+      operationId: getConsoleErrors
+      summary: Aggregated application errors across all four domains
+      description: >
+        Fans out GET /v1/errors to profile, wealth, health, and household and
+        combines the results (ADR-013 aggregation pattern). A domain that is
+        unreachable contributes an entry describing the failure instead of
+        failing the whole call.
+      parameters:
+        - name: since
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsoleErrorsResponse'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
 components:
 
   parameters:
@@ -3131,3 +3251,96 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/StatementUploadResponse'
+
+    # ----------------------------------------------------------
+    # APPLICATION CONSOLE (Phase 4, ADR-023)
+    # ----------------------------------------------------------
+
+    PidRecordResponse:
+      type: object
+      nullable: true
+      description: Null when no PID-registry record exists for this service.
+      properties:
+        pid:
+          type: integer
+        process_name:
+          type: string
+        port:
+          type: integer
+        service:
+          type: string
+        started_at:
+          type: string
+
+    ServiceStatusResponse:
+      type: object
+      properties:
+        name:
+          type: string
+        port:
+          type: integer
+        kind:
+          type: string
+          enum:
+            - backend
+            - frontend
+        status:
+          type: string
+          enum:
+            - UP
+            - DOWN
+        pid:
+          $ref: '#/components/schemas/PidRecordResponse'
+
+    ServiceActionResponse:
+      type: object
+      properties:
+        service:
+          type: string
+        action:
+          type: string
+        status:
+          type: string
+          enum:
+            - OK
+            - FAILED
+            - TIMEOUT
+        output:
+          type: string
+
+    ErrorLogResponse:
+      type: object
+      properties:
+        error_code:
+          type: string
+        http_status:
+          type: integer
+        message:
+          type: string
+        details:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    ConsoleErrorsResponse:
+      type: object
+      description: One array of ErrorLogResponse per domain, keyed by domain name.
+      properties:
+        profile:
+          type: array
+          items:
+            $ref: '#/components/schemas/ErrorLogResponse'
+        wealth:
+          type: array
+          items:
+            $ref: '#/components/schemas/ErrorLogResponse'
+        health:
+          type: array
+          items:
+            $ref: '#/components/schemas/ErrorLogResponse'
+        household:
+          type: array
+          items:
+            $ref: '#/components/schemas/ErrorLogResponse'

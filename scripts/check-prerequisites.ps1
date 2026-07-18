@@ -1,7 +1,15 @@
 ﻿# Checks that all tools required to build and run Suchika are present and at the right version.
 # Run before the first build or after a fresh machine setup.
+# Java/Node version floors come from scripts/services.json (single source of
+# truth) via config.ps1 -- do not hardcode them here.
 # Usage: .\scripts\check-prerequisites.ps1
 $ErrorActionPreference = "Continue"  # don't stop on individual check failures
+
+. "$PSScriptRoot\config.ps1"
+$javaFloor = $SuchikaVersionFloors.javaHardFailBelow
+$javaTarget = $SuchikaVersionFloors.javaTarget
+$nodeFloor = $SuchikaVersionFloors.nodeHardFailBelow
+$nodeTarget = $SuchikaVersionFloors.nodeTarget
 
 $pass = 0; $fail = 0; $warn = 0
 
@@ -30,19 +38,19 @@ if (CommandExists git) {
 }
 
 # ── Java ──────────────────────────────────────────────────────────────────────
-Write-Host "`nJava (required: 21+)" -ForegroundColor White
+Write-Host "`nJava (required: $javaFloor+, target: $javaTarget)" -ForegroundColor White
 if (CommandExists java) {
     $javaOut = (java -version 2>&1) | Out-String
     $maj, $_ = ExtractVersion $javaOut
-    if ($maj -ge 21) {
+    if ($maj -ge $javaTarget) {
         OK "Java $maj (matches CI)"
-    } elseif ($maj -ge 17) {
-        Warn "Java $maj found -- CI uses Java 21; upgrade to avoid CI/local divergence"
+    } elseif ($maj -ge $javaFloor) {
+        Warn "Java $maj found -- CI/build.gradle.kts target Java $javaTarget; upgrade to avoid CI/local divergence"
     } else {
-        Fail "Java $maj found -- need 21+. Install Temurin 21: https://adoptium.net"
+        Fail "Java $maj found -- Java below $javaFloor is no longer supported. Install Temurin $javaTarget`: https://adoptium.net"
     }
 } else {
-    Fail "java not found -- install Temurin 21: https://adoptium.net"
+    Fail "java not found -- install Temurin $javaTarget`: https://adoptium.net"
 }
 
 if (CommandExists javac) {
@@ -63,19 +71,19 @@ if (Test-Path "$root\gradlew.bat") {
 }
 
 # ── Node.js ───────────────────────────────────────────────────────────────────
-Write-Host "`nNode.js (required: 20+, CI uses 24)" -ForegroundColor White
+Write-Host "`nNode.js (required: $nodeFloor+, CI uses $nodeTarget)" -ForegroundColor White
 if (CommandExists node) {
     $nodeVer = (node --version) -replace 'v',''
     $maj, $_ = ExtractVersion $nodeVer
-    if ($maj -ge 24) {
+    if ($maj -ge $nodeTarget) {
         OK "Node.js $nodeVer (matches CI)"
-    } elseif ($maj -ge 20) {
-        Warn "Node.js $nodeVer -- works locally, but CI uses Node 24; upgrade if you hit CI failures"
+    } elseif ($maj -ge $nodeFloor) {
+        Warn "Node.js $nodeVer -- works locally, but CI uses Node $nodeTarget; upgrade if you hit CI failures"
     } else {
-        Fail "Node.js $nodeVer -- need 20+. Install: https://nodejs.org"
+        Fail "Node.js $nodeVer -- need $nodeFloor+. Install: https://nodejs.org"
     }
 } else {
-    Fail "node not found -- install Node.js 24 LTS: https://nodejs.org"
+    Fail "node not found -- install Node.js $nodeTarget LTS: https://nodejs.org"
 }
 
 # ── npm ───────────────────────────────────────────────────────────────────────
@@ -101,14 +109,14 @@ if (CommandExists psql) {
     Warn "psql not in PATH -- install PostgreSQL 15+: https://www.postgresql.org/download/windows/"
 }
 
-# Check if PostgreSQL is listening on 5432
+# Check if PostgreSQL is listening
 try {
     $tc = New-Object System.Net.Sockets.TcpClient
-    $tc.Connect("localhost", 5432)
+    $tc.Connect("localhost", $SuchikaDb.port)
     $tc.Close()
-    OK "PostgreSQL listening on localhost:5432"
+    OK "PostgreSQL listening on localhost:$($SuchikaDb.port)"
 } catch {
-    Warn "Nothing listening on localhost:5432 -- start PostgreSQL before running any domain service"
+    Warn "Nothing listening on localhost:$($SuchikaDb.port) -- start PostgreSQL before running any domain service"
 }
 
 # ── Optional: curl ────────────────────────────────────────────────────────────

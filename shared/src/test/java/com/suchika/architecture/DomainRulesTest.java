@@ -2,6 +2,7 @@ package com.suchika.architecture;
 
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
+import com.tngtech.archunit.core.importer.ImportOption;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -75,6 +76,7 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 class DomainRulesTest {
 
     private static JavaClasses allClasses;
+    private static JavaClasses nonTestClasses;
 
     @BeforeAll
     static void importClasses() {
@@ -83,6 +85,14 @@ class DomainRulesTest {
         // declare testImplementation(project(":shared")) to run these rules
         // against its own compiled classes.
         allClasses = new ClassFileImporter().importPackages("com.suchika");
+
+        // Same scan, minus test classes (Gradle's build/classes/java/test/... output).
+        // Used by rules that must not flag test-only tooling — e.g. a test class
+        // attaching a java.util.logging.Handler to assert on log level is
+        // verification tooling, not a violation of "use AppLogger in application code".
+        nonTestClasses = new ClassFileImporter()
+            .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
+            .importPackages("com.suchika");
     }
 
 
@@ -388,6 +398,35 @@ class DomainRulesTest {
             .check(allClasses);
     }
 
+    /**
+     * The shared-adapter module (ADR-023 revision, 2026-07-13) must not
+     * import any domain-specific module either. Mirrors {@link
+     * #shared_must_not_depend_on_domain_modules()} exactly, scoped to
+     * {@code com.suchika.sharedadapter..} instead of {@code com.suchika.shared..}.
+     *
+     * <p>Rationale: {@code shared-adapter} holds the abstract base classes
+     * (JAX-RS resource logic, Panache repository/service query logic) that
+     * every domain's own {@code adapters} module subclasses for its {@code
+     * error_log} vertical slice. It must stay just as domain-agnostic as
+     * {@code shared} itself -- parameterized only by generics/abstract
+     * hooks the concrete per-domain subclass supplies, never by importing a
+     * domain's own classes directly.
+     */
+    @Test
+    void shared_adapter_must_not_depend_on_domain_modules() {
+        noClasses()
+            .that().resideInAPackage("com.suchika.sharedadapter..")
+            .should().dependOnClassesThat()
+            .resideInAnyPackage(
+                "com.suchika.profile..",
+                "com.suchika.wealth..",
+                "com.suchika.household..",
+                "com.suchika.health.."
+            )
+            .allowEmptyShould(true)
+            .check(allClasses);
+    }
+
 
     // =========================================================================
     // GROUP 6: LOGGING RULES
@@ -397,28 +436,94 @@ class DomainRulesTest {
     // =========================================================================
 
     /**
-     * Application code must not use raw SLF4J or JUL loggers.
+     * Application code must not use raw SLF4J, JUL, or JBoss Logging loggers.
      * Use {@code com.suchika.shared.logging.AppLogger} instead.
      *
      * <p>Rationale: AppLogger enforces a consistent structured log format
-     * across all domains. Direct SLF4J usage creates ad-hoc log messages
-     * that are harder to parse and correlate in log aggregation tools.
+     * across all domains, and locks in the project's "exactly 4 conventions
+     * — INFO/WARNING/ERROR/HEALTH, no DEBUG" logging rule. Direct logger usage
+     * creates ad-hoc log messages that bypass that convention and are harder
+     * to parse and correlate in log aggregation tools.
      *
-     * <p>Correct: {@code AppLogger.info(this, "Account created", accountId);}
+     * <p>Correct: {@code AppLogger.info("Account created: %s", accountId);}
      * Wrong:     {@code private static final Logger log = LoggerFactory.getLogger(...);}
      *
-     * <p>The shared module itself is exempted — it IS the logger wrapper.
+     * <p>Only {@code AppLogger.java} itself is exempted — it IS the logger
+     * wrapper (it legitimately depends on {@code io.quarkus.logging.Log} and,
+     * for the HEALTH category, {@code org.jboss.logging.Logger}). Every other
+     * production class in {@code com.suchika.shared} (and every domain) must
+     * go through it. Checked against {@link #nonTestClasses} rather than
+     * {@link #allClasses} — test classes are legitimately allowed to attach a
+     * raw {@code java.util.logging.Handler} as verification tooling (e.g.
+     * {@code ApplicationExceptionMapperTest} asserts on log level that way);
+     * that isn't application logging and would otherwise false-positive
+     * (including via ArchUnit-synthesized anonymous inner classes, whose
+     * simple name doesn't end in "Test" and so can't be filtered by a naming
+     * convention — hence the source-set-based exclusion instead).
      */
     @Test
     void application_code_must_not_use_raw_loggers() {
         noClasses()
             .that().resideInAPackage("com.suchika..")
-            .and().resideOutsideOfPackage("com.suchika.shared..")
+            .and().doNotHaveFullyQualifiedName("com.suchika.shared.logging.AppLogger")
             .should().dependOnClassesThat()
             .resideInAnyPackage(
                 "org.slf4j..",
-                "java.util.logging.."
+                "java.util.logging..",
+                "org.jboss.logging.."
             )
+            .allowEmptyShould(true)
+            .check(nonTestClasses);
+    }
+
+    /**
+     * {@code AppLogger} must never declare a method named {@code debug} —
+     * DEBUG level logging is banned project-wide (2026-07 logging convention:
+     * exactly INFO / WARNING / ERROR / HEALTH, nothing else). Confirmed by grep
+     * that zero call sites used it before this rule was added; this locks the
+     * clean state in at compile time.
+     */
+    @Test
+    void app_logger_must_not_declare_a_debug_method() {
+        classes()
+            .that().haveFullyQualifiedName("com.suchika.shared.logging.AppLogger")
+            .should(new com.tngtech.archunit.lang.ArchCondition<com.tngtech.archunit.core.domain.JavaClass>(
+                "not declare a method named 'debug'") {
+                @Override
+                public void check(com.tngtech.archunit.core.domain.JavaClass clazz, com.tngtech.archunit.lang.ConditionEvents events) {
+                    clazz.getMethods().stream()
+                        .filter(method -> "debug".equals(method.getName()))
+                        .forEach(method -> events.add(com.tngtech.archunit.lang.SimpleConditionEvent.violated(method,
+                            "AppLogger must not declare a debug() method — DEBUG level logging is banned project-wide")));
+                }
+            })
+            .allowEmptyShould(true)
+            .check(allClasses);
+    }
+
+    /**
+     * No application class may call a method named {@code debug(...)}, on any
+     * type. Belt-and-suspenders companion to
+     * {@link #app_logger_must_not_declare_a_debug_method()}: even if some other
+     * class introduced its own {@code debug(...)} method (logging or otherwise
+     * named to slip past that rule), calling it from application code is
+     * still a signal that DEBUG-level logging is creeping back in and is
+     * flagged here.
+     */
+    @Test
+    void application_code_must_not_call_debug_methods() {
+        classes()
+            .that().resideInAPackage("com.suchika..")
+            .should(new com.tngtech.archunit.lang.ArchCondition<com.tngtech.archunit.core.domain.JavaClass>(
+                "not call any method named 'debug'") {
+                @Override
+                public void check(com.tngtech.archunit.core.domain.JavaClass clazz, com.tngtech.archunit.lang.ConditionEvents events) {
+                    clazz.getMethodCallsFromSelf().stream()
+                        .filter(call -> "debug".equals(call.getTarget().getName()))
+                        .forEach(call -> events.add(com.tngtech.archunit.lang.SimpleConditionEvent.violated(call,
+                            clazz.getName() + " calls a method named debug() — DEBUG level logging is banned project-wide")));
+                }
+            })
             .allowEmptyShould(true)
             .check(allClasses);
     }

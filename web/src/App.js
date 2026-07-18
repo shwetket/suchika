@@ -19,6 +19,7 @@ import { ActionCenter } from './pages/User/ActionCenter';
 // Admin Pages
 import { PolicySettings } from './pages/Admin/PolicySettings';
 import { Setup as AdminSetup } from './pages/Admin/Setup';
+import { ApplicationConsole } from './pages/Admin/ApplicationConsole';
 
 import {
   Accounts as WealthAccounts,
@@ -227,6 +228,14 @@ function App() {
               element={
                 <ProtectedRoute requiredRole="admin">
                   <PolicySettings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/console"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <ApplicationConsole />
                 </ProtectedRoute>
               }
             />
