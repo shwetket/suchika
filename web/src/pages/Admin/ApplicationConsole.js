@@ -204,7 +204,7 @@ export const ApplicationConsole = () => {
   const invalidateStatus = () => queryClient.invalidateQueries({ queryKey: ['console-status'] });
 
   const startMutation = useMutation({
-    mutationFn: startConsoleService,
+    mutationFn: (name) => startConsoleService(name),
     onSettled: () => {
       setPending(null);
       invalidateStatus();
@@ -212,7 +212,7 @@ export const ApplicationConsole = () => {
   });
 
   const stopMutation = useMutation({
-    mutationFn: stopConsoleService,
+    mutationFn: (name) => stopConsoleService(name),
     onSettled: () => {
       setPending(null);
       invalidateStatus();

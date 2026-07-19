@@ -117,7 +117,7 @@ describe('ApplicationConsole', () => {
     expect(screen.queryByTestId('service-row-profile')).not.toBeInTheDocument();
   });
 
-  it.skip('shows a generic error message on a non-404 status failure', async () => {
+  it('shows a generic error message on a non-404 status failure', async () => {
     const serverError = new Error('boom');
     serverError.status = 500;
     getConsoleStatus.mockRejectedValue(serverError);
@@ -144,7 +144,7 @@ describe('ApplicationConsole', () => {
     });
   });
 
-  it.skip('calls stopConsoleService with the right name and re-fetches status', async () => {
+  it('calls stopConsoleService with the right name and re-fetches status', async () => {
     renderConsole();
     await waitFor(() => screen.getByTestId('service-row-profile'));
 
