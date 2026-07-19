@@ -9,6 +9,7 @@ import { Navigation } from './components/Navigation';
 // Public Pages
 import { Home } from './pages/Public/Home';
 import { About } from './pages/Public/About';
+import { Help } from './pages/Public/Help';
 import { SignIn } from './pages/Public/SignIn';
 import { SignUp } from './pages/Public/SignUp';
 
@@ -78,6 +79,8 @@ function App() {
             {/* Public Routes */}
             <Route path="/" element={<Home />} />
             <Route path="/about" element={<About />} />
+            <Route path="/help" element={<Help />} />
+            <Route path="/help/:docName" element={<Help />} />
             <Route path="/signin" element={<SignIn />} />
             <Route path="/signup" element={<SignUp />} />
 

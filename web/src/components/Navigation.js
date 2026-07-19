@@ -93,6 +93,9 @@ export const Navigation = ({ theme, onToggleTheme }) => {
           <Link to="/" className="text-indigo-100 hover:text-white text-sm font-medium">
             Home
           </Link>
+          <Link to="/help" className="text-indigo-100 hover:text-white text-sm font-medium">
+            Help
+          </Link>
 
           {isAuthenticated && (
             <>

@@ -57,6 +57,22 @@ class ProfileGatewayResourceTest {
                 .thenReturn(mapper.readTree(
                         "{\"admin_id\":\"00000000-0000-0000-0000-000000000001\","
                         + "\"policy_settings\":{\"setup_completed\":\"true\"}}"));
+
+        when(profileServiceClient.getAdmin(UUID.fromString("00000000-0000-0000-0000-000000000001")))
+                .thenReturn(mapper.readTree(
+                        "{\"admin_id\":\"00000000-0000-0000-0000-000000000001\","
+                        + "\"display_name\":\"Test Admin\"}"));
+    }
+
+    @Test
+    void testGetAdmin() {
+        given()
+                .when()
+                .get("/v1/admins/00000000-0000-0000-0000-000000000001")
+                .then()
+                .statusCode(200)
+                .body("admin_id", is("00000000-0000-0000-0000-000000000001"))
+                .body("display_name", is("Test Admin"));
     }
 
     @Test

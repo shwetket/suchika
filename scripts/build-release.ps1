@@ -30,6 +30,14 @@ if (!(Test-Path $gatewayResourcesDir)) {
 }
 Copy-Item -Path "build\*" -Destination $gatewayResourcesDir -Recurse -Force
 
+# 3.5 Copy Documents
+Write-Host "Bundling Documents into Web-Gateway..." -ForegroundColor Cyan
+$gatewayDocsDir = Join-Path $rootDir "application/web-gateway/src/main/resources/documents"
+if (!(Test-Path $gatewayDocsDir)) {
+    New-Item -ItemType Directory -Path $gatewayDocsDir -Force | Out-Null
+}
+Copy-Item -Path "documents\*" -Destination $gatewayDocsDir -Recurse -Force
+
 # 4. Build Quarkus Backends
 Write-Host "Compiling Java Backends (Fast-JAR)..." -ForegroundColor Cyan
 Set-Location -Path $rootDir
@@ -56,6 +64,7 @@ Copy-Item -Path "scripts/release-template/README.txt" -Destination "$releaseDir/
 # 7. Cleanup
 Write-Host "Cleaning up temporary frontend assets from gateway..." -ForegroundColor Cyan
 Remove-Item -Path $gatewayResourcesDir -Recurse -Force
+Remove-Item -Path $gatewayDocsDir -Recurse -Force
 
 Write-Host "Zipping the release..." -ForegroundColor Cyan
 $zipPath = Join-Path $rootDir "suchika-release.zip"

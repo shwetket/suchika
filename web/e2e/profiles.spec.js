@@ -23,7 +23,7 @@ test.describe('Profiles page', () => {
 
     const adminSelect = page.locator('select[name="admin_id"]');
     await expect(adminSelect).toBeVisible();
-    
+
     // Check if we have an admin to select (besides the empty default)
     const adminCount = await adminSelect.locator('option').count();
     if (adminCount > 1) {

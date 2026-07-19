@@ -147,6 +147,27 @@ components:
           description: Human-readable description of the constraint that was violated.
           example: "must not be blank"
 
+    # ----------------------------------------------------------
+    # ERROR LOG (Phase 4 Application Console, ADR-023)
+    # ----------------------------------------------------------
+
+    ErrorLogResponse:
+      type: object
+      properties:
+        error_code:
+          type: string
+        http_status:
+          type: integer
+        message:
+          type: string
+        details:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          minimum: 0
+
   # ============================================================
   # RESPONSES — reference these instead of inline response bodies
   # ============================================================

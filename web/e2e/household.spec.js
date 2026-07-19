@@ -42,7 +42,7 @@ test.describe('Household pages', () => {
       await profilePicker.selectOption({ index: 1 });
       await page.getByRole('button', { name: /add item/i }).click();
       await expect(page.getByRole('heading', { name: 'Add Item' })).toBeVisible();
-      
+
       // Fill in details
       await page.getByPlaceholder('e.g. Milk').fill('E2E Test Milk');
       await page.getByLabel('Category').selectOption('GROCERY');
@@ -70,7 +70,7 @@ test.describe('Household pages', () => {
       await profilePicker.selectOption({ index: 1 });
       await page.getByRole('button', { name: /add goal/i }).click();
       await expect(page.getByRole('heading', { name: 'Add Goal' })).toBeVisible();
-      
+
       // Fill in details
       await page.getByPlaceholder('e.g. Emergency Fund').fill('E2E Test Goal');
       await page.getByLabel('Target Amount').fill('10000');

@@ -360,7 +360,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/ErrorLogResponse'
+                  $ref: './shared.yaml#/components/schemas/ErrorLogResponse'
         '400':
           $ref: './shared.yaml#/components/responses/BadRequest'
         '500':
@@ -660,23 +660,4 @@ components:
         total_size:
           type: integer
 
-    # ----------------------------------------------------------
-    # ERROR LOG (Phase 4 Application Console, ADR-023)
-    # ----------------------------------------------------------
 
-    ErrorLogResponse:
-      type: object
-      properties:
-        error_code:
-          type: string
-        http_status:
-          type: integer
-        message:
-          type: string
-        details:
-          type: string
-          nullable: true
-        created_at:
-          type: string
-          format: date-time
-          minimum: 0

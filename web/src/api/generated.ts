@@ -887,20 +887,12 @@ export interface components {
       status?: "OK" | "FAILED" | "TIMEOUT";
       output?: string;
     };
-    ErrorLogResponse: {
-      error_code?: string;
-      http_status?: number;
-      message?: string;
-      details?: string | null;
-      /** Format: date-time */
-      created_at?: string;
-    };
     /** @description One array of ErrorLogResponse per domain, keyed by domain name. */
     ConsoleErrorsResponse: {
-      profile?: components["schemas"]["ErrorLogResponse"][];
-      wealth?: components["schemas"]["ErrorLogResponse"][];
-      health?: components["schemas"]["ErrorLogResponse"][];
-      household?: components["schemas"]["ErrorLogResponse"][];
+      profile?: external["shared.yaml"]["components"]["schemas"]["ErrorLogResponse"][];
+      wealth?: external["shared.yaml"]["components"]["schemas"]["ErrorLogResponse"][];
+      health?: external["shared.yaml"]["components"]["schemas"]["ErrorLogResponse"][];
+      household?: external["shared.yaml"]["components"]["schemas"]["ErrorLogResponse"][];
     };
   };
   responses: never;
@@ -976,6 +968,14 @@ export interface external {
            * @example must not be blank
            */
           issue: string;
+        };
+        ErrorLogResponse: {
+          error_code?: string;
+          http_status?: number;
+          message?: string;
+          details?: string | null;
+          /** Format: date-time */
+          created_at?: string;
         };
       };
       responses: {
