@@ -31,7 +31,7 @@ class AbstractErrorLogServiceTest {
 
     @Test
     void record_delegatesToRepository() {
-        service.record("NOT_FOUND", 404, "Profile not found", "ID: 123");
+        service.recordError("NOT_FOUND", 404, "Profile not found", "ID: 123");
 
         assertEquals(1, repository.saved.size());
         assertEquals("NOT_FOUND", repository.saved.get(0).errorCode);
