@@ -32,18 +32,17 @@ public class DocumentResource {
             // First try reading from local file system by walking up the directory tree (for development and tests)
             java.nio.file.Path current = Paths.get("").toAbsolutePath();
             java.nio.file.Path localPath = null;
-            while (current != null) {
+            while (current != null && localPath == null) {
                 java.nio.file.Path p = current.resolve("documents").resolve(name);
                 java.nio.file.Path rootReadme = current.resolve("README.md");
                 
                 if (Files.exists(p)) {
                     localPath = p;
-                    break;
                 } else if (name.equals("README.md") && Files.exists(rootReadme)) {
                     localPath = rootReadme;
-                    break;
+                } else {
+                    current = current.getParent();
                 }
-                current = current.getParent();
             }
             if (localPath != null) {
                 String content = Files.readString(localPath, StandardCharsets.UTF_8);
