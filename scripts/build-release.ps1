@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 $rootDir = (Get-Item $PSScriptRoot).Parent.FullName
 $releaseDir = Join-Path $rootDir "suchika-release"
 
