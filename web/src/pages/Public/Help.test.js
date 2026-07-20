@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { Help } from './Help';
+import { API_BASE_URL } from '../../utils/constants';
 
 // Mock react-markdown so we don't have to deal with its internals in a simple test
 jest.mock('react-markdown', () => (props) => <div>{props.children}</div>);
@@ -36,7 +37,7 @@ describe('Help Component', () => {
       expect(screen.getByText('# Mock README Content')).toBeInTheDocument();
     });
 
-    expect(global.fetch).toHaveBeenCalledWith('/api/v1/system/documents/README');
+    expect(global.fetch).toHaveBeenCalledWith(`${API_BASE_URL}/v1/system/documents/README`);
   });
 
   test('renders specific document when route param is provided', async () => {
@@ -57,7 +58,7 @@ describe('Help Component', () => {
       expect(screen.getByText('# Mock Architecture Content')).toBeInTheDocument();
     });
 
-    expect(global.fetch).toHaveBeenCalledWith('/api/v1/system/documents/ARCHITECTURE_GUIDELINES');
+    expect(global.fetch).toHaveBeenCalledWith(`${API_BASE_URL}/v1/system/documents/ARCHITECTURE_GUIDELINES`);
   });
 
   test('renders error state on fetch failure', async () => {

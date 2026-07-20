@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
+import { API_BASE_URL } from '../../utils/constants';
 
 export function Help() {
   const { docName } = useParams();
@@ -20,7 +21,7 @@ export function Help() {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/v1/system/documents/${currentDoc}`)
+    fetch(`${API_BASE_URL}/v1/system/documents/${currentDoc}`)
       .then((res) => {
         if (!res.ok) throw new Error('Document not found');
         return res.text();
