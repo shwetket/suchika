@@ -29,16 +29,25 @@ public class DocumentResource {
         }
 
         try {
-            // First try reading from local file system (for development and tests)
-            java.nio.file.Path[] possiblePaths = {
-                Paths.get("documents", name), // when running from root
-                Paths.get("../../documents", name) // when running from web-gateway dir
-            };
-            for (java.nio.file.Path localPath : possiblePaths) {
-                if (Files.exists(localPath)) {
-                    String content = Files.readString(localPath, StandardCharsets.UTF_8);
-                    return Response.ok(content).build();
+            // First try reading from local file system by walking up the directory tree (for development and tests)
+            java.nio.file.Path current = Paths.get("").toAbsolutePath();
+            java.nio.file.Path localPath = null;
+            while (current != null) {
+                java.nio.file.Path p = current.resolve("documents").resolve(name);
+                java.nio.file.Path rootReadme = current.resolve("README.md");
+                
+                if (Files.exists(p)) {
+                    localPath = p;
+                    break;
+                } else if (name.equals("README.md") && Files.exists(rootReadme)) {
+                    localPath = rootReadme;
+                    break;
                 }
+                current = current.getParent();
+            }
+            if (localPath != null) {
+                String content = Files.readString(localPath, StandardCharsets.UTF_8);
+                return Response.ok(content).build();
             }
 
             // Fallback to classpath (for production jar)

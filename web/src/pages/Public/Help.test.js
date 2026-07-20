@@ -31,7 +31,7 @@ describe('Help Component', () => {
     );
 
     expect(screen.getByText(/Help & Documentation/i)).toBeInTheDocument();
-    
+
     // Wait for fetch to complete and content to render
     await waitFor(() => {
       expect(screen.getByText('# Mock README Content')).toBeInTheDocument();
@@ -58,7 +58,9 @@ describe('Help Component', () => {
       expect(screen.getByText('# Mock Architecture Content')).toBeInTheDocument();
     });
 
-    expect(global.fetch).toHaveBeenCalledWith(`${API_BASE_URL}/v1/system/documents/ARCHITECTURE_GUIDELINES`);
+    expect(global.fetch).toHaveBeenCalledWith(
+      `${API_BASE_URL}/v1/system/documents/ARCHITECTURE_GUIDELINES`
+    );
   });
 
   test('renders error state on fetch failure', async () => {
