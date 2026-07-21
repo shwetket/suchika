@@ -29,6 +29,7 @@
             <option value="$PROJECT_DIR$/application/web-gateway" />
             <option value="$PROJECT_DIR$/infrastructure" />
             <option value="$PROJECT_DIR$/shared" />
+            <option value="$PROJECT_DIR$/shared-adapter" />
           </set>
         </option>
       </GradleProjectSettings>

@@ -3308,22 +3308,6 @@ components:
         output:
           type: string
 
-    ErrorLogResponse:
-      type: object
-      properties:
-        error_code:
-          type: string
-        http_status:
-          type: integer
-        message:
-          type: string
-        details:
-          type: string
-          nullable: true
-        created_at:
-          type: string
-          format: date-time
-
     ConsoleErrorsResponse:
       type: object
       description: One array of ErrorLogResponse per domain, keyed by domain name.
@@ -3331,16 +3315,18 @@ components:
         profile:
           type: array
           items:
-            $ref: '#/components/schemas/ErrorLogResponse'
+            $ref: './shared.yaml#/components/schemas/ErrorLogResponse'
         wealth:
           type: array
           items:
-            $ref: '#/components/schemas/ErrorLogResponse'
+            $ref: './shared.yaml#/components/schemas/ErrorLogResponse'
         health:
           type: array
           items:
-            $ref: '#/components/schemas/ErrorLogResponse'
+            $ref: './shared.yaml#/components/schemas/ErrorLogResponse'
         household:
           type: array
           items:
-            $ref: '#/components/schemas/ErrorLogResponse'
+            $ref: './shared.yaml#/components/schemas/ErrorLogResponse'
+
+

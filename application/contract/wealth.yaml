@@ -1153,7 +1153,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/ErrorLogResponse'
+                  $ref: './shared.yaml#/components/schemas/ErrorLogResponse'
         '400':
           $ref: './shared.yaml#/components/responses/BadRequest'
         '500':
@@ -2380,11 +2380,7 @@ components:
           description: Total number of insurance policies matching the filter.
 
 
-    # ----------------------------------------------------------
-    # ERROR LOG (Phase 4 Application Console, ADR-023)
-    # ----------------------------------------------------------
 
-    ErrorLogResponse:
       type: object
       properties:
         error_code:
@@ -2399,3 +2395,5 @@ components:
         created_at:
           type: string
           format: date-time
+
+

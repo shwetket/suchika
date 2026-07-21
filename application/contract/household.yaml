@@ -467,7 +467,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/ErrorLogResponse'
+                  $ref: './shared.yaml#/components/schemas/ErrorLogResponse'
         '400':
           $ref: './shared.yaml#/components/responses/BadRequest'
         '500':
@@ -922,11 +922,7 @@ components:
           type: integer
           description: Present only on the paginated GET list response (Q54 pagination pass).
 
-    # ----------------------------------------------------------
-    # ERROR LOG (Phase 4 Application Console, ADR-023)
-    # ----------------------------------------------------------
 
-    ErrorLogResponse:
       type: object
       properties:
         error_code:
@@ -941,3 +937,5 @@ components:
         created_at:
           type: string
           format: date-time
+
+
