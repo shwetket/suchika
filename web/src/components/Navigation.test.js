@@ -145,14 +145,14 @@ describe('Navigation', () => {
     expect(screen.queryByRole('button', { name: /^admin$/i })).not.toBeInTheDocument();
   });
 
-  it('shows "Light" label on the theme button when theme is dark', () => {
+  it('shows "Switch to Light Mode" title on the theme button when theme is dark', () => {
     renderNav({ user: null, logout: jest.fn(), isAuthenticated: false });
     render(
       <MemoryRouter>
         <Navigation theme="dark" onToggleTheme={jest.fn()} />
       </MemoryRouter>
     );
-    expect(screen.getByRole('button', { name: /light/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /switch to light mode/i })).toBeInTheDocument();
   });
 
   it('closes a dropdown when clicking outside of it', () => {
@@ -195,7 +195,7 @@ describe('Navigation', () => {
         <Navigation theme="light" onToggleTheme={onToggleTheme} />
       </MemoryRouter>
     );
-    fireEvent.click(screen.getByRole('button', { name: /dark/i }));
+    fireEvent.click(screen.getByRole('button', { name: /switch to dark mode/i }));
     expect(onToggleTheme).toHaveBeenCalledTimes(1);
   });
 });

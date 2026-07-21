@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import App from './App';
 
 afterEach(() => {
@@ -6,34 +6,46 @@ afterEach(() => {
   delete globalThis.matchMedia;
 });
 
-test('renders application navigation with brand name', () => {
-  render(<App />);
+test('renders application navigation with brand name', async () => {
+  await act(async () => {
+    render(<App />);
+  });
   const matches = screen.getAllByText(/suchika/i);
   expect(matches.length).toBeGreaterThan(0);
 });
 
-test('applies saved dark theme from localStorage on mount', () => {
+test('applies saved dark theme from localStorage on mount', async () => {
   globalThis.localStorage.setItem('theme', 'dark');
-  render(<App />);
+  await act(async () => {
+    render(<App />);
+  });
   expect(document.documentElement.classList.contains('dark')).toBe(true);
 });
 
-test('falls back to system preference when saved theme is invalid', () => {
+test('falls back to system preference when saved theme is invalid', async () => {
   globalThis.localStorage.setItem('theme', 'not-a-real-theme');
   globalThis.matchMedia = jest.fn().mockReturnValue({ matches: true });
-  render(<App />);
+  await act(async () => {
+    render(<App />);
+  });
   expect(document.documentElement.classList.contains('dark')).toBe(true);
 });
 
-test('defaults to light when matchMedia is unavailable and no saved theme', () => {
+test('defaults to light when matchMedia is unavailable and no saved theme', async () => {
   delete globalThis.matchMedia;
-  render(<App />);
+  await act(async () => {
+    render(<App />);
+  });
   expect(document.documentElement.classList.contains('light')).toBe(true);
 });
 
-test('toggling the theme button switches the active theme and persists it', () => {
-  render(<App />);
+test('toggling the theme button switches the active theme and persists it', async () => {
+  await act(async () => {
+    render(<App />);
+  });
   const toggleBtn = screen.getByRole('button', { name: /dark|light/i });
-  fireEvent.click(toggleBtn);
+  await act(async () => {
+    fireEvent.click(toggleBtn);
+  });
   expect(globalThis.localStorage.getItem('theme')).toMatch(/dark|light/);
 });

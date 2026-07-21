@@ -13,8 +13,8 @@
   --border: #e2e8f0;
   --muted: #64748b;
   --muted-light: #cbd5e1;
-  --primary: #6366f1; /* Indigo 500 */
-  --primary-strong: #4f46e5; /* Indigo 600 */
+  --primary: #2563eb; /* Blue 600 */
+  --primary-strong: #1d4ed8; /* Blue 700 */
   --success: #10b981; /* Emerald 500 */
   --success-strong: #059669; /* Emerald 600 */
   --danger: #ef4444; /* Red 500 */
@@ -36,8 +36,8 @@
   --border: #475569;
   --muted: #94a3b8;
   --muted-light: #64748b;
-  --primary: #818cf8; /* Indigo 400 */
-  --primary-strong: #6366f1;
+  --primary: #60a5fa; /* Blue 400 */
+  --primary-strong: #3b82f6; /* Blue 500 */
   --success: #34d399; /* Emerald 400 */
   --success-strong: #10b981;
   --danger: #f87171; /* Red 400 */
@@ -56,6 +56,7 @@ body {
   margin: 0;
   min-height: 100%;
   font-family:
+    'Roboto',
     'Inter',
     -apple-system,
     BlinkMacSystemFont,
@@ -96,6 +97,17 @@ a {
 a:hover,
 button:hover {
   opacity: 0.9;
+}
+
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+a:active,
+button:active {
+  transform: scale(0.98);
 }
 
 button,
@@ -219,6 +231,53 @@ input:focus,
 select:focus,
 textarea:focus {
   border-color: var(--primary) !important;
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2) !important;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2) !important;
   outline: none;
+}
+
+/* Material Symbols */
+.material-symbols-rounded {
+  font-family: 'Material Symbols Rounded';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Material Ripple Effect Base */
+.btn-ripple {
+  position: relative;
+  overflow: hidden;
+  transform: translate3d(0, 0, 0);
+}
+.btn-ripple:after {
+  content: '';
+  display: block;
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  background-image: radial-gradient(circle, #fff 10%, transparent 10.01%);
+  background-repeat: no-repeat;
+  background-position: 50%;
+  transform: scale(10, 10);
+  opacity: 0;
+  transition:
+    transform 0.5s,
+    opacity 1s;
+}
+.btn-ripple:active:after {
+  transform: scale(0, 0);
+  opacity: 0.3;
+  transition: 0s;
 }

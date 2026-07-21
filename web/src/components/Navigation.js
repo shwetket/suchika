@@ -26,14 +26,13 @@ function NavDropdown({ label, children }) {
         aria-expanded={open}
       >
         {label}
-        <svg
-          className={`w-3 h-3 transition-transform ${open ? 'rotate-180' : ''}`}
-          viewBox="0 0 12 12"
-          fill="currentColor"
+        <span
+          className="material-symbols-rounded text-[16px] leading-none transition-transform"
+          style={{ transform: open ? 'rotate(180deg)' : 'none' }}
           aria-hidden="true"
         >
-          <path d="M6 8L1 3h10z" />
-        </svg>
+          expand_more
+        </span>
       </button>
       {open && (
         <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-100 py-1 z-50 min-w-max">
@@ -49,13 +48,18 @@ NavDropdown.propTypes = {
   children: PropTypes.node.isRequired,
 };
 
-function DropdownLink({ to, children, onClick }) {
+function DropdownLink({ to, children, onClick, icon }) {
   return (
     <Link
       to={to}
       onClick={onClick}
-      className="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700"
+      className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
     >
+      {icon && (
+        <span className="material-symbols-rounded text-[18px]" aria-hidden="true">
+          {icon}
+        </span>
+      )}
       {children}
     </Link>
   );
@@ -65,19 +69,27 @@ DropdownLink.propTypes = {
   to: PropTypes.string.isRequired,
   children: PropTypes.node.isRequired,
   onClick: PropTypes.func,
+  icon: PropTypes.string,
 };
 
 DropdownLink.defaultProps = {
   onClick: undefined,
+  icon: undefined,
 };
 
 export const Navigation = ({ theme, onToggleTheme }) => {
   const { user, logout, isAuthenticated, hasRole } = useAuth();
 
   return (
-    <nav className="bg-gray-800 text-white px-6 py-3 sticky top-0 z-40 border-b border-indigo-900/10">
+    <nav className="bg-gray-800 text-white px-6 py-3 sticky top-0 z-40 border-b border-white/10 shadow-md">
       <div className="flex justify-between items-center max-w-7xl mx-auto">
-        <Link to="/" className="text-lg font-bold tracking-tight text-white">
+        <Link
+          to="/"
+          className="flex items-center gap-2 text-lg font-bold tracking-tight text-white btn-ripple p-1 rounded-md"
+        >
+          <span className="material-symbols-rounded" aria-hidden="true">
+            check_circle
+          </span>
           Suchika
         </Link>
 
@@ -85,15 +97,30 @@ export const Navigation = ({ theme, onToggleTheme }) => {
           <button
             type="button"
             onClick={onToggleTheme}
-            className="text-indigo-200 hover:text-white text-xs px-2 py-1 rounded border border-indigo-700 hover:border-indigo-500"
+            className="flex items-center justify-center w-8 h-8 rounded-full text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
           >
-            {theme === 'dark' ? 'Light' : 'Dark'}
+            <span className="material-symbols-rounded" aria-hidden="true">
+              {theme === 'dark' ? 'light_mode' : 'dark_mode'}
+            </span>
           </button>
 
-          <Link to="/" className="text-indigo-100 hover:text-white text-sm font-medium">
+          <Link
+            to="/"
+            className="flex items-center gap-1 text-gray-300 hover:text-white text-sm font-medium transition-colors"
+          >
+            <span className="material-symbols-rounded text-[18px]" aria-hidden="true">
+              home
+            </span>
             Home
           </Link>
-          <Link to="/help" className="text-indigo-100 hover:text-white text-sm font-medium">
+          <Link
+            to="/help"
+            className="flex items-center gap-1 text-gray-300 hover:text-white text-sm font-medium transition-colors"
+          >
+            <span className="material-symbols-rounded text-[18px]" aria-hidden="true">
+              help
+            </span>
             Help
           </Link>
 
@@ -101,69 +128,109 @@ export const Navigation = ({ theme, onToggleTheme }) => {
             <>
               <Link
                 to="/dashboard"
-                className="text-indigo-100 hover:text-white text-sm font-medium"
+                className="flex items-center gap-1 text-gray-300 hover:text-white text-sm font-medium transition-colors"
               >
+                <span className="material-symbols-rounded text-[18px]" aria-hidden="true">
+                  dashboard
+                </span>
                 Dashboard
               </Link>
 
               <Link
                 to="/action-center"
-                className="text-indigo-100 hover:text-white text-sm font-medium"
+                className="flex items-center gap-1 text-gray-300 hover:text-white text-sm font-medium transition-colors"
               >
+                <span className="material-symbols-rounded text-[18px]" aria-hidden="true">
+                  notifications_active
+                </span>
                 Action Center
               </Link>
 
               <Link
                 to="/household/profiles"
-                className="text-indigo-100 hover:text-white text-sm font-medium"
+                className="flex items-center gap-1 text-gray-300 hover:text-white text-sm font-medium transition-colors"
               >
+                <span className="material-symbols-rounded text-[18px]" aria-hidden="true">
+                  group
+                </span>
                 Profiles
               </Link>
 
               <NavDropdown label="Household">
-                <DropdownLink to="/household/calendar">Calendar</DropdownLink>
-                <DropdownLink to="/household/inventory">Inventory</DropdownLink>
-                <DropdownLink to="/household/goals">Goals</DropdownLink>
-                <DropdownLink to="/household/vacation-planner">Vacation Planner</DropdownLink>
+                <DropdownLink to="/household/calendar" icon="event">
+                  Calendar
+                </DropdownLink>
+                <DropdownLink to="/household/inventory" icon="inventory_2">
+                  Inventory
+                </DropdownLink>
+                <DropdownLink to="/household/goals" icon="flag">
+                  Goals
+                </DropdownLink>
+                <DropdownLink to="/household/vacation-planner" icon="flight">
+                  Vacation Planner
+                </DropdownLink>
               </NavDropdown>
 
               <NavDropdown label="Wealth">
-                <DropdownLink to="/wealth/accounts">Accounts</DropdownLink>
-                <DropdownLink to="/wealth/transactions">Transactions</DropdownLink>
-                <DropdownLink to="/wealth/physical-assets">Physical Assets</DropdownLink>
-                <DropdownLink to="/wealth/goal-plans">Goal Plans</DropdownLink>
-                <DropdownLink to="/wealth/insurance-policies">Insurance Policies</DropdownLink>
+                <DropdownLink to="/wealth/accounts" icon="account_balance">
+                  Accounts
+                </DropdownLink>
+                <DropdownLink to="/wealth/transactions" icon="receipt_long">
+                  Transactions
+                </DropdownLink>
+                <DropdownLink to="/wealth/physical-assets" icon="chair">
+                  Physical Assets
+                </DropdownLink>
+                <DropdownLink to="/wealth/goal-plans" icon="savings">
+                  Goal Plans
+                </DropdownLink>
+                <DropdownLink to="/wealth/insurance-policies" icon="health_and_safety">
+                  Insurance Policies
+                </DropdownLink>
               </NavDropdown>
 
               <NavDropdown label="Health">
-                <DropdownLink to="/health/vitals">Vitals</DropdownLink>
-                <DropdownLink to="/health/doctors">Doctor Visits</DropdownLink>
+                <DropdownLink to="/health/vitals" icon="monitor_heart">
+                  Vitals
+                </DropdownLink>
+                <DropdownLink to="/health/doctors" icon="medical_services">
+                  Doctor Visits
+                </DropdownLink>
               </NavDropdown>
 
               {hasRole('admin') && (
                 <NavDropdown label="Admin">
-                  <DropdownLink to="/admin/setup">Household Setup</DropdownLink>
-                  <DropdownLink to="/admin/policy">Policy Settings</DropdownLink>
-                  <DropdownLink to="/admin/console">Application Console</DropdownLink>
+                  <DropdownLink to="/admin/setup" icon="settings_suggest">
+                    Household Setup
+                  </DropdownLink>
+                  <DropdownLink to="/admin/policy" icon="policy">
+                    Policy Settings
+                  </DropdownLink>
+                  <DropdownLink to="/admin/console" icon="terminal">
+                    Application Console
+                  </DropdownLink>
                 </NavDropdown>
               )}
             </>
           )}
 
           {user ? (
-            <div className="flex gap-3 items-center border-l border-indigo-700 pl-4 ml-2">
-              <span className="text-sm text-indigo-200">
+            <div className="flex gap-3 items-center border-l border-gray-600 pl-4 ml-2">
+              <span className="text-sm text-gray-300">
                 {user.username}
-                <span className="ml-1 text-xs bg-indigo-700 px-2 py-0.5 rounded text-indigo-100">
+                <span className="ml-1 text-xs bg-blue-700 px-2 py-0.5 rounded text-blue-100">
                   {user.role}
                 </span>
               </span>
               <button
                 type="button"
                 onClick={logout}
-                className="bg-red-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-red-700"
+                title="Logout"
+                className="flex items-center justify-center w-8 h-8 rounded-full text-red-500 hover:text-white hover:bg-red-600 transition-colors btn-ripple"
               >
-                Logout
+                <span className="material-symbols-rounded" aria-hidden="true">
+                  power_settings_new
+                </span>
               </button>
             </div>
           ) : (
