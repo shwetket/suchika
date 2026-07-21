@@ -10,6 +10,8 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import java.util.function.Supplier;
+
 /**
  * Shared {@code save}/{@code findSince} Panache query logic for a domain's
  * own {@code error_log} table -- extracted 2026-07-13 from four
@@ -26,28 +28,32 @@ import java.util.UUID;
  *
  * @param <E> the domain's own Panache entity type
  */
-public abstract class AbstractErrorLogPanacheRepository<E extends PanacheEntityBase> implements ErrorLogRepository {
+public abstract class AbstractErrorLogPanacheRepository<E extends AbstractErrorLogEntity> implements ErrorLogRepository {
 
-    protected abstract PanacheRepositoryBase<E, UUID> dao();
+    private final PanacheRepositoryBase<E, UUID> dao;
+    private final Supplier<E> entitySupplier;
 
-    protected abstract E newEntity(String errorCode, int httpStatus, String message, String details);
-
-    protected abstract ErrorLog toDomain(E entity);
+    protected AbstractErrorLogPanacheRepository(PanacheRepositoryBase<E, UUID> dao, Supplier<E> entitySupplier) {
+        this.dao = dao;
+        this.entitySupplier = entitySupplier;
+    }
 
     @Override
     @Transactional
     public void save(String errorCode, int httpStatus, String message, String details) {
-        dao().persist(newEntity(errorCode, httpStatus, message, details));
+        E entity = entitySupplier.get();
+        entity.populate(errorCode, httpStatus, message, details);
+        dao.persist(entity);
     }
 
     @Override
     public List<ErrorLog> findSince(Instant since, int limit) {
         var query = since != null
-                ? dao().find("createdAt >= ?1 order by createdAt desc", since)
-                : dao().find("order by createdAt desc");
+                ? dao.find("createdAt >= ?1 order by createdAt desc", since)
+                : dao.find("order by createdAt desc");
         return query.page(0, limit)
                 .stream()
-                .map(this::toDomain)
+                .map(AbstractErrorLogEntity::toDomain)
                 .toList();
     }
 }

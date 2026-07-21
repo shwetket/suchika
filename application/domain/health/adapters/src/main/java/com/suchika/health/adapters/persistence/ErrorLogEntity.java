@@ -7,10 +7,4 @@ import jakarta.persistence.Table;
 @Entity
 @Table(name = "error_log", schema = "health")
 public class ErrorLogEntity extends AbstractErrorLogEntity {
-
-    public static ErrorLogEntity from(String errorCode, int httpStatus, String message, String details) {
-        ErrorLogEntity e = new ErrorLogEntity();
-        e.populate(errorCode, httpStatus, message, details);
-        return e;
-    }
 }
