@@ -1,0 +1,3332 @@
+openapi: 3.1.0
+
+info:
+  title: Household API
+  description: >
+    Manages household-related data and profiles.
+    Follows Google AIP resource-oriented design.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+
+tags:
+  - name: Household Profiles
+    description: Household-related profiles and data
+  - name: Accounts
+    description: Bank accounts, credit cards, loans and investments
+  - name: Transactions
+    description: Account transactions
+  - name: StatementUploads
+    description: CSV statement uploads
+  - name: Physical Assets
+    description: Vehicle and other physical asset registry with compliance tracking
+  - name: Goal Plans
+    description: >
+      ADR-022 Phase 1 — richer financial goal model, proxied from the wealth
+      service. Admin-scoped (not profile_id-scoped) authoring of goal
+      objectives/milestones/rules/trigger-events. Pure JsonNode passthrough,
+      same convention as Physical Assets — no new gateway-side Java shape.
+  - name: Calendar Events
+    description: Household calendar events proxied from the household service
+  - name: Inventory Items
+    description: Grocery and supply-chain inventory proxied from the household service
+  - name: Goals
+    description: Financial savings goals proxied from the household service
+  - name: Projections
+    description: CQRS projection refresh and dashboard snapshot reads
+  - name: Vacation Planner
+    description: >
+      Gateway-native cross-domain compute (v0.5 Phase 2) — trip budget check
+      against liquid savings and vehicle compliance check against trip dates.
+      Not a proxy for a single domain resource.
+  - name: Console
+    description: >
+      Admin-only Application Console (Phase 4, ADR-023) — live service status,
+      start/stop controls, and an aggregated error feed across all four
+      domains. Gated behind suchika.console.enabled (default false); every
+      endpoint below 404s while the flag is off.
+
+paths:
+
+  # ============================================================
+  # ACCOUNTS
+  # ============================================================
+
+  /v1/accounts:
+
+    get:
+      tags: [Accounts]
+      operationId: listAccounts
+      summary: List all accounts
+      description: >
+        Returns accounts optionally filtered by account_type, is_active, and profile_id.
+        Follows AIP-132.
+      parameters:
+        - name: account_type
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/AccountType'
+        - name: is_active
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListAccountsResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    post:
+      tags: [Accounts]
+      operationId: createAccount
+      summary: Create an account
+      description: >
+        Creates a new financial account scoped to a profile.
+        Follows AIP-133.
+      parameters:
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAccountRequest'
+      responses:
+        '201':
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/accounts/{accountId}:
+
+    get:
+      tags: [Accounts]
+      operationId: getAccount
+      summary: Get an account
+      description: Follows AIP-131.
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountResponse'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    patch:
+      tags: [Accounts]
+      operationId: updateAccount
+      summary: Update an account
+      description: >
+        Partially updates an account. Only provided fields are updated.
+        account_type and institution_name are immutable after creation.
+        Follows AIP-134.
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAccountRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    delete:
+      tags: [Accounts]
+      operationId: deactivateAccount
+      summary: Deactivate an account
+      description: >
+        Soft-deletes an account (is_active = false).
+        Accounts with transactions cannot be deactivated.
+        Follows AIP-135.
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
+      responses:
+        '204':
+          description: Account deactivated
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '409':
+          $ref: './shared.yaml#/components/responses/Conflict'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/accounts/{accountId}/balance:
+
+    get:
+      tags: [Accounts]
+      operationId: getAccountBalance
+      summary: Get the computed current balance for an account
+      description: >
+        opening_balance + SUM(CREDIT) - SUM(DEBIT) over the account's full
+        transaction ledger (Epic 8 Phase 1, Bug 2 fix).
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountBalanceResponse'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/accounts/{accountId}/amortization:
+
+    get:
+      tags: [Accounts]
+      operationId: getAmortization
+      summary: Get current amortization summary for a loan account
+      description: >
+        Epic 8 Phase 3. Requires loan metadata set via PATCH /classification.
+        Only valid for HOME_LOAN, CAR_LOAN, PERSONAL_LOAN accounts.
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AmortizationSummaryResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/accounts/{accountId}/classification:
+
+    patch:
+      tags: [Accounts]
+      operationId: updateAccountClassification
+      summary: Set Epic 8 classification metadata on an account
+      description: >
+        Merges category, liquidity_tier, purpose_tag, and joint_owners (ADR-016
+        Decision 2) into the account's existing metadata map. All fields optional.
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAccountClassificationRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  # ============================================================
+  # TRANSACTIONS
+  # ============================================================
+
+  /v1/accounts/{accountId}/transactions:
+
+    get:
+      tags: [Transactions]
+      operationId: listTransactions
+      summary: List transactions for an account
+      description: >
+        Returns transactions for the given account, optionally filtered by date range
+        and transaction type. Follows AIP-132.
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
+        - name: from
+          in: query
+          required: false
+          description: Start date filter (inclusive), format YYYY-MM-DD.
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: false
+          description: End date filter (inclusive), format YYYY-MM-DD.
+          schema:
+            type: string
+            format: date
+        - name: txn_type
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/TransactionType'
+        - name: page
+          in: query
+          required: false
+          description: 0-indexed page number. Defaults to 0.
+          schema:
+            type: integer
+            minimum: 0
+        - name: size
+          in: query
+          required: false
+          description: Page size. Defaults to 50, max 200.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListTransactionsResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    post:
+      tags: [Transactions]
+      operationId: createTransaction
+      summary: Manually enter a single transaction
+      description: >
+        Creates a manually-entered transaction without a CSV upload (Q7).
+        Tagged with metadata.source = "MANUAL". No dedup check.
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTransactionRequest'
+      responses:
+        '201':
+          description: Transaction created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/accounts/{accountId}/transactions/{txnId}:
+
+    get:
+      tags: [Transactions]
+      operationId: getTransaction
+      summary: Get a transaction
+      description: Follows AIP-131.
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/TxnId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/accounts/{accountId}/transactions/{txnId}/category:
+
+    patch:
+      tags: [Transactions]
+      operationId: updateTransactionCategory
+      summary: Set the expense category on a single transaction
+      description: >
+        Epic 8 Phase 2 manual categorization (Use Case 8.3, Q24).
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/TxnId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTransactionCategoryRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/accounts/{accountId}/transactions/category:
+
+    patch:
+      tags: [Transactions]
+      operationId: bulkUpdateTransactionCategory
+      summary: Set the expense category on a caller-selected list of transactions
+      description: >
+        Epic 8 Phase 2 bulk-tag-by-selection (Use Case 8.3, Q24 resolution — not a
+        rules engine). Tags every transaction_id in the request with the same category.
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkUpdateTransactionCategoryRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListTransactionsResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  # ============================================================
+  # STATEMENT UPLOADS
+  # ============================================================
+
+  /v1/accounts/{accountId}/uploads:
+
+    post:
+      tags: [StatementUploads]
+      operationId: uploadStatement
+      summary: Upload a CSV bank statement
+      description: >
+        Parses and imports a CSV bank statement for the given account.
+        Returns a statement upload record with status.
+        Follows AIP-133.
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadStatementRequest'
+      responses:
+        '201':
+          description: Statement uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatementUploadResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    get:
+      tags: [StatementUploads]
+      operationId: listUploads
+      summary: List uploads for an account
+      description: Follows AIP-132.
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListUploadsResponse'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/accounts/{accountId}/uploads/{uploadId}/errors:
+
+    get:
+      tags: [StatementUploads]
+      operationId: getUploadErrors
+      summary: Get structured parse errors for a failed upload
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/UploadId'
+      responses:
+        '200':
+          description: Error entries for the upload
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UploadErrorLogResponse'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/accounts/{accountId}/uploads/{uploadId}:
+
+    delete:
+      tags: [StatementUploads]
+      operationId: rollbackUpload
+      summary: Rollback a statement upload
+      description: >
+        Deletes all transactions imported by this upload and removes the upload record.
+        Follows AIP-135.
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/UploadId'
+      responses:
+        '204':
+          description: Upload rolled back
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  # ============================================================
+  # PHYSICAL ASSETS
+  # ============================================================
+
+  /v1/physical-assets:
+
+    get:
+      tags: [Physical Assets]
+      operationId: listPhysicalAssets
+      summary: List all physical assets
+      description: >
+        Returns physical assets (vehicles, etc.) optionally filtered by
+        asset_type, is_active, and profile_id. Follows AIP-132.
+      parameters:
+        - name: asset_type
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/AssetType'
+        - name: is_active
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListPhysicalAssetsResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    post:
+      tags: [Physical Assets]
+      operationId: createPhysicalAsset
+      summary: Register a physical asset
+      description: >
+        Creates a new physical asset scoped to a profile.
+        registration_number must be unique. Follows AIP-133.
+      parameters:
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePhysicalAssetRequest'
+      responses:
+        '201':
+          description: Physical asset created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PhysicalAssetResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '409':
+          $ref: './shared.yaml#/components/responses/Conflict'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/physical-assets/{assetId}:
+
+    get:
+      tags: [Physical Assets]
+      operationId: getPhysicalAsset
+      summary: Get a physical asset
+      description: Follows AIP-131.
+      parameters:
+        - $ref: '#/components/parameters/AssetId'
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PhysicalAssetResponse'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    patch:
+      tags: [Physical Assets]
+      operationId: updatePhysicalAsset
+      summary: Update a physical asset
+      description: >
+        Partially updates a physical asset. Only provided fields are updated.
+        metadata is merged into the existing map, never replaced wholesale.
+        asset_type and registration_number are immutable after creation.
+        Follows AIP-134.
+      parameters:
+        - $ref: '#/components/parameters/AssetId'
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePhysicalAssetRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PhysicalAssetResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    delete:
+      tags: [Physical Assets]
+      operationId: deactivatePhysicalAsset
+      summary: Deactivate a physical asset
+      description: Soft-deletes a physical asset (is_active = false). Follows AIP-135.
+      parameters:
+        - $ref: '#/components/parameters/AssetId'
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
+      responses:
+        '204':
+          description: Physical asset deactivated
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  # ============================================================
+  # GOAL PLANS (ADR-022 Phase 1) — pure JsonNode passthrough proxy
+  # ============================================================
+
+  /v1/goal-plans:
+
+    get:
+      tags: [Goal Plans]
+      operationId: listGoalPlans
+      summary: List goal plans for one admin's household
+      parameters:
+        - name: admin_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListGoalPlansResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    post:
+      tags: [Goal Plans]
+      operationId: createGoalPlan
+      summary: Create a goal plan
+      parameters:
+        - name: admin_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGoalPlanRequest'
+      responses:
+        '201':
+          description: Goal plan created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoalPlanResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '409':
+          $ref: './shared.yaml#/components/responses/Conflict'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/goal-plans/{goalPlanId}:
+
+    get:
+      tags: [Goal Plans]
+      operationId: getGoalPlan
+      summary: Get a goal plan
+      parameters:
+        - $ref: '#/components/parameters/GoalPlanId'
+        - name: admin_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoalPlanResponse'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    patch:
+      tags: [Goal Plans]
+      operationId: updateGoalPlan
+      summary: Update a goal plan
+      parameters:
+        - $ref: '#/components/parameters/GoalPlanId'
+        - name: admin_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateGoalPlanRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoalPlanResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    delete:
+      tags: [Goal Plans]
+      operationId: deactivateGoalPlan
+      summary: Deactivate a goal plan
+      parameters:
+        - $ref: '#/components/parameters/GoalPlanId'
+        - name: admin_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Goal plan deactivated
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/goal-plans/{goalPlanId}/milestones:
+
+    put:
+      tags: [Goal Plans]
+      operationId: replaceGoalPlanMilestones
+      summary: Bulk-replace a goal plan's milestones
+      parameters:
+        - $ref: '#/components/parameters/GoalPlanId'
+        - name: admin_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/GoalMilestoneResponse'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GoalMilestoneResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/goal-plans/{goalPlanId}/milestones/{milestoneId}:
+
+    patch:
+      tags: [Goal Plans]
+      operationId: updateGoalPlanMilestoneAchieved
+      summary: Toggle a manual-checklist milestone's achieved status
+      description: >
+        Only meaningful when is_manual_checklist is true on the target
+        milestone — 400 otherwise.
+      parameters:
+        - $ref: '#/components/parameters/GoalPlanId'
+        - $ref: '#/components/parameters/MilestoneId'
+        - name: admin_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [is_achieved]
+              properties:
+                is_achieved:
+                  type: boolean
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoalMilestoneResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/goal-plans/{goalPlanId}/rules:
+
+    put:
+      tags: [Goal Plans]
+      operationId: replaceGoalPlanRules
+      summary: Bulk-replace a goal plan's rules
+      parameters:
+        - $ref: '#/components/parameters/GoalPlanId'
+        - name: admin_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/GoalRuleResponse'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GoalRuleResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/goal-plans/{goalPlanId}/trigger-events:
+
+    put:
+      tags: [Goal Plans]
+      operationId: replaceGoalPlanTriggerEvents
+      summary: Bulk-replace a goal plan's trigger events
+      parameters:
+        - $ref: '#/components/parameters/GoalPlanId'
+        - name: admin_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/GoalTriggerEventResponse'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GoalTriggerEventResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  # ============================================================
+  # WEALTH — INSURANCE POLICIES (ADR-022 Phase 2)
+  # ============================================================
+
+  /v1/insurance-policies:
+
+    get:
+      tags: [Insurance Policies]
+      operationId: listInsurancePolicies
+      summary: List insurance policies for one admin's household
+      parameters:
+        - name: admin_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListInsurancePoliciesResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    post:
+      tags: [Insurance Policies]
+      operationId: createInsurancePolicy
+      summary: Create an insurance policy
+      parameters:
+        - name: admin_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInsurancePolicyRequest'
+      responses:
+        '201':
+          description: Insurance policy created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InsurancePolicyResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/insurance-policies/{insurancePolicyId}:
+
+    get:
+      tags: [Insurance Policies]
+      operationId: getInsurancePolicy
+      summary: Get an insurance policy
+      parameters:
+        - $ref: '#/components/parameters/InsurancePolicyId'
+        - name: admin_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InsurancePolicyResponse'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    patch:
+      tags: [Insurance Policies]
+      operationId: updateInsurancePolicy
+      summary: Update an insurance policy
+      parameters:
+        - $ref: '#/components/parameters/InsurancePolicyId'
+        - name: admin_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateInsurancePolicyRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InsurancePolicyResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    delete:
+      tags: [Insurance Policies]
+      operationId: deactivateInsurancePolicy
+      summary: Deactivate an insurance policy
+      parameters:
+        - $ref: '#/components/parameters/InsurancePolicyId'
+        - name: admin_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Insurance policy deactivated
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  # ============================================================
+  # HOUSEHOLD — CALENDAR EVENTS
+  # ============================================================
+
+  /v1/household/calendar-events:
+
+    get:
+      tags: [Calendar Events]
+      operationId: listCalendarEvents
+      summary: List calendar events for a profile
+      parameters:
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
+        - name: event_type
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: from_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: to_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Events returned
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    post:
+      tags: [Calendar Events]
+      operationId: createCalendarEvent
+      summary: Create a calendar event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '201':
+          description: Event created
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/household/calendar-events/{id}:
+
+    get:
+      tags: [Calendar Events]
+      operationId: getCalendarEvent
+      summary: Get a calendar event
+      parameters:
+        - $ref: '#/components/parameters/HouseholdId'
+      responses:
+        '200':
+          description: Event found
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    patch:
+      tags: [Calendar Events]
+      operationId: updateCalendarEvent
+      summary: Update a calendar event
+      parameters:
+        - $ref: '#/components/parameters/HouseholdId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Event updated
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    delete:
+      tags: [Calendar Events]
+      operationId: deleteCalendarEvent
+      summary: Delete a calendar event
+      parameters:
+        - $ref: '#/components/parameters/HouseholdId'
+      responses:
+        '204':
+          description: Event deleted
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  # ============================================================
+  # HOUSEHOLD — INVENTORY ITEMS
+  # ============================================================
+
+  /v1/household/inventory-items:
+
+    get:
+      tags: [Inventory Items]
+      operationId: listInventoryItems
+      summary: List inventory items for a profile
+      parameters:
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
+        - name: source_platform
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Items returned
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    post:
+      tags: [Inventory Items]
+      operationId: createInventoryItem
+      summary: Add an inventory item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '201':
+          description: Item added
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/household/inventory-items/{id}:
+
+    get:
+      tags: [Inventory Items]
+      operationId: getInventoryItem
+      summary: Get an inventory item
+      parameters:
+        - $ref: '#/components/parameters/HouseholdId'
+      responses:
+        '200':
+          description: Item found
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    put:
+      tags: [Inventory Items]
+      operationId: updateInventoryItem
+      summary: Update an inventory item
+      description: >
+        Full edit of an inventory item, including toggling is_consumed
+        ("used in a calculation," not "physically used up"). Items are never
+        deleted or expired.
+      parameters:
+        - $ref: '#/components/parameters/HouseholdId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Item updated
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    delete:
+      tags: [Inventory Items]
+      operationId: deleteInventoryItem
+      summary: Delete an inventory item
+      parameters:
+        - $ref: '#/components/parameters/HouseholdId'
+      responses:
+        '204':
+          description: Item deleted
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  # ============================================================
+  # HOUSEHOLD — GOALS
+  # ============================================================
+
+  /v1/household/goals:
+
+    get:
+      tags: [Goals]
+      operationId: listGoals
+      summary: List financial goals for a profile
+      parameters:
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Goals returned
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    post:
+      tags: [Goals]
+      operationId: createGoal
+      summary: Create a financial goal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '201':
+          description: Goal created
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/household/goals/{id}:
+
+    get:
+      tags: [Goals]
+      operationId: getGoal
+      summary: Get a goal
+      parameters:
+        - $ref: '#/components/parameters/HouseholdId'
+      responses:
+        '200':
+          description: Goal found
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    patch:
+      tags: [Goals]
+      operationId: updateGoal
+      summary: Update a goal
+      parameters:
+        - $ref: '#/components/parameters/HouseholdId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Goal updated
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    delete:
+      tags: [Goals]
+      operationId: deleteGoal
+      summary: Delete a goal
+      parameters:
+        - $ref: '#/components/parameters/HouseholdId'
+      responses:
+        '204':
+          description: Goal deleted
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  # ============================================================
+  # PROJECTIONS
+  # ============================================================
+
+  /v1/projections/refresh/{profileId}:
+
+    post:
+      tags: [Projections]
+      operationId: refreshProjections
+      summary: Trigger full projection refresh for a profile
+      description: >
+        Calls each domain service, computes cross-domain metrics, and writes
+        results to projections.dashboard_snapshot via UPSERT. Synchronous —
+        returns 200 once all snapshots are written.
+      parameters:
+        - name: profileId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Projections refreshed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardResponse'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/projections/dashboard/{profileId}:
+
+    get:
+      tags: [Projections]
+      operationId: getDashboard
+      summary: Read pre-computed dashboard snapshots for a profile
+      description: >
+        Reads from projections.dashboard_snapshot — instant response with no
+        re-computation. Returns an empty snapshots list if no refresh has run.
+      parameters:
+        - name: profileId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Dashboard snapshots returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardResponse'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/vacation-planner/budget-check:
+
+    post:
+      tags: [Vacation Planner]
+      operationId: vacationPlannerBudgetCheck
+      summary: Check trip budget against liquid savings and vehicle compliance against trip dates
+      description: >
+        Reads the profile's already-computed WEALTH_LIQUIDITY_TIERS_FAMILY
+        snapshot (refresh the dashboard first if it does not exist yet) and
+        compares the LIQUID tier balance to the trip cost. Separately checks
+        every active VEHICLE physical asset's PUC/insurance expiry (read
+        directly from JSONB metadata) against the trip end date.
+      parameters:
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VacationPlannerRequest'
+      responses:
+        '200':
+          description: Budget and compliance check results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VacationPlannerResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  # ============================================================
+  # HOUSEHOLD PROFILES (admins + profiles, proxied from the profile service)
+  # ============================================================
+
+  /v1/admins:
+
+    get:
+      tags: [Household Profiles]
+      operationId: listAdmins
+      summary: List all admins
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListAdminsResponse'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    post:
+      tags: [Household Profiles]
+      operationId: createAdmin
+      summary: Create an admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAdminRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '409':
+          $ref: './shared.yaml#/components/responses/Conflict'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/admins/{adminId}:
+
+    get:
+      tags: [Household Profiles]
+      operationId: getAdmin
+      summary: Get an admin by id
+      parameters:
+        - name: adminId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminResponse'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/admins/{adminId}/policy:
+
+    patch:
+      tags: [Household Profiles]
+      operationId: updateAdminPolicySettings
+      summary: Merge household policy settings (includes the one-time setup_completed flag)
+      description: >
+        Merges the provided keys into the admin's existing policy_settings map.
+        Keys with a null value are ignored (existing value is preserved).
+      parameters:
+        - name: adminId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAdminPolicyRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/profiles:
+
+    get:
+      tags: [Household Profiles]
+      operationId: listProfiles
+      summary: List profiles scoped to an admin
+      parameters:
+        - name: admin_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: is_active
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListProfilesResponse'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    post:
+      tags: [Household Profiles]
+      operationId: createProfile
+      summary: Create a household member profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProfileRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '409':
+          $ref: './shared.yaml#/components/responses/Conflict'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/profiles/{profileId}:
+
+    get:
+      tags: [Household Profiles]
+      operationId: getProfile
+      summary: Get a profile by id
+      parameters:
+        - name: profileId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileResponse'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    patch:
+      tags: [Household Profiles]
+      operationId: updateProfile
+      summary: Update a profile
+      description: >
+        Partial update. Only email_address, gender, blood_type, and is_active
+        are mutable — full_name, dob, relation_to_admin, admin_id are immutable.
+      parameters:
+        - name: profileId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileResponse'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    delete:
+      tags: [Household Profiles]
+      operationId: deactivateProfile
+      summary: Deactivate a profile (soft delete)
+      parameters:
+        - name: profileId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: No content
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  # ============================================================
+  # APPLICATION CONSOLE (Phase 4, ADR-023)
+  # ============================================================
+
+  /v1/console/status:
+
+    get:
+      tags: [Console]
+      operationId: getConsoleStatus
+      summary: Live status of all Suchika services
+      description: >
+        Polls each service's real /q/health and reads its PID-registry file
+        (~/.suchika/run/<service>.pid). 404s when suchika.console.enabled=false.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ServiceStatusResponse'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/console/services/{name}/start:
+
+    post:
+      tags: [Console]
+      operationId: startConsoleService
+      summary: Start one service via run-local.ps1/.sh -Service <name>
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceActionResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/console/services/{name}/stop:
+
+    post:
+      tags: [Console]
+      operationId: stopConsoleService
+      summary: Stop one service via stop-local.ps1/.sh -Service <name>
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceActionResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/console/errors:
+
+    get:
+      tags: [Console]
+      operationId: getConsoleErrors
+      summary: Aggregated application errors across all four domains
+      description: >
+        Fans out GET /v1/errors to profile, wealth, health, and household and
+        combines the results (ADR-013 aggregation pattern). A domain that is
+        unreachable contributes an entry describing the failure instead of
+        failing the whole call.
+      parameters:
+        - name: since
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsoleErrorsResponse'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+components:
+
+  parameters:
+
+    HouseholdId:
+      name: id
+      in: path
+      required: true
+      description: Unique identifier of the household resource
+      schema:
+        type: string
+        format: uuid
+
+    AccountId:
+      name: accountId
+      in: path
+      required: true
+      description: Unique identifier of the account
+      schema:
+        type: string
+        format: uuid
+
+    TxnId:
+      name: txnId
+      in: path
+      required: true
+      description: Unique identifier of the transaction
+      schema:
+        type: string
+        format: uuid
+
+    UploadId:
+      name: uploadId
+      in: path
+      required: true
+      description: Unique identifier of the statement upload
+      schema:
+        type: string
+        format: uuid
+
+    AssetId:
+      name: assetId
+      in: path
+      required: true
+      description: Unique identifier of the physical asset
+      schema:
+        type: string
+        format: uuid
+
+    GoalPlanId:
+      name: goalPlanId
+      in: path
+      required: true
+      description: Unique identifier of the goal plan
+      schema:
+        type: string
+        format: uuid
+
+    MilestoneId:
+      name: milestoneId
+      in: path
+      required: true
+      description: Unique identifier of the goal plan milestone
+      schema:
+        type: string
+        format: uuid
+
+    InsurancePolicyId:
+      name: insurancePolicyId
+      in: path
+      required: true
+      description: Unique identifier of the insurance policy
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+
+    # ----------------------------------------------------------
+    # HOUSEHOLD PROFILES DTOs
+    # ----------------------------------------------------------
+
+    AdminResponse:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "admins/550e8400-e29b-41d4-a716-446655440000"
+        admin_id:
+          type: string
+          format: uuid
+        display_name:
+          type: string
+        email_address:
+          type: string
+          format: email
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        policy_settings:
+          type: object
+          additionalProperties:
+            type: string
+          description: >
+            Household-level policy thresholds plus the one-time setup_completed
+            flag. All keys optional.
+
+    ListAdminsResponse:
+      type: object
+      properties:
+        admins:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminResponse'
+
+    CreateAdminRequest:
+      type: object
+      required: [display_name]
+      properties:
+        display_name:
+          type: string
+          maxLength: 150
+        email_address:
+          type: string
+          format: email
+
+    UpdateAdminPolicyRequest:
+      type: object
+      required: [policy_settings]
+      properties:
+        policy_settings:
+          type: object
+          additionalProperties:
+            type: string
+            nullable: true
+          description: >
+            Keys to merge into the existing policy_settings map.
+            A null value for a key leaves the existing value unchanged.
+
+    ProfileResponse:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "profiles/550e8400-e29b-41d4-a716-446655440000"
+        profile_id:
+          type: string
+          format: uuid
+        admin_id:
+          type: string
+          format: uuid
+        full_name:
+          type: string
+        dob:
+          type: string
+          format: date
+        relation_to_admin:
+          type: string
+          enum: [SELF, SPOUSE, CHILD, PARENT, SIBLING, OTHER]
+        email_address:
+          type: string
+          format: email
+        gender:
+          type: string
+          enum: [MALE, FEMALE, OTHER, PREFER_NOT_TO_SAY]
+        blood_type:
+          type: string
+          enum: [A+, A-, B+, B-, AB+, AB-, O+, O-]
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    ListProfilesResponse:
+      type: object
+      properties:
+        profiles:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProfileResponse'
+
+    CreateProfileRequest:
+      type: object
+      required: [admin_id, full_name, dob, relation_to_admin]
+      properties:
+        admin_id:
+          type: string
+          format: uuid
+        full_name:
+          type: string
+        dob:
+          type: string
+          format: date
+        relation_to_admin:
+          type: string
+          enum: [SELF, SPOUSE, CHILD, PARENT, SIBLING, OTHER]
+        email_address:
+          type: string
+          format: email
+        gender:
+          type: string
+          enum: [MALE, FEMALE, OTHER, PREFER_NOT_TO_SAY]
+        blood_type:
+          type: string
+          enum: [A+, A-, B+, B-, AB+, AB-, O+, O-]
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        email_address:
+          type: string
+          format: email
+        gender:
+          type: string
+          enum: [MALE, FEMALE, OTHER, PREFER_NOT_TO_SAY]
+        blood_type:
+          type: string
+          enum: [A+, A-, B+, B-, AB+, AB-, O+, O-]
+        is_active:
+          type: boolean
+
+    # ----------------------------------------------------------
+    # PROJECTION DTOs
+    # ----------------------------------------------------------
+
+    DashboardSnapshotDto:
+      type: object
+      properties:
+        profile_id:
+          type: string
+          format: uuid
+        snapshot_key:
+          type: string
+          description: e.g. WEALTH_NET_WORTH, HEALTH_VITALS_SUMMARY
+        payload:
+          type: string
+          description: Raw JSON string — shape depends on snapshot_key
+        calculated_at:
+          type: string
+          format: date-time
+          readOnly: true
+
+    DashboardResponse:
+      type: object
+      properties:
+        snapshots:
+          type: array
+          items:
+            $ref: '#/components/schemas/DashboardSnapshotDto'
+
+    # ----------------------------------------------------------
+    # VACATION PLANNER DTOs (v0.5 Phase 2)
+    # ----------------------------------------------------------
+
+    VacationPlannerRequest:
+      type: object
+      required:
+        - trip_end_date
+      properties:
+        trip_cost:
+          type: number
+          format: double
+        trip_start_date:
+          type: string
+          format: date
+        trip_end_date:
+          type: string
+          format: date
+
+    VacationPlannerBudgetCheck:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [PASS, WARNING, UNAVAILABLE]
+        liquid_savings:
+          type: number
+          format: double
+        trip_cost:
+          type: number
+          format: double
+        shortfall:
+          type: number
+          format: double
+        message:
+          type: string
+          description: Present only when status is UNAVAILABLE
+
+    VacationPlannerComplianceIssue:
+      type: object
+      properties:
+        asset_id:
+          type: string
+          format: uuid
+        asset_name:
+          type: string
+        issue_type:
+          type: string
+          enum: [PUC_EXPIRED, INSURANCE_EXPIRED]
+        expiry_date:
+          type: string
+          format: date
+
+    VacationPlannerAssetCompliance:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [PASS, WARNING]
+        issues:
+          type: array
+          items:
+            $ref: '#/components/schemas/VacationPlannerComplianceIssue'
+
+    VacationPlannerResponse:
+      type: object
+      properties:
+        budget_check:
+          $ref: '#/components/schemas/VacationPlannerBudgetCheck'
+        asset_compliance:
+          $ref: '#/components/schemas/VacationPlannerAssetCompliance'
+
+    # ----------------------------------------------------------
+    # ENUMS
+    # ----------------------------------------------------------
+
+    AccountType:
+      type: string
+      enum:
+        - SAVINGS
+        - CURRENT
+        - CREDIT_CARD
+        - HOME_LOAN
+        - PERSONAL_LOAN
+        - CAR_LOAN
+        - MUTUAL_FUND
+        - NPS
+        - PPF
+        - FD
+        - EPF
+
+    TransactionType:
+      type: string
+      enum:
+        - CREDIT
+        - DEBIT
+
+    UploadStatus:
+      type: string
+      enum:
+        - PENDING
+        - COMPLETED
+        - FAILED
+
+    AssetType:
+      type: string
+      enum:
+        - VEHICLE
+        - REAL_ESTATE
+        - GOLD_JEWELRY
+        - GOLD_BOND
+
+    FinancialInstitution:
+      type: string
+      description: >
+        Curated reference list of standard Indian financial institutions,
+        mirrored in the frontend as `web/src/utils/constants.js`'s
+        FINANCIAL_INSTITUTIONS. NOT a constraint on institution_name fields,
+        which stay plain unconstrained strings — the frontend offers this
+        list via a dropdown with an "Other" free-text escape hatch (needed
+        for e.g. EPF accounts, where institution_name is really an employer
+        name). Developer-maintained for now; a v2.0 admin page is planned.
+      enum:
+        - State Bank of India
+        - Punjab National Bank
+        - Bank of Baroda
+        - Canara Bank
+        - Union Bank of India
+        - Bank of India
+        - Indian Bank
+        - Central Bank of India
+        - Indian Overseas Bank
+        - UCO Bank
+        - Bank of Maharashtra
+        - Punjab & Sind Bank
+        - HDFC Bank
+        - ICICI Bank
+        - Axis Bank
+        - Kotak Mahindra Bank
+        - IndusInd Bank
+        - Yes Bank
+        - IDFC FIRST Bank
+        - Federal Bank
+        - RBL Bank
+        - South Indian Bank
+        - Karur Vysya Bank
+        - City Union Bank
+        - Bandhan Bank
+        - DCB Bank
+        - CSB Bank
+        - Tamilnad Mercantile Bank
+        - IDBI Bank
+        - Jammu & Kashmir Bank
+        - AU Small Finance Bank
+        - Equitas Small Finance Bank
+        - Ujjivan Small Finance Bank
+        - HSBC
+        - Standard Chartered Bank
+        - Citibank
+        - Deutsche Bank
+        - SBI Mutual Fund
+        - HDFC Mutual Fund
+        - ICICI Prudential Mutual Fund
+        - Axis Mutual Fund
+        - Kotak Mahindra Mutual Fund
+        - Aditya Birla Sun Life Mutual Fund
+        - Nippon India Mutual Fund
+        - DSP Mutual Fund
+        - Franklin Templeton
+        - UTI Mutual Fund
+        - Tata Mutual Fund
+        - Mirae Asset Mutual Fund
+        - PPFAS Mutual Fund
+        - Motilal Oswal Mutual Fund
+        - Edelweiss Mutual Fund
+        - Invesco Mutual Fund
+        - Sundaram Mutual Fund
+        - Canara Robeco Mutual Fund
+        - Bandhan Mutual Fund
+        - Quant Mutual Fund
+        - HSBC Mutual Fund
+        - Baroda BNP Paribas Mutual Fund
+        - JM Financial Mutual Fund
+        - LIC Mutual Fund
+        - WhiteOak Capital Mutual Fund
+        - Union Mutual Fund
+        - NPS Trust
+        - Employees' Provident Fund Organisation (EPFO)
+
+    RegistrationType:
+      type: string
+      enum:
+        - PRIVATE
+        - COMMERCIAL
+        - GOVERNMENT
+        - BH_SERIES
+
+    # ----------------------------------------------------------
+    # ACCOUNT DTOs
+    # ----------------------------------------------------------
+
+    AccountResponse:
+      type: object
+      properties:
+        account_id:
+          type: string
+          format: uuid
+          readOnly: true
+        account_name:
+          type: string
+        account_type:
+          $ref: '#/components/schemas/AccountType'
+        institution_name:
+          type: string
+        opening_balance:
+          type: number
+          format: double
+        credit_limit:
+          type: number
+          format: double
+          nullable: true
+        interest_rate:
+          type: number
+          format: double
+          nullable: true
+        emi_amount:
+          type: number
+          format: double
+          nullable: true
+        balance_as_of:
+          type: string
+          format: date
+          nullable: true
+          description: >
+            Date the opening_balance was last known accurate. For manually tracked
+            accounts with no live transaction feed, this is the only honest answer
+            to "how current is this balance?" Null when never recorded.
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        metadata:
+          type: object
+          description: >
+            Epic 8 classification metadata (category, liquidity_tier, purpose_tag,
+            joint_owners). joint_owners is a comma-joined list of co-owner profile_id
+            strings (ADR-016 Decision 2) — attribution/display only.
+          additionalProperties:
+            type: string
+          readOnly: true
+
+    AccountBalanceResponse:
+      type: object
+      properties:
+        account_id:
+          type: string
+          format: uuid
+        opening_balance:
+          type: number
+          format: double
+        total_credits:
+          type: number
+          format: double
+        total_debits:
+          type: number
+          format: double
+        current_balance:
+          type: number
+          format: double
+        balance_as_of:
+          type: string
+          format: date
+          nullable: true
+          description: >
+            Date the account's opening_balance was last known accurate. Does not
+            advance as transactions are added — only describes the opening_balance
+            snapshot itself. Null when never recorded.
+
+    UpdateAccountClassificationRequest:
+      type: object
+      description: All fields optional. Only provided keys are merged into metadata.
+      properties:
+        category:
+          type: string
+        liquidity_tier:
+          type: string
+        purpose_tag:
+          type: string
+        joint_owners:
+          type: array
+          nullable: true
+          description: Co-owner profile_id strings (ADR-016 Decision 2).
+          items:
+            type: string
+            format: uuid
+        loan_original_principal:
+          type: string
+          nullable: true
+        loan_start_date:
+          type: string
+          nullable: true
+        loan_tenure_months:
+          type: string
+          nullable: true
+        linked_offset_account_id:
+          type: string
+          nullable: true
+
+    AmortizationSummaryResponse:
+      type: object
+      description: Computed amortization snapshot for a loan account. Epic 8 Phase 3.
+      properties:
+        monthly_emi:
+          type: number
+          format: double
+        outstanding_balance:
+          type: number
+          format: double
+        remaining_months:
+          type: integer
+        total_interest_remaining:
+          type: number
+          format: double
+        principal_paid:
+          type: number
+          format: double
+        interest_paid:
+          type: number
+          format: double
+
+    CreateAccountRequest:
+      type: object
+      required:
+        - account_name
+        - account_type
+        - institution_name
+      properties:
+        account_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        account_type:
+          $ref: '#/components/schemas/AccountType'
+        institution_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        opening_balance:
+          type: number
+          format: double
+          default: 0.00
+        credit_limit:
+          type: number
+          format: double
+          nullable: true
+        interest_rate:
+          type: number
+          format: double
+          nullable: true
+        emi_amount:
+          type: number
+          format: double
+          nullable: true
+        balance_as_of:
+          type: string
+          format: date
+          nullable: true
+          description: Date the opening_balance is accurate as of.
+
+    UpdateAccountRequest:
+      type: object
+      description: All fields optional. Only provided fields are updated.
+      properties:
+        account_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        opening_balance:
+          type: number
+          format: double
+        credit_limit:
+          type: number
+          format: double
+          nullable: true
+        interest_rate:
+          type: number
+          format: double
+          nullable: true
+        emi_amount:
+          type: number
+          format: double
+          nullable: true
+        is_active:
+          type: boolean
+        balance_as_of:
+          type: string
+          format: date
+          nullable: true
+          description: Date the opening_balance is accurate as of.
+
+    ListAccountsResponse:
+      type: object
+      properties:
+        accounts:
+          type: array
+          items:
+            $ref: '#/components/schemas/AccountResponse'
+        next_page_token:
+          type: string
+          nullable: true
+        total_size:
+          type: integer
+          minimum: 0
+
+    # ----------------------------------------------------------
+    # PHYSICAL ASSET DTOs
+    # ----------------------------------------------------------
+
+    PhysicalAssetResponse:
+      type: object
+      properties:
+        asset_id:
+          type: string
+          format: uuid
+          readOnly: true
+        asset_name:
+          type: string
+        asset_type:
+          $ref: '#/components/schemas/AssetType'
+        make:
+          type: string
+        model:
+          type: string
+        registration_number:
+          type: string
+        registration_type:
+          $ref: '#/components/schemas/RegistrationType'
+        current_value:
+          type: number
+          format: double
+          nullable: true
+          description: >
+            Current market value — summed into WEALTH_NET_WORTH for active assets;
+            deliberately excluded from goal-progress liquidity math.
+        valuation_date:
+          type: string
+          format: date
+          nullable: true
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        metadata:
+          type: object
+          description: >
+            Compliance deadlines and optional vehicle details (puc_expiry,
+            insurance_expiry, insurance_provider, road_tax_expiry, etc.).
+          additionalProperties:
+            type: string
+
+    CreatePhysicalAssetRequest:
+      type: object
+      description: >
+        Only asset_name and asset_type are required. make/model/registration_number/
+        registration_type are VEHICLE-only and optional.
+      required:
+        - asset_name
+        - asset_type
+      properties:
+        asset_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        asset_type:
+          $ref: '#/components/schemas/AssetType'
+        make:
+          type: string
+          minLength: 1
+          maxLength: 100
+        model:
+          type: string
+          minLength: 1
+          maxLength: 100
+        registration_number:
+          type: string
+          minLength: 1
+          maxLength: 50
+        registration_type:
+          $ref: '#/components/schemas/RegistrationType'
+        current_value:
+          type: number
+          format: double
+          nullable: true
+        valuation_date:
+          type: string
+          format: date
+          nullable: true
+
+    UpdatePhysicalAssetRequest:
+      type: object
+      description: >
+        All fields optional. Only provided fields are updated. metadata is
+        merged into the existing map, never replaced wholesale.
+      properties:
+        asset_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        make:
+          type: string
+        model:
+          type: string
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+        is_active:
+          type: boolean
+        current_value:
+          type: number
+          format: double
+          nullable: true
+        valuation_date:
+          type: string
+          format: date
+          nullable: true
+
+    ListPhysicalAssetsResponse:
+      type: object
+      properties:
+        physical_assets:
+          type: array
+          items:
+            $ref: '#/components/schemas/PhysicalAssetResponse'
+        total_size:
+          type: integer
+          minimum: 0
+
+    # ----------------------------------------------------------
+    # GOAL PLAN DTOs (ADR-022 Phase 1)
+    # ----------------------------------------------------------
+
+    GoalType:
+      type: string
+      enum:
+        - DEBT_CROSSOVER
+        - THIRTY_SEVENTY_TARGET
+        - FREEDOM_RUNWAY
+        - INSURANCE_FREE
+        - YEAR_ONE
+
+    GoalMilestoneResponse:
+      type: object
+      required:
+        - sequence_no
+        - label
+        - significance
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        sequence_no:
+          type: integer
+          minimum: 0
+        label:
+          type: string
+          maxLength: 50
+        target_value:
+          type: number
+          format: double
+          nullable: true
+        is_manual_checklist:
+          type: boolean
+          default: false
+        is_achieved:
+          type: boolean
+          default: false
+        significance:
+          type: string
+
+    GoalRuleResponse:
+      type: object
+      required:
+        - sequence_no
+        - rule_name
+        - rule_text
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        sequence_no:
+          type: integer
+          minimum: 0
+        rule_name:
+          type: string
+          maxLength: 50
+        rule_text:
+          type: string
+
+    GoalTriggerEventResponse:
+      type: object
+      required:
+        - sequence_no
+        - event_name
+        - trigger_condition
+        - resulting_change
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        sequence_no:
+          type: integer
+          minimum: 0
+        event_name:
+          type: string
+          maxLength: 50
+        trigger_condition:
+          type: string
+        resulting_change:
+          type: string
+
+    GoalPlanResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        admin_id:
+          type: string
+          format: uuid
+          readOnly: true
+        goal_type:
+          $ref: '#/components/schemas/GoalType'
+        beneficiary_profile_id:
+          type: string
+          format: uuid
+          nullable: true
+        objective:
+          type: string
+        target_state:
+          type: string
+          nullable: true
+        assumed_growth_rate:
+          type: number
+          format: double
+          nullable: true
+        education_base_cost:
+          type: number
+          format: double
+          nullable: true
+        education_inflation_rate:
+          type: number
+          format: double
+          nullable: true
+        education_years_to_entry:
+          type: integer
+          nullable: true
+        detail:
+          type: object
+          additionalProperties:
+            type: string
+        is_active:
+          type: boolean
+        milestones:
+          type: array
+          items:
+            $ref: '#/components/schemas/GoalMilestoneResponse'
+        rules:
+          type: array
+          items:
+            $ref: '#/components/schemas/GoalRuleResponse'
+        trigger_events:
+          type: array
+          items:
+            $ref: '#/components/schemas/GoalTriggerEventResponse'
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+
+    CreateGoalPlanRequest:
+      type: object
+      required:
+        - goal_type
+        - objective
+      properties:
+        goal_type:
+          $ref: '#/components/schemas/GoalType'
+        beneficiary_profile_id:
+          type: string
+          format: uuid
+          nullable: true
+        objective:
+          type: string
+          minLength: 1
+        target_state:
+          type: string
+          nullable: true
+        assumed_growth_rate:
+          type: number
+          format: double
+          nullable: true
+        education_base_cost:
+          type: number
+          format: double
+          nullable: true
+        education_inflation_rate:
+          type: number
+          format: double
+          nullable: true
+        education_years_to_entry:
+          type: integer
+          nullable: true
+
+    UpdateGoalPlanRequest:
+      type: object
+      properties:
+        objective:
+          type: string
+          minLength: 1
+        target_state:
+          type: string
+          nullable: true
+        assumed_growth_rate:
+          type: number
+          format: double
+          nullable: true
+        education_base_cost:
+          type: number
+          format: double
+          nullable: true
+        education_inflation_rate:
+          type: number
+          format: double
+          nullable: true
+        education_years_to_entry:
+          type: integer
+          nullable: true
+        detail:
+          type: object
+          additionalProperties:
+            type: string
+        is_active:
+          type: boolean
+
+    ListGoalPlansResponse:
+      type: object
+      properties:
+        goal_plans:
+          type: array
+          items:
+            $ref: '#/components/schemas/GoalPlanResponse'
+        total_size:
+          type: integer
+          minimum: 0
+
+    # ----------------------------------------------------------
+    # INSURANCE POLICY DTOs (ADR-022 Phase 2)
+    # ----------------------------------------------------------
+
+    PolicyType:
+      type: string
+      enum:
+        - TERM
+        - GROUP_TERM
+        - INVESTMENT_LINKED
+        - ENDOWMENT
+        - HEALTH
+
+    PremiumFrequency:
+      type: string
+      enum:
+        - MONTHLY
+        - ANNUAL
+
+    InsurancePolicyResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        admin_id:
+          type: string
+          format: uuid
+          readOnly: true
+        policy_name:
+          type: string
+          maxLength: 50
+        provider:
+          type: string
+          maxLength: 50
+        policy_type:
+          $ref: '#/components/schemas/PolicyType'
+        premium_amount:
+          type: number
+          format: double
+          minimum: 0
+        premium_frequency:
+          $ref: '#/components/schemas/PremiumFrequency'
+        coverage_amount:
+          type: number
+          format: double
+          nullable: true
+          minimum: 0
+        payout_structure:
+          type: object
+          additionalProperties:
+            type: string
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+
+    CreateInsurancePolicyRequest:
+      type: object
+      required:
+        - policy_name
+        - provider
+        - policy_type
+        - premium_amount
+        - premium_frequency
+      properties:
+        policy_name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        provider:
+          type: string
+          minLength: 1
+          maxLength: 50
+        policy_type:
+          $ref: '#/components/schemas/PolicyType'
+        premium_amount:
+          type: number
+          format: double
+          minimum: 0
+        premium_frequency:
+          $ref: '#/components/schemas/PremiumFrequency'
+        coverage_amount:
+          type: number
+          format: double
+          nullable: true
+          minimum: 0
+
+    UpdateInsurancePolicyRequest:
+      type: object
+      properties:
+        policy_name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        provider:
+          type: string
+          minLength: 1
+          maxLength: 50
+        premium_amount:
+          type: number
+          format: double
+          minimum: 0
+        premium_frequency:
+          $ref: '#/components/schemas/PremiumFrequency'
+        coverage_amount:
+          type: number
+          format: double
+          nullable: true
+          minimum: 0
+        payout_structure:
+          type: object
+          additionalProperties:
+            type: string
+        is_active:
+          type: boolean
+
+    ListInsurancePoliciesResponse:
+      type: object
+      properties:
+        insurance_policies:
+          type: array
+          items:
+            $ref: '#/components/schemas/InsurancePolicyResponse'
+        total_size:
+          type: integer
+          minimum: 0
+
+    # ----------------------------------------------------------
+    # TRANSACTION DTOs
+    # ----------------------------------------------------------
+
+    TransactionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        account_id:
+          type: string
+          format: uuid
+        upload_id:
+          type: string
+          format: uuid
+          nullable: true
+        txn_date:
+          type: string
+          format: date
+        amount:
+          type: number
+          format: double
+        txn_type:
+          $ref: '#/components/schemas/TransactionType'
+        description:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        metadata:
+          type: object
+          description: Epic 8 Phase 2 classification metadata (category).
+          additionalProperties:
+            type: string
+          readOnly: true
+
+    ListTransactionsResponse:
+      type: object
+      properties:
+        transactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransactionResponse'
+        total_size:
+          type: integer
+          format: int64
+        page:
+          type: integer
+        size:
+          type: integer
+
+    ExpenseCategory:
+      type: string
+      enum:
+        - HOUSEHOLD_CORE
+        - CHILD_RELATED
+        - MAINTENANCE
+        - DISCRETIONARY
+        - UNCATEGORIZED
+        - SALARY
+        - RENTAL
+        - OTHER_INCOME
+      description: >
+        Epic 8 Phase 2 hardcoded expense category enum (manual tagging only).
+        Widened from 5 to 8 values in ADR-022 Phase 1 for THIRTY_SEVENTY_TARGET's
+        income-tagged CREDIT transaction filter.
+
+    CreateTransactionRequest:
+      type: object
+      required:
+        - txn_date
+        - amount
+        - txn_type
+      properties:
+        txn_date:
+          type: string
+          format: date
+          example: "2026-07-01"
+        amount:
+          type: number
+          format: double
+          description: Must be positive
+        txn_type:
+          $ref: '#/components/schemas/TransactionType'
+        description:
+          type: string
+
+    UpdateTransactionCategoryRequest:
+      type: object
+      required:
+        - category
+      properties:
+        category:
+          $ref: '#/components/schemas/ExpenseCategory'
+
+    BulkUpdateTransactionCategoryRequest:
+      type: object
+      required:
+        - transaction_ids
+        - category
+      properties:
+        transaction_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        category:
+          $ref: '#/components/schemas/ExpenseCategory'
+
+    # ----------------------------------------------------------
+    # STATEMENT UPLOAD DTOs
+    # ----------------------------------------------------------
+
+    UploadStatementRequest:
+      type: object
+      required:
+        - file_name
+        - csv_content
+      properties:
+        file_name:
+          type: string
+        csv_content:
+          type: string
+
+    SkippedTransactionDto:
+      type: object
+      properties:
+        txn_date:
+          type: string
+          format: date
+        amount:
+          type: number
+          format: double
+        description:
+          type: string
+
+    StatementUploadResponse:
+      type: object
+      properties:
+        upload_id:
+          type: string
+          format: uuid
+          readOnly: true
+        account_id:
+          type: string
+          format: uuid
+        file_name:
+          type: string
+        upload_date:
+          type: string
+          format: date-time
+        status:
+          $ref: '#/components/schemas/UploadStatus'
+        inserted_count:
+          type: integer
+        skipped_duplicates:
+          type: array
+          items:
+            $ref: '#/components/schemas/SkippedTransactionDto'
+
+    UploadErrorLogResponse:
+      type: object
+      properties:
+        error_type:
+          type: string
+          enum:
+            - MISSING_DATE_COLUMN
+            - MISSING_AMOUNT_COLUMN
+            - MISSING_REQUIRED_COLUMN
+            - PARSE_ERROR
+            - VALIDATION_ERROR
+        missing_columns:
+          type: array
+          items:
+            type: string
+          nullable: true
+        error_detail:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    ListUploadsResponse:
+      type: object
+      properties:
+        uploads:
+          type: array
+          items:
+            $ref: '#/components/schemas/StatementUploadResponse'
+
+    # ----------------------------------------------------------
+    # APPLICATION CONSOLE (Phase 4, ADR-023)
+    # ----------------------------------------------------------
+
+    PidRecordResponse:
+      type: object
+      nullable: true
+      description: Null when no PID-registry record exists for this service.
+      properties:
+        pid:
+          type: integer
+        process_name:
+          type: string
+        port:
+          type: integer
+        service:
+          type: string
+        started_at:
+          type: string
+
+    ServiceStatusResponse:
+      type: object
+      properties:
+        name:
+          type: string
+        port:
+          type: integer
+        kind:
+          type: string
+          enum:
+            - backend
+            - frontend
+        status:
+          type: string
+          enum:
+            - UP
+            - DOWN
+        pid:
+          $ref: '#/components/schemas/PidRecordResponse'
+
+    ServiceActionResponse:
+      type: object
+      properties:
+        service:
+          type: string
+        action:
+          type: string
+        status:
+          type: string
+          enum:
+            - OK
+            - FAILED
+            - TIMEOUT
+        output:
+          type: string
+
+    ConsoleErrorsResponse:
+      type: object
+      description: One array of ErrorLogResponse per domain, keyed by domain name.
+      properties:
+        profile:
+          type: array
+          items:
+            $ref: './shared.yaml#/components/schemas/ErrorLogResponse'
+        wealth:
+          type: array
+          items:
+            $ref: './shared.yaml#/components/schemas/ErrorLogResponse'
+        health:
+          type: array
+          items:
+            $ref: './shared.yaml#/components/schemas/ErrorLogResponse'
+        household:
+          type: array
+          items:
+            $ref: './shared.yaml#/components/schemas/ErrorLogResponse'
+
+

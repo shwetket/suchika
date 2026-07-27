@@ -1,0 +1,52 @@
+"domain: profile":
+  - changed-files:
+    - any-glob-to-any-file:
+      - "application/domain/profile/**"
+      - "application/flyway/profile/**"
+
+"domain: wealth":
+  - changed-files:
+    - any-glob-to-any-file:
+      - "application/domain/wealth/**"
+      - "application/flyway/wealth/**"
+
+"domain: health":
+  - changed-files:
+    - any-glob-to-any-file:
+      - "application/domain/health/**"
+      - "application/flyway/health/**"
+
+"domain: household":
+  - changed-files:
+    - any-glob-to-any-file:
+      - "application/domain/household/**"
+      - "application/flyway/household/**"
+
+"domain: gateway":
+  - changed-files:
+    - any-glob-to-any-file:
+      - "application/web-gateway/**"
+      - "application/contract/**"
+
+"frontend":
+  - changed-files:
+    - any-glob-to-any-file:
+      - "web/**"
+
+"infrastructure":
+  - changed-files:
+    - any-glob-to-any-file:
+      - ".github/**"
+      - "scripts/**"
+      - ".devcontainer/**"
+      - "*.gradle"
+      - "*.gradle.kts"
+      - "settings.gradle"
+      - "gradle/**"
+
+"documentation":
+  - changed-files:
+    - any-glob-to-any-file:
+      - "documents/**"
+      - "*.md"
+      - "CLAUDE.md"

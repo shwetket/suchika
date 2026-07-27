@@ -1,0 +1,941 @@
+openapi: 3.1.0
+
+info:
+  title: Household API
+  description: >
+    Manages calendar events, inventory items, and financial goals for household members.
+    Identity comes from profile.profile — no separate household-profile entity.
+    Follows Google AIP resource-oriented design.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8084
+    description: Local development
+
+tags:
+  - name: Calendar Events
+    description: Household calendar — personal, family, school, travel events
+  - name: Inventory Items
+    description: Grocery and supply-chain item ledger
+  - name: Goals
+    description: Financial savings goals for household members
+  - name: Errors
+    description: Application Console diagnostic error feed (Phase 4, ADR-023)
+
+paths:
+
+  # ── Calendar Events ───────────────────────────────────────────────────────────
+
+  /v1/calendar-events:
+
+    get:
+      tags: [Calendar Events]
+      operationId: listCalendarEvents
+      summary: List calendar events for a profile
+      description: >
+        Returns events for the given profile_id ordered by start_date descending.
+        Optionally filter by date range or event_type.
+      parameters:
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
+        - name: event_type
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/EventType'
+        - name: from_date
+          in: query
+          required: false
+          description: Return events with start_date >= from_date
+          schema:
+            type: string
+            format: date
+        - name: to_date
+          in: query
+          required: false
+          description: Return events with start_date <= to_date
+          schema:
+            type: string
+            format: date
+        - $ref: './shared.yaml#/components/parameters/Page'
+        - $ref: './shared.yaml#/components/parameters/Size'
+      responses:
+        '200':
+          description: Events returned newest-first
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListCalendarEventsResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    post:
+      tags: [Calendar Events]
+      operationId: createCalendarEvent
+      summary: Create a calendar event
+      description: >
+        Creates a new calendar event scoped to a profile. If the new event's date
+        range overlaps an existing event for the same profile, conflicting_events
+        in the response will be populated (creation is not blocked — overlap is a
+        warning only).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCalendarEventRequest'
+      responses:
+        '201':
+          description: Event created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarEventResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/calendar-events/{id}:
+
+    get:
+      tags: [Calendar Events]
+      operationId: getCalendarEvent
+      summary: Get a specific calendar event
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Event found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarEvent'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    patch:
+      tags: [Calendar Events]
+      operationId: updateCalendarEvent
+      summary: Update a calendar event
+      description: Only provided fields are updated.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCalendarEventRequest'
+      responses:
+        '200':
+          description: Event updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarEvent'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    delete:
+      tags: [Calendar Events]
+      operationId: deleteCalendarEvent
+      summary: Delete a calendar event
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '204':
+          description: Event deleted
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  # ── Inventory Items ───────────────────────────────────────────────────────────
+
+  /v1/inventory-items:
+
+    get:
+      tags: [Inventory Items]
+      operationId: listInventoryItems
+      summary: List inventory items for a profile
+      description: >
+        Returns all inventory items for the given profile_id ordered by
+        purchase_date descending. Optionally filter by source_platform or category.
+      parameters:
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
+        - name: source_platform
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/SourcePlatform'
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+        - $ref: './shared.yaml#/components/parameters/Page'
+        - $ref: './shared.yaml#/components/parameters/Size'
+      responses:
+        '200':
+          description: Items returned newest-first
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListInventoryItemsResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    post:
+      tags: [Inventory Items]
+      operationId: createInventoryItem
+      summary: Add an inventory item
+      description: >
+        Adds a new grocery or supply item to the household ledger.
+        v0.3 scope is manual entry only — CSV import deferred to v0.4.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInventoryItemRequest'
+      responses:
+        '201':
+          description: Item added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryItem'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/inventory-items/{id}:
+
+    get:
+      tags: [Inventory Items]
+      operationId: getInventoryItem
+      summary: Get a specific inventory item
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Item found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryItem'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    put:
+      tags: [Inventory Items]
+      operationId: updateInventoryItem
+      summary: Update an inventory item
+      description: >
+        Full edit of an inventory item's fields. Also used to toggle is_consumed —
+        which marks the record as "used in a calculation," not "physically used up."
+        Items are never deleted or expired by this endpoint; all history is retained
+        for year-over-year tracking. Only provided fields are updated.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateInventoryItemRequest'
+      responses:
+        '200':
+          description: Item updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryItem'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    delete:
+      tags: [Inventory Items]
+      operationId: deleteInventoryItem
+      summary: Delete an inventory item
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '204':
+          description: Item deleted
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  # ── Goals ─────────────────────────────────────────────────────────────────────
+
+  /v1/goals:
+
+    get:
+      tags: [Goals]
+      operationId: listGoals
+      summary: List financial goals for a profile
+      description: Returns all goals for the given profile_id ordered by created_at descending.
+      parameters:
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/GoalStatus'
+        - $ref: './shared.yaml#/components/parameters/Page'
+        - $ref: './shared.yaml#/components/parameters/Size'
+      responses:
+        '200':
+          description: Goals returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListGoalsResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    post:
+      tags: [Goals]
+      operationId: createGoal
+      summary: Create a financial goal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGoalRequest'
+      responses:
+        '201':
+          description: Goal created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Goal'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/goals/{id}:
+
+    get:
+      tags: [Goals]
+      operationId: getGoal
+      summary: Get a specific goal
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Goal found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Goal'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    patch:
+      tags: [Goals]
+      operationId: updateGoal
+      summary: Update a financial goal
+      description: Only provided fields are updated. current_amount is managed by the projection engine.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateGoalRequest'
+      responses:
+        '200':
+          description: Goal updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Goal'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    delete:
+      tags: [Goals]
+      operationId: deleteGoal
+      summary: Delete a goal
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '204':
+          description: Goal deleted
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  # ── Goal Progress (internal — called by projection engine) ────────────────────
+
+  /v1/goals/{id}/current-amount:
+
+    put:
+      tags: [Goals]
+      operationId: updateGoalCurrentAmount
+      summary: Update computed current_amount on a goal
+      description: >
+        Called exclusively by the web-gateway ProjectionCalculationEngine after
+        computing goal progress from wealth transactions. Not intended for direct
+        client use.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateGoalCurrentAmountRequest'
+      responses:
+        '200':
+          description: Amount updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Goal'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  # ============================================================
+  # ERROR LOG (Phase 4 Application Console, ADR-023)
+  # ============================================================
+
+  /v1/errors:
+
+    get:
+      tags: [Errors]
+      operationId: listErrors
+      summary: List recorded application errors for this service
+      description: >
+        Admin-only diagnostic feed backing the Application Console. Every
+        ApplicationException handled by this service is recorded here. Not
+        scoped to profile_id — this is an operational log, not member-owned
+        business data.
+      parameters:
+        - name: since
+          in: query
+          required: false
+          description: ISO-8601 instant — only errors recorded at or after this time.
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          required: false
+          description: Max rows to return (default 50, capped at 500).
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: './shared.yaml#/components/schemas/ErrorLogResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+components:
+
+  parameters:
+
+    Id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+
+    # ── Enumerations ─────────────────────────────────────────────────────────────
+
+    EventType:
+      type: string
+      enum:
+        - PERSONAL
+        - FAMILY
+        - SCHOOL
+        - TRAVEL
+        - MEDICAL
+        - WORK
+        - ANNIVERSARY
+        - OTHER
+
+    SourcePlatform:
+      type: string
+      enum:
+        - INSTAMART
+        - FLIPKART_GROCERY
+        - COUNTRY_DELIGHT
+        - AMAZON_FRESH
+        - BLINKIT
+        - ZEPTO
+        - MANUAL
+        - OTHER
+
+    ItemUnit:
+      type: string
+      enum:
+        - KG
+        - G
+        - L
+        - ML
+        - UNITS
+        - PACK
+        - DOZEN
+        - OTHER
+
+    GoalStatus:
+      type: string
+      enum:
+        - ACTIVE
+        - ACHIEVED
+        - PAUSED
+
+    # ── Calendar Event ────────────────────────────────────────────────────────────
+
+    CalendarEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        profile_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 200
+        event_type:
+          $ref: '#/components/schemas/EventType'
+        start_date:
+          type: string
+          format: date
+          example: "2026-07-01"
+        end_date:
+          type: string
+          format: date
+          nullable: true
+          description: Null for single-day events. Must be >= start_date when provided.
+        location:
+          type: string
+          maxLength: 200
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+
+    CalendarEventResponse:
+      allOf:
+        - $ref: '#/components/schemas/CalendarEvent'
+        - type: object
+          properties:
+            conflicting_events:
+              type: array
+              description: Events that overlap with this one for the same profile (warning only — creation is not blocked).
+              items:
+                $ref: '#/components/schemas/CalendarEventConflict'
+
+    CalendarEventConflict:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+          nullable: true
+
+    CreateCalendarEventRequest:
+      type: object
+      required:
+        - profile_id
+        - title
+        - event_type
+        - start_date
+      properties:
+        profile_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 200
+        event_type:
+          $ref: '#/components/schemas/EventType'
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+          nullable: true
+          description: Must be >= start_date when provided.
+        location:
+          type: string
+          maxLength: 200
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+
+    UpdateCalendarEventRequest:
+      type: object
+      description: All fields optional. Only provided fields are updated.
+      properties:
+        title:
+          type: string
+          maxLength: 200
+        event_type:
+          $ref: '#/components/schemas/EventType'
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+          nullable: true
+        location:
+          type: string
+          maxLength: 200
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+
+    ListCalendarEventsResponse:
+      type: object
+      properties:
+        calendar_events:
+          type: array
+          items:
+            $ref: '#/components/schemas/CalendarEvent'
+        total_size:
+          type: integer
+        page:
+          type: integer
+          description: Present only on the paginated GET list response (Q54 pagination pass).
+        size:
+          type: integer
+          description: Present only on the paginated GET list response (Q54 pagination pass).
+
+    # ── Inventory Item ────────────────────────────────────────────────────────────
+
+    InventoryItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        profile_id:
+          type: string
+          format: uuid
+        item_name:
+          type: string
+          maxLength: 200
+        quantity:
+          type: number
+          format: double
+          exclusiveMinimum: 0
+        unit:
+          $ref: '#/components/schemas/ItemUnit'
+        source_platform:
+          $ref: '#/components/schemas/SourcePlatform'
+        purchase_date:
+          type: string
+          format: date
+        category:
+          type: string
+          maxLength: 50
+          nullable: true
+        is_consumed:
+          type: boolean
+          default: false
+          description: >
+            True once this record has been successfully used in a calculation
+            (e.g. supply/spend analytics). Does NOT mean the physical item was
+            used up — inventory rows are never deleted or expired.
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+
+    CreateInventoryItemRequest:
+      type: object
+      required:
+        - profile_id
+        - item_name
+        - quantity
+        - unit
+        - source_platform
+        - purchase_date
+      properties:
+        profile_id:
+          type: string
+          format: uuid
+        item_name:
+          type: string
+          maxLength: 200
+        quantity:
+          type: number
+          format: double
+          exclusiveMinimum: 0
+        unit:
+          $ref: '#/components/schemas/ItemUnit'
+        source_platform:
+          $ref: '#/components/schemas/SourcePlatform'
+        purchase_date:
+          type: string
+          format: date
+        category:
+          type: string
+          maxLength: 50
+          nullable: true
+
+    UpdateInventoryItemRequest:
+      type: object
+      description: >
+        All fields optional. Only provided fields are updated. is_consumed toggles
+        the "used in a calculation" marker — see InventoryItem.is_consumed.
+      properties:
+        item_name:
+          type: string
+          maxLength: 200
+        quantity:
+          type: number
+          format: double
+          exclusiveMinimum: 0
+        unit:
+          $ref: '#/components/schemas/ItemUnit'
+        source_platform:
+          $ref: '#/components/schemas/SourcePlatform'
+        purchase_date:
+          type: string
+          format: date
+        category:
+          type: string
+          maxLength: 50
+          nullable: true
+        is_consumed:
+          type: boolean
+
+    ListInventoryItemsResponse:
+      type: object
+      properties:
+        inventory_items:
+          type: array
+          items:
+            $ref: '#/components/schemas/InventoryItem'
+        total_size:
+          type: integer
+        page:
+          type: integer
+          description: Present only on the paginated GET list response (Q54 pagination pass).
+        size:
+          type: integer
+          description: Present only on the paginated GET list response (Q54 pagination pass).
+
+    # ── Goal ─────────────────────────────────────────────────────────────────────
+
+    Goal:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        profile_id:
+          type: string
+          format: uuid
+        goal_name:
+          type: string
+          maxLength: 200
+        target_amount:
+          type: number
+          format: double
+          exclusiveMinimum: 0
+        current_amount:
+          type: number
+          format: double
+          minimum: 0
+          description: Computed by the gateway ProjectionCalculationEngine from wealth transactions. Read-only for direct clients.
+        monthly_saving:
+          type: number
+          format: double
+          nullable: true
+          minimum: 0
+          description: Expected monthly contribution for estimates.
+        target_date:
+          type: string
+          format: date
+          nullable: true
+        status:
+          $ref: '#/components/schemas/GoalStatus'
+        notes:
+          type: string
+          nullable: true
+        progress_percent:
+          type: number
+          format: double
+          readOnly: true
+          description: current_amount / target_amount * 100, computed by service.
+        days_to_completion:
+          type: integer
+          nullable: true
+          readOnly: true
+          description: Estimated days remaining based on monthly_saving. Null if monthly_saving is not set.
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+
+    CreateGoalRequest:
+      type: object
+      required:
+        - profile_id
+        - goal_name
+        - target_amount
+      properties:
+        profile_id:
+          type: string
+          format: uuid
+        goal_name:
+          type: string
+          maxLength: 200
+        target_amount:
+          type: number
+          format: double
+          exclusiveMinimum: 0
+        monthly_saving:
+          type: number
+          format: double
+          nullable: true
+          minimum: 0
+        target_date:
+          type: string
+          format: date
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+
+    UpdateGoalRequest:
+      type: object
+      description: All fields optional. current_amount is not updatable here — managed by projection engine.
+      properties:
+        goal_name:
+          type: string
+          maxLength: 200
+        target_amount:
+          type: number
+          format: double
+          exclusiveMinimum: 0
+        monthly_saving:
+          type: number
+          format: double
+          nullable: true
+          minimum: 0
+        target_date:
+          type: string
+          format: date
+          nullable: true
+        status:
+          $ref: '#/components/schemas/GoalStatus'
+        notes:
+          type: string
+          nullable: true
+
+    UpdateGoalCurrentAmountRequest:
+      type: object
+      required:
+        - current_amount
+      properties:
+        current_amount:
+          type: number
+          format: double
+          minimum: 0
+
+    ListGoalsResponse:
+      type: object
+      properties:
+        goals:
+          type: array
+          items:
+            $ref: '#/components/schemas/Goal'
+        total_size:
+          type: integer
+        page:
+          type: integer
+          description: Present only on the paginated GET list response (Q54 pagination pass).
+        size:
+          type: integer
+          description: Present only on the paginated GET list response (Q54 pagination pass).
+
+
+      type: object
+      properties:
+        error_code:
+          type: string
+        http_status:
+          type: integer
+        message:
+          type: string
+        details:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+

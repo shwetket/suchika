@@ -1,0 +1,15 @@
+{
+  "_comment": "Single source of truth for Suchika service ports, DB schema, Gradle wiring, and version floors. Consumed by scripts/config.ps1 and scripts/config.sh (dot-sourced by dev-aliases.ps1/.sh, dev-service.ps1, stop-all.ps1, health-check.ps1/.sh, check-prerequisites.ps1/.sh). Edit values here, not the literals in those scripts. Each object below is deliberately kept on a single line so scripts/config.sh can parse it with grep -oP without a jq dependency (see documents/SCRIPTS.md).",
+  "services": [
+    { "name": "profile",   "port": 8081, "schema": "profile",     "gradleModule": ":application:domain:profile:adapters",   "devTask": ":application:domain:profile:adapters:quarkusDev",   "healthPath": "/q/health", "startOrder": 1, "kind": "backend" },
+    { "name": "wealth",    "port": 8082, "schema": "wealth",      "gradleModule": ":application:domain:wealth:adapters",    "devTask": ":application:domain:wealth:adapters:quarkusDev",    "healthPath": "/q/health", "startOrder": 2, "kind": "backend" },
+    { "name": "health",    "port": 8083, "schema": "health",      "gradleModule": ":application:domain:health:adapters",    "devTask": ":application:domain:health:adapters:quarkusDev",    "healthPath": "/q/health", "startOrder": 2, "kind": "backend" },
+    { "name": "household", "port": 8084, "schema": "household",   "gradleModule": ":application:domain:household:adapters", "devTask": ":application:domain:household:adapters:quarkusDev", "healthPath": "/q/health", "startOrder": 2, "kind": "backend" },
+    { "name": "gateway",   "port": 8080, "schema": "projections", "gradleModule": ":application:web-gateway",               "devTask": ":application:web-gateway:quarkusDev",                "healthPath": "/q/health", "startOrder": 3, "kind": "backend" },
+    { "name": "web",       "port": 3000, "schema": "none",        "gradleModule": "none",                                  "devTask": "none",                                               "healthPath": "/",        "startOrder": 4, "kind": "frontend" }
+  ],
+  "database": { "port": 5432, "name": "app_db", "appUser": "app_user", "adminUser": "postgres", "passwordFallback": "local_dev_only", "psqlWindowsPath": "C:\\Program Files\\PostgreSQL\\18\\bin\\psql.exe" },
+  "versionFloors": { "javaHardFailBelow": 21, "javaTarget": 25, "nodeHardFailBelow": 20, "nodeTarget": 24 },
+  "pidDir": "~/.suchika/run",
+  "logDir": "~/.suchika/logs"
+}

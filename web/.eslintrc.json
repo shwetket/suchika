@@ -1,0 +1,25 @@
+{
+  "extends": ["react-app", "prettier"],
+  "globals": {
+    "globalThis": "readonly"
+  },
+  "rules": {
+    "no-unused-vars": "warn",
+    "no-console": [
+      "warn",
+      {
+        "allow": ["warn", "error"]
+      }
+    ],
+    "eqeqeq": ["warn", "always"],
+    "no-var": "error",
+    "prefer-const": "warn",
+    "react/prop-types": "off",
+    "react/react-in-jsx-scope": "off"
+  },
+  "settings": {
+    "react": {
+      "version": "detect"
+    }
+  }
+}

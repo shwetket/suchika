@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  app:
+    image: mcr.microsoft.com/devcontainers/java:25
+    volumes:
+      - ..:/workspaces:cached
+      # Persist Gradle cache between rebuilds — avoids re-downloading dependencies
+      - gradle-cache:/root/.gradle
+      # Persist npm cache
+      - npm-cache:/root/.npm
+    command: sleep infinity
+    environment:
+      TZ: Asia/Kolkata
+      DB_URL: jdbc:postgresql://db:5432/app_db
+      DB_USERNAME: app_user
+      DB_PASSWORD: local_dev_only
+      # Downstream service URLs for the gateway (all in same container network)
+      PROFILE_SERVICE_URL: http://localhost:8081
+      WEALTH_SERVICE_URL: http://localhost:8082
+      HEALTH_SERVICE_URL: http://localhost:8083
+      HOUSEHOLD_SERVICE_URL: http://localhost:8084
+    depends_on:
+      db:
+        condition: service_healthy
+    # Node 24 is NOT in the base Java image — it is installed via the devcontainer.json
+    # "features" entry (ghcr.io/devcontainers/features/node:1), not by any script here.
+
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: local_dev_only
+      POSTGRES_DB: postgres   # default DB — app_db is created by setup.sh
+      TZ: Asia/Kolkata
+      PGTZ: Asia/Kolkata      # PostgreSQL session default timezone
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
+volumes:
+  postgres-data:
+  gradle-cache:
+  npm-cache:

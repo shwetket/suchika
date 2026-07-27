@@ -1,0 +1,663 @@
+openapi: 3.1.0
+
+info:
+  title: Profile API
+  description: >
+    Manages admins and household member identities.
+    Admins are the household managers (one in v0.1, multiple in v1.1+).
+    Profiles are all household members including the admin person (relation_to_admin = SELF).
+    Every other domain holds a profile_id FK referencing profile.profile.
+    Follows Google AIP resource-oriented design.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8081
+    description: Local development
+
+tags:
+  - name: Admins
+    description: Household manager registry — the future authentication anchor
+  - name: Profiles
+    description: All household members, scoped to an admin
+  - name: Errors
+    description: Application Console diagnostic error feed (Phase 4, ADR-023)
+
+paths:
+
+  # ============================================================
+  # ADMINS
+  # ============================================================
+
+  /v1/admins:
+
+    get:
+      tags: [Admins]
+      operationId: listAdmins
+      summary: List all admins
+      description: >
+        Returns all admins. In v0.1 always returns exactly one.
+        In v1.1+ each authenticated user is an independent admin.
+        Not paginated — admin count is always tiny.
+        Follows AIP-132.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListAdminsResponse'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    post:
+      tags: [Admins]
+      operationId: createAdmin
+      summary: Create an admin
+      description: >
+        Creates a new household admin. After creating an admin, create a profile
+        with relation_to_admin = SELF to represent the admin's own member record.
+        Follows AIP-133.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAdminRequest'
+      responses:
+        '201':
+          description: Admin created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '409':
+          $ref: './shared.yaml#/components/responses/Conflict'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/admins/{admin_id}:
+
+    get:
+      tags: [Admins]
+      operationId: getAdmin
+      summary: Get an admin
+      description: Follows AIP-131.
+      parameters:
+        - $ref: '#/components/parameters/AdminId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminResponse'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    patch:
+      tags: [Admins]
+      operationId: updateAdmin
+      summary: Update an admin
+      description: >
+        Partially updates an admin. Only provided fields are updated.
+        Follows AIP-134.
+      parameters:
+        - $ref: '#/components/parameters/AdminId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAdminRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    delete:
+      tags: [Admins]
+      operationId: deactivateAdmin
+      summary: Deactivate an admin
+      description: >
+        Soft-deletes an admin (is_active = false).
+        An admin with active profiles cannot be deactivated.
+        Follows AIP-135.
+      parameters:
+        - $ref: '#/components/parameters/AdminId'
+      responses:
+        '204':
+          description: Admin deactivated
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '409':
+          $ref: './shared.yaml#/components/responses/FailedPrecondition'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/admins/{admin_id}/policy:
+
+    patch:
+      tags: [Admins]
+      summary: Merge household policy settings
+      description: >
+        Merges the provided keys into the admin's existing policy_settings map.
+        Keys with a null value are ignored (existing value is preserved).
+        Omitted keys are also preserved. Only provided non-null values are applied.
+      operationId: updateAdminPolicySettings
+      parameters:
+        - $ref: '#/components/parameters/AdminId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAdminPolicyRequest'
+      responses:
+        '200':
+          description: OK — updated admin with merged policy_settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  # ============================================================
+  # PROFILES
+  # ============================================================
+
+  /v1/profiles:
+
+    get:
+      tags: [Profiles]
+      operationId: listProfiles
+      summary: List profiles
+      description: >
+        Returns all household member profiles scoped to one admin's household.
+        admin_id is required — profile is the identity anchor domain and admin_id
+        is its equivalent of every other domain's required profile_id scoping
+        parameter; omitting it would return every profile across every admin.
+        Not paginated — always a small list.
+        Follows AIP-132.
+      parameters:
+        - name: admin_id
+          in: query
+          required: true
+          description: Scope to one admin's household members.
+          schema:
+            type: string
+            format: uuid
+        - name: is_active
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListProfilesResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    post:
+      tags: [Profiles]
+      operationId: createProfile
+      summary: Create a profile
+      description: >
+        Creates a new household member profile. Requires admin_id.
+        The SELF profile (admin's own member record) must be created first
+        with relation_to_admin = SELF.
+        Follows AIP-133.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProfileRequest'
+      responses:
+        '201':
+          description: Profile created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '409':
+          $ref: './shared.yaml#/components/responses/Conflict'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/profiles/{profile_id}:
+
+    get:
+      tags: [Profiles]
+      operationId: getProfile
+      summary: Get a profile
+      description: Follows AIP-131.
+      parameters:
+        - $ref: './shared.yaml#/components/parameters/ProfileIdParam'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileResponse'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    patch:
+      tags: [Profiles]
+      operationId: updateProfile
+      summary: Update a profile
+      description: >
+        Partially updates a profile. Only provided fields are updated.
+        Immutable after creation: full_name, dob, relation_to_admin, admin_id.
+        Follows AIP-134.
+      parameters:
+        - $ref: './shared.yaml#/components/parameters/ProfileIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    delete:
+      tags: [Profiles]
+      operationId: deactivateProfile
+      summary: Deactivate a profile
+      description: >
+        Soft-deletes a profile (is_active = false).
+        The SELF profile of an active admin cannot be deactivated.
+        Follows AIP-135.
+      parameters:
+        - $ref: './shared.yaml#/components/parameters/ProfileIdParam'
+      responses:
+        '204':
+          description: Profile deactivated
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '409':
+          $ref: './shared.yaml#/components/responses/FailedPrecondition'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  # ============================================================
+  # ERROR LOG (Phase 4 Application Console, ADR-023)
+  # ============================================================
+
+  /v1/errors:
+
+    get:
+      tags: [Errors]
+      operationId: listErrors
+      summary: List recorded application errors for this service
+      description: >
+        Admin-only diagnostic feed backing the Application Console.
+        Every ApplicationException handled by this service is recorded here.
+        Not scoped to profile_id — this is an operational log, not member-owned
+        business data (same precedent as wealth.upload_error_log).
+      parameters:
+        - name: since
+          in: query
+          required: false
+          description: ISO-8601 instant — only errors recorded at or after this time.
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          required: false
+          description: Max rows to return (default 50, capped at 500).
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: './shared.yaml#/components/schemas/ErrorLogResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+components:
+
+  parameters:
+
+    AdminId:
+      name: admin_id
+      in: path
+      required: true
+      description: Unique identifier of the admin
+      schema:
+        type: string
+        format: uuid
+        example: "f0e1d2c3-b4a5-6789-0fed-cba987654321"
+
+  schemas:
+
+    # ----------------------------------------------------------
+    # ENUMS
+    # ----------------------------------------------------------
+
+    RelationToAdmin:
+      type: string
+      description: >
+        Relationship of this household member to the admin.
+        PARENT_IN_LAW is distinct from PARENT because in Indian households
+        in-laws have separate insurance, dependency, and inheritance profiles.
+      enum:
+        - SELF
+        - SPOUSE
+        - CHILD
+        - PARENT
+        - PARENT_IN_LAW
+        - SIBLING
+        - GRANDPARENT
+        - GRANDCHILD
+        - OTHER
+
+    Gender:
+      type: string
+      enum:
+        - MALE
+        - FEMALE
+        - OTHER
+        - PREFER_NOT_TO_SAY
+
+    BloodType:
+      type: string
+      description: ABO + Rh blood group
+      enum:
+        - A+
+        - A-
+        - B+
+        - B-
+        - AB+
+        - AB-
+        - O+
+        - O-
+
+    # ----------------------------------------------------------
+    # ADMIN DTOs
+    # ----------------------------------------------------------
+
+    AdminResponse:
+      type: object
+      description: Household admin — the future authentication anchor
+      required:
+        - name
+        - admin_id
+        - display_name
+        - is_active
+        - created_at
+      properties:
+        name:
+          type: string
+          description: "Resource name. Format: admins/{admin_id}"
+          readOnly: true
+          example: "admins/f0e1d2c3-b4a5-6789-0fed-cba987654321"
+        admin_id:
+          type: string
+          format: uuid
+          readOnly: true
+        display_name:
+          type: string
+          example: "Ketan"
+        email_address:
+          type: string
+          format: email
+          nullable: true
+          description: Future v1.0 login credential. Nullable until Security milestone.
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        policy_settings:
+          type: object
+          additionalProperties:
+            type: string
+          description: >
+            Household-level policy thresholds. All keys optional.
+            Known keys: monthly_budget_cap, debt_crossover_threshold_percent,
+            freedom_runway_months, insurance_multiple, year_one_annual_target.
+
+    CreateAdminRequest:
+      type: object
+      required:
+        - display_name
+      properties:
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 50
+          example: "Ketan"
+        email_address:
+          type: string
+          format: email
+          nullable: true
+          description: Optional — required at v1.0 Security milestone for login.
+
+    UpdateAdminRequest:
+      type: object
+      description: All fields optional. Only provided fields are updated.
+      properties:
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        email_address:
+          type: string
+          format: email
+          nullable: true
+        is_active:
+          type: boolean
+
+    UpdateAdminPolicyRequest:
+      type: object
+      required: [policy_settings]
+      properties:
+        policy_settings:
+          type: object
+          additionalProperties:
+            type: string
+            nullable: true
+          description: >
+            Keys to merge into the existing policy_settings map.
+            A null value for a key leaves the existing value unchanged.
+
+    ListAdminsResponse:
+      type: object
+      required:
+        - admins
+        - total_size
+      properties:
+        admins:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminResponse'
+        total_size:
+          type: integer
+          minimum: 0
+
+    # ----------------------------------------------------------
+    # PROFILE DTOs
+    # ----------------------------------------------------------
+
+    ProfileResponse:
+      type: object
+      description: A household member identity record
+      required:
+        - name
+        - profile_id
+        - admin_id
+        - full_name
+        - dob
+        - relation_to_admin
+        - is_active
+        - created_at
+      properties:
+        name:
+          type: string
+          description: "Resource name. Format: profiles/{profile_id}"
+          readOnly: true
+          example: "profiles/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        profile_id:
+          type: string
+          format: uuid
+          readOnly: true
+        admin_id:
+          type: string
+          format: uuid
+          description: Admin whose household this member belongs to.
+          readOnly: true
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 50
+          example: "Ketan Verma"
+        dob:
+          type: string
+          format: date
+          example: "1988-03-15"
+        relation_to_admin:
+          $ref: '#/components/schemas/RelationToAdmin'
+        email_address:
+          type: string
+          format: email
+          nullable: true
+          example: "ketan@example.com"
+        gender:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/Gender'
+        blood_type:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/BloodType'
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+
+    CreateProfileRequest:
+      type: object
+      required:
+        - admin_id
+        - full_name
+        - dob
+        - relation_to_admin
+      properties:
+        admin_id:
+          type: string
+          format: uuid
+          description: Admin whose household this member belongs to.
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 50
+          example: "Ketan Verma"
+        dob:
+          type: string
+          format: date
+          example: "1988-03-15"
+        relation_to_admin:
+          $ref: '#/components/schemas/RelationToAdmin'
+        email_address:
+          type: string
+          format: email
+          nullable: true
+        gender:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/Gender'
+        blood_type:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/BloodType'
+
+    UpdateProfileRequest:
+      type: object
+      description: >
+        Mutable fields only. full_name, dob, relation_to_admin, admin_id
+        are immutable after creation and will be rejected if included.
+      properties:
+        email_address:
+          type: string
+          format: email
+          nullable: true
+        gender:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/Gender'
+        blood_type:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/BloodType'
+        is_active:
+          type: boolean
+
+    ListProfilesResponse:
+      type: object
+      required:
+        - profiles
+        - total_size
+      properties:
+        profiles:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProfileResponse'
+        total_size:
+          type: integer
+
+

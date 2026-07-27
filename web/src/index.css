@@ -1,0 +1,283 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --bg: #f8fafc;
+  --text: #0f172a;
+  --text-inverse: #ffffff;
+  --surface: #ffffff;
+  --surface-alt: #f1f5f9;
+  --panel: #f8fafc;
+  --border: #e2e8f0;
+  --muted: #64748b;
+  --muted-light: #cbd5e1;
+  --primary: #2563eb; /* Blue 600 */
+  --primary-strong: #1d4ed8; /* Blue 700 */
+  --success: #10b981; /* Emerald 500 */
+  --success-strong: #059669; /* Emerald 600 */
+  --danger: #ef4444; /* Red 500 */
+  --danger-strong: #dc2626; /* Red 600 */
+  --warning: #f59e0b; /* Amber 500 */
+  --warning-strong: #d97706; /* Amber 600 */
+  --nav-bg: rgba(15, 23, 42, 0.85); /* Glassmorphic dark */
+  --nav-text: #f8fafc;
+}
+
+.dark {
+  color-scheme: dark;
+  --bg: #0f172a; /* Slate 900 */
+  --text: #f8fafc;
+  --text-inverse: #0f172a;
+  --surface: #1e293b; /* Slate 800 */
+  --surface-alt: #334155; /* Slate 700 */
+  --panel: #334155;
+  --border: #475569;
+  --muted: #94a3b8;
+  --muted-light: #64748b;
+  --primary: #60a5fa; /* Blue 400 */
+  --primary-strong: #3b82f6; /* Blue 500 */
+  --success: #34d399; /* Emerald 400 */
+  --success-strong: #10b981;
+  --danger: #f87171; /* Red 400 */
+  --danger-strong: #ef4444;
+  --warning: #fbbf24; /* Amber 400 */
+  --warning-strong: #f59e0b;
+  --nav-bg: rgba(15, 23, 42, 0.85);
+  --nav-text: #f8fafc;
+}
+
+html {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100%;
+  font-family:
+    'Roboto',
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.05) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.05) 0px, transparent 50%);
+  background-attachment: fixed;
+  color: var(--text);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Outfit', 'Inter', sans-serif;
+  letter-spacing: -0.02em;
+}
+
+a {
+  color: var(--primary);
+  transition: all 0.2s ease-in-out;
+}
+
+a:hover,
+button:hover {
+  opacity: 0.9;
+}
+
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+a:active,
+button:active {
+  transform: scale(0.98);
+}
+
+button,
+input,
+select,
+textarea {
+  color: inherit;
+  font: inherit;
+}
+
+/* Modern Card Lift Effect */
+.card-hover {
+  transition:
+    transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 10px 25px -5px rgba(99, 102, 241, 0.1),
+    0 8px 10px -6px rgba(99, 102, 241, 0.1);
+}
+
+/* Maintain backwards compatibility with hardcoded classes while injecting variables */
+.bg-gray-800 {
+  background-color: var(--nav-bg) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.bg-white {
+  background-color: var(--surface) !important;
+  border-color: var(--border) !important;
+}
+
+.bg-gray-50,
+.bg-gray-100,
+.bg-slate-50 {
+  background-color: var(--surface-alt) !important;
+}
+
+.bg-blue-50 {
+  background-color: rgba(99, 102, 241, 0.08) !important;
+}
+.text-blue-500,
+.text-blue-600 {
+  color: var(--primary) !important;
+}
+.border-blue-500,
+.border-blue-600 {
+  border-color: var(--primary) !important;
+}
+.bg-blue-600 {
+  background-color: var(--primary) !important;
+}
+.hover\:bg-blue-700:hover {
+  background-color: var(--primary-strong) !important;
+}
+
+.bg-green-50 {
+  background-color: rgba(16, 185, 129, 0.08) !important;
+}
+.text-green-500,
+.text-green-600,
+.text-green-700,
+.text-green-800 {
+  color: var(--success-strong) !important;
+}
+
+.bg-red-50 {
+  background-color: rgba(239, 68, 68, 0.08) !important;
+}
+.text-red-500,
+.text-red-600 {
+  color: var(--danger) !important;
+}
+.border-red-500,
+.border-red-600 {
+  border-color: var(--danger) !important;
+}
+
+/* Base border handling to soften the UI */
+.border,
+.border-b,
+.border-t,
+.border-l,
+.border-r,
+.border-gray-100,
+.border-gray-200,
+.border-gray-300 {
+  border-color: var(--border) !important;
+}
+
+/* Text Colors */
+.text-gray-900,
+.text-gray-800,
+.text-gray-700,
+.text-slate-900 {
+  color: var(--text) !important;
+}
+
+.text-gray-600,
+.text-gray-500,
+.text-gray-400,
+.text-slate-500 {
+  color: var(--muted) !important;
+}
+.rounded-lg {
+  border-radius: 0.75rem !important; /* Softer, slightly larger radius */
+}
+
+/* Input Styles */
+input,
+select,
+textarea {
+  border-color: var(--border) !important;
+  transition: all 0.2s ease-in-out;
+}
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2) !important;
+  outline: none;
+}
+
+/* Material Symbols */
+.material-symbols-rounded {
+  font-family: 'Material Symbols Rounded';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Material Ripple Effect Base */
+.btn-ripple {
+  position: relative;
+  overflow: hidden;
+  transform: translate3d(0, 0, 0);
+}
+.btn-ripple:after {
+  content: '';
+  display: block;
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  background-image: radial-gradient(circle, #fff 10%, transparent 10.01%);
+  background-repeat: no-repeat;
+  background-position: 50%;
+  transform: scale(10, 10);
+  opacity: 0;
+  transition:
+    transform 0.5s,
+    opacity 1s;
+}
+.btn-ripple:active:after {
+  transform: scale(0, 0);
+  opacity: 0.3;
+  transition: 0s;
+}

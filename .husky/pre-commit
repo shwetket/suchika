@@ -1,0 +1,9 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+./scripts/check-migrations-location.sh
+./scripts/check-ps1-bom.sh
+npm run generate:api
+./gradlew test --continuous=false
+cd web && npm run lint
+

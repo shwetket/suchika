@@ -1,0 +1,146 @@
+package com.suchika.gateway.profile;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.quarkus.test.InjectMock;
+import io.quarkus.test.junit.QuarkusTest;
+import io.restassured.http.ContentType;
+import jakarta.ws.rs.core.Response;
+import org.eclipse.microprofile.rest.client.inject.RestClient;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.util.UUID;
+
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+@QuarkusTest
+class ProfileGatewayResourceTest {
+
+    @InjectMock
+    @RestClient
+    ProfileServiceClient profileServiceClient;
+
+    private final ObjectMapper mapper = new ObjectMapper();
+
+    @BeforeEach
+    void setUp() throws Exception {
+        when(profileServiceClient.listAdmins())
+                .thenReturn(mapper.readTree(
+                        "{\"admins\":[{\"admin_id\":\"00000000-0000-0000-0000-000000000001\","
+                        + "\"email_address\":\"admin@test.com\"}]}"));
+
+        when(profileServiceClient.getProfile(UUID.fromString("00000000-0000-0000-0000-000000000002")))
+                .thenReturn(mapper.readTree(
+                        "{\"profile_id\":\"00000000-0000-0000-0000-000000000002\","
+                        + "\"full_name\":\"Test Member\"}"));
+
+        Response mockCreate = mock(Response.class);
+        when(mockCreate.getStatus()).thenReturn(201);
+        when(mockCreate.readEntity(String.class))
+                .thenReturn("{\"profile_id\":\"11111111-0000-0000-0000-000000000000\","
+                        + "\"full_name\":\"E2E Member\"}");
+        when(profileServiceClient.createProfile(any())).thenReturn(mockCreate);
+
+        Response mockCreateAdmin = mock(Response.class);
+        when(mockCreateAdmin.getStatus()).thenReturn(201);
+        when(mockCreateAdmin.readEntity(String.class))
+                .thenReturn("{\"admin_id\":\"22222222-0000-0000-0000-000000000000\","
+                        + "\"display_name\":\"E2E Admin\"}");
+        when(profileServiceClient.createAdmin(any())).thenReturn(mockCreateAdmin);
+
+        when(profileServiceClient.updatePolicySettings(any(), any()))
+                .thenReturn(mapper.readTree(
+                        "{\"admin_id\":\"00000000-0000-0000-0000-000000000001\","
+                        + "\"policy_settings\":{\"setup_completed\":\"true\"}}"));
+
+        when(profileServiceClient.getAdmin(UUID.fromString("00000000-0000-0000-0000-000000000001")))
+                .thenReturn(mapper.readTree(
+                        "{\"admin_id\":\"00000000-0000-0000-0000-000000000001\","
+                        + "\"display_name\":\"Test Admin\"}"));
+    }
+
+    @Test
+    void testGetAdmin() {
+        given()
+                .when()
+                .get("/v1/admins/00000000-0000-0000-0000-000000000001")
+                .then()
+                .statusCode(200)
+                .body("admin_id", is("00000000-0000-0000-0000-000000000001"))
+                .body("display_name", is("Test Admin"));
+    }
+
+    @Test
+    void testGetSeededAdminAndProfile() {
+        given()
+                .when()
+                .get("/v1/admins")
+                .then()
+                .statusCode(200)
+                .body("admins.find { it.admin_id == '00000000-0000-0000-0000-000000000001' }.email_address",
+                        is("admin@test.com"));
+
+        given()
+                .when()
+                .get("/v1/profiles/00000000-0000-0000-0000-000000000002")
+                .then()
+                .statusCode(200)
+                .body("profile_id", is("00000000-0000-0000-0000-000000000002"))
+                .body("full_name", is("Test Member"));
+    }
+
+    @Test
+    void testCreateProfile() {
+        String profileJson = "{"
+                + "\"admin_id\":\"00000000-0000-0000-0000-000000000001\","
+                + "\"full_name\":\"E2E Member\","
+                + "\"dob\":\"1995-08-25\","
+                + "\"relation_to_admin\":\"SIBLING\","
+                + "\"email_address\":\"member@test.com\""
+                + "}";
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(profileJson)
+                .when()
+                .post("/v1/profiles")
+                .then()
+                .statusCode(201)
+                .body("profile_id", notNullValue())
+                .body("full_name", is("E2E Member"));
+    }
+
+    @Test
+    void testCreateAdmin() {
+        String adminJson = "{\"display_name\":\"E2E Admin\",\"email_address\":\"e2e@test.com\"}";
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(adminJson)
+                .when()
+                .post("/v1/admins")
+                .then()
+                .statusCode(201)
+                .body("admin_id", notNullValue())
+                .body("display_name", is("E2E Admin"));
+    }
+
+    @Test
+    void testUpdatePolicySettings() {
+        String policyJson = "{\"policy_settings\":{\"setup_completed\":\"true\"}}";
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(policyJson)
+                .when()
+                .patch("/v1/admins/00000000-0000-0000-0000-000000000001/policy")
+                .then()
+                .statusCode(200)
+                .body("policy_settings.setup_completed", is("true"));
+    }
+}

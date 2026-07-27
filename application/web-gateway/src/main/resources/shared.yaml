@@ -1,0 +1,223 @@
+openapi: 3.1.0
+
+info:
+  title: Shared Components
+  description: >
+    Common OpenAPI components shared across all Suchika domain contracts.
+    Reference these via external $ref rather than duplicating them per domain.
+
+    Usage example:
+      $ref: './shared.yaml#/components/schemas/Error'
+      $ref: './shared.yaml#/components/responses/BadRequest'
+      $ref: './shared.yaml#/components/parameters/Page'
+  version: 1.0.0
+
+components:
+
+  # ============================================================
+  # PARAMETERS — reuse these on any paginated list operation
+  # ============================================================
+
+  parameters:
+
+    Page:
+      name: page
+      in: query
+      required: false
+      description: >
+        0-indexed page number. Defaults to 0.
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+
+    Size:
+      name: size
+      in: query
+      required: false
+      description: >
+        Maximum number of items to return per page. Defaults to 50, maximum 200.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 50
+
+    ProfileIdParam:
+      name: profile_id
+      in: path
+      required: true
+      description: Unique identifier of the household member profile.
+      schema:
+        type: string
+        format: uuid
+        example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
+    ProfileIdRequiredQueryParam:
+      name: profile_id
+      in: query
+      required: true
+      description: >
+        Unique identifier of the household member profile. Required on every
+        list/scoped operation project-wide — no domain treats this as optional.
+      schema:
+        type: string
+        format: uuid
+        example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
+  # ============================================================
+  # SCHEMAS
+  # ============================================================
+
+  schemas:
+
+    # ----------------------------------------------------------
+    # Currency
+    # ISO 4217 currency code. Extend the enum when multi-currency
+    # support is added (v1.3+ Export/Import milestone).
+    # ----------------------------------------------------------
+
+    Currency:
+      type: string
+      description: ISO 4217 currency code. Currently INR only.
+      enum:
+        - INR
+      default: INR
+
+    # ----------------------------------------------------------
+    # Error — standard AIP-193 error model used by all domains.
+    # All error responses return this shape.
+    # ----------------------------------------------------------
+
+    Error:
+      type: object
+      description: >
+        Standard error response body. Follows AIP-193 and Google error model.
+        All 4xx and 5xx responses use this schema.
+      required:
+        - code
+        - status
+        - message
+      properties:
+        code:
+          type: integer
+          description: HTTP status code mirrored in the body for client convenience.
+          example: 404
+        status:
+          type: string
+          description: >
+            Machine-readable error status string. Maps to gRPC status codes.
+            Values: INVALID_ARGUMENT (400), NOT_FOUND (404),
+            ALREADY_EXISTS (409), INTERNAL (500).
+          enum:
+            - INVALID_ARGUMENT
+            - NOT_FOUND
+            - ALREADY_EXISTS
+            - FAILED_PRECONDITION
+            - INTERNAL
+          example: NOT_FOUND
+        message:
+          type: string
+          description: Human-readable summary of the error. Suitable for display.
+          minLength: 1
+          example: "Profile not found"
+        details:
+          type: array
+          description: >
+            Field-level validation issues. Present on INVALID_ARGUMENT (400) errors.
+            Empty or absent for all other error types.
+          items:
+            $ref: '#/components/schemas/ValidationIssue'
+
+    ValidationIssue:
+      type: object
+      description: A single field-level validation failure within an error response.
+      required:
+        - field
+        - issue
+      properties:
+        field:
+          type: string
+          description: >
+            Dot-notation path to the invalid field within the request body.
+            Examples: "full_name", "account.credit_limit", "items[0].quantity".
+          example: "full_name"
+        issue:
+          type: string
+          description: Human-readable description of the constraint that was violated.
+          example: "must not be blank"
+
+  # ============================================================
+  # RESPONSES — reference these instead of inline response bodies
+  # ============================================================
+
+  responses:
+
+    BadRequest:
+      description: >
+        400 — Request body or query parameters failed validation.
+        The 'details' array lists every field that violated a constraint.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 400
+            status: INVALID_ARGUMENT
+            message: "Request validation failed"
+            details:
+              - field: "full_name"
+                issue: "must not be blank"
+              - field: "dob"
+                issue: "must be a past date"
+
+    NotFound:
+      description: >
+        404 — The requested resource does not exist.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 404
+            status: NOT_FOUND
+            message: "Resource not found"
+
+    Conflict:
+      description: >
+        409 — The request conflicts with existing state.
+        Examples: duplicate unique value, deactivating a resource with active children.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 409
+            status: ALREADY_EXISTS
+            message: "Resource already exists or has conflicting state"
+
+    FailedPrecondition:
+      description: >
+        409 — A precondition for this operation was not met.
+        Examples: uploading to a deactivated account, deleting an admin with active members.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 409
+            status: FAILED_PRECONDITION
+            message: "Cannot delete: resource has active dependents"
+
+    InternalError:
+      description: >
+        500 — An unexpected server-side error occurred.
+        The client should retry with exponential backoff.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 500
+            status: INTERNAL
+            message: "An unexpected error occurred"

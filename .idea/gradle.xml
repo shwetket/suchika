@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="GradleMigrationSettings" migrationVersion="1" />
+  <component name="GradleSettings">
+    <option name="linkedExternalProjectsSettings">
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$" />
+        <option name="modules">
+          <set>
+            <option value="$PROJECT_DIR$" />
+            <option value="$PROJECT_DIR$/application" />
+            <option value="$PROJECT_DIR$/application/domain" />
+            <option value="$PROJECT_DIR$/application/domain/health" />
+            <option value="$PROJECT_DIR$/application/domain/health/adapters" />
+            <option value="$PROJECT_DIR$/application/domain/health/domain" />
+            <option value="$PROJECT_DIR$/application/domain/health/ports" />
+            <option value="$PROJECT_DIR$/application/domain/household" />
+            <option value="$PROJECT_DIR$/application/domain/household/adapters" />
+            <option value="$PROJECT_DIR$/application/domain/household/domain" />
+            <option value="$PROJECT_DIR$/application/domain/household/ports" />
+            <option value="$PROJECT_DIR$/application/domain/profile" />
+            <option value="$PROJECT_DIR$/application/domain/profile/adapters" />
+            <option value="$PROJECT_DIR$/application/domain/profile/domain" />
+            <option value="$PROJECT_DIR$/application/domain/profile/ports" />
+            <option value="$PROJECT_DIR$/application/domain/wealth" />
+            <option value="$PROJECT_DIR$/application/domain/wealth/adapters" />
+            <option value="$PROJECT_DIR$/application/domain/wealth/domain" />
+            <option value="$PROJECT_DIR$/application/domain/wealth/ports" />
+            <option value="$PROJECT_DIR$/application/web-gateway" />
+            <option value="$PROJECT_DIR$/infrastructure" />
+            <option value="$PROJECT_DIR$/shared" />
+            <option value="$PROJECT_DIR$/shared-adapter" />
+          </set>
+        </option>
+      </GradleProjectSettings>
+    </option>
+    <option name="offlineMode" value="true" />
+  </component>
+</project>

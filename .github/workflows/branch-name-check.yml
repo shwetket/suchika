@@ -1,0 +1,26 @@
+name: Branch Name Check
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions: {}
+
+jobs:
+  check-branch-name:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate branch naming convention
+        run: |
+          BRANCH="${{ github.head_ref }}"
+          PATTERN="^[a-zA-Z][a-zA-Z0-9_-]{3,}$"
+          if [[ ! "$BRANCH" =~ $PATTERN ]]; then
+            echo "::error::Branch '$BRANCH' does not match the required naming convention."
+            echo ""
+            echo "Required format:  starts with a letter, then letters/digits/hyphens/underscores, min 4 chars total"
+            echo ""
+            echo "Valid examples:   feat-wealth-upload, fix-health-bp, my-feature-123"
+            echo "Invalid examples: 123-branch (starts with digit), ab (too short), feat branch (spaces)"
+            exit 1
+          fi
+          echo "Branch name '$BRANCH' is valid."

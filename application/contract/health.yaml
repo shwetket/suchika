@@ -1,0 +1,607 @@
+openapi: 3.1.0
+
+info:
+  title: Health API
+  description: >
+    Manages biometric readings and doctor visits for household members.
+    Identity comes from profile.profile — no separate health-profile entity.
+    Follows Google AIP resource-oriented design.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8083
+    description: Local development
+
+tags:
+  - name: Vital Readings
+    description: Time-series biometric measurements (weight, BP, blood sugar, etc.)
+  - name: Doctor Visits
+    description: Illness periods and doctor consultations
+  - name: Errors
+    description: Application Console diagnostic error feed (Phase 4, ADR-023)
+
+paths:
+
+  # ── Vital Readings ────────────────────────────────────────────────────────────
+
+  /v1/vitals:
+
+    get:
+      tags: [Vital Readings]
+      operationId: listVitalReadings
+      summary: List vital readings for a profile
+      description: >
+        Returns all readings for the given profile_id in reverse chronological
+        order (newest first). Optionally filter by vital_type.
+        Covers v0.2 Use Case 2.1 — Time-Series Ledger.
+      parameters:
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
+        - name: vital_type
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/VitalType'
+        - $ref: './shared.yaml#/components/parameters/Page'
+        - $ref: './shared.yaml#/components/parameters/Size'
+      responses:
+        '200':
+          description: Readings returned newest-first
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListVitalReadingsResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    post:
+      tags: [Vital Readings]
+      operationId: recordVitalReading
+      summary: Record a biometric reading
+      description: >
+        Records a new reading. For BLOOD_PRESSURE, value_secondary (diastolic)
+        is required. Use PATCH /v1/vitals/{id} to correct a reading after logging.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecordVitalReadingRequest'
+      responses:
+        '201':
+          description: Reading recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VitalReading'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/vitals/{id}:
+
+    get:
+      tags: [Vital Readings]
+      operationId: getVitalReading
+      summary: Get a specific vital reading
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Reading found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VitalReading'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    patch:
+      tags: [Vital Readings]
+      operationId: updateVitalReading
+      summary: Update a vital reading
+      description: >
+        Only provided fields are updated. vital_type and profile_id are
+        immutable — delete and re-record to change either.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateVitalReadingRequest'
+      responses:
+        '200':
+          description: Reading updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VitalReading'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    delete:
+      tags: [Vital Readings]
+      operationId: deleteVitalReading
+      summary: Delete a vital reading
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '204':
+          description: Reading deleted
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  # ── Doctor Visits ─────────────────────────────────────────────────────────────
+
+  /v1/doctor-visits:
+
+    get:
+      tags: [Doctor Visits]
+      operationId: listDoctorVisits
+      summary: List doctor visits for a profile
+      description: >
+        Returns visits newest-first, optionally filtered by from_date falling
+        within [from, to] (v0.6 UX item — date-range filter).
+      parameters:
+        - $ref: './shared.yaml#/components/parameters/ProfileIdRequiredQueryParam'
+        - name: from
+          in: query
+          required: false
+          description: Start date filter (inclusive) on the visit's from_date, format YYYY-MM-DD.
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: false
+          description: End date filter (inclusive) on the visit's from_date, format YYYY-MM-DD.
+          schema:
+            type: string
+            format: date
+        - $ref: './shared.yaml#/components/parameters/Page'
+        - $ref: './shared.yaml#/components/parameters/Size'
+      responses:
+        '200':
+          description: Visits listed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListDoctorVisitsResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    post:
+      tags: [Doctor Visits]
+      operationId: createDoctorVisit
+      summary: Log a doctor visit or illness period
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDoctorVisitRequest'
+      responses:
+        '201':
+          description: Visit logged
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DoctorVisit'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  /v1/doctor-visits/{id}:
+
+    get:
+      tags: [Doctor Visits]
+      operationId: getDoctorVisit
+      summary: Get a specific doctor visit
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Visit found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DoctorVisit'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    patch:
+      tags: [Doctor Visits]
+      operationId: updateDoctorVisit
+      summary: Update a doctor visit
+      description: Only provided fields are updated.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDoctorVisitRequest'
+      responses:
+        '200':
+          description: Visit updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DoctorVisit'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+    delete:
+      tags: [Doctor Visits]
+      operationId: deleteDoctorVisit
+      summary: Delete a doctor visit
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '204':
+          description: Visit deleted
+        '404':
+          $ref: './shared.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+  # ============================================================
+  # ERROR LOG (Phase 4 Application Console, ADR-023)
+  # ============================================================
+
+  /v1/errors:
+
+    get:
+      tags: [Errors]
+      operationId: listErrors
+      summary: List recorded application errors for this service
+      description: >
+        Admin-only diagnostic feed backing the Application Console. Every
+        ApplicationException handled by this service is recorded here. Not
+        scoped to profile_id — this is an operational log, not member-owned
+        business data.
+      parameters:
+        - name: since
+          in: query
+          required: false
+          description: ISO-8601 instant — only errors recorded at or after this time.
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          required: false
+          description: Max rows to return (default 50, capped at 500).
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: './shared.yaml#/components/schemas/ErrorLogResponse'
+        '400':
+          $ref: './shared.yaml#/components/responses/BadRequest'
+        '500':
+          $ref: './shared.yaml#/components/responses/InternalError'
+
+components:
+
+  parameters:
+
+    Id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+
+    VitalType:
+      type: string
+      enum:
+        - WEIGHT
+        - HEIGHT
+        - BLOOD_PRESSURE
+        - BLOOD_SUGAR_FASTING
+        - BLOOD_SUGAR_PP
+        - HEART_RATE
+        - TEMPERATURE
+        - OXYGEN_SATURATION
+        - BMI
+        - WAIST_CIRCUMFERENCE
+
+    VitalReading:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        profile_id:
+          type: string
+          format: uuid
+        vital_type:
+          $ref: '#/components/schemas/VitalType'
+        reading_date:
+          type: string
+          format: date
+          example: "2026-06-16"
+        value_primary:
+          type: number
+          format: double
+          description: Main measurement value (weight in kg, systolic BP, etc.)
+        value_secondary:
+          type: number
+          format: double
+          nullable: true
+          description: Diastolic BP only; null for all other types
+        unit:
+          type: string
+          example: "kg"
+        notes:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+
+    RecordVitalReadingRequest:
+      type: object
+      required:
+        - profile_id
+        - vital_type
+        - reading_date
+        - value_primary
+        - unit
+      properties:
+        profile_id:
+          type: string
+          format: uuid
+        vital_type:
+          $ref: '#/components/schemas/VitalType'
+        reading_date:
+          type: string
+          format: date
+        value_primary:
+          type: number
+          format: double
+          exclusiveMinimum: 0
+        value_secondary:
+          type: number
+          format: double
+          nullable: true
+        unit:
+          type: string
+          maxLength: 20
+        notes:
+          type: string
+          nullable: true
+
+    UpdateVitalReadingRequest:
+      type: object
+      description: All fields optional. Only provided fields are updated. vital_type is immutable.
+      properties:
+        reading_date:
+          type: string
+          format: date
+        value_primary:
+          type: number
+          format: double
+          exclusiveMinimum: 0
+        value_secondary:
+          type: number
+          format: double
+          nullable: true
+        unit:
+          type: string
+          maxLength: 20
+        notes:
+          type: string
+          nullable: true
+
+    ListVitalReadingsResponse:
+      type: object
+      properties:
+        vital_readings:
+          type: array
+          items:
+            $ref: '#/components/schemas/VitalReading'
+        total_size:
+          type: integer
+          description: Total count matching the filter across all pages.
+        page:
+          type: integer
+          description: Present only on the paginated GET list endpoint.
+        size:
+          type: integer
+          description: Present only on the paginated GET list endpoint.
+
+    DoctorVisit:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        profile_id:
+          type: string
+          format: uuid
+        from_date:
+          type: string
+          format: date
+        to_date:
+          type: string
+          format: date
+          nullable: true
+        visited_doctor:
+          type: boolean
+          default: true
+        doctor_name:
+          type: string
+          nullable: true
+        hospital_name:
+          type: string
+          nullable: true
+        speciality:
+          type: string
+          nullable: true
+        symptoms:
+          type: string
+          nullable: true
+        diagnosis:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        follow_up_date:
+          type: string
+          format: date
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+
+    CreateDoctorVisitRequest:
+      type: object
+      required:
+        - profile_id
+        - from_date
+        - visited_doctor
+      properties:
+        profile_id:
+          type: string
+          format: uuid
+        from_date:
+          type: string
+          format: date
+        to_date:
+          type: string
+          format: date
+          nullable: true
+        visited_doctor:
+          type: boolean
+        doctor_name:
+          type: string
+          nullable: true
+          maxLength: 50
+        hospital_name:
+          type: string
+          nullable: true
+          maxLength: 50
+        speciality:
+          type: string
+          nullable: true
+          maxLength: 50
+        symptoms:
+          type: string
+          nullable: true
+        diagnosis:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        follow_up_date:
+          type: string
+          format: date
+          nullable: true
+
+    UpdateDoctorVisitRequest:
+      type: object
+      description: All fields optional. Only provided fields are updated.
+      properties:
+        to_date:
+          type: string
+          format: date
+          nullable: true
+        doctor_name:
+          type: string
+          nullable: true
+          maxLength: 50
+        hospital_name:
+          type: string
+          nullable: true
+          maxLength: 50
+        speciality:
+          type: string
+          nullable: true
+          maxLength: 50
+        symptoms:
+          type: string
+          nullable: true
+        diagnosis:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        follow_up_date:
+          type: string
+          format: date
+          nullable: true
+
+    ListDoctorVisitsResponse:
+      type: object
+      properties:
+        doctor_visits:
+          type: array
+          items:
+            $ref: '#/components/schemas/DoctorVisit'
+        total_size:
+          type: integer
+          description: Total count matching the filter across all pages.
+        page:
+          type: integer
+          description: Present only on the paginated GET list endpoint.
+        size:
+          type: integer
+          description: Present only on the paginated GET list endpoint.
+
+
+      type: object
+      properties:
+        error_code:
+          type: string
+        http_status:
+          type: integer
+        message:
+          type: string
+        details:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+
