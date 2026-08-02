@@ -46,10 +46,22 @@ $start = Get-Date
 
 if ($Service -eq 'web') {
     # ── Frontend build ─────────────────────────────────────────────────────────
+    $stdoutPath = Join-Path $env:TEMP "suchika-build-$Service-stdout.txt"
+    $stderrPath = Join-Path $env:TEMP "suchika-build-$Service-stderr.txt"
+    if (Test-Path $stdoutPath) { Remove-Item $stdoutPath -Force }
+    if (Test-Path $stderrPath) { Remove-Item $stderrPath -Force }
+
     Push-Location (Join-Path $root 'web')
     try {
-        & npm run build 2>&1 | Tee-Object -FilePath $logFile
-        $exit = $LASTEXITCODE
+        $proc = Start-Process -FilePath 'cmd.exe' -ArgumentList @('/c', 'npm run build') -WorkingDirectory (Join-Path $root 'web') -NoNewWindow -Wait -PassThru -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
+        $exit = $proc.ExitCode
+
+        if (Test-Path $stdoutPath) {
+            Get-Content $stdoutPath | Tee-Object -FilePath $logFile -Append
+        }
+        if (Test-Path $stderrPath) {
+            Get-Content $stderrPath | Tee-Object -FilePath $logFile -Append
+        }
     } finally {
         Pop-Location
     }
@@ -57,10 +69,23 @@ if ($Service -eq 'web') {
     # ── Gradle build ───────────────────────────────────────────────────────────
     $tasks = $gradleTasks[$Service]
     $extra = if ($NoCache) { @('--no-build-cache') } else { @() }
+    $stdoutPath = Join-Path $env:TEMP "suchika-build-$Service-stdout.txt"
+    $stderrPath = Join-Path $env:TEMP "suchika-build-$Service-stderr.txt"
+    if (Test-Path $stdoutPath) { Remove-Item $stdoutPath -Force }
+    if (Test-Path $stderrPath) { Remove-Item $stderrPath -Force }
+
     Push-Location $root
     try {
-        & .\gradlew.bat @tasks @extra 2>&1 | Tee-Object -FilePath $logFile
-        $exit = $LASTEXITCODE
+        $arguments = @('/c', '.\gradlew.bat') + $tasks + $extra
+    $proc = Start-Process -FilePath 'cmd.exe' -ArgumentList $arguments -WorkingDirectory $root -NoNewWindow -Wait -PassThru -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
+    $exit = $proc.ExitCode
+
+        if (Test-Path $stdoutPath) {
+            Get-Content $stdoutPath | Tee-Object -FilePath $logFile -Append
+        }
+        if (Test-Path $stderrPath) {
+            Get-Content $stderrPath | Tee-Object -FilePath $logFile -Append
+        }
     } finally {
         Pop-Location
     }
@@ -73,9 +98,11 @@ $secs    = $elapsed % 60
 if ($exit -eq 0) {
     OK "$Service built in ${mins}m${secs}s"
     Write-Host "     Log: $logFile" -ForegroundColor DarkGray
+    $global:LASTEXITCODE = 0
 } else {
     Fail "$Service build FAILED in ${mins}m${secs}s"
     Write-Host "     Log: $logFile" -ForegroundColor DarkGray
     Write-Host "     Run: logs $Service   to tail the output" -ForegroundColor Yellow
+    $global:LASTEXITCODE = $exit
     exit $exit
 }

@@ -24,22 +24,23 @@ $_Scripts = $PSScriptRoot                   # scripts/ folder
 # ── Build commands ─────────────────────────────────────────────────────────────
 # Builds compile + package (with Gradle cache). Use build-verify for pre-commit.
 
-function build-profile   { & "$_Scripts\build-service.ps1" profile   @args }
-function build-wealth    { & "$_Scripts\build-service.ps1" wealth    @args }
-function build-health    { & "$_Scripts\build-service.ps1" health    @args }
-function build-household { & "$_Scripts\build-service.ps1" household @args }
-function build-gateway   { & "$_Scripts\build-service.ps1" gateway   @args }
-function build-web       { & "$_Scripts\build-service.ps1" web       @args }
-function build-shared    { & "$_Scripts\build-service.ps1" shared    @args }
+function build-profile   { & "$_Scripts\build-service.ps1" -Service profile   @args }
+function build-wealth    { & "$_Scripts\build-service.ps1" -Service wealth    @args }
+function build-health    { & "$_Scripts\build-service.ps1" -Service health    @args }
+function build-household { & "$_Scripts\build-service.ps1" -Service household @args }
+function build-gateway   { & "$_Scripts\build-service.ps1" -Service gateway   @args }
+function build-web       { & "$_Scripts\build-service.ps1" -Service web       @args }
+function build-shared    { & "$_Scripts\build-service.ps1" -Service shared    @args }
 
 function build-all {
     # Builds all services in correct dependency order (profile first, shared first).
     # Pass -NoCache to add --no-build-cache (slower but guaranteed clean bytecode).
     param([switch]$NoCache)
-    $nc = if ($NoCache) { @('-NoCache') } else { @() }
     Write-Host "`n=== build-all ===" -ForegroundColor Cyan
     foreach ($svc in @('shared','profile','wealth','health','household','gateway','web')) {
-        & "$_Scripts\build-service.ps1" $svc @nc
+        $cmdArgs = @()
+        if ($NoCache) { $cmdArgs += '-NoCache' }
+        & "$_Scripts\build-service.ps1" -Service $svc @cmdArgs
         if ($LASTEXITCODE -ne 0) {
             Write-Host "  [X]  build-all stopped at: $svc" -ForegroundColor Red
             return
