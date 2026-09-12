@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "defaultMode": "bypassPermissions",
+    "allow": [
+      "Edit",
+      "Write",
+      "Bash",
+      "PowerShell"
+    ]
+  }
+}
