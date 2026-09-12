@@ -80,9 +80,8 @@ npm run test:ci        # Single-run (non-watch)
 ```bash
 psql -U postgres -c "CREATE DATABASE app_db;"
 psql -U postgres -d app_db -f application/flyway/00_bootstrap.sql
-cp infrastructure/local/.env.template application/finance/.env
-# Edit application/finance/.env and set DB_PASSWORD
 ```
+No further config is needed for local dev: every service's `application.properties` defaults `DB_USERNAME`/`DB_PASSWORD`/`DB_URL` to the same `app_user`/`local_dev_only`/`localhost:5432/app_db` that `00_bootstrap.sql` creates. `infrastructure/local/.env.template` documents these variables for reference, but nothing in the build actually loads a `.env` file — to override a value, set a real OS/shell environment variable (or an IntelliJ run-config env var) with that name before starting a service.
 
 ## Architecture
 
@@ -103,6 +102,10 @@ Each domain has three layers:
 
 Package convention: `com.suchika.{domain}.domain.*` / `.ports.input.*` / `.ports.output.*` / `.adapters.*`
 
+Two cross-cutting modules sit outside the four domains:
+- `shared/` — framework-free: `AppLogger`, the `shared/exception/` hierarchy, `ApplicationExceptionMapper`, and the `ErrorLog` domain object/ports. Depended on by every domain's `domain`/`ports`/`adapters`.
+- `shared-adapter/` — Quarkus/Panache abstract base classes (`AbstractErrorLog{Entity,PanacheRepository,Resource,Service}`) that each domain's `adapters` module subclasses for its own `error_log` table. Depended on only by `adapters` modules, never by `domain`/`ports`.
+
 `web-gateway` is a Backend-for-Frontend (BFF) aggregator for cross-domain dashboard data. It has no database dependency — it composes domain REST calls via MicroProfile Rest Client and runs CQRS projections. Domain service contracts (`application/contract/{domain}.yaml`) are mirrored into `application/web-gateway/src/main/resources/` for the Rest Client. The gateway contract (`application/contract/gateway.yaml`) is what the frontend generates its typed client from.
 
 **Frontend talks only to the gateway at `http://localhost:8080`** — never to domain services directly. Domain service Swagger UIs are available at `http://localhost:{port}/swagger-ui`.
@@ -113,11 +116,13 @@ Package convention: `com.suchika.{domain}.domain.*` / `.ports.input.*` / `.ports
 
 | Schema | Owner | Content |
 |---|---|---|
-| `profile` | profile module | `admin` — household manager; `profile` — all household members |
-| `wealth` | wealth module | `account`, `transaction`, `statement_upload`, `upload_error_log`, `physical_asset` |
-| `household` | household module | `calendar_event`, `inventory_item`, `goal` |
-| `health` | health module | `vital_reading`, `doctor_visit` |
+| `profile` | profile module | `admin` — household manager; `profile` — all household members; `error_log` |
+| `wealth` | wealth module | `account`, `transaction`, `statement_upload`, `upload_error_log`, `physical_asset`, `goal_plan` (+ `_milestone`/`_rule`/`_trigger_event`), `insurance_policy`, `error_log` |
+| `household` | household module | `calendar_event`, `inventory_item`, `goal`, `error_log` |
+| `health` | health module | `vital_reading`, `doctor_visit`, `error_log` |
 | `projections` | web-gateway | `dashboard_snapshot` — CQRS read model (UPSERT on recalculation) |
+
+Every domain schema (not `projections`) has its own `error_log` table, written by `ApplicationExceptionMapper` via the `shared`/`shared-adapter` vertical slice above and surfaced through `GET /v1/errors` (and gateway-aggregated at `GET /v1/console/errors`).
 
 Profile schema design: `profile.admin` is the household manager (future auth anchor). `profile.profile` holds all household members and has an `admin_id FK → profile.admin`. Every other domain's tables hold `profile_id UUID REFERENCES profile.profile(id)` — pointing into the member record, never into admin. No cross-domain SQL joins.
 
@@ -126,7 +131,7 @@ Profile schema design: `profile.admin` is the household manager (future auth anc
 Flyway migrations live in `application/flyway/{domain}/` and are auto-run by each module on startup.
 
 - `application/flyway/00_bootstrap.sql` — run **manually** once as superuser before any module starts; creates schemas and roles
-- Each domain starts at `V1__` — never skip or edit a committed migration; create a new versioned file
+- Each domain currently has a single consolidated `V1.0.0__init_<domain>.sql`, plus a repeatable `R__seed_<domain>_test_data.sql` for local seed data — never edit either after it's committed; create a new versioned `V1.0.1__...`/next file instead
 - **Startup order matters:** profile must run first (other modules' migrations reference `profile.profile`)
 
 ## Dashboard Projections (CQRS)
@@ -144,7 +149,7 @@ The calculation engine lives in `web-gateway` (the BFF), which has read access t
 
 **Domain layer:** `domain/` must have zero framework dependencies. No `@Inject`, no JPA annotations (`jakarta.persistence.*`), no HTTP types. Enforced by ArchUnit in `shared/src/test/java/.../DomainRulesTest.java` — read that file before writing new classes; it documents the full dependency rules including cross-domain isolation and logging requirements.
 
-**Flyway:** Never edit a committed migration — create a new versioned file. `00_bootstrap.sql` is manual-only (Flyway does not run it). Exception #1: each domain's Flyway history was consolidated into a single `V1__init_<domain>_consolidated.sql` (2026-07-04/05, product-owner-approved override of this rule for the pre-release consolidation only — requires a manual dev DB reset, `DROP SCHEMA ... CASCADE` + re-migrate). Exception #2 (v0.5.1, 2026-07-08, product-owner-approved): the small follow-up `V2__...sql` patches that had landed on top of the profile/wealth/household V1 consolidations (`V2__drop_unused_profile_metadata.sql`, `V2__transaction_dedup_key_fix.sql`, `V2__restore_not_null_constraints.sql`) were folded back into their respective V1 files and the V2 files deleted, plus a health V1 fix (narrowing `doctor_name`/`hospital_name`/`speciality` to `VARCHAR(50)`) applied directly with no interim V2 — all requiring another full dev DB reset. Neither exception reopens the rule generally — once each V1 was re-edited it was committed again and the normal "never edit, always create a new versioned file" rule resumes immediately.
+**Flyway:** Never edit a committed migration — create a new versioned file. `00_bootstrap.sql` is manual-only (Flyway does not run it). Each domain has been through product-owner-approved pre-release consolidations before (folding follow-up patches back into a single `V1.x` file, each requiring a manual dev DB reset — `DROP SCHEMA ... CASCADE` + re-migrate); that pattern is a deliberate, occasional exception, not the norm — once a file is re-committed after such a consolidation, the normal "never edit, always add a new versioned file" rule resumes immediately.
 
 **DB constraint philosophy — two categories (revised 2026-07-05, supersedes the prior CHECK-constraint guidance):**
 - **Keep in DB** (structural invariants enforced everywhere, including direct DB access): NOT NULL, PK, FK, UNIQUE.
@@ -189,7 +194,7 @@ This repo is Codespaces-ready. The `.devcontainer/` directory configures a two-c
 ## Branch & PR Conventions
 
 - Branch names must match `^[a-zA-Z][a-zA-Z0-9_-]{3,}$` (letter start, min 4 chars, letters/digits/hyphens/underscores) — enforced by `branch-name-check` CI workflow; no type-prefix required.
-- PR titles must follow Conventional Commits, e.g. `feat(wealth): add CSV upload` — enforced by `pr-title-lint` CI workflow. Valid types: `feat`, `fix`, `docs`, `refactor`, `chore`, `test`, `ci`, `hotfix`, `perf`.
+- PR titles must follow Conventional Commits, e.g. `feat(wealth): add CSV upload` — enforced by `pr-title-lint` CI workflow. Valid types: `feat`, `fix`, `docs`, `refactor`, `chore`, `test`, `ci`, `hotfix`, `perf`. The scope in parens is optional but if present must be one of `profile`, `wealth`, `health`, `household`, `gateway`, `web`, `ci`, `shared`.
 - Full detail: [CONTRIBUTING.md](CONTRIBUTING.md), [documents/CICD.md](documents/CICD.md).
 
 ## Key Documentation
