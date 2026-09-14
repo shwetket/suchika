@@ -103,7 +103,7 @@ jobs:
         run: |
           psql -h localhost -U app_user -d app_db \
             -f application/flyway/profile/V1.0.0__init_profile.sql \
-            -f .reference/test-seed/profile/R__seed_profile_test_data.sql
+            -f application/flyway/profile/R__seed_profile_test_data.sql
       - name: Run backend tests for ${{ matrix.domain }}
         run: ./gradlew --no-daemon ${{ matrix.tasks }}
 

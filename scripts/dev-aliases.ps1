@@ -24,13 +24,48 @@ $_Scripts = $PSScriptRoot                   # scripts/ folder
 # ── Build commands ─────────────────────────────────────────────────────────────
 # Builds compile + package (with Gradle cache). Use build-verify for pre-commit.
 
-function build-profile   { & "$_Scripts\build-service.ps1" -Service profile   @args }
-function build-wealth    { & "$_Scripts\build-service.ps1" -Service wealth    @args }
-function build-health    { & "$_Scripts\build-service.ps1" -Service health    @args }
-function build-household { & "$_Scripts\build-service.ps1" -Service household @args }
-function build-gateway   { & "$_Scripts\build-service.ps1" -Service gateway   @args }
-function build-web       { & "$_Scripts\build-service.ps1" -Service web       @args }
-function build-shared    { & "$_Scripts\build-service.ps1" -Service shared    @args }
+function build-profile {
+    param([switch]$NoCache)
+    $scriptArgs = @{ Service = 'profile' }
+    if ($NoCache) { $scriptArgs['NoCache'] = $true }
+    & "$_Scripts\build-service.ps1" @scriptArgs
+}
+function build-wealth {
+    param([switch]$NoCache)
+    $scriptArgs = @{ Service = 'wealth' }
+    if ($NoCache) { $scriptArgs['NoCache'] = $true }
+    & "$_Scripts\build-service.ps1" @scriptArgs
+}
+function build-health {
+    param([switch]$NoCache)
+    $scriptArgs = @{ Service = 'health' }
+    if ($NoCache) { $scriptArgs['NoCache'] = $true }
+    & "$_Scripts\build-service.ps1" @scriptArgs
+}
+function build-household {
+    param([switch]$NoCache)
+    $scriptArgs = @{ Service = 'household' }
+    if ($NoCache) { $scriptArgs['NoCache'] = $true }
+    & "$_Scripts\build-service.ps1" @scriptArgs
+}
+function build-gateway {
+    param([switch]$NoCache)
+    $scriptArgs = @('-Service', 'gateway')
+    if ($NoCache) { $scriptArgs += '-NoCache' }
+    & "$_Scripts\build-service.ps1" @scriptArgs
+}
+function build-web {
+    param([switch]$NoCache)
+    $scriptArgs = @('-Service', 'web')
+    if ($NoCache) { $scriptArgs += '-NoCache' }
+    & "$_Scripts\build-service.ps1" @scriptArgs
+}
+function build-shared {
+    param([switch]$NoCache)
+    $scriptArgs = @('-Service', 'shared')
+    if ($NoCache) { $scriptArgs += '-NoCache' }
+    & "$_Scripts\build-service.ps1" @scriptArgs
+}
 
 function build-all {
     # Builds all services in correct dependency order (profile first, shared first).
@@ -38,9 +73,9 @@ function build-all {
     param([switch]$NoCache)
     Write-Host "`n=== build-all ===" -ForegroundColor Cyan
     foreach ($svc in @('shared','profile','wealth','health','household','gateway','web')) {
-        $cmdArgs = @()
-        if ($NoCache) { $cmdArgs += '-NoCache' }
-        & "$_Scripts\build-service.ps1" -Service $svc @cmdArgs
+        $scriptArgs = @('-Service', $svc)
+        if ($NoCache) { $scriptArgs += '-NoCache' }
+        & "$_Scripts\build-service.ps1" @scriptArgs
         if ($LASTEXITCODE -ne 0) {
             Write-Host "  [X]  build-all stopped at: $svc" -ForegroundColor Red
             return

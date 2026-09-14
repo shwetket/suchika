@@ -37,39 +37,49 @@ test.describe('Wealth pages', () => {
     });
 
     test('add and edit a Real Estate asset', async ({ page }) => {
-      // Open add modal
-      await page.getByRole('button', { name: /add physical asset/i }).click();
-      await expect(page.getByRole('heading', { name: 'Add Physical Asset' })).toBeVisible();
+      // PhysicalAssets.js requires a profile to be picked before showing any
+      // content (selectedProfileId starts empty, no auto-select) — same
+      // picker-first convention household.spec.js uses for its Add flows.
+      const profilePicker = page.getByRole('combobox').first();
+      await expect(profilePicker).toBeVisible();
+      const optionCount = await profilePicker.locator('option').count();
+      if (optionCount > 1) {
+        await profilePicker.selectOption({ index: 1 });
 
-      // Fill in details
-      await page.getByLabel('Asset Name').fill('Test Apartment');
-      await page.getByLabel('Asset Type').selectOption('REAL_ESTATE');
-      await page.getByLabel('Current Value').fill('5000000');
+        // Open add modal
+        await page.getByRole('button', { name: /add physical asset/i }).click();
+        await expect(page.getByRole('heading', { name: 'Add Physical Asset' })).toBeVisible();
 
-      // Vehicle specific fields should NOT be visible
-      await expect(page.getByLabel('Make')).not.toBeVisible();
-      await expect(page.getByLabel('Model')).not.toBeVisible();
+        // Fill in details
+        await page.getByLabel('Asset Name').fill('Test Apartment');
+        await page.getByLabel('Asset Type').selectOption('REAL_ESTATE');
+        await page.getByLabel('Current Value').fill('5000000');
 
-      // Save
-      await page.getByRole('button', { name: 'Add Asset' }).click();
+        // Vehicle specific fields should NOT be visible
+        await expect(page.getByLabel('Make')).not.toBeVisible();
+        await expect(page.getByLabel('Model')).not.toBeVisible();
 
-      // Should show up on the page
-      await expect(page.getByText('Test Apartment')).toBeVisible();
-      await expect(page.getByText('5,000,000')).toBeVisible();
+        // Save
+        await page.getByRole('button', { name: 'Add Asset' }).click();
 
-      // Open Edit Modal
-      // The edit button now uses a title="Edit asset" aria-label="Edit asset"
-      const editButton = page.locator('button[aria-label="Edit asset"]').last();
-      await editButton.click();
+        // Should show up on the page
+        await expect(page.getByText('Test Apartment')).toBeVisible();
+        await expect(page.getByText('5,000,000')).toBeVisible();
 
-      await expect(page.getByRole('heading', { name: /Edit — Test Apartment/i })).toBeVisible();
+        // Open Edit Modal
+        // The edit button now uses a title="Edit asset" aria-label="Edit asset"
+        const editButton = page.locator('button[aria-label="Edit asset"]').last();
+        await editButton.click();
 
-      // Update value
-      await page.getByLabel('Current Value').fill('5500000');
-      await page.getByRole('button', { name: 'Save Changes' }).click();
+        await expect(page.getByRole('heading', { name: /Edit — Test Apartment/i })).toBeVisible();
 
-      // Verify update
-      await expect(page.getByText('5,500,000')).toBeVisible();
+        // Update value
+        await page.getByLabel('Current Value').fill('5500000');
+        await page.getByRole('button', { name: 'Save Changes' }).click();
+
+        // Verify update
+        await expect(page.getByText('5,500,000')).toBeVisible();
+      }
     });
   });
 });
